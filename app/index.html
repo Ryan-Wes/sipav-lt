@@ -39,7 +39,7 @@
 
   <!-- ?v= força o navegador a buscar de novo quando o código muda.
        Bump this number sempre que editar CSS ou JS. -->
-  <link rel="stylesheet" href="css/app.css?v=20">
+  <link rel="stylesheet" href="css/app.css?v=21">
 </head>
 <body class="h-full flex flex-col bg-slate-100 text-slate-800 antialiased">
 
@@ -162,6 +162,11 @@
         <button onclick="SIPAV.app.abrirEncarregados()" class="btn-header bg-indigo-800 hover:bg-indigo-900">
           <i data-lucide="users" class="w-4 h-4"></i>
           <span>Encarregados</span>
+        </button>
+
+        <button onclick="SIPAV.app.abrirHistoricoDoTrecho()" class="btn-header bg-indigo-800 hover:bg-indigo-900" title="Quem mexeu no quê neste trecho">
+          <i data-lucide="history" class="w-4 h-4"></i>
+          <span>Histórico</span>
         </button>
 
         <button onclick="SIPAV.app.alternarTema()" class="btn-tema" title="Alternar tema claro/escuro">
@@ -370,9 +375,14 @@
     </div>
 
     <div class="flex justify-between items-center p-4 border-t border-slate-200 modal-rodape rounded-b-2xl">
-      <button onclick="SIPAV.app.abrirRestricao()" class="text-sm text-rose-600 hover:text-rose-700 font-medium flex items-center gap-1.5">
-        <i data-lucide="octagon-alert" class="w-4 h-4"></i> Restrições
-      </button>
+      <div class="flex items-center gap-4">
+        <button onclick="SIPAV.app.abrirRestricao()" class="text-sm text-rose-600 hover:text-rose-700 font-medium flex items-center gap-1.5">
+          <i data-lucide="octagon-alert" class="w-4 h-4"></i> Restrições
+        </button>
+        <button onclick="SIPAV.app.abrirHistoricoDaTorre()" class="text-sm text-slate-500 hover:text-slate-700 font-medium flex items-center gap-1.5">
+          <i data-lucide="history" class="w-4 h-4"></i> Histórico
+        </button>
+      </div>
       <button onclick="SIPAV.app.fecharModal('modalProgramacao')" class="btn-secundario">Fechar</button>
     </div>
   </div>
@@ -431,10 +441,10 @@
   </div>
 </div>
 
-<script src="js/config.js?v=20"></script>
-<script src="js/db.js?v=20"></script>
-<script src="js/ui.js?v=20"></script>
-<script src="js/render.js?v=20"></script>
-<script src="js/app.js?v=20"></script>
+<script src="js/config.js?v=21"></script>
+<script src="js/db.js?v=21"></script>
+<script src="js/ui.js?v=21"></script>
+<script src="js/render.js?v=21"></script>
+<script src="js/app.js?v=21"></script>
 </body>
 </html>

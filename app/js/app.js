@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v20 · 2026-09-23';
+  var VERSAO = 'v21 · 2026-09-23';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -626,6 +626,106 @@ window.SIPAV = window.SIPAV || {};
         return db.removerProgramacao(id)
           .then(recarregarProgramacoes)
           .then(function () { ui.pronto(); ui.avisar('Programação removida.', 'sucesso'); });
+      })
+      .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro'); });
+  }
+
+  /* ======================================================================== */
+  /* HISTÓRICO                                                                */
+  /* ======================================================================== */
+
+  var ESTILO_ACAO = {
+    CRIOU:   { cor: '#10B981', icone: 'plus',    verbo: 'programou' },
+    ALTEROU: { cor: '#F59E0B', icone: 'pencil',  verbo: 'alterou' },
+    REMOVEU: { cor: '#E11D48', icone: 'trash-2', verbo: 'removeu' }
+  };
+
+  var ROTULO_CAMPO = {
+    data: 'Data', atividade: 'Atividade', encarregado: 'Encarregado',
+    situacao: 'Situação', observacao: 'Observação'
+  };
+
+  function linhaHistorico(h, mostrarTorre) {
+    var e = ESTILO_ACAO[h.acao] || ESTILO_ACAO.ALTEROU;
+
+    var alvo = (mostrarTorre ? 'torre ' + esc(h.torre_identificador) + ' · ' : '') +
+               '<strong>' + esc(h.atividade_nome || '—') + '</strong>' +
+               ' em ' + ui.dataCurta(h.data) +
+               (h.encarregado_nome ? ' · ' + esc(h.encarregado_nome) : '');
+
+    var detalhe = '';
+    if (h.acao === 'ALTEROU' && h.mudancas) {
+      detalhe = Object.keys(h.mudancas).map(function (campo) {
+        var m = h.mudancas[campo];
+        var de   = campo === 'data' ? ui.dataCurta(m.de)   : (m.de   || '—');
+        var para = campo === 'data' ? ui.dataCurta(m.para) : (m.para || '—');
+        return '<div class="text-xs text-slate-500">' +
+                 (ROTULO_CAMPO[campo] || campo) + ': ' +
+                 '<span class="line-through opacity-70">' + esc(de) + '</span> → ' +
+                 '<strong>' + esc(para) + '</strong></div>';
+      }).join('');
+    }
+
+    if (h.override_motivo) {
+      detalhe += '<div class="text-xs text-amber-600 mt-0.5">' +
+                 'Fora da sequência: ' + esc(h.override_motivo) + '</div>';
+    }
+
+    return '' +
+      '<div class="flex gap-3 rounded-lg border border-slate-200 px-3 py-2">' +
+        '<span class="w-6 h-6 rounded-full shrink-0 flex items-center justify-center mt-0.5" ' +
+              'style="background:' + e.cor + '22;color:' + e.cor + '">' +
+          '<i data-lucide="' + e.icone + '" class="w-3 h-3"></i></span>' +
+        '<div class="flex-1 min-w-0">' +
+          '<p class="text-sm text-slate-700">' +
+            '<strong>' + esc(h.quem_nome || 'desconhecido') + '</strong> ' + e.verbo + ' ' + alvo +
+          '</p>' +
+          detalhe +
+        '</div>' +
+        '<span class="text-[11px] text-slate-400 shrink-0 whitespace-nowrap mt-0.5">' +
+          esc(ui.quandoRelativo(h.quando)) + '</span>' +
+      '</div>';
+  }
+
+  function montarHistorico(lista, titulo, mostrarTorre) {
+    var corpo = lista.length
+      ? '<div class="space-y-1.5">' +
+          lista.map(function (h) { return linhaHistorico(h, mostrarTorre); }).join('') +
+        '</div>'
+      : '<p class="text-sm text-slate-400 italic text-center py-8">' +
+          'Nenhuma alteração registrada ainda.</p>';
+
+    ui.modalGenerico({
+      titulo: titulo,
+      corpoHtml:
+        '<div class="space-y-3">' +
+          '<p class="text-xs text-slate-500">' +
+            'Registro gravado pelo banco a cada criação, alteração ou remoção. ' +
+            'Não pode ser editado nem apagado pela aplicação.' +
+          '</p>' + corpo +
+        '</div>'
+    });
+  }
+
+  function abrirHistoricoDaTorre() {
+    if (!torreAberta) return;
+    var torre = torreAberta;
+    ui.processando('Carregando histórico…');
+    db.historicoDaTorre(torre.torre_id)
+      .then(function (lista) {
+        ui.pronto();
+        montarHistorico(lista, 'Histórico da torre ' + torre.identificador, false);
+      })
+      .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro'); });
+  }
+
+  function abrirHistoricoDoTrecho() {
+    if (!E.trechoAtual) return;
+    ui.processando('Carregando histórico…');
+    db.historicoDoTrecho(E.trechoAtual.id, 80)
+      .then(function (lista) {
+        ui.pronto();
+        montarHistorico(lista, 'Últimas alterações — ' + E.trechoAtual.nome, true);
       })
       .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro'); });
   }
@@ -1525,6 +1625,8 @@ window.SIPAV = window.SIPAV || {};
 
     abrirRestricao: abrirRestricao,
     liberarRestricao: liberarRestricao,
+    abrirHistoricoDaTorre: abrirHistoricoDaTorre,
+    abrirHistoricoDoTrecho: abrirHistoricoDoTrecho,
 
     abrirEncarregados: abrirEncarregados,
     adicionarEncarregado: adicionarEncarregado,

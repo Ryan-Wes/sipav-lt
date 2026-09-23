@@ -134,6 +134,26 @@ window.SIPAV = window.SIPAV || {};
 
   function hoje() { return new Date().toISOString().slice(0, 10); }
 
+  /** Carimbo de tempo em linguagem de gente: "agora", "há 2 horas", "ontem". */
+  function quandoRelativo(carimbo) {
+    var d = new Date(carimbo);
+    var seg = Math.floor((Date.now() - d.getTime()) / 1000);
+
+    if (seg < 60)    return 'agora';
+    if (seg < 3600)  return 'há ' + Math.floor(seg / 60) + ' min';
+    if (seg < 86400) {
+      var h = Math.floor(seg / 3600);
+      return 'há ' + h + (h === 1 ? ' hora' : ' horas');
+    }
+
+    var dias = Math.floor(seg / 86400);
+    if (dias === 1) return 'ontem';
+    if (dias < 7)   return 'há ' + dias + ' dias';
+
+    return ('0' + d.getDate()).slice(-2) + '/' + MESES[d.getMonth()] + ' ' +
+           ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+  }
+
   /* --------------------------------------------------------------- Semanas -- */
 
   /** Date → 'AAAA-MM-DD' usando o fuso local, não UTC. */
@@ -221,7 +241,7 @@ window.SIPAV = window.SIPAV || {};
     paraData: paraData, dataCurta: dataCurta, dataLonga: dataLonga, hoje: hoje,
     iso: iso, somarDias: somarDias, segundaDaSemana: segundaDaSemana,
     primeiroDiaDoMes: primeiroDiaDoMes, ultimoDiaDoMes: ultimoDiaDoMes,
-    rotuloPeriodo: rotuloPeriodo,
+    rotuloPeriodo: rotuloPeriodo, quandoRelativo: quandoRelativo,
     km: km, esc: esc, corDoTexto: corDoTexto, rgba: rgba
   };
 })();

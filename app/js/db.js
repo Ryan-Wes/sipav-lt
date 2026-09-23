@@ -411,6 +411,36 @@ window.SIPAV = window.SIPAV || {};
   }
 
   /* ======================================================================== */
+  /* HISTÓRICO                                                                */
+  /* ======================================================================== */
+
+  var CAMPOS_HISTORICO =
+    'id, quando, acao, quem_nome, torre_identificador, atividade_nome, ' +
+    'encarregado_nome, data, situacao, observacao, override_motivo, mudancas';
+
+  /** Histórico de uma torre, do mais recente para o mais antigo. */
+  function historicoDaTorre(torreId) {
+    return cliente()
+      .from('programacao_historico')
+      .select(CAMPOS_HISTORICO)
+      .eq('torre_id', torreId)
+      .order('quando', { ascending: false })
+      .limit(100)
+      .then(function (r) { return ok(r, 'Falha ao carregar histórico'); });
+  }
+
+  /** Últimas alterações do trecho inteiro. */
+  function historicoDoTrecho(trechoId, limite) {
+    return cliente()
+      .from('programacao_historico')
+      .select(CAMPOS_HISTORICO)
+      .eq('trecho_id', trechoId)
+      .order('quando', { ascending: false })
+      .limit(limite || 60)
+      .then(function (r) { return ok(r, 'Falha ao carregar histórico'); });
+  }
+
+  /* ======================================================================== */
   /* RESTRIÇÕES                                                               */
   /* ======================================================================== */
 
@@ -706,6 +736,9 @@ window.SIPAV = window.SIPAV || {};
     removerProgramacao: removerProgramacao,
     limparProgramacoesDaTorre: limparProgramacoesDaTorre,
     conflitosDoEncarregado: conflitosDoEncarregado,
+
+    historicoDaTorre: historicoDaTorre,
+    historicoDoTrecho: historicoDoTrecho,
 
     restricoes: restricoes,
     criarRestricao: criarRestricao,
