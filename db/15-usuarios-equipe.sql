@@ -18,35 +18,30 @@
 --   LEITURA      só visualiza — fiscalização, diretoria
 -- =============================================================================
 
--- ---------------------------------------------------------------- Alessandro --
+-- Os três de uma vez. Os usuários já precisam existir no Authentication.
 insert into perfil (id, nome, papel, obra_id, ativo)
-select u.id, 'Alessandro Cordova', 'PLANEJAMENTO'::papel_usuario,
+select u.id, v.nome, v.papel::papel_usuario,
        (select id from obra where codigo = 'SD'), true
-from auth.users u
-where u.email = 'TROCAR@exemplo.com'
+from (values
+  ('alessandro.macedo@elecnor.com', 'Alessandro Cordova',  'PLANEJAMENTO'),
+  ('hanna.chocron@elecnor.com',     'Hanna Hamoy Chocron', 'PLANEJAMENTO'),
+  ('rominick.veiga@elecnor.es',     'Rominick Gustavo',    'PLANEJAMENTO')
+) as v(email, nome, papel)
+join auth.users u on lower(u.email) = lower(v.email)
 on conflict (id) do update
   set nome = excluded.nome, papel = excluded.papel,
       obra_id = excluded.obra_id, ativo = true;
 
--- --------------------------------------------------------------------- Hanna --
-insert into perfil (id, nome, papel, obra_id, ativo)
-select u.id, 'Hanna Hamoy Chocron', 'PLANEJAMENTO'::papel_usuario,
-       (select id from obra where codigo = 'SD'), true
-from auth.users u
-where u.email = 'TROCAR@exemplo.com'
-on conflict (id) do update
-  set nome = excluded.nome, papel = excluded.papel,
-      obra_id = excluded.obra_id, ativo = true;
-
--- ------------------------------------------------------------------ Rominick --
-insert into perfil (id, nome, papel, obra_id, ativo)
-select u.id, 'Rominick Gustavo', 'PLANEJAMENTO'::papel_usuario,
-       (select id from obra where codigo = 'SD'), true
-from auth.users u
-where u.email = 'TROCAR@exemplo.com'
-on conflict (id) do update
-  set nome = excluded.nome, papel = excluded.papel,
-      obra_id = excluded.obra_id, ativo = true;
+-- Avisa se algum e-mail não bateu com o que foi cadastrado no Authentication
+select v.email as nao_encontrado
+from (values
+  ('alessandro.macedo@elecnor.com'),
+  ('hanna.chocron@elecnor.com'),
+  ('rominick.veiga@elecnor.es')
+) as v(email)
+where not exists (
+  select 1 from auth.users u where lower(u.email) = lower(v.email)
+);
 
 
 -- =============================================================================
