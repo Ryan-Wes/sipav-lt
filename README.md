@@ -9,16 +9,19 @@ Obra de referência: **LT Serra Dourada** (Elecnor).
 
 ## Status
 
-**V1 em construção — meta: sexta, 25/09/2026.**
+**V1 no ar — https://sipav-lt.vercel.app**
+
+Publicado em 23/09/2026, testado com dado real da obra.
 
 | | |
 |---|---|
-| ✅ | Contexto, análise do protótipo e backlog documentados |
-| ✅ | Schema do banco: precedência, restrições, RLS, realtime |
-| ✅ | Seed: trechos, atividades em ordem de execução, dependências, encarregados |
-| ⏳ | Projeto Supabase (URL + anon key) |
-| ⏳ | Validação da cadeia de atividades com Alessandro / Rominick |
-| 🔜 | Interface: login, grade de torres, programação, 4 visões, importação, PDF/WhatsApp |
+| ✅ | Banco no Supabase: precedência, restrições, RLS por papel, realtime |
+| ✅ | Cadeia de 28 atividades validada com o Alessandro |
+| ✅ | Interface: login, grade de torres, programação, 4 visões, importação, PDF/WhatsApp |
+| ✅ | Publicado na Vercel, com deploy automático a cada push |
+| ✅ | Tempo real confirmado entre abas, e grade usável no celular |
+| ⏳ | Importar os trechos Campo Formoso–Barra e Juazeiro–Campo Formoso |
+| ⏳ | Criar os acessos da equipe (`db/15-usuarios-equipe.sql`) |
 
 ## Arquitetura
 
@@ -26,7 +29,8 @@ Obra de referência: **LT Serra Dourada** (Elecnor).
   regras de precedência em funções/triggers no próprio banco (cliente nenhum burla)
 - **Frontend:** HTML/JS estático, scripts clássicos, Tailwind e Supabase por CDN.
   Sem passo de build — a máquina de trabalho não tem Node, npm nem Git
-- **Deploy:** estático na Vercel. Quem tem o link e usuário, acessa
+- **Deploy:** estático na Vercel, ligado ao repositório. Todo push na `main`
+  republica sozinho. Quem tem o link e usuário, acessa — inclusive pelo celular
 
 Migração futura pra Next.js é barata: o backend não muda, só a camada de tela.
 
