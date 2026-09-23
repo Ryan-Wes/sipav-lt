@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v14 · 2026-09-23';
+  var VERSAO = 'v15 · 2026-09-23';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -418,6 +418,11 @@ window.SIPAV = window.SIPAV || {};
     $('btnAdicionar').disabled = false;
   }
 
+  // Cada consulta de bloqueio recebe um número. Só a mais recente pode pintar a
+  // tela: sem isso, trocar de atividade rápido fazia a resposta antiga chegar
+  // por último e sobrescrever a nova — o bloqueio parecia ligar "às vezes".
+  var seqBloqueio = 0;
+
   /** Consulta a regra de precedência no banco e avisa antes de gravar. */
   function verificarBloqueio() {
     if (!torreAberta) return;
@@ -425,21 +430,40 @@ window.SIPAV = window.SIPAV || {};
     var data = $('campoData').value;
     if (!atividadeId || !data) return;
 
+    // Trocou de atividade ou de data: o override anterior não vale mais
+    $('campoOverride').checked = false;
+    $('campoOverrideMotivo').value = '';
+    $('campoOverrideMotivo').classList.add('hidden');
+
+    var meu = ++seqBloqueio;
+    $('btnAdicionar').disabled = true;
+
     db.motivoBloqueio(torreAberta.torre_id, atividadeId, data)
       .then(function (motivo) {
-        if (motivo) {
-          $('textoBloqueio').textContent = motivo;
-          ui.mostrar('avisoBloqueio');
-          $('btnAdicionar').disabled = !$('campoOverride').checked;
-        } else {
-          ui.esconder('avisoBloqueio');
-          $('btnAdicionar').disabled = false;
-        }
-        ui.icones();
+        if (meu !== seqBloqueio) return;   // resposta atrasada, descarta
+        aplicarBloqueio(motivo);
       })
-      .catch(function () { /* a regra definitiva roda no trigger de qualquer jeito */ });
+      .catch(function (e) {
+        if (meu !== seqBloqueio) return;
+        // Falhar calado deixava o aviso com o estado da atividade anterior.
+        // Melhor dizer que não deu para verificar do que mentir que está livre.
+        aplicarBloqueio('Não foi possível verificar a sequência agora: ' + e.message +
+                        '. O banco recusa de qualquer forma se estiver fora de ordem.');
+      });
 
     verificarConflito();
+  }
+
+  function aplicarBloqueio(motivo) {
+    if (motivo) {
+      $('textoBloqueio').textContent = motivo;
+      ui.mostrar('avisoBloqueio');
+      $('btnAdicionar').disabled = !$('campoOverride').checked;
+    } else {
+      ui.esconder('avisoBloqueio');
+      $('btnAdicionar').disabled = false;
+    }
+    ui.icones();
   }
 
   function alternarOverride() {
