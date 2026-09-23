@@ -20,8 +20,8 @@ Publicado em 23/09/2026, testado com dado real da obra.
 | ✅ | Interface: login, grade de torres, programação, 4 visões, importação, PDF/WhatsApp |
 | ✅ | Publicado na Vercel, com deploy automático a cada push |
 | ✅ | Tempo real confirmado entre abas, e grade usável no celular |
-| ⏳ | Importar os trechos Campo Formoso–Barra e Juazeiro–Campo Formoso |
-| ⏳ | Criar os acessos da equipe (`db/15-usuarios-equipe.sql`) |
+| ✅ | Os quatro trechos importados com km, canteiro, estágio, estrutura e modelo |
+| ✅ | Acessos da equipe criados: 1 admin e 3 de planejamento |
 
 ## Arquitetura
 
@@ -74,9 +74,24 @@ referencia/ protótipo original, ata e post-its
 | `referencia/postit-2-ordem-e-bloqueio.jpeg` | "Colocar atividades em ordem de execução" / "Aplicar regras de bloqueio de atividades que precisem de outra anterior" |
 | `referencia/postit-3-painel-supervisor.jpeg` | "Fazer tipo um painel que cada supervisor vai fazer sua pré-programação e mandar solicitação pra gente aceitar" |
 
-## Pendências
+## Próximos passos
 
-- [ ] Renomear a pasta do projeto para `sipav-lt`
-- [ ] Validar cadeia de atividades e precedências (topo de `db/02-seed.sql`)
-- [ ] Obter o modelo oficial de planilha da fiscalização (com Alisson)
-- [ ] Avisar o Daniel que o dado da obra ficará em infra externa (Supabase)
+Em ordem de impacto, considerando o que a equipe pediu na reunião de 22/09:
+
+- [ ] **Excel no layout da fiscalização** — depende do modelo oficial, com o Alisson.
+      É o que decide se a ferramenta é aceita ou se vira retrabalho
+- [ ] **Tela de apontamento do executado** — o schema já suporta (`execucao`), falta a
+      interface. Destrava produtividade por encarregado, programado × executado
+      e curva de avanço
+- [ ] **Painel do supervisor** com fluxo de solicitação e aceite (post-it 3).
+      A RLS já está pronta para isso; falta a tela de aprovação
+- [ ] **Editor de atividades no front** — hoje mexer na cadeia exige SQL
+- [ ] **Quebra do relatório por semana**, em vez da quinzena inteira
+
+Pendências menores:
+
+- [ ] Renomear a pasta local do projeto para `sipav-lt`
+- [ ] Avisar o Daniel que o dado da obra está em infra externa (Supabase)
+- [ ] Recuperação de senha por e-mail — exige servidor de envio configurado
+- [ ] Usar `torre.estrutura` para tratar as atividades condicionais com precisão
+      (ver rodapé de `db/05-cadeia-alessandro.sql`)
