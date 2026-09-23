@@ -153,13 +153,24 @@ window.SIPAV = window.SIPAV || {};
       });
     },
 
-    /** Perfil da aplicação (nome + papel). null se o usuário ainda não tem perfil. */
+    /**
+     * Perfil da aplicação (nome + papel). null se o usuário ainda não tem perfil.
+     *
+     * O filtro por id é obrigatório e não é redundante: as políticas de RLS se
+     * somam, e a política de ADMIN permite enxergar todos os perfis. Sem o
+     * filtro, um administrador recebia a lista inteira onde se esperava uma
+     * linha só — e quebrava assim que existisse mais de um usuário.
+     */
     perfil: function () {
-      return cliente()
-        .from('perfil')
-        .select('id, nome, papel, obra_id, ativo')
-        .maybeSingle()
-        .then(function (r) { return ok(r, 'Falha ao carregar perfil'); });
+      return auth.usuario().then(function (u) {
+        if (!u) return null;
+        return cliente()
+          .from('perfil')
+          .select('id, nome, papel, obra_id, ativo')
+          .eq('id', u.id)
+          .maybeSingle()
+          .then(function (r) { return ok(r, 'Falha ao carregar perfil'); });
+      });
     }
   };
 
