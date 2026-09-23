@@ -117,6 +117,23 @@ window.SIPAV = window.SIPAV || {};
       return cliente().auth.signOut();
     },
 
+    /** Troca a senha do usuário logado. Não exige e-mail nem administrador. */
+    alterarSenha: function (nova) {
+      return cliente().auth.updateUser({ password: nova }).then(function (r) {
+        if (r.error) {
+          var m = r.error.message || '';
+          if (/at least|should be at least|weak/i.test(m)) {
+            throw new SipavErro('A senha precisa ter pelo menos 6 caracteres.', r.error);
+          }
+          if (/different from the old/i.test(m)) {
+            throw new SipavErro('A nova senha precisa ser diferente da atual.', r.error);
+          }
+          throw traduzErro(r.error, 'Falha ao alterar a senha');
+        }
+        return true;
+      });
+    },
+
     sessao: function () {
       return cliente().auth.getSession().then(function (r) {
         return r.data && r.data.session ? r.data.session : null;

@@ -39,7 +39,7 @@
 
   <!-- ?v= força o navegador a buscar de novo quando o código muda.
        Bump this number sempre que editar CSS ou JS. -->
-  <link rel="stylesheet" href="css/app.css?v=16">
+  <link rel="stylesheet" href="css/app.css?v=17">
 </head>
 <body class="h-full flex flex-col bg-slate-100 text-slate-800 antialiased">
 
@@ -173,6 +173,9 @@
             <p class="text-xs font-semibold leading-tight" id="nomeUsuario">—</p>
             <p class="text-[10px] text-indigo-300 leading-tight" id="papelUsuario">—</p>
           </div>
+          <button onclick="SIPAV.app.abrirAlterarSenha()" class="p-2 rounded-lg hover:bg-indigo-800 transition" title="Alterar minha senha">
+            <i data-lucide="key-round" class="w-4 h-4"></i>
+          </button>
           <button onclick="SIPAV.app.sair()" class="p-2 rounded-lg hover:bg-indigo-800 transition" title="Sair">
             <i data-lucide="log-out" class="w-4 h-4"></i>
           </button>
@@ -410,10 +413,10 @@
   </div>
 </div>
 
-<script src="js/config.js?v=16"></script>
-<script src="js/db.js?v=16"></script>
-<script src="js/ui.js?v=16"></script>
-<script src="js/render.js?v=16"></script>
-<script src="js/app.js?v=16"></script>
+<script src="js/config.js?v=17"></script>
+<script src="js/db.js?v=17"></script>
+<script src="js/ui.js?v=17"></script>
+<script src="js/render.js?v=17"></script>
+<script src="js/app.js?v=17"></script>
 </body>
 </html>

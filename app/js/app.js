@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v16 · 2026-09-23';
+  var VERSAO = 'v17 · 2026-09-23';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -639,6 +639,64 @@ window.SIPAV = window.SIPAV || {};
   /* CADASTROS                                                                */
   /* ======================================================================== */
 
+  /**
+   * Cada pessoa troca a própria senha depois do primeiro acesso, sem depender
+   * do administrador. Recuperação por e-mail ("esqueci minha senha") exigiria
+   * um servidor de envio configurado — fica para depois.
+   */
+  function abrirAlterarSenha() {
+    var corpo =
+      '<div class="space-y-3">' +
+        '<p class="text-sm text-slate-600">' +
+          'A senha vale para o seu acesso ao SIPAV. Mínimo de 6 caracteres.' +
+        '</p>' +
+        '<div><label class="rotulo">Nova senha</label>' +
+          '<input id="senhaNova" type="password" class="campo" autocomplete="new-password"></div>' +
+        '<div><label class="rotulo">Repita a nova senha</label>' +
+          '<input id="senhaConfirma" type="password" class="campo" autocomplete="new-password"></div>' +
+        '<p class="text-xs text-slate-400">' +
+          'Se esquecer a senha, só o administrador consegue redefinir — ainda não ' +
+          'existe recuperação por e-mail.' +
+        '</p>' +
+      '</div>';
+
+    ui.modalGenerico({
+      titulo: 'Alterar minha senha',
+      corpoHtml: corpo,
+      botoes: [
+        { rotulo: 'Cancelar', classe: 'btn-secundario' },
+        { rotulo: 'Salvar senha', classe: 'btn-primario', acao: salvarSenha }
+      ]
+    });
+
+    setTimeout(function () { $('senhaNova').focus(); }, 60);
+  }
+
+  function salvarSenha() {
+    var nova = $('senhaNova').value;
+    var conf = $('senhaConfirma').value;
+
+    if (nova.length < 6) {
+      ui.avisar('A senha precisa ter pelo menos 6 caracteres.', 'alerta');
+      $('senhaNova').focus();
+      return;
+    }
+    if (nova !== conf) {
+      ui.avisar('As duas senhas não são iguais.', 'alerta');
+      $('senhaConfirma').focus();
+      return;
+    }
+
+    ui.processando('Alterando senha…');
+    db.auth.alterarSenha(nova)
+      .then(function () {
+        ui.pronto();
+        ui.fecharModal('modalGenerico');
+        ui.avisar('Senha alterada. Use a nova no próximo login.', 'sucesso', 5000);
+      })
+      .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro', 6000); });
+  }
+
   function abrirEncarregados() {
     var corpo =
       '<div class="space-y-4">' +
@@ -1102,6 +1160,7 @@ window.SIPAV = window.SIPAV || {};
 
   window.SIPAV.app = {
     iniciar: iniciar, sair: sair, alternarTema: alternarTema,
+    abrirAlterarSenha: abrirAlterarSenha,
     trocarAba: trocarAba, mudarColunas: mudarColunas, renderizar: renderizar,
     fecharModal: ui.fecharModal,
 
