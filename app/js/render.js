@@ -17,7 +17,9 @@ window.SIPAV = window.SIPAV || {};
     perfil: null, obra: null,
     trechos: [], trechoAtual: null,
     torres: [], atividades: [], encarregados: [], canteiros: [], programacoes: [],
-    aba: 'grade', colunas: 'auto', filtroAtividade: '', filtroCanteiro: '', busca: ''
+    aba: 'grade', colunas: 'auto', filtroAtividade: '', filtroCanteiro: '', busca: '',
+    // Recorte de datas da programação. de/ate nulos = todo o período.
+    periodo: { modo: 'duas', de: null, ate: null }
   };
 
   var E = window.SIPAV.estado;
@@ -252,10 +254,14 @@ window.SIPAV = window.SIPAV || {};
     });
 
     var qtd = Object.keys(torresProgramadas).length;
+
+    // O período entra no resumo de propósito: sem isso, uma torre programada
+    // fora do recorte some da grade e parece que o lançamento se perdeu.
     $('resumoEstatisticas').innerHTML =
       '<span style="opacity:.75">' + E.torres.length + ' torres · </span>' +
       '<strong>' + qtd + ' programadas</strong>' +
-      '<span style="opacity:.75"> · ' + ui.km(kmProgramado) + ' km</span>';
+      '<span style="opacity:.75"> · ' + ui.km(kmProgramado) + ' km · ' +
+        esc(ui.rotuloPeriodo(E.periodo.de, E.periodo.ate)) + '</span>';
   }
 
   /* --------------------------------------------------------------- Tudo --- */

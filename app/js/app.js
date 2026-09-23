@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v17 · 2026-09-23';
+  var VERSAO = 'v18 · 2026-09-23';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -180,6 +180,7 @@ window.SIPAV = window.SIPAV || {};
         E.colunas = localStorage.getItem('sipav_colunas') || 'auto';
         $('filtroColunas').value = E.colunas;
 
+        restaurarPeriodo();
         return carregarTrecho();
       })
       .then(function () {
@@ -197,11 +198,19 @@ window.SIPAV = window.SIPAV || {};
       });
   }
 
+  function filtroProgramacao() {
+    return {
+      trechoId: E.trechoAtual.id,
+      de: E.periodo.de,
+      ate: E.periodo.ate
+    };
+  }
+
   function carregarTrecho() {
     if (!E.trechoAtual) return Promise.resolve();
     return Promise.all([
       db.torres(E.trechoAtual.id),
-      db.programacoes({ trechoId: E.trechoAtual.id })
+      db.programacoes(filtroProgramacao())
     ]).then(function (r) {
       E.torres = r[0];
       E.programacoes = r[1];
@@ -213,7 +222,7 @@ window.SIPAV = window.SIPAV || {};
   function recarregarProgramacoes() {
     return Promise.all([
       db.torres(E.trechoAtual.id),
-      db.programacoes({ trechoId: E.trechoAtual.id })
+      db.programacoes(filtroProgramacao())
     ]).then(function (r) {
       E.torres = r[0];
       E.programacoes = r[1];
@@ -297,6 +306,70 @@ window.SIPAV = window.SIPAV || {};
     var escuro = document.documentElement.classList.toggle('dark');
     try { localStorage.setItem('sipav_tema', escuro ? 'dark' : 'light'); } catch (e) {}
     ui.icones();
+  }
+
+  /* ---------------------------------------------------------- Período ----- */
+
+  function calcularPeriodo(modo) {
+    var seg = ui.segundaDaSemana();
+    switch (modo) {
+      case 'semana':
+        return { de: ui.iso(seg), ate: ui.iso(ui.somarDias(seg, 6)) };
+      case 'proxima':
+        return { de: ui.iso(ui.somarDias(seg, 7)), ate: ui.iso(ui.somarDias(seg, 13)) };
+      case 'duas':
+        return { de: ui.iso(seg), ate: ui.iso(ui.somarDias(seg, 13)) };
+      case 'mes':
+        return { de: ui.iso(ui.primeiroDiaDoMes()), ate: ui.iso(ui.ultimoDiaDoMes()) };
+      case 'custom':
+        return { de: $('periodoDe').value || null, ate: $('periodoAte').value || null };
+      default:
+        return { de: null, ate: null };            // 'tudo'
+    }
+  }
+
+  function aplicarPeriodo(modo, recarregar) {
+    var custom = modo === 'custom';
+
+    $('periodoDe').classList.toggle('hidden', !custom);
+    $('periodoAte').classList.toggle('hidden', !custom);
+
+    if (custom) {
+      // Ao entrar no personalizado, começa com o que estava valendo
+      if (!$('periodoDe').value)  $('periodoDe').value  = E.periodo.de  || ui.hoje();
+      if (!$('periodoAte').value) $('periodoAte').value = E.periodo.ate || ui.hoje();
+    }
+
+    var p = calcularPeriodo(modo);
+    E.periodo = { modo: modo, de: p.de, ate: p.ate };
+    $('filtroPeriodo').value = modo;
+
+    try {
+      localStorage.setItem('sipav_periodo', JSON.stringify(E.periodo));
+    } catch (e) {}
+
+    if (!recarregar) return Promise.resolve();
+
+    ui.processando('Carregando período…');
+    return recarregarProgramacoes()
+      .then(ui.pronto)
+      .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro'); });
+  }
+
+  function mudarPeriodo(modo) { aplicarPeriodo(modo, true); }
+
+  /** Restaura o período salvo. Padrão: semana atual mais a próxima — é o
+   *  horizonte de planejamento, e evita que algo lançado para a semana que vem
+   *  suma da tela logo depois de gravado. */
+  function restaurarPeriodo() {
+    var salvo = null;
+    try { salvo = JSON.parse(localStorage.getItem('sipav_periodo')); } catch (e) {}
+
+    if (salvo && salvo.modo === 'custom') {
+      $('periodoDe').value  = salvo.de  || '';
+      $('periodoAte').value = salvo.ate || '';
+    }
+    return aplicarPeriodo(salvo && salvo.modo ? salvo.modo : 'duas', false);
   }
 
   function trocarAba(aba) {
@@ -522,7 +595,20 @@ window.SIPAV = window.SIPAV || {};
       })
       .then(function () {
         ui.pronto();
-        ui.avisar('Programação adicionada.', 'sucesso');
+
+        // Gravou fora do recorte de datas: a linha existe, mas não aparece.
+        // Sem este aviso, parece que o lançamento se perdeu.
+        var data = $('campoData').value;
+        var fora = (E.periodo.de && data < E.periodo.de) ||
+                   (E.periodo.ate && data > E.periodo.ate);
+
+        if (fora) {
+          ui.avisar('Gravada para ' + ui.dataCurta(data) + ', fora do período exibido (' +
+                    ui.rotuloPeriodo(E.periodo.de, E.periodo.ate) +
+                    '). Troque o período para vê-la.', 'alerta', 7000);
+        } else {
+          ui.avisar('Programação adicionada.', 'sucesso');
+        }
         verificarBloqueio();
       })
       .catch(function (e) {
@@ -1105,7 +1191,9 @@ window.SIPAV = window.SIPAV || {};
 
     $('tituloPdf').textContent = titulo;
     $('subtituloPdf').textContent =
-      (E.obra ? E.obra.nome : '') + ' · emitido em ' + ui.dataCurta(ui.hoje());
+      (E.obra ? E.obra.nome : '') +
+      ' · período ' + ui.rotuloPeriodo(E.periodo.de, E.periodo.ate) +
+      ' · emitido em ' + ui.dataCurta(ui.hoje());
     ui.mostrar('cabecalhoPdf');
     document.body.classList.add('modo-pdf');
 
@@ -1140,7 +1228,8 @@ window.SIPAV = window.SIPAV || {};
     var lista = E.programacoes.slice().sort(function (a, b) { return a.data < b.data ? -1 : 1; });
     if (!lista.length) { ui.avisar('Nenhuma programação para compartilhar.', 'alerta'); return; }
 
-    var texto = '*SIPAV LT — ' + (E.trechoAtual ? E.trechoAtual.nome : '') + '*\n\n';
+    var texto = '*SIPAV LT — ' + (E.trechoAtual ? E.trechoAtual.nome : '') + '*\n' +
+                '_' + ui.rotuloPeriodo(E.periodo.de, E.periodo.ate) + '_\n';
     var dataAtual = null;
 
     lista.forEach(function (p) {
@@ -1162,6 +1251,7 @@ window.SIPAV = window.SIPAV || {};
     iniciar: iniciar, sair: sair, alternarTema: alternarTema,
     abrirAlterarSenha: abrirAlterarSenha,
     trocarAba: trocarAba, mudarColunas: mudarColunas, renderizar: renderizar,
+    mudarPeriodo: mudarPeriodo,
     fecharModal: ui.fecharModal,
 
     abrirTorre: abrirTorre,

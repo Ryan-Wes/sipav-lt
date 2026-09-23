@@ -134,6 +134,48 @@ window.SIPAV = window.SIPAV || {};
 
   function hoje() { return new Date().toISOString().slice(0, 10); }
 
+  /* --------------------------------------------------------------- Semanas -- */
+
+  /** Date → 'AAAA-MM-DD' usando o fuso local, não UTC. */
+  function iso(d) {
+    return d.getFullYear() + '-' +
+           ('0' + (d.getMonth() + 1)).slice(-2) + '-' +
+           ('0' + d.getDate()).slice(-2);
+  }
+
+  function somarDias(d, n) {
+    var x = new Date(d);
+    x.setDate(x.getDate() + n);
+    return x;
+  }
+
+  /** Segunda-feira da semana de uma data. A semana da obra começa na segunda. */
+  function segundaDaSemana(base) {
+    var d = base ? new Date(base) : new Date();
+    var dia = d.getDay();                       // 0 domingo … 6 sábado
+    d.setDate(d.getDate() + (dia === 0 ? -6 : 1 - dia));
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }
+
+  /** 'de'/'ate' em texto curto, para o resumo e para o cabeçalho do PDF. */
+  function rotuloPeriodo(de, ate) {
+    if (!de && !ate) return 'todo o período';
+    if (de && !ate)  return 'a partir de ' + dataCurta(de);
+    if (!de && ate)  return 'até ' + dataCurta(ate);
+    return dataCurta(de) + ' a ' + dataCurta(ate);
+  }
+
+  function primeiroDiaDoMes() {
+    var d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1);
+  }
+
+  function ultimoDiaDoMes() {
+    var d = new Date();
+    return new Date(d.getFullYear(), d.getMonth() + 1, 0);
+  }
+
   function km(n) {
     var v = typeof n === 'number' ? n : parseFloat(n);
     if (isNaN(v)) v = 0;
@@ -177,6 +219,9 @@ window.SIPAV = window.SIPAV || {};
     icones: icones, avisar: avisar, confirmar: confirmar,
     processando: processando, pronto: pronto,
     paraData: paraData, dataCurta: dataCurta, dataLonga: dataLonga, hoje: hoje,
+    iso: iso, somarDias: somarDias, segundaDaSemana: segundaDaSemana,
+    primeiroDiaDoMes: primeiroDiaDoMes, ultimoDiaDoMes: ultimoDiaDoMes,
+    rotuloPeriodo: rotuloPeriodo,
     km: km, esc: esc, corDoTexto: corDoTexto, rgba: rgba
   };
 })();

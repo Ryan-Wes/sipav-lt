@@ -39,7 +39,7 @@
 
   <!-- ?v= força o navegador a buscar de novo quando o código muda.
        Bump this number sempre que editar CSS ou JS. -->
-  <link rel="stylesheet" href="css/app.css?v=17">
+  <link rel="stylesheet" href="css/app.css?v=18">
 </head>
 <body class="h-full flex flex-col bg-slate-100 text-slate-800 antialiased">
 
@@ -205,6 +205,24 @@
       </div>
 
       <div class="flex flex-wrap items-center gap-3">
+        <!-- Recorte de datas: sem ele a tela vira um amontoado conforme a
+             programação acumula, e o sistema é de planejamento semanal -->
+        <div class="caixa-filtro">
+          <i data-lucide="calendar-range" class="w-3.5 h-3.5 text-slate-500"></i>
+          <select id="filtroPeriodo" onchange="SIPAV.app.mudarPeriodo(this.value)" class="select-filtro">
+            <option value="semana">Esta semana</option>
+            <option value="proxima">Próxima semana</option>
+            <option value="duas">Esta e a próxima</option>
+            <option value="mes">Este mês</option>
+            <option value="tudo">Todo o período</option>
+            <option value="custom">Personalizado…</option>
+          </select>
+          <input id="periodoDe"  type="date" onchange="SIPAV.app.mudarPeriodo('custom')"
+                 class="hidden select-filtro" title="De">
+          <input id="periodoAte" type="date" onchange="SIPAV.app.mudarPeriodo('custom')"
+                 class="hidden select-filtro" title="Até">
+        </div>
+
         <div class="caixa-filtro">
           <i data-lucide="columns-3" class="w-3.5 h-3.5 text-slate-500"></i>
           <label class="text-xs font-medium text-slate-600">Colunas:</label>
@@ -413,10 +431,10 @@
   </div>
 </div>
 
-<script src="js/config.js?v=17"></script>
-<script src="js/db.js?v=17"></script>
-<script src="js/ui.js?v=17"></script>
-<script src="js/render.js?v=17"></script>
-<script src="js/app.js?v=17"></script>
+<script src="js/config.js?v=18"></script>
+<script src="js/db.js?v=18"></script>
+<script src="js/ui.js?v=18"></script>
+<script src="js/render.js?v=18"></script>
+<script src="js/app.js?v=18"></script>
 </body>
 </html>
