@@ -1,0 +1,9 @@
+# Material interno da reunião: transcrição, ata e fotos dos post-its.
+# Fora do Git por padrão — é conversa interna da equipe, com nomes e assuntos
+# que não precisam sair do computador para o app funcionar.
+# Se quiser versionar mesmo assim, apague a linha abaixo.
+referencia/
+
+# Windows
+Thumbs.db
+desktop.ini

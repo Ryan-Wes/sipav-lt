@@ -1,0 +1,419 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SIPAV LT — Sistema de Planejamento de Avanço</title>
+
+  <!-- Tema antes da primeira pintura, senão pisca branco ao abrir -->
+  <script>
+    (function () {
+      var t = 'dark';
+      try { t = localStorage.getItem('sipav_tema') || 'dark'; } catch (e) {}
+      if (t === 'dark') document.documentElement.classList.add('dark');
+    })();
+  </script>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    // Única mudança de cor no layout: "indigo" passa a ser o navy da Elecnor.
+    // Assim toda a estrutura existente troca de cor sem mudar de forma.
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            indigo: {
+              50:'#EEF3F9', 100:'#D8E3EF', 200:'#B3C6DC', 300:'#8FA9C6',
+              400:'#5E80A8', 500:'#3A5F8A', 600:'#22466D', 700:'#0F2A4A',
+              800:'#0B1F38', 900:'#081729', 950:'#050F1C'
+            }
+          }
+        }
+      }
+    };
+  </script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+  <!-- ?v= força o navegador a buscar de novo quando o código muda.
+       Bump this number sempre que editar CSS ou JS. -->
+  <link rel="stylesheet" href="css/app.css?v=14">
+</head>
+<body class="h-full flex flex-col bg-slate-100 text-slate-800 antialiased">
+
+<!-- ========================================================================
+     TELA DE LOGIN
+     ===================================================================== -->
+<div id="telaLogin" class="hidden fixed inset-0 z-50 bg-slate-100 items-center justify-center p-4">
+  <div class="w-full max-w-sm">
+    <div class="text-center mb-8">
+      <div class="inline-flex p-3 bg-indigo-700 rounded-2xl mb-4">
+        <i data-lucide="trending-up" class="w-8 h-8" style="color:var(--laranja)"></i>
+      </div>
+      <h1 class="text-3xl font-bold tracking-tight text-slate-900">
+        SIPAV <span style="color:var(--laranja)">LT</span>
+      </h1>
+      <p class="text-slate-500 text-sm mt-1">Sistema de Planejamento de Avanço</p>
+    </div>
+
+    <form id="formLogin" class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4">
+      <div>
+        <label class="rotulo">E-mail</label>
+        <input id="loginEmail" name="email" type="email" required
+               autocomplete="username" autocapitalize="off" spellcheck="false"
+               class="campo" placeholder="seu.nome@empresa.com">
+      </div>
+      <div>
+        <label class="rotulo">Senha</label>
+        <input id="loginSenha" name="password" type="password" required
+               autocomplete="current-password"
+               class="campo" placeholder="••••••••">
+      </div>
+
+      <p id="loginErro" class="hidden text-sm text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2"></p>
+
+      <button id="btnEntrar" type="submit"
+              class="btn-primario w-full flex items-center justify-center gap-2 disabled:opacity-60">
+        <i data-lucide="log-in" class="w-4 h-4"></i>
+        <span>Entrar</span>
+      </button>
+    </form>
+
+    <div class="flex items-center justify-center gap-3 mt-6">
+      <p class="text-center text-xs text-slate-400">LT Serra Dourada · Elecnor</p>
+      <button onclick="SIPAV.app.alternarTema()"
+              class="w-9 h-9 inline-flex items-center justify-center rounded-lg border border-slate-300 text-slate-500"
+              title="Alternar tema claro/escuro">
+        <i data-lucide="sun-moon" class="w-5 h-5"></i>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================================================
+     CARREGANDO
+     ===================================================================== -->
+<div id="telaCarregando" class="fixed inset-0 z-40 bg-slate-100 flex items-center justify-center">
+  <div class="text-center">
+    <div class="w-10 h-10 rounded-full animate-spin mx-auto mb-3"
+         style="border:4px solid var(--borda);border-top-color:var(--laranja)"></div>
+    <p class="text-sm text-slate-500" id="textoCarregando">Carregando…</p>
+  </div>
+</div>
+
+<!-- ========================================================================
+     APLICAÇÃO
+     ===================================================================== -->
+<div id="telaApp" class="hidden h-full flex flex-col">
+
+  <header class="bg-indigo-700 text-white shadow-md no-print sticky top-0 z-30">
+    <div class="max-w-[1600px] mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-3">
+
+      <div class="flex items-center gap-3">
+        <div class="p-2 bg-indigo-800/80 rounded-xl">
+          <i data-lucide="trending-up" class="w-6 h-6" style="color:var(--laranja)"></i>
+        </div>
+        <div>
+          <h1 class="text-xl font-bold tracking-tight leading-tight">
+            SIPAV <span style="color:var(--laranja)">LT</span>
+          </h1>
+          <p class="text-indigo-200 text-xs" id="nomeObra">Sistema de Planejamento de Avanço</p>
+        </div>
+
+        <!-- Seletor de trecho: resolve o "um HTML por trecho" do protótipo -->
+        <div class="ml-2 pl-3 border-l border-indigo-500/50">
+          <label class="block text-[10px] uppercase tracking-wide text-indigo-300 font-semibold">Trecho</label>
+          <select id="seletorTrecho"
+                  class="bg-indigo-800 border border-indigo-600 text-white text-sm rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-indigo-400 font-medium min-w-[200px]">
+          </select>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <span id="indicadorTempoReal"
+              class="hidden items-center gap-1.5 text-xs bg-emerald-500/20 text-emerald-100 border border-emerald-400/30 px-2 py-1 rounded-lg"
+              title="Alterações de outros usuários aparecem aqui na hora">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          Ao vivo
+        </span>
+
+        <button onclick="SIPAV.app.abrirExportarPdf()" class="btn-header bg-red-600 hover:bg-red-500" title="Exportar relatório atual em PDF">
+          <i data-lucide="file-text" class="w-4 h-4"></i>
+          <span>PDF</span>
+        </button>
+
+        <button onclick="SIPAV.app.compartilharWhatsApp()" class="btn-header bg-emerald-600 hover:bg-emerald-500" title="Enviar resumo formatado para o WhatsApp">
+          <i data-lucide="message-square" class="w-4 h-4"></i>
+          <span>WhatsApp</span>
+        </button>
+
+        <button onclick="SIPAV.app.abrirImportacao()" class="btn-header bg-indigo-800 hover:bg-indigo-900" title="Importar torres colando da planilha">
+          <i data-lucide="clipboard-paste" class="w-4 h-4"></i>
+          <span>Importar</span>
+        </button>
+
+        <button onclick="SIPAV.app.abrirAtividades()" class="btn-header bg-indigo-800 hover:bg-indigo-900">
+          <i data-lucide="list-ordered" class="w-4 h-4"></i>
+          <span>Atividades</span>
+        </button>
+
+        <button onclick="SIPAV.app.abrirEncarregados()" class="btn-header bg-indigo-800 hover:bg-indigo-900">
+          <i data-lucide="users" class="w-4 h-4"></i>
+          <span>Encarregados</span>
+        </button>
+
+        <button onclick="SIPAV.app.alternarTema()" class="btn-tema" title="Alternar tema claro/escuro">
+          <i data-lucide="sun-moon" class="w-5 h-5"></i>
+        </button>
+
+        <div class="flex items-center gap-2 pl-2 ml-1 border-l border-indigo-500/50">
+          <div class="text-right hidden sm:block">
+            <p class="text-xs font-semibold leading-tight" id="nomeUsuario">—</p>
+            <p class="text-[10px] text-indigo-300 leading-tight" id="papelUsuario">—</p>
+          </div>
+          <button onclick="SIPAV.app.sair()" class="p-2 rounded-lg hover:bg-indigo-800 transition" title="Sair">
+            <i data-lucide="log-out" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-[1600px] mx-auto px-4 mt-5 flex-1 w-full pb-10">
+
+    <!-- Abas + filtros -->
+    <div class="bg-white p-3 rounded-xl shadow-sm mb-5 flex flex-wrap justify-between items-center gap-4 no-print border border-slate-200">
+
+      <div class="flex border-b border-slate-200 flex-wrap">
+        <button id="abaGrade"        onclick="SIPAV.app.trocarAba('grade')"        class="aba aba-ativa">
+          <i data-lucide="grid-3x3" class="w-4 h-4"></i> Grade Geral
+        </button>
+        <button id="abaDatas"        onclick="SIPAV.app.trocarAba('datas')"        class="aba">
+          <i data-lucide="calendar" class="w-4 h-4"></i> Por Data
+        </button>
+        <button id="abaEncarregados" onclick="SIPAV.app.trocarAba('encarregados')" class="aba">
+          <i data-lucide="user-check" class="w-4 h-4"></i> Por Encarregado
+        </button>
+        <button id="abaAtividades"   onclick="SIPAV.app.trocarAba('atividades')"   class="aba">
+          <i data-lucide="activity" class="w-4 h-4"></i> Por Atividade
+        </button>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-3">
+        <div class="caixa-filtro">
+          <i data-lucide="columns-3" class="w-3.5 h-3.5 text-slate-500"></i>
+          <label class="text-xs font-medium text-slate-600">Colunas:</label>
+          <select id="filtroColunas" onchange="SIPAV.app.mudarColunas(this.value)" class="select-filtro">
+            <option value="auto">Auto</option>
+            <option value="2">2</option><option value="3">3</option><option value="4">4</option>
+            <option value="5">5</option><option value="6">6</option><option value="8">8</option>
+            <option value="10">10</option><option value="12">12</option>
+          </select>
+        </div>
+
+        <div class="caixa-filtro">
+          <i data-lucide="tent" class="w-3.5 h-3.5 text-slate-500"></i>
+          <select id="filtroCanteiro" onchange="SIPAV.app.renderizar()" class="select-filtro">
+            <option value="">Todos os canteiros</option>
+          </select>
+        </div>
+
+        <div class="caixa-filtro">
+          <i data-lucide="filter" class="w-3.5 h-3.5 text-slate-500"></i>
+          <select id="filtroAtividade" onchange="SIPAV.app.renderizar()" class="select-filtro">
+            <option value="">Todas as atividades</option>
+          </select>
+        </div>
+
+        <div class="caixa-filtro">
+          <i data-lucide="search" class="w-3.5 h-3.5 text-slate-500"></i>
+          <input id="filtroBusca" oninput="SIPAV.app.renderizar()" placeholder="Buscar torre…"
+                 class="text-xs bg-transparent focus:outline-none w-28 text-slate-700">
+        </div>
+
+        <span id="resumoEstatisticas" class="resumo"></span>
+      </div>
+    </div>
+
+    <!-- Área exportável -->
+    <div id="areaRelatorio">
+      <div id="cabecalhoPdf" class="hidden mb-4">
+        <h2 id="tituloPdf" class="text-xl font-bold text-slate-900"></h2>
+        <p id="subtituloPdf" class="text-sm text-slate-500"></p>
+      </div>
+
+      <div id="visaoGrade"        class="grid gap-2"></div>
+      <div id="visaoDatas"        class="hidden space-y-5"></div>
+      <div id="visaoEncarregados" class="hidden space-y-5"></div>
+      <div id="visaoAtividades"   class="hidden space-y-5"></div>
+    </div>
+
+    <div id="estadoVazio" class="hidden text-center py-20">
+      <i data-lucide="inbox" class="w-12 h-12 text-slate-300 mx-auto mb-3"></i>
+      <p class="text-slate-500 font-medium">Nenhuma torre neste trecho</p>
+      <p class="text-slate-400 text-sm mt-1">
+        Use <strong style="color:var(--laranja)">Importar</strong> para colar as torres da planilha
+      </p>
+    </div>
+  </main>
+</div>
+
+<!-- ========================================================================
+     MODAL — PROGRAMAÇÃO DA TORRE
+     ===================================================================== -->
+<div id="modalProgramacao" class="modal hidden">
+  <div class="modal-caixa max-w-2xl">
+    <div class="flex justify-between items-start p-5 border-b border-slate-200">
+      <div>
+        <div class="flex items-center gap-2">
+          <h3 class="text-xl font-bold text-slate-900">Torre <span id="modalTorreNome"></span></h3>
+          <span id="modalTorreRestricao" class="hidden text-xs font-semibold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 border border-rose-200"></span>
+        </div>
+        <p class="text-sm text-slate-500 mt-0.5">
+          <span id="modalTorreKm"></span> km ·
+          <span id="modalTorreCanteiro"></span>
+          <span id="modalTorreTipo"></span>
+          Última atividade: <span id="modalTorreUltima" class="font-medium">—</span>
+        </p>
+      </div>
+      <button onclick="SIPAV.app.fecharModal('modalProgramacao')" class="p-1.5 rounded-lg hover:bg-slate-100">
+        <i data-lucide="x" class="w-5 h-5 text-slate-400"></i>
+      </button>
+    </div>
+
+    <div class="p-5 space-y-5 max-h-[65vh] overflow-y-auto barra-fina">
+
+      <div>
+        <div class="flex items-center justify-between mb-2">
+          <h4 class="text-xs font-bold uppercase tracking-wide text-slate-500">Programado</h4>
+          <span id="modalContagem" class="text-xs font-semibold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">0</span>
+        </div>
+        <div id="modalListaProgramacoes" class="space-y-2"></div>
+      </div>
+
+      <div class="border-t border-slate-200 pt-5">
+        <h4 class="text-xs font-bold uppercase tracking-wide text-slate-500 mb-3">Nova atividade</h4>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="rotulo">Atividade</label>
+            <select id="campoAtividade" class="campo" onchange="SIPAV.app.verificarBloqueio()"></select>
+          </div>
+          <div>
+            <label class="rotulo">Data</label>
+            <input id="campoData" type="date" class="campo" onchange="SIPAV.app.verificarBloqueio()">
+          </div>
+          <div>
+            <label class="rotulo">Encarregado</label>
+            <select id="campoEncarregado" class="campo" onchange="SIPAV.app.verificarConflito()"></select>
+          </div>
+          <div>
+            <label class="rotulo">Observação <span class="text-slate-400 font-normal">(opcional)</span></label>
+            <input id="campoObservacao" class="campo" placeholder="Ex.: equipe reduzida">
+          </div>
+        </div>
+
+        <div id="avisoBloqueio" class="hidden mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3">
+          <div class="flex gap-2">
+            <i data-lucide="alert-triangle" class="w-4 h-4 text-amber-600 shrink-0 mt-0.5"></i>
+            <div class="flex-1">
+              <p class="text-sm font-semibold text-amber-900">Fora da sequência</p>
+              <p id="textoBloqueio" class="text-sm text-amber-800 mt-0.5"></p>
+              <div id="caixaOverride" class="mt-2.5">
+                <label class="flex items-center gap-2 text-sm text-amber-900 cursor-pointer">
+                  <input type="checkbox" id="campoOverride" onchange="SIPAV.app.alternarOverride()"
+                         class="rounded border-amber-400 text-amber-600 focus:ring-amber-500">
+                  Programar mesmo assim
+                </label>
+                <input id="campoOverrideMotivo" class="hidden campo mt-2"
+                       placeholder="Justificativa (fica registrada)">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="avisoConflito" class="hidden mt-3 rounded-lg border border-sky-300 bg-sky-50 p-3">
+          <div class="flex gap-2">
+            <i data-lucide="users" class="w-4 h-4 text-sky-600 shrink-0 mt-0.5"></i>
+            <p id="textoConflito" class="text-sm text-sky-800"></p>
+          </div>
+        </div>
+
+        <button onclick="SIPAV.app.adicionarProgramacao()" id="btnAdicionar"
+                class="btn-primario mt-4 w-full flex items-center justify-center gap-2 disabled:opacity-50">
+          <i data-lucide="plus" class="w-4 h-4"></i> Adicionar programação
+        </button>
+      </div>
+    </div>
+
+    <div class="flex justify-between items-center p-4 border-t border-slate-200 modal-rodape rounded-b-2xl">
+      <button onclick="SIPAV.app.abrirRestricao()" class="text-sm text-rose-600 hover:text-rose-700 font-medium flex items-center gap-1.5">
+        <i data-lucide="octagon-alert" class="w-4 h-4"></i> Restrições
+      </button>
+      <button onclick="SIPAV.app.fecharModal('modalProgramacao')" class="btn-secundario">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================================================
+     MODAIS SECUNDÁRIOS
+     ===================================================================== -->
+<div id="modalGenerico" class="modal hidden">
+  <div class="modal-caixa max-w-2xl">
+    <div class="flex justify-between items-center p-5 border-b border-slate-200">
+      <h3 id="genericoTitulo" class="text-lg font-bold text-slate-900"></h3>
+      <button onclick="SIPAV.app.fecharModal('modalGenerico')" class="p-1.5 rounded-lg hover:bg-slate-100">
+        <i data-lucide="x" class="w-5 h-5 text-slate-400"></i>
+      </button>
+    </div>
+    <div id="genericoCorpo" class="p-5 max-h-[70vh] overflow-y-auto barra-fina"></div>
+    <div id="genericoRodape" class="flex justify-end gap-2 p-4 border-t border-slate-200 modal-rodape rounded-b-2xl"></div>
+  </div>
+</div>
+
+<div id="modalConfirmacao" class="modal hidden">
+  <div class="modal-caixa max-w-sm">
+    <div class="p-5">
+      <div class="flex gap-3">
+        <div class="p-2 bg-rose-100 rounded-xl h-fit">
+          <i data-lucide="alert-triangle" class="w-5 h-5 text-rose-600"></i>
+        </div>
+        <div>
+          <h3 id="confirmacaoTitulo" class="font-bold text-slate-900"></h3>
+          <p id="confirmacaoMensagem" class="text-sm text-slate-600 mt-1"></p>
+        </div>
+      </div>
+    </div>
+    <div class="flex justify-end gap-2 p-4 border-t border-slate-200 modal-rodape rounded-b-2xl">
+      <button onclick="SIPAV.app.fecharModal('modalConfirmacao')" class="btn-secundario">Cancelar</button>
+      <button id="btnConfirmar" class="btn-perigo">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Aviso flutuante -->
+<div id="aviso" class="fixed bottom-5 right-5 z-[60] hidden">
+  <div id="avisoInterno" class="flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-lg text-sm font-medium">
+    <i id="avisoIcone" data-lucide="check-circle" class="w-4 h-4 shrink-0"></i>
+    <span id="avisoTexto"></span>
+  </div>
+</div>
+
+<!-- Sobreposição de processamento -->
+<div id="processando" class="hidden fixed inset-0 z-[70] items-center justify-center" style="background:rgba(0,0,0,.55)">
+  <div class="bg-white rounded-xl px-6 py-5 flex items-center gap-3 shadow-xl border border-slate-200">
+    <div class="w-5 h-5 rounded-full animate-spin shrink-0"
+         style="border:2px solid var(--borda);border-top-color:var(--laranja)"></div>
+    <span id="processandoTexto" class="text-sm font-medium text-slate-700">Processando…</span>
+  </div>
+</div>
+
+<script src="js/config.js?v=14"></script>
+<script src="js/db.js?v=14"></script>
+<script src="js/ui.js?v=14"></script>
+<script src="js/render.js?v=14"></script>
+<script src="js/app.js?v=14"></script>
+</body>
+</html>
