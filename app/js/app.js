@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v19 · 2026-09-23';
+  var VERSAO = 'v20 · 2026-09-23';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -157,12 +157,13 @@ window.SIPAV = window.SIPAV || {};
         $('papelUsuario').textContent = ROTULO_PAPEL[perfil.papel] || perfil.papel;
 
         return Promise.all([
-          db.obra(), db.trechos(), db.atividades(), db.encarregados(), db.canteiros()
+          db.obra(), db.trechos(), db.atividades(), db.encarregados(), db.canteiros(),
+          db.dependencias()
         ]);
       })
       .then(function (r) {
         E.obra = r[0]; E.trechos = r[1]; E.atividades = r[2];
-        E.encarregados = r[3]; E.canteiros = r[4];
+        E.encarregados = r[3]; E.canteiros = r[4]; E.dependencias = r[5];
         $('nomeObra').textContent = E.obra.nome;
 
         if (!E.trechos.length) {
@@ -845,28 +846,289 @@ window.SIPAV = window.SIPAV || {};
       .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro'); });
   }
 
+  /* ======================================================================== */
+  /* ATIVIDADES — cadastro, ordem, cor, ícone e dependências                  */
+  /* ======================================================================== */
+
+  // Ícones do Lucide que fazem sentido em obra. O campo aceita qualquer nome
+  // do catálogo, esta lista é só o atalho.
+  var ICONES = [
+    'route', 'scissors', 'trees', 'hard-hat', 'mountain', 'mountain-snow',
+    'circle-dot', 'box', 'droplets', 'ruler', 'layers', 'layers-3',
+    'wrench', 'hammer', 'construction', 'shield-check', 'zap', 'gauge',
+    'activity', 'wifi', 'anchor', 'link', 'package', 'cable',
+    'radio-tower', 'tower-control', 'truck', 'flag', 'map-pin', 'clock',
+    'rotate-ccw', 'git-commit-horizontal', 'arrow-right', 'move-vertical',
+    'check', 'triangle', 'square', 'circle', 'circle-dashed', 'pickaxe'
+  ];
+
+  function requeridasDe(atividadeId) {
+    return E.dependencias
+      .filter(function (d) { return d.atividade_id === atividadeId; })
+      .map(function (d) { return d.requer_atividade_id; });
+  }
+
+  function nomeAtividade(id) {
+    var a = E.atividades.find(function (x) { return x.id === id; });
+    return a ? a.nome : '—';
+  }
+
   function abrirAtividades() {
+    var podeEditar = E.perfil && (E.perfil.papel === 'ADMIN' || E.perfil.papel === 'PLANEJAMENTO');
+
+    var linhas = E.atividades.map(function (a) {
+      var deps = requeridasDe(a.id);
+      return '' +
+        '<div class="flex items-center gap-3 rounded-lg border border-slate-200 px-3 py-2">' +
+          '<span class="text-xs font-bold text-slate-400 w-8 shrink-0">' + a.ordem_execucao + '</span>' +
+          '<span class="w-6 h-6 rounded shrink-0 flex items-center justify-center" ' +
+                'style="background:' + a.cor_fundo + '">' +
+            '<i data-lucide="' + esc(a.icone) + '" class="w-3.5 h-3.5" ' +
+               'style="color:' + ui.corDoTexto(a.cor_fundo) + '"></i>' +
+          '</span>' +
+          '<div class="flex-1 min-w-0">' +
+            '<p class="text-sm font-medium text-slate-700 truncate">' + esc(a.nome) + '</p>' +
+            '<p class="text-[11px] text-slate-400 truncate">' +
+              (deps.length
+                ? 'depende de ' + deps.map(nomeAtividade).join(', ')
+                : 'sem pré-requisito') +
+            '</p>' +
+          '</div>' +
+          (a.obrigatoria ? ''
+            : '<span class="text-[10px] font-semibold text-slate-400 uppercase shrink-0">condicional</span>') +
+          (podeEditar
+            ? '<button onclick="SIPAV.app.editarAtividade(\'' + a.id + '\')" ' +
+                'class="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 shrink-0" title="Editar">' +
+                '<i data-lucide="pencil" class="w-4 h-4"></i></button>'
+            : '') +
+        '</div>';
+    }).join('');
+
     var corpo =
       '<div class="space-y-3">' +
         '<p class="text-xs text-slate-500">' +
           'A ordem abaixo é a ordem de execução da obra. É ela que alimenta as regras ' +
-          'de bloqueio e a ordenação dos campos.' +
+          'de bloqueio, a cor das torres na grade e a ordenação dos campos.' +
         '</p>' +
-        '<div class="space-y-1.5">' +
-          E.atividades.map(function (a, i) {
-            return '<div class="flex items-center gap-3 rounded-lg border border-slate-200 px-3 py-2">' +
-              '<span class="text-xs font-bold text-slate-400 w-5">' + (i + 1) + '</span>' +
-              '<span class="w-3 h-3 rounded-full shrink-0" style="background:' + a.cor_fundo + '"></span>' +
-              '<span class="flex-1 text-sm font-medium text-slate-700">' + esc(a.nome) + '</span>' +
-              (a.obrigatoria
-                ? ''
-                : '<span class="text-[10px] font-semibold text-slate-400 uppercase">condicional</span>') +
-            '</div>';
+        '<div class="space-y-1.5">' + linhas + '</div>' +
+      '</div>';
+
+    ui.modalGenerico({
+      titulo: 'Atividades e ordem de execução',
+      corpoHtml: corpo,
+      botoes: podeEditar
+        ? [ { rotulo: 'Fechar', classe: 'btn-secundario' },
+            { rotulo: 'Nova atividade', classe: 'btn-primario',
+              acao: function () { editarAtividade(null); } } ]
+        : [ { rotulo: 'Fechar', classe: 'btn-secundario' } ]
+    });
+  }
+
+  /** Formulário de uma atividade. id nulo = nova. */
+  function editarAtividade(id) {
+    var a = id ? E.atividades.find(function (x) { return x.id === id; }) : null;
+    var deps = id ? requeridasDe(id) : [];
+
+    var proximaOrdem = E.atividades.length
+      ? Math.max.apply(null, E.atividades.map(function (x) { return x.ordem_execucao; })) + 10
+      : 10;
+
+    var cor   = a ? a.cor_fundo : '#94A3B8';
+    var icone = a ? a.icone : 'circle-dashed';
+
+    // Só atividades anteriores podem ser pré-requisito: impede ciclo por
+    // construção, e é como a obra funciona de verdade.
+    var ordemDesta = a ? a.ordem_execucao : proximaOrdem;
+    var candidatas = E.atividades.filter(function (x) {
+      return x.id !== id && x.ordem_execucao < ordemDesta;
+    });
+
+    var corpo =
+      '<div class="space-y-4">' +
+        '<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">' +
+          '<div class="sm:col-span-2">' +
+            '<label class="rotulo">Nome</label>' +
+            '<input id="atvNome" class="campo" value="' + esc(a ? a.nome : '') + '" ' +
+                   'placeholder="Ex.: CONCRETAGEM / TUBULÃO"></div>' +
+          '<div><label class="rotulo">Ordem de execução</label>' +
+            '<input id="atvOrdem" type="number" step="5" class="campo" ' +
+                   'value="' + (a ? a.ordem_execucao : proximaOrdem) + '"></div>' +
+        '</div>' +
+
+        '<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">' +
+          '<div><label class="rotulo">Cor na grade</label>' +
+            '<div class="flex items-center gap-2">' +
+              '<input id="atvCor" type="color" value="' + cor + '" ' +
+                     'onchange="SIPAV.app.sincronizarCor(this.value)" ' +
+                     'class="w-10 h-9 rounded border border-slate-300 bg-transparent cursor-pointer">' +
+              '<input id="atvCorTexto" class="campo font-mono text-xs" value="' + cor + '" ' +
+                     'onchange="SIPAV.app.sincronizarCor(this.value, true)">' +
+            '</div></div>' +
+          '<div><label class="rotulo">Ícone</label>' +
+            '<div class="flex items-center gap-2">' +
+              '<span id="atvIconePreview" class="w-9 h-9 rounded flex items-center justify-center shrink-0" ' +
+                    'style="background:' + cor + '">' +
+                '<i data-lucide="' + esc(icone) + '" class="w-4 h-4"></i></span>' +
+              '<input id="atvIcone" class="campo font-mono text-xs" value="' + esc(icone) + '" ' +
+                     'onchange="SIPAV.app.sincronizarIcone(this.value)">' +
+            '</div></div>' +
+        '</div>' +
+
+        '<div class="rounded-lg border border-slate-200 p-2 max-h-28 overflow-y-auto barra-fina ' +
+             'grid gap-1" style="grid-template-columns:repeat(auto-fill,minmax(34px,1fr))">' +
+          ICONES.map(function (n) {
+            return '<button onclick="SIPAV.app.sincronizarIcone(\'' + n + '\')" title="' + n + '" ' +
+                     'class="h-8 rounded hover:bg-slate-100 flex items-center justify-center text-slate-500">' +
+                     '<i data-lucide="' + n + '" class="w-4 h-4"></i></button>';
           }).join('') +
+        '</div>' +
+
+        '<label class="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">' +
+          '<input type="checkbox" id="atvObrigatoria" ' + (!a || a.obrigatoria ? 'checked' : '') + ' ' +
+                 'class="rounded border-slate-400">' +
+          'Obrigatória em toda torre' +
+        '</label>' +
+        '<p class="text-xs text-slate-400 -mt-2">' +
+          'Desmarque para atividade condicional — que só acontece em algumas torres, ' +
+          'como perfuração em rocha ou tubulão. A importação do estágio só marca como ' +
+          'executadas as obrigatórias anteriores.' +
+        '</p>' +
+
+        '<div>' +
+          '<label class="rotulo">Depende de</label>' +
+          (candidatas.length
+            ? '<div class="rounded-lg border border-slate-200 p-2 max-h-40 overflow-y-auto barra-fina space-y-1">' +
+                candidatas.map(function (c) {
+                  return '<label class="flex items-center gap-2 text-sm text-slate-700 cursor-pointer ' +
+                           'px-1 py-0.5 rounded hover:bg-slate-100">' +
+                    '<input type="checkbox" class="atvDep rounded border-slate-400" value="' + c.id + '" ' +
+                           (deps.indexOf(c.id) !== -1 ? 'checked' : '') + '>' +
+                    '<span class="w-2.5 h-2.5 rounded-full shrink-0" style="background:' + c.cor_fundo + '"></span>' +
+                    esc(c.nome) +
+                  '</label>';
+                }).join('') +
+              '</div>'
+            : '<p class="text-sm text-slate-400 italic">Nenhuma atividade anterior — esta fica livre.</p>') +
+          '<p class="text-xs text-slate-400 mt-1">' +
+            'Só aparecem atividades de ordem anterior, para não criar dependência circular.' +
+          '</p>' +
         '</div>' +
       '</div>';
 
-    ui.modalGenerico({ titulo: 'Atividades e ordem de execução', corpoHtml: corpo });
+    var botoes = [
+      { rotulo: 'Voltar', classe: 'btn-secundario', acao: function () {
+          ui.fecharModal('modalGenerico'); abrirAtividades();
+        } },
+      { rotulo: a ? 'Salvar' : 'Criar', classe: 'btn-primario', acao: function () {
+          salvarFormAtividade(id);
+        } }
+    ];
+
+    if (a) {
+      botoes.splice(1, 0, { rotulo: 'Remover', classe: 'btn-perigo', acao: function () {
+        removerAtividade(a);
+      } });
+    }
+
+    ui.modalGenerico({
+      titulo: a ? 'Editar ' + a.nome : 'Nova atividade',
+      corpoHtml: corpo,
+      botoes: botoes
+    });
+  }
+
+  function sincronizarCor(valor, doTexto) {
+    if (!/^#[0-9a-fA-F]{6}$/.test(valor)) return;
+    $('atvCor').value = valor;
+    $('atvCorTexto').value = valor;
+    $('atvIconePreview').style.background = valor;
+    $('atvIconePreview').style.color = ui.corDoTexto(valor);
+    if (doTexto) { /* nada extra, o color input já foi ajustado acima */ }
+  }
+
+  function sincronizarIcone(nome) {
+    $('atvIcone').value = nome;
+    $('atvIconePreview').innerHTML = '<i data-lucide="' + esc(nome) + '" class="w-4 h-4"></i>';
+    ui.icones();
+  }
+
+  function salvarFormAtividade(id) {
+    var nome  = $('atvNome').value.trim();
+    var ordem = parseInt($('atvOrdem').value, 10);
+    var cor   = $('atvCorTexto').value.trim();
+
+    if (!nome) { ui.avisar('Dê um nome à atividade.', 'alerta'); $('atvNome').focus(); return; }
+    if (isNaN(ordem)) { ui.avisar('A ordem de execução precisa ser um número.', 'alerta'); return; }
+    if (!/^#[0-9a-fA-F]{6}$/.test(cor)) { ui.avisar('Cor inválida. Use o formato #RRGGBB.', 'alerta'); return; }
+
+    var conflito = E.atividades.find(function (x) {
+      return x.id !== id && x.ordem_execucao === ordem;
+    });
+    if (conflito) {
+      ui.avisar('A ordem ' + ordem + ' já é da atividade ' + conflito.nome +
+                '. Use outro número.', 'alerta', 6000);
+      return;
+    }
+
+    var deps = Array.prototype.slice.call(document.querySelectorAll('.atvDep:checked'))
+      .map(function (c) { return c.value; });
+
+    ui.processando('Salvando atividade…');
+
+    db.salvarAtividade({
+      id: id,
+      nome: nome,
+      ordemExecucao: ordem,
+      corFundo: cor,
+      icone: $('atvIcone').value.trim() || 'circle-dashed',
+      obrigatoria: $('atvObrigatoria').checked
+    })
+      .then(function (salva) { return db.salvarDependencias(salva.id, deps); })
+      .then(recarregarCatalogoAtividades)
+      .then(function () {
+        ui.pronto();
+        ui.fecharModal('modalGenerico');
+        abrirAtividades();
+        ui.avisar(id ? 'Atividade atualizada.' : 'Atividade criada.', 'sucesso');
+      })
+      .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro', 7000); });
+  }
+
+  function removerAtividade(a) {
+    var dependentes = E.dependencias
+      .filter(function (d) { return d.requer_atividade_id === a.id; })
+      .map(function (d) { return nomeAtividade(d.atividade_id); });
+
+    var aviso = 'Ela some das listas e para de ser oferecida. O histórico é preservado.';
+    if (dependentes.length) {
+      aviso += ' Atenção: ' + dependentes.join(', ') +
+               ' depende' + (dependentes.length > 1 ? 'm' : '') +
+               ' dela e deixará de exigi-la.';
+    }
+
+    ui.confirmar('Remover ' + a.nome, aviso, 'Remover').then(function (sim) {
+      if (!sim) return;
+      ui.processando('Removendo…');
+      return db.desativarAtividade(a.id)
+        .then(recarregarCatalogoAtividades)
+        .then(function () {
+          ui.pronto();
+          ui.fecharModal('modalGenerico');
+          abrirAtividades();
+          ui.avisar('Atividade removida.', 'sucesso');
+        });
+    }).catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro'); });
+  }
+
+  /** Recarrega catálogo e dependências, e atualiza tudo que depende deles. */
+  function recarregarCatalogoAtividades() {
+    return Promise.all([db.atividades(), db.dependencias()])
+      .then(function (r) {
+        E.atividades = r[0];
+        E.dependencias = r[1];
+        preencherFiltroAtividade();
+        return recarregarProgramacoes();
+      });
   }
 
   /* ======================================================================== */
@@ -1268,6 +1530,9 @@ window.SIPAV = window.SIPAV || {};
     adicionarEncarregado: adicionarEncarregado,
     removerEncarregado: removerEncarregado,
     abrirAtividades: abrirAtividades,
+    editarAtividade: editarAtividade,
+    sincronizarCor: sincronizarCor,
+    sincronizarIcone: sincronizarIcone,
 
     abrirImportacao: abrirImportacao,
     abrirExportarPdf: abrirExportarPdf,

@@ -16,7 +16,8 @@ window.SIPAV = window.SIPAV || {};
   window.SIPAV.estado = {
     perfil: null, obra: null,
     trechos: [], trechoAtual: null,
-    torres: [], atividades: [], encarregados: [], canteiros: [], programacoes: [],
+    torres: [], atividades: [], dependencias: [], encarregados: [], canteiros: [],
+    programacoes: [],
     aba: 'grade', colunas: 'auto', filtroAtividade: '', filtroCanteiro: '', busca: '',
     // Recorte de datas da programação. de/ate nulos = todo o período.
     periodo: { modo: 'duas', de: null, ate: null }

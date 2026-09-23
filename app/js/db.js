@@ -38,9 +38,22 @@ window.SIPAV = window.SIPAV || {};
     var msg = erro.message || '';
     var code = erro.code || '';
 
-    // Violação de unique da programação
-    if (code === '23505' && msg.indexOf('programacao') !== -1) {
-      return new SipavErro('Essa atividade já está programada para esta torre nesta data.', erro);
+    if (code === '23505') {
+      if (msg.indexOf('programacao') !== -1) {
+        return new SipavErro('Essa atividade já está programada para esta torre nesta data.', erro);
+      }
+      if (/ordem_execucao/.test(msg)) {
+        // Pode ser de uma atividade desativada, que não aparece nas listas
+        return new SipavErro(
+          'Já existe uma atividade nessa ordem de execução — possivelmente uma que foi ' +
+          'removida e continua ocupando o número. Escolha outro.', erro);
+      }
+      if (msg.indexOf('atividade') !== -1) {
+        return new SipavErro('Já existe uma atividade com esse nome.', erro);
+      }
+      if (msg.indexOf('canteiro') !== -1) {
+        return new SipavErro('Já existe um canteiro com esse nome.', erro);
+      }
     }
     // Regras de negócio do trigger (precedência, restrição, data retroativa)
     if (code === '23514' || code === 'P0001') {
@@ -472,7 +485,8 @@ window.SIPAV = window.SIPAV || {};
         nome: dados.nome,
         ordem_execucao: dados.ordemExecucao,
         cor_fundo: dados.corFundo,
-        icone: dados.icone
+        icone: dados.icone,
+        obrigatoria: !!dados.obrigatoria
       };
       if (dados.id) {
         return cliente().from('atividade').update(campos).eq('id', dados.id).select().single()
@@ -482,6 +496,41 @@ window.SIPAV = window.SIPAV || {};
       return cliente().from('atividade').insert(campos).select().single()
         .then(function (r) { return ok(r, 'Falha ao adicionar atividade'); });
     });
+  }
+
+  /**
+   * Desativa em vez de apagar: atividade já usada em programação ou execução
+   * não pode sumir sem levar o histórico junto. Ela some das listas e para de
+   * ser oferecida, mas o passado continua legível.
+   */
+  function desativarAtividade(id) {
+    return cliente().from('atividade').update({ ativa: false }).eq('id', id)
+      .then(function (r) {
+        if (r.error) throw traduzErro(r.error, 'Falha ao remover atividade');
+        return true;
+      });
+  }
+
+  /** Reescreve de quais atividades esta depende. */
+  function salvarDependencias(atividadeId, requerIds) {
+    return cliente()
+      .from('atividade_dependencia')
+      .delete()
+      .eq('atividade_id', atividadeId)
+      .then(function (r) {
+        if (r.error) throw traduzErro(r.error, 'Falha ao limpar dependências');
+        if (!requerIds.length) return true;
+
+        return cliente()
+          .from('atividade_dependencia')
+          .insert(requerIds.map(function (id) {
+            return { atividade_id: atividadeId, requer_atividade_id: id };
+          }))
+          .then(function (r2) {
+            if (r2.error) throw traduzErro(r2.error, 'Falha ao salvar dependências');
+            return true;
+          });
+      });
   }
 
   function reordenarAtividades(pares) {
@@ -665,6 +714,8 @@ window.SIPAV = window.SIPAV || {};
     salvarEncarregado: salvarEncarregado,
     desativarEncarregado: desativarEncarregado,
     salvarAtividade: salvarAtividade,
+    desativarAtividade: desativarAtividade,
+    salvarDependencias: salvarDependencias,
     reordenarAtividades: reordenarAtividades,
     importarTorres: importarTorres,
     limparCargaInicial: limparCargaInicial,
