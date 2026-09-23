@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v15 · 2026-09-23';
+  var VERSAO = 'v16 · 2026-09-23';
 
   var torreAberta = null;
   var cancelarEscuta = null;
