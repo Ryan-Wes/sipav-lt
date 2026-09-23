@@ -82,17 +82,32 @@ end;
 $$;
 
 -- =============================================================================
--- Conferência: o que barraria hoje, numa torre qualquer sem nada executado
+-- Conferência: o que está liberado e o que está barrado numa torre específica
 -- =============================================================================
-select a.nome as atividade,
+-- TROQUE o trecho e a torre nas duas linhas marcadas. O resultado mostra o
+-- estágio atual dela, para o veredito de cada atividade fazer sentido — uma
+-- torre em REVISÃO tem quase tudo liberado, e isso é o comportamento correto.
+-- =============================================================================
+
+with alvo as (
+  select ts.torre_id,
+         ts.identificador,
+         coalesce(ts.ultima_atividade, '— nada executado —') as estagio
+  from torre_situacao ts
+  join trecho t on t.id = ts.trecho_id
+  where t.nome  = 'Barra - Correntina'   -- <<< TROQUE O TRECHO
+    and ts.identificador = '0/1'         -- <<< TROQUE A TORRE
+)
+select alvo.identificador as torre,
+       alvo.estagio,
+       a.ordem_execucao   as ordem,
+       a.nome             as atividade,
        coalesce(
-         motivo_bloqueio_programacao(
-           (select id from torre order by criado_em limit 1),
-           a.id,
-           current_date
-         ),
+         motivo_bloqueio_programacao(alvo.torre_id, a.id, current_date),
          '— liberada —'
        ) as situacao
-from atividade a
+from alvo
+cross join atividade a
 where a.obra_id = (select id from obra where codigo = 'SD')
+  and a.ativa
 order by a.ordem_execucao;
