@@ -1,73 +1,96 @@
 # Backlog consolidado
 
-Fontes: `[REU]` reunião 22/09/2026 · `[PI]` post-it · `[WR]` análise técnica (Wesley/Claude)
+Fontes: `[REU]` reunião 22/09/2026 · `[PI]` post-it · `[WR]` análise técnica · `[PROT]` existia no protótipo do Alessandro
+
+Situação conferida em **23/09/2026**, item por item, contra o que está publicado.
+
+✅ feito · ⚠️ parcial · ❌ não existe
 
 ---
 
-## Fundação — sem isso nada mais existe
+## Fundação
 
-| # | Item | Fonte |
-|---|---|---|
-| F1 | **Backend com dados compartilhados** — substituir localStorage. Todos veem e editam a mesma programação, simultaneamente | [REU] |
-| F2 | **Modelo Obra → Trecho → Torre** com km e ordenação de torres | [REU] [WR] |
-| F3 | **Dropdown de trecho** — trocar de trecho recarrega torres e status automaticamente | [REU] |
-| F4 | **Desativar "Baixar App HTML"** — reescreve o próprio código, corrompe | [REU] alinhado |
-| F5 | **Tabela de execuções** (histórico), separada de "última atividade" | [WR] |
-| F6 | **Separar restrição de status** — restrição vira flag própria com tipo, data e previsão de liberação | [WR] |
-| F7 | **Usuários e papéis** (planejamento / supervisor / leitura) | [WR] |
+| # | Item | Fonte | |
+|---|---|---|---|
+| F1 | Backend com dados compartilhados | [REU] | ✅ |
+| F2 | Modelo Obra → Trecho → Torre | [REU] [WR] | ✅ |
+| F3 | Dropdown de trecho | [REU] | ✅ |
+| F4 | Desativar "Baixar App HTML" | [REU] | ✅ |
+| F5 | Tabela de execuções (histórico) | [WR] | ⚠️ existe no banco, mas só a importação escreve nela |
+| F6 | Restrição como entidade própria | [WR] | ✅ |
+| F7 | Usuários e papéis | [WR] | ✅ |
+| **F8** | **Corrigir o estágio de uma torre pela tela** | [WR] 23/09 | ❌ hoje só reimportando a planilha inteira |
+| **F9** | **Canteiro como dimensão própria** | [REU] | ✅ |
+| **F10** | **Estrutura e modelo da torre** | [WR] 23/09 | ✅ |
 
 ## Regras de negócio
 
-| # | Item | Fonte |
-|---|---|---|
-| R1 | **Bloqueio por precedência** — não programar escavação sem acesso/supressão concluídos | [REU] [PI-2] |
-| R2 | **Bloqueio por data retroativa / incoerente** | [REU] |
-| R3 | **Bloqueio por restrição ativa** — torre com restrição ambiental/fundiária não entra na programação | [WR] |
-| R4 | **Atividades em ordem de execução** nos dropdowns e listas, não alfabética | [REU] [PI-2] |
-| R5 | **Alerta de conflito de encarregado** — mesma pessoa em dois lugares no mesmo dia | [WR] |
-| R6 | Bloqueios devem ser **avisos com justificativa**, não paredes — permitir override registrado pelo planejamento | [WR] |
-| R7 | **Editor de atividades no front**: criar, editar, remover atividades e definir de quais outras cada uma depende, sem passar por SQL. Hoje a tela de Atividades é só leitura e qualquer mudança da cadeia exige o Wesley | [WR] 23/09 |
+| # | Item | Fonte | |
+|---|---|---|---|
+| R1 | Bloqueio por precedência | [REU] [PI-2] | ✅ percorre a cadeia inteira |
+| R2 | Bloqueio por data retroativa | [REU] | ✅ |
+| R3 | Bloqueio por restrição ativa | [WR] | ✅ |
+| R4 | Atividades em ordem de execução | [REU] [PI-2] | ✅ |
+| R5 | Alerta de conflito de encarregado | [WR] | ✅ |
+| R6 | Override com justificativa registrada | [WR] | ✅ |
+| R7 | Editor de atividades no front | [WR] 23/09 | ❌ tela é só leitura |
+| **R8** | **Cor e ícone da atividade pela tela** | [PROT] | ❌ **regressão** — o protótipo tinha seletor de cor e de ícone |
+| **R9** | **Editar uma programação** | [WR] 23/09 | ❌ só dá para remover e recriar |
+| **R10** | **Limpar programações da torre / do trecho** | [PROT] | ❌ existe no código (`limparProgramacoesDaTorre`), sem botão |
+| **R11** | **Editar nome de encarregado** | [PROT] | ❌ só adicionar e remover |
 
 ## Relatórios e saídas
 
-| # | Item | Fonte |
-|---|---|---|
-| S1 | **Exportar no layout oficial da fiscalização** (Excel) — Wesley assumiu | [REU] |
-| S2 | Quebra do relatório **por semana**, não quinzena inteira | [REU] |
-| S3 | Manter PDF visual + WhatsApp (já funcionam e agradam) | [REU] |
-| S4 | Filtro de relatório por encarregado / atividade / data / torre (já existe, manter) | [REU] |
+| # | Item | Fonte | |
+|---|---|---|---|
+| S1 | Exportar no layout oficial da fiscalização | [REU] | ❌ depende do modelo, com o Alisson |
+| S2 | Quebra do relatório por semana | [REU] | ❌ |
+| S3 | PDF visual + WhatsApp | [REU] | ✅ |
+| S4 | Filtros por encarregado / atividade / torre | [REU] | ✅ |
+| **S5** | **Filtro por período (semana / quinzena)** | [WR] 23/09 | ❌ **a tela mostra toda a programação já lançada, sem recorte de data** |
+| **S6** | **Total de km e torres por encarregado no relatório** | [REU] | ⚠️ aparece por bloco, não consolidado |
+
+> S5 é o mais grave desta seção: o sistema se chama planejamento **semanal** e hoje
+> não tem como olhar só uma semana. Conforme a programação acumular, a tela piora.
 
 ## Fluxo de pré-programação do supervisor
 
-| # | Item | Fonte |
-|---|---|---|
-| P1 | **Painel do supervisor** — ele monta a própria pré-programação | [PI-3] [REU] |
-| P2 | **Fluxo de solicitação → aceite** pelo planejamento | [PI-3] |
-| P3 | **Mobile-first de verdade** — usável no celular, no carro, em campo | [REU] |
-| P4 | **Funcionar offline** com sincronização depois (campo sem sinal) | [WR] |
+| # | Item | Fonte | |
+|---|---|---|---|
+| P1 | Painel do supervisor | [PI-3] [REU] | ❌ |
+| P2 | Fluxo de solicitação → aceite | [PI-3] | ⚠️ RLS pronta e a programação já nasce `SOLICITADA`, mas não há tela de aprovação — o que o supervisor lançar fica invisível |
+| P3 | Mobile-first | [REU] | ✅ testado no celular |
+| P4 | Funcionar offline | [WR] | ❌ |
 
-> Impacto esperado (estimativa do Wesley na reunião): reunião de programação de **1 dia inteiro → 30min–1h**.
+> Enquanto P2 não existir, **ninguém pode receber o papel SUPERVISOR** — a
+> programação dele entraria e sumiria da vista.
 
 ## Base de dados e indicadores
 
-| # | Item | Fonte |
-|---|---|---|
-| B1 | **Produtividade individual por encarregado** — o que executou, quantas torres, quantos km | [REU] |
-| B2 | **Programado × Executado** — aderência da programação | [WR] |
-| B3 | **Curva de avanço** da obra por trecho e por atividade | [WR] |
-| B4 | Dashboard de gargalos (insumo pras reuniões de quinta) | [WR] |
+| # | Item | Fonte | |
+|---|---|---|---|
+| B1 | Produtividade individual por encarregado | [REU] | ❌ |
+| B2 | Programado × Executado | [WR] | ❌ |
+| B3 | Curva de avanço por trecho e atividade | [WR] | ❌ |
+| B4 | Dashboard de gargalos | [WR] | ❌ |
+
+> Todos dependem de **F5**: sem tela de apontar o executado, não há o que medir.
+> O schema já está pronto, com a marca `carga_inicial` separando o que foi
+> inferido da planilha do que foi apontado de verdade.
 
 ## IA
 
-| # | Item | Fonte |
-|---|---|---|
-| A1 | **IA analisa status de atividade por torre** | [PI-1] |
-| A2 | **IA sugere programação** — próximas torres/atividades com base em precedência, restrições e produtividade histórica | [PI-1] |
+| # | Item | Fonte | |
+|---|---|---|---|
+| A1 | IA analisa status de atividade por torre | [PI-1] | ❌ |
+| A2 | IA sugere programação | [PI-1] | ❌ |
 
-> Depende de B1–B3 (não tem o que analisar sem histórico) e de liberação corporativa de ferramenta de IA. **Fase final.**
+> Depende de B1–B3 e de liberação corporativa de ferramenta de IA.
 
-## Backlog futuro (mencionado, fora do escopo inicial)
+## Levantado na reunião, ainda fora do escopo
 
-- **Programação diária** do supervisor — interesse manifestado pelo Daniel
+- **Programação diária** do supervisor — interesse do Daniel
+- **Buritirama tem OPGW dos dois lados** (lado A e lado B) em vez de OPGW + para-raio
+- **Faixa de torres por canteiro** — permitiria atribuir canteiro sozinho na importação
 - Expandir para "diagrama produtivo completo" da obra
 - Aposentar as planilhas com VBA do setor
