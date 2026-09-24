@@ -441,11 +441,12 @@ de-para fica quase todo 1 para 1.
 | REVISÃO | 3.1.4 (EST) · 3.2.3 (AUP) | inclui a flambagem, como texto na célula |
 | GIRO E PRUMO | 3.1.5 | |
 | INSTALAÇÃO DE BANDOLAS | 4.1.1 **ou** 4.2.1 | pelo campo `cabo` |
-| LANÇAMENTO DO PILOTO | 4.1.2 **ou** 4.2.2 | pelo campo `cabo` |
+| LANÇAMENTO DO PILOTINHO | 4.1.2 **ou** 4.2.2 | pelo campo `cabo` — ver DEC-12 |
 | LANÇAMENTO DO CABO OPGW/PR | 4.1.3 **ou** 4.2.3 | pelo campo `cabo` |
 | NIVELAMENTO OPGW / PARA-RAIO | 4.1.4 **ou** 4.2.4 | pelo campo `cabo` |
 | GRAMPEAÇÃO OPGW / PARA-RAIO | 4.1.5 **ou** 4.2.5 | pelo campo `cabo` |
 | ANCORAGEM OPGW / PARA-RAIO | 4.1.6 **ou** 4.2.6 | pelo campo `cabo` |
+| LANÇAMENTO DO PILOTO DO CONDUTOR | 4.3.2 | nova — ver DEC-12 |
 | LANÇAMENTO CONDUTOR 100% | 4.3.3 | |
 | NIVELAMENTO DOS CONDUTORES | 4.3.4 | |
 | GRAMPEAÇÃO DOS CONDUTORES | 4.3.5 | |
@@ -514,6 +515,8 @@ do backlog) e os itens em KM, que precisam de quantidade e não de contagem de t
 | DEC-9 | Fabricação de pré-moldado sai do planejamento. O que se programa é a **instalação**, em três sabores — só mastro central, só viga L, ou os dois — porque as equipes se dividem assim | Alessandro, 24/09 (A4) |
 | DEC-10 | O cabo-guarda vira um campo na programação, `OPGW` ou `PARA_RAIO`, em vez de atividades duplicadas. É ele que decide se a linha vai para `4.1` ou `4.2` | Alessandro, 24/09 (A6) |
 | DEC-11 | A padronização das quatro planilhas será apresentada à fiscalização antes de valer | Alessandro, 24/09 (A5) |
+| DEC-12 | **Pilotinho e piloto são cabos diferentes.** O pilotinho puxa o cabo-guarda (`4.1.2` / `4.2.2`), o piloto puxa o condutor (`4.3.2`). O SIPAV tinha uma atividade só para os dois: ela vira `LANÇAMENTO DO PILOTINHO` e nasce `LANÇAMENTO DO PILOTO DO CONDUTOR`. 33 → 34 atividades. [`db/23`](../db/23-piloto-e-pilotinho.sql) | Wesley, 24/09 |
+| DEC-13 | `LANÇAMENTO DO PILOTINHO` exige `GIRO E PRUMO`. Não se lança cabo em torre não aprumada, e como é a primeira etapa em que se puxa cabo, o bloqueio transitivo cobre todo o resto da fase. Bandolas fica de fora porque é acessório na torre, não lançamento. [`db/22`](../db/22-lancamento-depende-do-prumo.sql) | Wesley, 24/09 |
 
 > **DEC-7 revoga a DEC-3 e corrige o `06-correcoes.sql`.** O que se junta à revisão é
 > a flambagem, não o giro e prumo. Saldo: a lista do SIPAV vai de 28 para 33
@@ -526,4 +529,5 @@ do backlog) e os itens em KM, que precisam de quantidade e não de contagem de t
 | P2 | Apresentar o catálogo unificado à fiscalização (DEC-11). Enquanto isso não acontece, o exportador localiza a linha pelo código **e** pelo nome, para funcionar também nas planilhas atuais | Nada. É transição, não bloqueio |
 | P3 | `INSTALAÇÃO DE SINALIZAÇÃO` é um item no SIPAV e três no ISA (sinalizador de estais, avifauna, placas). Por ora o exportador escreve nos três | Nada |
 | P4 | O sinalizador de estais é instalado na torre e poderia sair bem antes do condutor, mas o Alessandro listou sinalização por último. A dependência ficou em `GRAMPEAÇÃO DOS CONDUTORES` até alguém corrigir | Nada. Só a regra de bloqueio |
-| P5 | Com `GIRO E PRUMO` separada, `LANÇAMENTO CONDUTOR 100%` deveria passar a depender dela em vez de parar na montagem? | Regra de bloqueio do lançamento |
+| P5 | ~~`LANÇAMENTO CONDUTOR 100%` deveria depender de `GIRO E PRUMO`?~~ — resolvido pela DEC-13 | — |
+| P6 | O ISA separa `4.1.1`/`4.2.1 Instalação de Bandolas` (cabo-guarda) de `4.3.1 Instalação de Bandolas e Isoladores` (condutor), mesmo padrão do pilotinho/piloto da DEC-12. O SIPAV tem `INSTALAÇÃO DE BANDOLAS` só uma vez. Confirmar com o campo se são duas etapas | De-para do `4.3.1` |

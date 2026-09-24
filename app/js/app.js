@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v45 · 2026-09-24';
+  var VERSAO = 'v46 · 2026-09-24';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -554,11 +554,14 @@ window.SIPAV = window.SIPAV || {};
    * seção 4.1 para o para-raio convencional e 4.2 para o OPGW. A obra tem as
    * duas condições — Buritirama leva OPGW dos dois lados, Barra–Correntina leva
    * para-raio de um lado e OPGW do outro —, então quem programa precisa dizer
-   * qual é. O condutor tem seção própria (4.3) e não entra aqui.
+   * qual é.
+   *
+   * O condutor tem seção própria (4.3) e não entra aqui, nem o piloto dele: o
+   * pilotinho é o cabo-guia do cabo-guarda, o piloto é o do condutor.
    */
   var ATIVIDADES_COM_CABO = [
     'INSTALAÇÃO DE BANDOLAS',
-    'LANÇAMENTO DO PILOTO',
+    'LANÇAMENTO DO PILOTINHO',
     'LANÇAMENTO DO CABO OPGW/PR',
     'NIVELAMENTO OPGW / PARA-RAIO',
     'GRAMPEAÇÃO OPGW / PARA-RAIO',
@@ -1903,6 +1906,14 @@ window.SIPAV = window.SIPAV || {};
     'espacadores':               'INSTALAÇÃO DE ESPAÇADORES',
     'jumper':                    'INSTALAÇÃO DE JUMPER',
     'sinalizacao':               'INSTALAÇÃO DE SINALIZAÇÃO',
+
+    // Pilotinho é o cabo-guia do cabo-guarda; piloto é o do condutor
+    'pilotinho':                   'LANÇAMENTO DO PILOTINHO',
+    'lancamento do pilotinho':     'LANÇAMENTO DO PILOTINHO',
+    'lancam. pilotinho':           'LANÇAMENTO DO PILOTINHO',
+    'piloto':                      'LANÇAMENTO DO PILOTO DO CONDUTOR',
+    'lancamento do piloto':        'LANÇAMENTO DO PILOTO DO CONDUTOR',
+    'piloto do condutor':          'LANÇAMENTO DO PILOTO DO CONDUTOR',
 
     'lancam. condutor':        'LANÇAMENTO CONDUTOR 100%',
     'lancam condutor':         'LANÇAMENTO CONDUTOR 100%',
