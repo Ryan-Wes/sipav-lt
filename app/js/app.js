@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v46 · 2026-09-24';
+  var VERSAO = 'v47 · 2026-09-24';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -560,7 +560,7 @@ window.SIPAV = window.SIPAV || {};
    * pilotinho é o cabo-guia do cabo-guarda, o piloto é o do condutor.
    */
   var ATIVIDADES_COM_CABO = [
-    'INSTALAÇÃO DE BANDOLAS',
+    'INSTALAÇÃO DE BANDOLAS DO CABO-GUARDA',
     'LANÇAMENTO DO PILOTINHO',
     'LANÇAMENTO DO CABO OPGW/PR',
     'NIVELAMENTO OPGW / PARA-RAIO',
@@ -1906,6 +1906,15 @@ window.SIPAV = window.SIPAV || {};
     'espacadores':               'INSTALAÇÃO DE ESPAÇADORES',
     'jumper':                    'INSTALAÇÃO DE JUMPER',
     'sinalizacao':               'INSTALAÇÃO DE SINALIZAÇÃO',
+
+    // Bandola do cabo-guarda e bandola do condutor são etapas diferentes: a do
+    // condutor vem depois do cabo-guarda lançado, e leva isolador junto
+    'bandolas':                    'INSTALAÇÃO DE BANDOLAS DO CABO-GUARDA',
+    'bandola':                     'INSTALAÇÃO DE BANDOLAS DO CABO-GUARDA',
+    'instalacao de bandolas':      'INSTALAÇÃO DE BANDOLAS DO CABO-GUARDA',
+    'bandolas e isoladores':       'INSTALAÇÃO DE BANDOLAS E ISOLADORES',
+    'bandola de condutor':         'INSTALAÇÃO DE BANDOLAS E ISOLADORES',
+    'bandolas do condutor':        'INSTALAÇÃO DE BANDOLAS E ISOLADORES',
 
     // Pilotinho é o cabo-guia do cabo-guarda; piloto é o do condutor
     'pilotinho':                   'LANÇAMENTO DO PILOTINHO',
