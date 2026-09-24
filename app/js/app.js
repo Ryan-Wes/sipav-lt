@@ -17,10 +17,13 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v21 · 2026-09-23';
+  var VERSAO = 'v22 · 2026-09-24';
 
   var torreAberta = null;
   var cancelarEscuta = null;
+
+  // id da programação sendo alterada. Nulo = o formulário está criando uma nova.
+  var programacaoEmEdicao = null;
 
   var ROTULO_PAPEL = {
     ADMIN: 'Administrador',
@@ -433,6 +436,8 @@ window.SIPAV = window.SIPAV || {};
 
     $('campoData').value = ui.hoje();
     $('campoObservacao').value = '';
+    programacaoEmEdicao = null;
+    atualizarModoFormulario();
     limparAvisos();
     renderListaDoModal();
 
@@ -446,6 +451,7 @@ window.SIPAV = window.SIPAV || {};
       .slice().sort(function (a, b) { return a.data < b.data ? -1 : 1; });
 
     $('modalContagem').textContent = progs.length;
+    $('btnLimparTorre').classList.toggle('hidden', progs.length < 2);
 
     if (!progs.length) {
       $('modalListaProgramacoes').innerHTML =
@@ -472,6 +478,11 @@ window.SIPAV = window.SIPAV || {};
                   'Fora da sequência: ' + esc(p.override_motivo) + '</p>'
               : '') +
           '</div>' +
+          '<button onclick="SIPAV.app.editarProgramacao(\'' + p.id + '\')" ' +
+                  'class="p-1.5 rounded-lg hover:bg-slate-200 text-slate-400 hover:text-slate-700 transition" ' +
+                  'title="Alterar">' +
+            '<i data-lucide="pencil" class="w-4 h-4"></i>' +
+          '</button>' +
           '<button onclick="SIPAV.app.removerProgramacao(\'' + p.id + '\')" ' +
                   'class="p-1.5 rounded-lg hover:bg-rose-100 text-slate-400 hover:text-rose-600 transition" ' +
                   'title="Remover">' +
@@ -578,19 +589,32 @@ window.SIPAV = window.SIPAV || {};
       return;
     }
 
-    ui.processando('Gravando programação…');
+    var editando = programacaoEmEdicao;
+    ui.processando(editando ? 'Salvando alteração…' : 'Gravando programação…');
 
-    db.criarProgramacao({
-      torreId: torreAberta.torre_id,
-      atividadeId: $('campoAtividade').value,
-      encarregadoId: $('campoEncarregado').value || null,
-      data: $('campoData').value,
-      observacao: $('campoObservacao').value.trim() || null,
-      situacao: E.perfil.papel === 'SUPERVISOR' ? 'SOLICITADA' : 'APROVADA',
-      overrideMotivo: override ? motivo : null
-    })
+    var gravar = editando
+      ? db.atualizarProgramacao(editando, {
+          atividade_id:    $('campoAtividade').value,
+          encarregado_id:  $('campoEncarregado').value || null,
+          data:            $('campoData').value,
+          observacao:      $('campoObservacao').value.trim() || null,
+          override_motivo: override ? motivo : null
+        })
+      : db.criarProgramacao({
+          torreId: torreAberta.torre_id,
+          atividadeId: $('campoAtividade').value,
+          encarregadoId: $('campoEncarregado').value || null,
+          data: $('campoData').value,
+          observacao: $('campoObservacao').value.trim() || null,
+          situacao: E.perfil.papel === 'SUPERVISOR' ? 'SOLICITADA' : 'APROVADA',
+          overrideMotivo: override ? motivo : null
+        });
+
+    gravar
       .then(function () {
         $('campoObservacao').value = '';
+        programacaoEmEdicao = null;
+        atualizarModoFormulario();
         limparAvisos();
         return recarregarProgramacoes();
       })
@@ -608,7 +632,7 @@ window.SIPAV = window.SIPAV || {};
                     ui.rotuloPeriodo(E.periodo.de, E.periodo.ate) +
                     '). Troque o período para vê-la.', 'alerta', 7000);
         } else {
-          ui.avisar('Programação adicionada.', 'sucesso');
+          ui.avisar(editando ? 'Programação alterada.' : 'Programação adicionada.', 'sucesso');
         }
         verificarBloqueio();
       })
@@ -616,6 +640,99 @@ window.SIPAV = window.SIPAV || {};
         ui.pronto();
         ui.avisar(e.message, 'erro', 6000);
       });
+  }
+
+  /* ------------------------------------------------- Alterar e limpar ----- */
+
+  /** Traz a programação para o formulário, que passa a alterar em vez de criar. */
+  function editarProgramacao(id) {
+    var p = E.programacoes.find(function (x) { return x.id === id; });
+    if (!p) return;
+
+    programacaoEmEdicao = id;
+
+    $('campoAtividade').value   = p.atividade ? p.atividade.id : '';
+    $('campoData').value        = p.data;
+    $('campoEncarregado').value = p.encarregado ? p.encarregado.id : '';
+    $('campoObservacao').value  = p.observacao || '';
+
+    atualizarModoFormulario();
+    verificarBloqueio();
+
+    // verificarBloqueio limpa a justificativa; devolve a original depois dela,
+    // para quem estava editando não ter que redigitar o motivo.
+    if (p.override_motivo) $('campoOverrideMotivo').value = p.override_motivo;
+
+    $('campoData').focus();
+  }
+
+  function cancelarEdicao() {
+    programacaoEmEdicao = null;
+    $('campoObservacao').value = '';
+    atualizarModoFormulario();
+    verificarBloqueio();
+  }
+
+  function atualizarModoFormulario() {
+    var editando = !!programacaoEmEdicao;
+    $('tituloFormulario').textContent   = editando ? 'Alterando programação' : 'Nova atividade';
+    $('rotuloBtnAdicionar').textContent = editando ? 'Salvar alteração' : 'Adicionar programação';
+    $('btnCancelarEdicao').classList.toggle('hidden', !editando);
+    ui.icones();
+  }
+
+  function limparProgramacoesDaTorre() {
+    if (!torreAberta) return;
+    var torre = torreAberta;
+    var quantas = render.programacoesDaTorre(torre.torre_id).length;
+
+    ui.confirmar(
+      'Limpar a torre ' + torre.identificador,
+      'Serão removidas ' + quantas + ' programações desta torre dentro do período exibido (' +
+      ui.rotuloPeriodo(E.periodo.de, E.periodo.ate) + '). Fica registrado no histórico.',
+      'Limpar'
+    ).then(function (sim) {
+      if (!sim) return;
+      ui.processando('Limpando…');
+      return db.limparProgramacoesDaTorre(torre.torre_id, E.periodo.de, E.periodo.ate)
+        .then(recarregarProgramacoes)
+        .then(function () {
+          ui.pronto();
+          cancelarEdicao();
+          ui.avisar('Programações da torre removidas.', 'sucesso');
+        });
+    }).catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro'); });
+  }
+
+  /**
+   * Limpeza sempre limitada ao trecho aberto e ao período exibido. Nunca a obra
+   * inteira: com quatro pessoas programando ao mesmo tempo, um "limpar tudo"
+   * apagaria o trabalho de quem está em outro trecho.
+   */
+  function limparProgramacoesDoPeriodo() {
+    if (!E.trechoAtual) return;
+
+    var quantas = E.programacoes.length;
+    if (!quantas) { ui.avisar('Não há programação no período exibido.', 'alerta'); return; }
+
+    ui.confirmar(
+      'Limpar ' + quantas + (quantas === 1 ? ' programação' : ' programações'),
+      'De ' + E.trechoAtual.nome + ', no período ' +
+      ui.rotuloPeriodo(E.periodo.de, E.periodo.ate) + '. ' +
+      'Outros trechos e outras datas não são tocados. Cada remoção fica registrada ' +
+      'no histórico, com seu nome.',
+      'Limpar ' + quantas
+    ).then(function (sim) {
+      if (!sim) return;
+      ui.processando('Limpando ' + quantas + ' programações…');
+      return db.limparProgramacoesDoPeriodo(E.trechoAtual.id, E.periodo.de, E.periodo.ate)
+        .then(function (apagadas) {
+          return recarregarProgramacoes().then(function () {
+            ui.pronto();
+            ui.avisar(apagadas + ' programações removidas.', 'sucesso', 5000);
+          });
+        });
+    }).catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro', 6000); });
   }
 
   function removerProgramacao(id) {
@@ -1621,7 +1738,11 @@ window.SIPAV = window.SIPAV || {};
     verificarConflito: verificarConflito,
     alternarOverride: alternarOverride,
     adicionarProgramacao: adicionarProgramacao,
+    editarProgramacao: editarProgramacao,
+    cancelarEdicao: cancelarEdicao,
     removerProgramacao: removerProgramacao,
+    limparProgramacoesDaTorre: limparProgramacoesDaTorre,
+    limparProgramacoesDoPeriodo: limparProgramacoesDoPeriodo,
 
     abrirRestricao: abrirRestricao,
     liberarRestricao: liberarRestricao,

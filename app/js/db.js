@@ -386,16 +386,36 @@ window.SIPAV = window.SIPAV || {};
       });
   }
 
-  /** Remove todas as programações de uma torre. */
-  function limparProgramacoesDaTorre(torreId) {
+  /**
+   * Remove as programações de uma torre dentro do período.
+   * O recorte de datas é obrigatório por coerência: a tela mostra e conta
+   * apenas o período, então apagar além dele seria apagar o que não se vê.
+   */
+  function limparProgramacoesDaTorre(torreId, de, ate) {
+    var q = cliente().from('programacao').delete().eq('torre_id', torreId);
+    if (de)  q = q.gte('data', de);
+    if (ate) q = q.lte('data', ate);
+
+    return q.then(function (r) {
+      if (r.error) throw traduzErro(r.error, 'Falha ao limpar programações da torre');
+      return true;
+    });
+  }
+
+  /**
+   * Remove as programações de um trecho dentro de um período.
+   * Roda como função no banco: pelo navegador seria preciso mandar a lista de
+   * todas as torres do trecho na URL, o que estoura o limite de tamanho.
+   * Retorna quantas linhas saíram.
+   */
+  function limparProgramacoesDoPeriodo(trechoId, de, ate) {
     return cliente()
-      .from('programacao')
-      .delete()
-      .eq('torre_id', torreId)
-      .then(function (r) {
-        if (r.error) throw traduzErro(r.error, 'Falha ao limpar programações da torre');
-        return true;
-      });
+      .rpc('limpar_programacoes', {
+        p_trecho_id: trechoId,
+        p_de: de || null,
+        p_ate: ate || null
+      })
+      .then(function (r) { return ok(r, 'Falha ao limpar programações'); });
   }
 
   /** Conflito de encarregado: mesma pessoa, mesmo dia, em torres diferentes. */
@@ -735,6 +755,7 @@ window.SIPAV = window.SIPAV || {};
     atualizarProgramacao: atualizarProgramacao,
     removerProgramacao: removerProgramacao,
     limparProgramacoesDaTorre: limparProgramacoesDaTorre,
+    limparProgramacoesDoPeriodo: limparProgramacoesDoPeriodo,
     conflitosDoEncarregado: conflitosDoEncarregado,
 
     historicoDaTorre: historicoDaTorre,
