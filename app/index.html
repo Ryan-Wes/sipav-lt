@@ -39,7 +39,7 @@
 
   <!-- ?v= força o navegador a buscar de novo quando o código muda.
        Bump this number sempre que editar CSS ou JS. -->
-  <link rel="stylesheet" href="css/app.css?v=22">
+  <link rel="stylesheet" href="css/app.css?v=23">
 </head>
 <body class="h-full flex flex-col bg-slate-100 text-slate-800 antialiased">
 
@@ -307,6 +307,11 @@
           <span id="modalTorreCanteiro"></span>
           <span id="modalTorreTipo"></span>
           Última atividade: <span id="modalTorreUltima" class="font-medium">—</span>
+          <button onclick="SIPAV.app.abrirCorrigirEstagio()"
+                  class="ml-1 align-middle p-1 rounded hover:bg-slate-100 text-slate-400"
+                  title="Corrigir o estágio desta torre">
+            <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+          </button>
         </p>
       </div>
       <button onclick="SIPAV.app.fecharModal('modalProgramacao')" class="p-1.5 rounded-lg hover:bg-slate-100">
@@ -460,10 +465,10 @@
   </div>
 </div>
 
-<script src="js/config.js?v=22"></script>
-<script src="js/db.js?v=22"></script>
-<script src="js/ui.js?v=22"></script>
-<script src="js/render.js?v=22"></script>
-<script src="js/app.js?v=22"></script>
+<script src="js/config.js?v=23"></script>
+<script src="js/db.js?v=23"></script>
+<script src="js/ui.js?v=23"></script>
+<script src="js/render.js?v=23"></script>
+<script src="js/app.js?v=23"></script>
 </body>
 </html>

@@ -649,13 +649,16 @@ window.SIPAV = window.SIPAV || {};
   }
 
   /**
-   * Grava as execuções inferidas do estágio da planilha.
-   * @param {Array} registros [{torreId, atividadeId}]
+   * Grava as execuções inferidas do estágio.
+   * @param {Array}  registros  [{torreId, atividadeId}]
+   * @param {string} origem     de onde veio a inferência — fica na observação,
+   *                            distinguindo importação de correção manual
    */
-  function registrarCargaInicial(registros) {
+  function registrarCargaInicial(registros, origem) {
     if (!registros.length) return Promise.resolve([]);
 
     var hoje = new Date().toISOString().slice(0, 10);
+    var obs = origem || 'Carga inicial da planilha de controle';
 
     return auth.usuario().then(function (u) {
       var linhas = registros.map(function (r) {
@@ -666,7 +669,7 @@ window.SIPAV = window.SIPAV || {};
           data_execucao: hoje,
           percentual: 100,
           carga_inicial: true,
-          observacao: 'Carga inicial da planilha de controle',
+          observacao: obs,
           registrado_por: u ? u.id : null
         };
       });

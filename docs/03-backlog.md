@@ -19,9 +19,10 @@ Situação conferida em **23/09/2026**, item por item, contra o que está public
 | F5 | Tabela de execuções (histórico) | [WR] | ⚠️ existe no banco, mas só a importação escreve nela |
 | F6 | Restrição como entidade própria | [WR] | ✅ |
 | F7 | Usuários e papéis | [WR] | ✅ |
-| **F8** | **Corrigir o estágio de uma torre pela tela** | [WR] 23/09 | ❌ hoje só reimportando a planilha inteira |
+| **F8** | **Corrigir o estágio de uma torre pela tela** | [WR] 23/09 | ✅ |
 | **F9** | **Canteiro como dimensão própria** | [REU] | ✅ |
 | **F10** | **Estrutura e modelo da torre** | [WR] 23/09 | ✅ |
+| **F11** | **Histórico de quem criou, alterou e removeu programação** | [WR] 24/09 | ✅ trigger no banco, não adulterável pela aplicação |
 
 ## Regras de negócio
 
@@ -33,10 +34,10 @@ Situação conferida em **23/09/2026**, item por item, contra o que está public
 | R4 | Atividades em ordem de execução | [REU] [PI-2] | ✅ |
 | R5 | Alerta de conflito de encarregado | [WR] | ✅ |
 | R6 | Override com justificativa registrada | [WR] | ✅ |
-| R7 | Editor de atividades no front | [WR] 23/09 | ❌ tela é só leitura |
-| **R8** | **Cor e ícone da atividade pela tela** | [PROT] | ❌ **regressão** — o protótipo tinha seletor de cor e de ícone |
-| **R9** | **Editar uma programação** | [WR] 23/09 | ❌ só dá para remover e recriar |
-| **R10** | **Limpar programações da torre / do trecho** | [PROT] | ❌ existe no código (`limparProgramacoesDaTorre`), sem botão |
+| R7 | Editor de atividades no front | [WR] 23/09 | ✅ inclusive as dependências da regra de bloqueio |
+| **R8** | **Cor e ícone da atividade pela tela** | [PROT] | ✅ |
+| **R9** | **Editar uma programação** | [WR] 23/09 | ✅ |
+| **R10** | **Limpar programações da torre / do trecho** | [PROT] | ✅ sempre limitado ao trecho e ao período |
 | **R11** | **Editar nome de encarregado** | [PROT] | ❌ só adicionar e remover |
 
 ## Relatórios e saídas
@@ -47,11 +48,8 @@ Situação conferida em **23/09/2026**, item por item, contra o que está public
 | S2 | Quebra do relatório por semana | [REU] | ❌ |
 | S3 | PDF visual + WhatsApp | [REU] | ✅ |
 | S4 | Filtros por encarregado / atividade / torre | [REU] | ✅ |
-| **S5** | **Filtro por período (semana / quinzena)** | [WR] 23/09 | ❌ **a tela mostra toda a programação já lançada, sem recorte de data** |
+| **S5** | **Filtro por período (semana / quinzena)** | [WR] 23/09 | ✅ presets de semana, quinzena e mês, mais personalizado |
 | **S6** | **Total de km e torres por encarregado no relatório** | [REU] | ⚠️ aparece por bloco, não consolidado |
-
-> S5 é o mais grave desta seção: o sistema se chama planejamento **semanal** e hoje
-> não tem como olhar só uma semana. Conforme a programação acumular, a tela piora.
 
 ## Fluxo de pré-programação do supervisor
 
@@ -86,6 +84,14 @@ Situação conferida em **23/09/2026**, item por item, contra o que está public
 | A2 | IA sugere programação | [PI-1] | ❌ |
 
 > Depende de B1–B3 e de liberação corporativa de ferramenta de IA.
+
+## Dívida técnica
+
+| # | Item | |
+|---|---|---|
+| D1 | **SQL aplicado à mão** — o repositório guarda os scripts, mas nada os executa. A CLI do Supabase transformaria `db/` em migrations versionadas, com um comando só. Adiar até depois da demonstração | ❌ |
+| D2 | **Correção de estágio não tem trilha de auditoria própria** — fica só `registrado_por` e a observação na linha de execução. O histórico com trigger cobre programação, não execução | ⚠️ |
+| D3 | **Tailwind e demais bibliotecas vêm de CDN** — sem build, e com aviso do próprio Tailwind de que não é para produção. Some na migração para Next.js | ⚠️ |
 
 ## Levantado na reunião, ainda fora do escopo
 

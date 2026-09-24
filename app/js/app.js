@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v22 · 2026-09-24';
+  var VERSAO = 'v23 · 2026-09-24';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -745,6 +745,92 @@ window.SIPAV = window.SIPAV || {};
           .then(function () { ui.pronto(); ui.avisar('Programação removida.', 'sucesso'); });
       })
       .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro'); });
+  }
+
+  /* ======================================================================== */
+  /* ESTÁGIO DA TORRE                                                         */
+  /* ======================================================================== */
+
+  /**
+   * O estágio não é um campo: ele é derivado do histórico de execuções. Corrigir
+   * significa reescrever as execuções inferidas desta torre — as que vieram da
+   * planilha. Apontamento feito de verdade em campo nunca é tocado aqui.
+   */
+  function abrirCorrigirEstagio() {
+    if (!torreAberta) return;
+    var torre = torreAberta;
+
+    var corpo =
+      '<div class="space-y-3">' +
+        '<p class="text-sm text-slate-600">' +
+          'A torre <strong>' + esc(torre.identificador) + '</strong> consta hoje em ' +
+          '<strong>' + esc(torre.ultima_atividade || 'nada executado') + '</strong>.' +
+        '</p>' +
+        '<div><label class="rotulo">Última atividade executada</label>' +
+          '<select id="estagioNovo" class="campo">' +
+            '<option value="">— nada executado —</option>' +
+            E.atividades.map(function (a) {
+              return '<option value="' + a.id + '"' +
+                     (a.id === torre.ultima_atividade_id ? ' selected' : '') + '>' +
+                     esc(a.nome) + '</option>';
+            }).join('') +
+          '</select></div>' +
+        '<p class="text-xs text-slate-500">' +
+          'Marca essa atividade e todas as <strong>obrigatórias anteriores</strong> como ' +
+          'executadas. As condicionais ficam de fora, porque não há como saber se esta ' +
+          'torre levou perfuração em rocha, tubulão ou pré-moldado.' +
+        '</p>' +
+        '<p class="text-xs text-slate-400">' +
+          'Isso muda a cor da torre na grade e o que as regras de bloqueio consideram ' +
+          'feito. Fica gravado com o seu nome e marcado como correção manual, separado ' +
+          'do que veio da planilha.' +
+        '</p>' +
+      '</div>';
+
+    ui.modalGenerico({
+      titulo: 'Corrigir estágio — torre ' + torre.identificador,
+      corpoHtml: corpo,
+      botoes: [
+        { rotulo: 'Cancelar', classe: 'btn-secundario' },
+        { rotulo: 'Salvar estágio', classe: 'btn-primario', acao: salvarEstagio }
+      ]
+    });
+  }
+
+  function salvarEstagio() {
+    var torre = torreAberta;
+    if (!torre) return;
+
+    var id = $('estagioNovo').value;
+    var registros = [];
+
+    if (id) {
+      var a = E.atividades.find(function (x) { return x.id === id; });
+      if (a) {
+        expandirEstagio(a).forEach(function (aid) {
+          registros.push({ torreId: torre.torre_id, atividadeId: aid });
+        });
+      }
+    }
+
+    ui.processando('Atualizando estágio…');
+
+    db.limparCargaInicial([torre.torre_id])
+      .then(function () {
+        return db.registrarCargaInicial(registros, 'Estágio corrigido manualmente');
+      })
+      .then(recarregarProgramacoes)
+      .then(function () {
+        ui.pronto();
+        ui.fecharModal('modalGenerico');
+
+        // Reabre com os dados novos, para o cabeçalho refletir a correção
+        var atualizada = E.torres.find(function (t) { return t.torre_id === torre.torre_id; });
+        if (atualizada) abrirTorre(atualizada.torre_id);
+
+        ui.avisar('Estágio atualizado.', 'sucesso');
+      })
+      .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro', 6000); });
   }
 
   /* ======================================================================== */
@@ -1746,6 +1832,7 @@ window.SIPAV = window.SIPAV || {};
 
     abrirRestricao: abrirRestricao,
     liberarRestricao: liberarRestricao,
+    abrirCorrigirEstagio: abrirCorrigirEstagio,
     abrirHistoricoDaTorre: abrirHistoricoDaTorre,
     abrirHistoricoDoTrecho: abrirHistoricoDoTrecho,
 
