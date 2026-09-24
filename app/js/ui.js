@@ -74,6 +74,13 @@ window.SIPAV = window.SIPAV || {};
 
       var cancelar = novo.parentNode.querySelector('.btn-secundario');
       if (cancelar) cancelar.onclick = function () { fecharModal('modalConfirmacao'); resolve(false); };
+
+      // Clique no fundo equivale a cancelar. Sem resolver a promessa aqui, o
+      // fluxo que chamou confirmar ficaria pendurado para sempre.
+      var caixa = $('modalConfirmacao');
+      caixa.onclick = function (ev) {
+        if (ev.target === caixa) { fecharModal('modalConfirmacao'); resolve(false); }
+      };
     });
   }
 

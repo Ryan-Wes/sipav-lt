@@ -39,7 +39,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
   <!-- ?v= força o navegador a buscar de novo quando o código muda. -->
-  <link rel="stylesheet" href="css/app.css?v=41">
+  <link rel="stylesheet" href="css/app.css?v=42">
 </head>
 <body class="h-full flex flex-col antialiased">
 
@@ -111,12 +111,15 @@
     <div class="max-w-[1600px] mx-auto px-5 py-3 flex flex-wrap justify-center xl:justify-between items-center gap-x-3 gap-y-2">
 
       <div class="flex items-center gap-3">
-        <img id="logoSimbolo" alt="" class="shrink-0" style="height:36px;width:auto">
-        <div class="leading-tight">
-          <img id="logoTexto" alt="SIPAV LT" style="height:16px;width:auto">
-          <p class="text-[11px] mt-1" id="nomeObra" style="color:var(--texto-fraco)">
-            LT Serra Dourada
-          </p>
+        <div onclick="SIPAV.app.limparFiltros()" class="flex items-center gap-3 cursor-pointer"
+             title="Voltar à visão completa, sem filtros">
+          <img id="logoSimbolo" alt="" class="shrink-0" style="height:36px;width:auto">
+          <div class="leading-tight">
+            <img id="logoTexto" alt="SIPAV LT" style="height:16px;width:auto">
+            <p class="text-[11px] mt-1" id="nomeObra" style="color:var(--texto-fraco)">
+              LT Serra Dourada
+            </p>
+          </div>
         </div>
 
         <!-- Seletor de trecho: resolve o "um HTML por trecho" do protótipo -->
@@ -281,6 +284,12 @@
         </div>
 
         <span id="resumoEstatisticas" class="resumo"></span>
+
+        <button id="btnLimparFiltros" onclick="SIPAV.app.limparFiltros()"
+                class="btn-header hidden" title="Remover todos os filtros e ver tudo">
+          <i data-lucide="filter-x" class="w-4 h-4 icone-perigo"></i>
+          <span class="hidden lg:inline">Limpar filtros</span>
+        </button>
       </div>
     </div>
 
@@ -488,10 +497,10 @@
   </div>
 </div>
 
-<script src="js/config.js?v=41"></script>
-<script src="js/db.js?v=41"></script>
-<script src="js/ui.js?v=41"></script>
-<script src="js/render.js?v=41"></script>
-<script src="js/app.js?v=41"></script>
+<script src="js/config.js?v=42"></script>
+<script src="js/db.js?v=42"></script>
+<script src="js/ui.js?v=42"></script>
+<script src="js/render.js?v=42"></script>
+<script src="js/app.js?v=42"></script>
 </body>
 </html>

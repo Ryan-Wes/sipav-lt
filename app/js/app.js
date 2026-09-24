@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v41 · 2026-09-24';
+  var VERSAO = 'v42 · 2026-09-24';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -74,6 +74,15 @@ window.SIPAV = window.SIPAV || {};
         var aberto = document.querySelector('.modal:not(.hidden)');
         if (aberto) ui.fecharModal(aberto.id);
       }
+    });
+
+    // Clique no fundo escuro fecha o modal. A confirmação tem tratamento
+    // próprio em ui.confirmar, porque precisa resolver a promessa como "não".
+    Array.prototype.forEach.call(document.querySelectorAll('.modal'), function (m) {
+      if (m.id === 'modalConfirmacao') return;
+      m.addEventListener('click', function (ev) {
+        if (ev.target === m) ui.fecharModal(m.id);
+      });
     });
 
     // Clique fora fecha os menus suspensos
@@ -469,6 +478,23 @@ window.SIPAV = window.SIPAV || {};
     E.filtroCanteiro = $('filtroCanteiro').value;
     E.busca = $('filtroBusca').value;
     render.tudo();
+  }
+
+  /**
+   * Tira todos os recortes de uma vez e mostra a obra inteira do trecho.
+   * O período entra na conta: ele esconde programação tanto quanto os outros.
+   * As colunas da grade não, porque são preferência de exibição, não filtro.
+   */
+  function limparFiltros() {
+    $('filtroAtividade').value = '';
+    $('filtroCanteiro').value = '';
+    $('filtroBusca').value = '';
+
+    E.filtroAtividade = '';
+    E.filtroCanteiro = '';
+    E.busca = '';
+
+    aplicarPeriodo('tudo', true);
   }
 
   /* ======================================================================== */
@@ -2044,7 +2070,7 @@ window.SIPAV = window.SIPAV || {};
     alternarMenu: alternarMenu, fecharMenus: fecharMenus,
     abrirAlterarSenha: abrirAlterarSenha,
     trocarAba: trocarAba, mudarColunas: mudarColunas, renderizar: renderizar,
-    mudarPeriodo: mudarPeriodo,
+    mudarPeriodo: mudarPeriodo, limparFiltros: limparFiltros,
     fecharModal: ui.fecharModal,
 
     abrirTorre: abrirTorre,

@@ -387,6 +387,31 @@ select option, select optgroup {
 .cartao-restrito { background: rgba(225,29,72,.06); }
 .cartao-restrito:hover { background: rgba(225,29,72,.10); }
 
+/* ----------------------------------------------- Chip dos quadrantes ----- */
+
+.chip-prog {
+  display: flex; align-items: center; gap: .5rem;
+  padding: .375rem .5625rem; border-radius: .5rem;
+  background: var(--superficie); border: 1px solid var(--borda);
+  cursor: pointer; transition: border-color .15s, background-color .15s;
+}
+.chip-prog:hover { border-color: var(--borda-forte); background: var(--superficie-2); }
+
+.chip-torre {
+  font-weight: 700; font-size: .8125rem; color: var(--texto);
+  min-width: 40px; flex-shrink: 0;
+}
+
+.chip-atividade {
+  font-size: .625rem; font-weight: 700; line-height: 1.2;
+  padding: .1875rem .375rem; border-radius: .25rem;
+}
+
+/* Sem truncar: saber quem é o encarregado é metade do motivo de abrir a lista */
+.chip-encarregado {
+  font-size: .75rem; color: var(--texto-suave); line-height: 1.25;
+}
+
 /* ------------------------------------------------- Programação no cartão -- */
 
 .selo-prog {

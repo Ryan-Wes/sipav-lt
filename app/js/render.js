@@ -208,27 +208,39 @@ window.SIPAV = window.SIPAV || {};
 
   /* ----------------------------------------------- Visões de quadrante --- */
 
-  function chipProgramacao(p, mostrarTorre) {
-    var cor = p.atividade ? p.atividade.cor_fundo : '#94a3b8';
-    var txt = ui.corDoTexto(cor);
+  /**
+   * @param {object} op quais partes mostrar. O que já está no título do bloco
+   *                    é omitido: repetir só rouba espaço de quem precisa.
+   */
+  function chipProgramacao(p, op) {
+    op = op || {};
+    var cor = p.atividade ? p.atividade.cor_fundo : '#94A3B8';
+
     return '' +
-      '<div class="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 cursor-pointer hover:border-indigo-300 transition" ' +
+      '<div class="chip-prog" ' +
            'onclick="SIPAV.app.abrirTorre(\'' + (p.torre ? p.torre.id : '') + '\')">' +
-        (mostrarTorre
-          ? '<span class="font-bold text-sm text-slate-800 min-w-[42px]">' + esc(p.torre ? p.torre.identificador : '?') + '</span>'
-          : '') +
-        '<span class="text-[10px] font-semibold px-1.5 py-0.5 rounded" ' +
-              'style="background:' + cor + ';color:' + txt + '">' +
-          esc(p.atividade ? p.atividade.nome : '—') +
-        '</span>' +
-        (p.encarregado ? '<span class="text-xs text-slate-500 truncate">' + esc(p.encarregado.nome) + '</span>' : '') +
+
+        (op.torre === false ? ''
+          : '<span class="chip-torre">' + esc(p.torre ? p.torre.identificador : '?') + '</span>') +
+
+        // Sem a pastilha da atividade, um ponto mantém a cor presente
+        (op.atividade === false
+          ? '<span class="ponto-atividade" style="background:' + cor + '"></span>'
+          : '<span class="chip-atividade" style="background:' + cor + ';color:' +
+              ui.corDoTexto(cor) + '">' +
+              esc(p.atividade ? p.atividade.nome : '—') +
+            '</span>') +
+
+        (op.encarregado === false || !p.encarregado ? ''
+          : '<span class="chip-encarregado">' + esc(p.encarregado.nome) + '</span>') +
+
         (p.override_motivo
           ? '<i data-lucide="alert-triangle" class="w-3 h-3 text-amber-500 shrink-0" title="Programada fora da sequência"></i>'
           : '') +
       '</div>';
   }
 
-  function blocoQuadrante(titulo, subtitulo, itens, mostrarTorre) {
+  function blocoQuadrante(titulo, subtitulo, itens, op) {
     var totalKm = itens.reduce(function (s, p) { return s + (p.torre ? Number(p.torre.km) || 0 : 0); }, 0);
     return '' +
       '<section class="bloco-quadrante painel overflow-hidden">' +
@@ -241,8 +253,8 @@ window.SIPAV = window.SIPAV || {};
             itens.length + (itens.length === 1 ? ' torre' : ' torres') + ' · ' + ui.km(totalKm) + ' km' +
           '</span>' +
         '</header>' +
-        '<div class="p-3 grid gap-2" style="grid-template-columns:repeat(auto-fill,minmax(210px,1fr))">' +
-          itens.map(function (p) { return chipProgramacao(p, mostrarTorre !== false); }).join('') +
+        '<div class="p-3 grid gap-2" style="grid-template-columns:repeat(auto-fill,minmax(240px,1fr))">' +
+          itens.map(function (p) { return chipProgramacao(p, op); }).join('') +
         '</div>' +
       '</section>';
   }
@@ -322,7 +334,8 @@ window.SIPAV = window.SIPAV || {};
             '</span>' +
           '</header>' +
           porDia.ordem.map(function (data) {
-            return blocoQuadrante(ui.dataLonga(data), null, porDia.mapa[data], true);
+            return blocoQuadrante(ui.dataLonga(data), null, porDia.mapa[data],
+              { torre: true, atividade: true, encarregado: true });
           }).join('') +
         '</section>';
     }).join('');
@@ -398,7 +411,8 @@ window.SIPAV = window.SIPAV || {};
       var datas = {};
       itens.forEach(function (p) { datas[p.data] = true; });
       var qtd = Object.keys(datas).length;
-      return blocoQuadrante(nome, qtd + (qtd === 1 ? ' dia programado' : ' dias programados'), itens, true);
+      return blocoQuadrante(nome, qtd + (qtd === 1 ? ' dia programado' : ' dias programados'),
+        itens, { torre: true, atividade: true, encarregado: false });
     }).join('');
   }
 
@@ -417,7 +431,9 @@ window.SIPAV = window.SIPAV || {};
 
     var g = agrupar(ordenada, function (p) { return p.atividade ? p.atividade.nome : 'Sem atividade'; });
     cont.innerHTML = g.ordem.map(function (nome) {
-      return blocoQuadrante(nome, null, g.mapa[nome], true);
+      // A atividade já está no título do bloco; o espaço vai para o encarregado
+      return blocoQuadrante(nome, null, g.mapa[nome],
+        { torre: true, atividade: false, encarregado: true });
     }).join('');
   }
 
@@ -435,6 +451,12 @@ window.SIPAV = window.SIPAV || {};
     });
 
     var qtd = Object.keys(torresProgramadas).length;
+
+    // O botão de limpar só aparece quando há o que limpar
+    var filtrando = !!(E.filtroAtividade || E.filtroCanteiro ||
+                       (E.busca || '').trim() || E.periodo.de || E.periodo.ate);
+    var btnLimpar = $('btnLimparFiltros');
+    if (btnLimpar) btnLimpar.classList.toggle('hidden', !filtrando);
 
     // O período entra no resumo de propósito: sem isso, uma torre programada
     // fora do recorte some da grade e parece que o lançamento se perdeu.
