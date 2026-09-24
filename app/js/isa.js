@@ -367,17 +367,31 @@ window.SIPAV = window.SIPAV || {};
    * cerca de 45 preenchidos à mão não são tocados.
    */
   function limparLinha(ws, linha) {
-    ws.getCell(linha, COL.ENCARREGADO).value = null;
-    for (var d = 0; d < 6; d++) ws.getCell(linha, COL.SEGUNDA + d).value = null;
+    // A planilha marca "nada aqui" com hífen, não com célula vazia. Zerar para
+    // vazio deixava buraco onde o resto do documento mostra '-'.
+    var tinha = false;
+
+    function vazia(col) {
+      var t = String(valor(ws.getCell(linha, col)) || '').trim();
+      if (t && t !== '-') tinha = true;
+      ws.getCell(linha, col).value = '-';
+    }
+
+    vazia(COL.ENCARREGADO);
+    for (var d = 0; d < 6; d++) vazia(COL.SEGUNDA + d);
     ws.getCell(linha, COL.SEGUNDA + 6).value = 'DSR';
-    ws.getCell(linha, COL.TOTAL).value = null;
+    vazia(COL.TOTAL);
+
+    return tinha;
   }
 
   function escreverLinha(ws, linha, porEncarregado) {
     var encs = Object.keys(porEncarregado).sort();
     if (!encs.length) return 0;
 
-    ws.getCell(linha, COL.ENCARREGADO).value = encs.join(' / ');
+    // O documento inteiro escreve encarregado em caixa alta
+    ws.getCell(linha, COL.ENCARREGADO).value =
+      encs.map(function (e) { return e.toUpperCase(); }).join(' / ');
 
     var total = 0;
     for (var dia = 0; dia < 6; dia++) {           // segunda a sábado
@@ -444,15 +458,24 @@ window.SIPAV = window.SIPAV || {};
 
         var escritas = 0, torresEscritas = 0, limpas = 0;
         var naoAchados = [];
+        var tinhamConteudo = {};
 
         // Passo 1 — zera a programação de TODOS os itens do catálogo, esteja ou
         // não com serviço nesta quinzena. É o que impede a semana passada de
         // sobreviver na planilha reusada.
+        //
+        // Guarda quem tinha conteúdo: se o SIPAV não escrever nada por cima,
+        // aquilo era planejamento que só existia na planilha e acabou de sumir.
+        // Quem confere precisa saber disso — é a diferença entre "o SIPAV é a
+        // fonte da verdade" e "o SIPAV apagou meu trabalho".
         Object.keys(mapa.achados).forEach(function (item) {
           var alvo = mapa.achados[item];
-          limparLinha(ws, alvo.prog1);
-          limparLinha(ws, alvo.prog2);
+          var t1 = limparLinha(ws, alvo.prog1);
+          var t2 = limparLinha(ws, alvo.prog2);
           limpas += 2;
+          if (t1 || t2) {
+            tinhamConteudo[item] = String(valor(ws.getCell(alvo.linhaItem, COL.ATIVIDADE)) || item);
+          }
         });
 
         // Passo 2 — escreve o que há
@@ -476,6 +499,11 @@ window.SIPAV = window.SIPAV || {};
         wb.calcProperties = wb.calcProperties || {};
         wb.calcProperties.fullCalcOnLoad = true;
 
+        // O que tinha programação na planilha e não tinha no SIPAV
+        var apagados = Object.keys(tinhamConteudo)
+          .filter(function (item) { return !g.dados[item]; })
+          .map(function (item) { return { item: item, nome: tinhamConteudo[item] }; });
+
         return wb.xlsx.writeBuffer().then(function (out) {
           return {
             blob: new Blob([out], {
@@ -486,6 +514,7 @@ window.SIPAV = window.SIPAV || {};
               linhasEscritas: escritas,
               torresEscritas: torresEscritas,
               linhasLimpas: limpas,
+              apagados: apagados,
               itensNaoAchados: naoAchados,
               duplicados: mapa.duplicados,
               tortos: mapa.tortos,

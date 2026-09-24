@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v51 · 2026-09-24';
+  var VERSAO = 'v52 · 2026-09-24';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -2209,10 +2209,22 @@ window.SIPAV = window.SIPAV || {};
 
     partes.push(bloco('border-emerald-300 bg-emerald-50 text-emerald-800',
       r.linhasEscritas + (r.linhasEscritas === 1 ? ' linha preenchida' : ' linhas preenchidas'),
-      r.torresEscritas + ' apontamento(s) de torre distribuídos nos dias. Antes de escrever, ' +
-      'as ' + r.linhasLimpas + ' linhas de programação dos itens que o SIPAV controla foram ' +
-      'zeradas, para a quinzena anterior não sobreviver. Os itens preenchidos à mão não ' +
-      'foram tocados.'));
+      r.torresEscritas + ' apontamento(s) de torre distribuídos nos dias. Os itens que o SIPAV ' +
+      'não programa — topografia, sondagem, armação, canteiro, comissionamento — não foram tocados, ' +
+      'nem a linha EXEC., nem os totais.'));
+
+    // O mais importante do relato: o SIPAV é a fonte da verdade, então tudo que
+    // estava programado na planilha e não está no SIPAV foi apagado. Se a
+    // programação ainda não foi toda passada para o sistema, isto é perda real
+    // de trabalho e a pessoa precisa ver antes de mandar o arquivo.
+    if (r.apagados && r.apagados.length) {
+      partes.push(bloco('border-rose-300 bg-rose-50 text-rose-800',
+        '⚠ ' + r.apagados.length + ' item(ns) tinham programação na planilha e foram apagados',
+        'Esses itens estavam preenchidos no arquivo que você subiu, mas não têm programação ' +
+        'no SIPAV para esta quinzena — então a planilha ficou sem eles. ' +
+        '<strong>Se essa programação era para valer, ela precisa entrar no SIPAV antes.</strong><br><br>' +
+        esc(r.apagados.map(function (a) { return a.nome; }).join(' · ')) + '.'));
+    }
 
     var d = r.datas;
     if (d.s1 && d.s1 !== d.esperadoS1) {
@@ -2235,9 +2247,11 @@ window.SIPAV = window.SIPAV || {};
     if (r.itensNaoAchados.length) {
       partes.push(bloco('border-rose-200 bg-rose-50 text-rose-800',
         r.itensNaoAchados.length + ' item(ns) sem linha nesta planilha',
-        'Tem programação para eles mas a planilha não tem a linha: <strong>' +
-        esc(r.itensNaoAchados.join(', ')) + '</strong>. ' +
-        'É o caso da perfuração de tubulão, que ainda vai ser criada com a fiscalização.'));
+        'Tem programação no SIPAV para eles mas esta planilha não tem a linha correspondente: ' +
+        '<strong>' + esc(r.itensNaoAchados.join(', ')) + '</strong>. ' +
+        'Acontece quando o trecho ainda não chegou naquela fase — a planilha de Barra–Correntina, ' +
+        'por exemplo, para na seção 4.2 e não tem a 4.3 do condutor. Também é o caso da perfuração ' +
+        'de tubulão, que ainda vai ser criada com a fiscalização.'));
     }
 
     var semDePara = Object.keys(r.semDePara);
