@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v48 · 2026-09-24';
+  var VERSAO = 'v49 · 2026-09-24';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -2112,6 +2112,159 @@ window.SIPAV = window.SIPAV || {};
     });
   }
 
+  /* --------------------------------------------- Relatório da ISA -------- */
+
+  function abrirRelatorioIsa() {
+    var segunda = ui.iso(ui.segundaDaSemana(ui.somarDias(new Date(), 7)));
+
+    var corpo =
+      '<div class="space-y-4">' +
+        '<p class="text-sm text-slate-600">' +
+          'Sobe a planilha <strong>RPSQ</strong> deste trecho e o SIPAV preenche as linhas ' +
+          '<strong>PROG. 1</strong> e <strong>PROG. 2</strong> com a programação da quinzena. ' +
+          'Nada mais é tocado: a linha EXEC., os totais, o cabeçalho e o rodapé ficam como estão.' +
+        '</p>' +
+
+        '<div><label class="rotulo">Segunda-feira da semana 1</label>' +
+          '<input id="isaSegunda" type="date" class="campo" value="' + segunda + '">' +
+          '<p class="text-xs text-slate-500 mt-1">' +
+            'A semana 2 é a seguinte. É a mesma data que vai no cabeçalho da planilha.' +
+          '</p></div>' +
+
+        '<div><label class="rotulo">Planilha do trecho</label>' +
+          '<input id="isaArquivo" type="file" accept=".xlsx" class="campo text-sm"></div>' +
+
+        '<p class="text-xs text-slate-400">' +
+          'O arquivo original não é alterado — você baixa uma cópia preenchida. ' +
+          'Confira antes de enviar: é a primeira versão.' +
+        '</p>' +
+      '</div>';
+
+    ui.modalGenerico({
+      titulo: 'Relatório da ISA — ' + (E.trechoAtual ? E.trechoAtual.nome : ''),
+      corpoHtml: corpo,
+      botoes: [
+        { rotulo: 'Cancelar', classe: 'btn-secundario' },
+        { rotulo: 'Preencher', classe: 'btn-primario', acao: gerarRelatorioIsa }
+      ]
+    });
+  }
+
+  function gerarRelatorioIsa() {
+    var entrada = $('isaArquivo');
+    var arquivo = entrada.files && entrada.files[0];
+    var segunda = $('isaSegunda').value;
+
+    if (!arquivo) { ui.avisar('Escolha a planilha do trecho.', 'alerta'); return; }
+    if (!segunda) { ui.avisar('Informe a segunda-feira da semana 1.', 'alerta'); return; }
+
+    ui.fecharModal('modalGenerico');
+    ui.processando('Preenchendo a planilha…');
+
+    SIPAV.isa.gerar(arquivo, ui.paraData(segunda), E.programacoes, E.torres)
+      .then(function (r) {
+        ui.pronto();
+        baixarBlob(r.blob, arquivo.name.replace(/\.xlsx$/i, '') + ' - SIPAV.xlsx');
+        mostrarRelatoIsa(r.relato);
+      })
+      .catch(function (e) {
+        ui.pronto();
+        ui.avisar(e.message || 'Falha ao preencher a planilha', 'erro', 7000);
+      });
+  }
+
+  function baixarBlob(blob, nome) {
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = nome;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  }
+
+  /** O que foi escrito e, principalmente, o que não foi. */
+  function mostrarRelatoIsa(r) {
+    function bloco(cor, titulo, corpo) {
+      return '<div class="rounded-lg border p-3 ' + cor + '">' +
+               '<p class="text-sm font-semibold">' + titulo + '</p>' +
+               '<p class="text-xs mt-1">' + corpo + '</p>' +
+             '</div>';
+    }
+
+    var partes = [];
+
+    partes.push(bloco('border-emerald-300 bg-emerald-50 text-emerald-800',
+      r.linhasEscritas + (r.linhasEscritas === 1 ? ' linha preenchida' : ' linhas preenchidas'),
+      r.torresEscritas + ' apontamento(s) de torre distribuídos nos dias. Antes de escrever, ' +
+      'as ' + r.linhasLimpas + ' linhas de programação dos itens que o SIPAV controla foram ' +
+      'zeradas, para a quinzena anterior não sobreviver. Os itens preenchidos à mão não ' +
+      'foram tocados.'));
+
+    var d = r.datas;
+    if (d.s1 !== d.esperadoS1 || d.s2 !== d.esperadoS2) {
+      partes.push(bloco('border-amber-300 bg-amber-50 text-amber-800',
+        'As datas da planilha não batem com a quinzena escolhida',
+        'A planilha diz semana 1 em <strong>' + (d.s1 ? ui.dataCurta(d.s1) : '?') + '</strong> e ' +
+        'semana 2 em <strong>' + (d.s2 ? ui.dataCurta(d.s2) : '?') + '</strong>. ' +
+        'Você pediu ' + ui.dataCurta(d.esperadoS1) + ' e ' + ui.dataCurta(d.esperadoS2) + '. ' +
+        'Confira se é o arquivo da semana certa.'));
+    }
+
+    if (r.semCabo.length) {
+      partes.push(bloco('border-rose-200 bg-rose-50 text-rose-800',
+        r.semCabo.length + ' programação(ões) de lançamento sem cabo escolhido',
+        'Não dá para saber se vão na seção do para-raio ou do OPGW, então ficaram de fora: ' +
+        '<strong>' + esc(r.semCabo.slice(0, 8).join(' · ')) + '</strong>' +
+        (r.semCabo.length > 8 ? ' e mais ' + (r.semCabo.length - 8) : '') + '.'));
+    }
+
+    if (r.itensNaoAchados.length) {
+      partes.push(bloco('border-rose-200 bg-rose-50 text-rose-800',
+        r.itensNaoAchados.length + ' item(ns) sem linha nesta planilha',
+        'Tem programação para eles mas a planilha não tem a linha: <strong>' +
+        esc(r.itensNaoAchados.join(', ')) + '</strong>. ' +
+        'É o caso da perfuração de tubulão, que ainda vai ser criada com a fiscalização.'));
+    }
+
+    var semDePara = Object.keys(r.semDePara);
+    if (semDePara.length) {
+      partes.push(bloco('border-slate-200 bg-slate-50 text-slate-700',
+        semDePara.length + ' atividade(s) que não vão para o relatório',
+        esc(semDePara.map(function (n) { return n + ' (' + r.semDePara[n] + ')'; }).join(' · ')) +
+        '. Topografia, sondagem, armação, canteiro e comissionamento não são programados ' +
+        'no SIPAV e continuam manuais.'));
+    }
+
+    if (r.tortos && r.tortos.length) {
+      partes.push(bloco('border-rose-200 bg-rose-50 text-rose-800',
+        r.tortos.length + ' item(ns) com o bloco de três linhas quebrado',
+        'O item existe mas abaixo dele não vêm PROG. 1 e PROG. 2 na ordem, então não ' +
+        'escrevi para não acertar a linha errada: ' +
+        esc(r.tortos.map(function (x) { return x.item + '@' + x.linha; }).join(', ')) + '.'));
+    }
+
+    if (r.duplicados.length) {
+      partes.push(bloco('border-amber-300 bg-amber-50 text-amber-800',
+        r.duplicados.length + ' item(ns) repetido(s) na planilha',
+        'Escrevi só na primeira ocorrência. Linhas: ' +
+        esc(r.duplicados.map(function (x) { return x.item + '@' + x.linha; }).join(', ')) + '.'));
+    }
+
+    if (r.foraDoPeriodo) {
+      partes.push(bloco('border-slate-200 bg-slate-50 text-slate-700',
+        r.foraDoPeriodo + ' programação(ões) fora da quinzena',
+        'Existem no trecho mas caem em outra semana, então não entraram.'));
+    }
+
+    ui.modalGenerico({
+      titulo: 'Planilha preenchida',
+      corpoHtml: '<div class="space-y-2">' + partes.join('') + '</div>',
+      botoes: [{ rotulo: 'Fechar', classe: 'btn-primario' }]
+    });
+  }
+
   function gerarPdf() {
     var titulo = $('pdfTitulo').value;
     var arquivo = $('pdfArquivo').value || 'sipav';
@@ -2225,6 +2378,7 @@ window.SIPAV = window.SIPAV || {};
 
     abrirImportacao: abrirImportacao,
     abrirExportarPdf: abrirExportarPdf,
+    abrirRelatorioIsa: abrirRelatorioIsa,
     compartilharWhatsApp: compartilharWhatsApp
   };
 

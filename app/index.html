@@ -37,9 +37,11 @@
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <!-- Lê e reescreve o .xlsx da ISA preservando fórmulas e formatação -->
+  <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 
   <!-- ?v= força o navegador a buscar de novo quando o código muda. -->
-  <link rel="stylesheet" href="css/app.css?v=48">
+  <link rel="stylesheet" href="css/app.css?v=49">
 </head>
 <body class="h-full flex flex-col antialiased">
 
@@ -144,6 +146,10 @@
             <i data-lucide="chevron-down" class="w-3 h-3 opacity-60"></i>
           </button>
           <div id="menuExportar" class="menu hidden">
+            <button class="menu-item" onclick="SIPAV.app.fecharMenus();SIPAV.app.abrirRelatorioIsa()">
+              <i data-lucide="table-2" class="w-4 h-4 icone-excel"></i> Relatório da ISA
+            </button>
+            <div class="menu-sep"></div>
             <button class="menu-item" onclick="SIPAV.app.fecharMenus();SIPAV.app.abrirExportarPdf()">
               <i data-lucide="file-text" class="w-4 h-4 icone-pdf"></i> Exportar em PDF
             </button>
@@ -508,10 +514,11 @@
   </div>
 </div>
 
-<script src="js/config.js?v=48"></script>
-<script src="js/db.js?v=48"></script>
-<script src="js/ui.js?v=48"></script>
-<script src="js/render.js?v=48"></script>
-<script src="js/app.js?v=48"></script>
+<script src="js/config.js?v=49"></script>
+<script src="js/db.js?v=49"></script>
+<script src="js/ui.js?v=49"></script>
+<script src="js/render.js?v=49"></script>
+<script src="js/isa.js?v=49"></script>
+<script src="js/app.js?v=49"></script>
 </body>
 </html>

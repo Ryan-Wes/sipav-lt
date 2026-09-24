@@ -129,6 +129,7 @@ body::before {
 .btn-header-acento:hover { background: var(--acento-escuro); border-color: var(--acento-escuro); color: #fff; }
 
 .icone-pdf      { color: #F43F5E; }
+.icone-excel    { color: #10B981; }
 .icone-whatsapp { color: #10B981; }
 .icone-perigo   { color: #F43F5E; }
 
