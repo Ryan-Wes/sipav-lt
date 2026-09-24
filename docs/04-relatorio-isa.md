@@ -270,9 +270,11 @@ Central, Itajubaquara. Buritirama tem ainda `Pátio de Materiais`.
 | 2.0.6 | Fabricação Pré-Moldado - Viga L - Solo IV | UND |
 | 2.0.7 | Transporte de Pré-Moldados | UND |
 
-Barra II – Correntina detalha o mastro em três alturas (1,80 / 2,30 / 2,80) e os
-outros não; Campo Formoso e Juazeiro agrupam as vigas em `Solo I & II` e
-`Solo III & IV`. **Decidir qual granularidade vale para todos.**
+**Fora do planejamento** (A4). A seção continua na planilha e continua sendo
+preenchida à mão, mas o SIPAV não programa fabricação — programa a *instalação*,
+em `2.1.10` e `2.1.11`. Por isso a divergência de granularidade entre as quatro
+(mastro por altura em Barra–Correntina, vigas agrupadas em Campo Formoso e
+Juazeiro) deixa de importar para o exportador.
 
 ### 2.1 Obras Civis — Fundação
 
@@ -297,6 +299,12 @@ outros não; Campo Formoso e Juazeiro agrupam as vigas em `Solo I & II` e
 | 2.1.17 | Reaterro - Fundação Mastro Central | TORRE |
 | 2.1.18 | Ensaio de Arrancamento - Fundação Estai | TORRE |
 | 2.1.19 | Fundação 100% Concluída - Completa | TORRE |
+| **2.1.20** | **Perfuração de Tubulão - Fundação Estai / Pé** | TORRE |
+| **2.1.21** | **Perfuração de Tubulão - Fundação Mastro Central** | TORRE |
+
+`2.1.20` e `2.1.21` **não existem em nenhuma das quatro planilhas** e precisam ser
+criados: pelo A1, perfuração de tubulão é serviço diferente de perfuração em rocha,
+e hoje não tem onde ser apontado.
 
 ### 2.2 Obras Civis — Instalação de Aterramento
 
@@ -345,8 +353,18 @@ outros não; Campo Formoso e Juazeiro agrupam as vigas em `Solo I & II` e
 
 ### 4.1 e 4.2 Lançamento de Cabo — Para-Raio e OPGW
 
-Mesma estrutura de nove itens nas duas seções. `4.1` = para-raio, `4.2` = OPGW —
-sujeito à confirmação de engenharia descrita acima.
+Mesma estrutura de nove itens nas duas seções. **`4.1` = para-raio 3/8 / Dotterel,
+`4.2` = OPGW** — resolvido pelo A6.
+
+As duas condições existem de verdade na obra: Buritirama leva OPGW dos dois lados,
+Barra–Correntina leva para-raio convencional de um lado e OPGW do outro. OPGW dos
+dois lados é a tendência das LTs novas, porque a fibra permite leitura de vento e
+chuva além da proteção contra descarga. O 3/8 e o Dotterel são o mesmo cabo emendado
+e trocam só perto das subestações, por condição mecânica — **não viram opções
+separadas no SIPAV**.
+
+Os itens `4.x.8` (descida do cabo) e `4.x.9` (caixa de emenda) só fazem sentido no
+OPGW, que é o que tem fibra.
 
 | Item | Atividade | Unid. |
 |---|---|---|
@@ -396,6 +414,10 @@ sujeito à confirmação de engenharia descrita acima.
 `EST` = torre estaiada, `AUP` = autoportante. O SIPAV sabe o tipo de cada torre
 (`torre.estrutura`), então consegue escolher a linha sozinho.
 
+Depois das respostas do Alessandro a lista do SIPAV vai de 28 para **33
+atividades** (migração em [`db/21-cadeia-isa.sql`](../db/21-cadeia-isa.sql)) e o
+de-para fica quase todo 1 para 1.
+
 | SIPAV | Item ISA | Observação |
 |---|---|---|
 | ABERTURA DE ACESSO | 1.2.3 | |
@@ -403,30 +425,39 @@ sujeito à confirmação de engenharia descrita acima.
 | SUPRESSÃO DE ÁREA DE TORRE | 1.3.1 | |
 | SUPRESSÃO DA FAIXA | 1.3.2 | |
 | ESCAVAÇÃO | 2.1.4 + 2.1.5 | 2.1.5 só para EST |
+| PERFURAÇÃO DE TUBULÃO | **2.1.20 + 2.1.21** | itens novos — ver DEC-6 |
 | PERFURAÇÃO EM ROCHA | 2.1.6 + 2.1.7 | 2.1.7 só para EST |
+| INSTALAÇÃO DE PRÉ-MOLDADOS - VIGA L | 2.1.10 | |
+| INSTALAÇÃO DE PRÉ-MOLDADOS - MC | 2.1.11 | |
+| INSTALAÇÃO DE PRÉ-MOLDADOS - MC E VIGA L | 2.1.10 + 2.1.11 | |
 | INJEÇÃO DE NATA | 2.1.8 + 2.1.9 | 2.1.9 só para EST |
-| INSTALAÇÃO DE PRÉ-MOLDADOS | 2.1.10 + 2.1.11 | 2.1.11 só para EST. Absorve `PREPARAÇÃO` — ver **DEC-2** |
 | CONCRETAGEM / TUBULÃO | 2.1.12 + 2.1.13 | 2.1.13 só para EST |
 | REATERRO 100% | 2.1.16 + 2.1.17 | 2.1.17 só para EST |
 | TESTE DE ARRANCAMENTO | 2.1.18 | |
 | ATERRAMENTO / CONTRAPESO | 2.2.1 | |
 | MEDIÇÃO DE RESISTÊNCIA | 2.2.3 | |
-| PRÉ-MONTAGEM | 3.1.1 (EST) · 3.2.1 (AUP) | |
-| MONTAGEM | 3.1.3 (EST) · 3.2.2 (AUP) | |
-| REVISÃO EM SOLO | 3.1.2 | nova — ver **DEC-3** |
-| REVISÃO FINAL | 3.1.4 (EST) · 3.2.3 (AUP) | nova — ver **DEC-3** |
-| GIRO E PRUMO | 3.1.5 | nova — ver **DEC-3** |
-| INSTALAÇÃO DE BANDOLAS | 4.1.1 + 4.2.1 | |
-| LANÇAMENTO DO PILOTO | 4.1.2 + 4.2.2 | |
-| LANÇAMENTO DO CABO OPGW/PR | 4.1.3 + 4.2.3 | |
-| NIVELAMENTO OPGW / PARA-RAIO | 4.1.4 + 4.2.4 | |
-| GRAMPEAÇÃO E ANCORAGEM OPGW / PARA-RAIO | 4.1.5 + 4.1.6 + 4.2.5 + 4.2.6 | uma vira quatro |
+| PRÉ-MONTAGEM | 3.1.1 + 3.1.2 (EST) · 3.2.1 (AUP) | 3.1.2 é a revisão em solo, que vai junto |
+| MONTAGEM | 3.1.3 (EST) · 3.2.2 (AUP) | içamento |
+| REVISÃO | 3.1.4 (EST) · 3.2.3 (AUP) | inclui a flambagem, como texto na célula |
+| GIRO E PRUMO | 3.1.5 | |
+| INSTALAÇÃO DE BANDOLAS | 4.1.1 **ou** 4.2.1 | pelo campo `cabo` |
+| LANÇAMENTO DO PILOTO | 4.1.2 **ou** 4.2.2 | pelo campo `cabo` |
+| LANÇAMENTO DO CABO OPGW/PR | 4.1.3 **ou** 4.2.3 | pelo campo `cabo` |
+| NIVELAMENTO OPGW / PARA-RAIO | 4.1.4 **ou** 4.2.4 | pelo campo `cabo` |
+| GRAMPEAÇÃO OPGW / PARA-RAIO | 4.1.5 **ou** 4.2.5 | pelo campo `cabo` |
+| ANCORAGEM OPGW / PARA-RAIO | 4.1.6 **ou** 4.2.6 | pelo campo `cabo` |
 | LANÇAMENTO CONDUTOR 100% | 4.3.3 | |
 | NIVELAMENTO DOS CONDUTORES | 4.3.4 | |
-| GRAMPEAÇÃO E ANCORAGEM DOS CONDUTORES | 4.3.5 + 4.3.6 | |
-| INSTALAÇÃO DE ACESSÓRIOS | 4.3.7 + 4.3.8 + 4.4.1–4.4.3 | **ver Q5** |
-| PERFURAÇÃO DE TUBULÃO | — | **não existe no ISA** — ver Q2 |
-| FLAMBAGEM | — | hoje vira texto `(RETIRADA DE FLAMBAGEM)` dentro de 3.1.4 |
+| GRAMPEAÇÃO DOS CONDUTORES | 4.3.5 | |
+| ANCORAGEM DOS CONDUTORES | 4.3.6 | |
+| INSTALAÇÃO DE JUMPER | 4.3.7 | |
+| INSTALAÇÃO DE ESPAÇADORES | 4.3.8 | |
+| INSTALAÇÃO DE SINALIZAÇÃO | 4.4.1 + 4.4.2 + 4.4.3 | única que ainda abre em três |
+
+Sobrou um caso de leque de verdade: **sinalização**, que no ISA são sinalizador de
+estais, dispositivo avifauna e placa. O Alessandro pediu "Sinalização" como um item
+só, então o exportador escreve a mesma programação nas três linhas até alguém pedir
+para separar.
 
 ### Itens do ISA que o SIPAV não programa
 
@@ -474,29 +505,25 @@ do backlog) e os itens em KM, que precisam de quantidade e não de contagem de t
 |---|---|---|
 | DEC-1 | Topografia, sondagem, armação, canteiro e comissionamento não são planejados. Permanecem manuais | Wesley, 24/09 |
 | DEC-2 | `PREPARAÇÃO` é absorvida por `INSTALAÇÃO DE PRÉ-MOLDADOS` no SIPAV, que é o que a linha do ISA já junta. Migração é segura: nada depende de `PREPARAÇÃO` e as duas dependem de `ESCAVAÇÃO` | Wesley, 24/09 |
-| DEC-3 | `REVISÃO / GIRO E PRUMO` é desmembrada em três, iguais ao ISA: `REVISÃO EM SOLO`, `REVISÃO FINAL`, `GIRO E PRUMO`. `FLAMBAGEM` continua separada e vai como texto dentro de `3.1.4` | Wesley, 24/09 — **confirmar com o Alessandro**, ver A2 |
+| DEC-3 | ~~`REVISÃO / GIRO E PRUMO` vira três~~ — **revogada pelo A2**, ver DEC-7 | Wesley, 24/09 |
 | DEC-4 | Unidades: Corte Seletivo = `TORRE`, Seccionamento e Aterramento de Cercas = `KM`, Transporte de Estrutura = `TORRE` | Wesley, 24/09 |
 | DEC-5 | O exportador gerencia a visibilidade das linhas | Wesley, 24/09 |
+| DEC-6 | Perfuração de tubulão e perfuração em rocha são serviços diferentes. As duas já existem no SIPAV; faltam os itens `2.1.20` e `2.1.21` no catálogo da ISA | Alessandro, 24/09 (A1) |
+| DEC-7 | Cadeia de montagem corrigida: **revisão em solo vai junto com a pré-montagem** (só estaiada, decide se dá para içar com guindaste), içamento depois, **flambagem vai junto com a revisão**, e **giro e prumo sai sozinho depois**. No SIPAV: `FLAMBAGEM` é absorvida por `REVISÃO` e `GIRO E PRUMO` vira atividade própria | Alessandro, 24/09 (A2) |
+| DEC-8 | Grampeação e ancoragem são apontadas separadas, e `INSTALAÇÃO DE ACESSÓRIOS` se abre em espaçador, jumper e sinalização | Alessandro, 24/09 (A3) |
+| DEC-9 | Fabricação de pré-moldado sai do planejamento. O que se programa é a **instalação**, em três sabores — só mastro central, só viga L, ou os dois — porque as equipes se dividem assim | Alessandro, 24/09 (A4) |
+| DEC-10 | O cabo-guarda vira um campo na programação, `OPGW` ou `PARA_RAIO`, em vez de atividades duplicadas. É ele que decide se a linha vai para `4.1` ou `4.2` | Alessandro, 24/09 (A6) |
+| DEC-11 | A padronização das quatro planilhas será apresentada à fiscalização antes de valer | Alessandro, 24/09 (A5) |
 
-> **DEC-3 contraria o que o Alessandro disse antes.** No áudio da cadeia de
-> atividades ele tratou "revisão, giro e prumo" como uma coisa só e a flambagem como
-> outra — foi por isso que o SIPAV ficou com `REVISÃO / GIRO E PRUMO` numa atividade.
-> A planilha da ISA separa em três. Confirmar antes de migrar.
+> **DEC-7 revoga a DEC-3 e corrige o `06-correcoes.sql`.** O que se junta à revisão é
+> a flambagem, não o giro e prumo. Saldo: a lista do SIPAV vai de 28 para 33
+> atividades. Migração em [`db/21-cadeia-isa.sql`](../db/21-cadeia-isa.sql).
 
 ## 7. Em aberto
 
-### Com o Alessandro
-
-| # | Pergunta |
-|---|---|
-| A1 | `PERFURAÇÃO DE TUBULÃO` é a mesma coisa que `2.1.6 Perfuração em Rocha / Cravação de Estacas`, ou é serviço diferente que precisa de linha própria? |
-| A2 | Revisão em solo, revisão final e giro e prumo são três apontamentos separados em campo ou um só? (ver DEC-3) |
-| A3 | `INSTALAÇÃO DE ACESSÓRIOS` cobre jumper (`4.3.7`), espaçadores (`4.3.8`) e sinalização (`4.4.1`–`4.4.3`). Vale separar ou o pessoal aponta tudo junto? |
-| A4 | Fabricação de pré-moldado: detalhar mastro por altura e viga por solo (como Barra–Correntina) ou agrupar (como Campo Formoso e Juazeiro)? |
-| A5 | Padronizar as quatro planilhas precisa de aval da fiscalização ou é decisão interna? |
-
-### Parado por falta de informação
-
-| # | Assunto |
-|---|---|
-| P1 | `4.1` é para-raio convencional e `4.2` OPGW (Barra–Correntina), ou `4.1` OPGW direito e `4.2` OPGW esquerdo (Buritirama)? Wesley levantou que **a configuração muda ao longo do trecho**, por faixa de torre — o catálogo pode precisar das duas seções convivendo, e o de-para pode ter que olhar o número da torre. Levantar com a engenharia |
+| # | Assunto | Trava o quê |
+|---|---|---|
+| P2 | Apresentar o catálogo unificado à fiscalização (DEC-11). Enquanto isso não acontece, o exportador localiza a linha pelo código **e** pelo nome, para funcionar também nas planilhas atuais | Nada. É transição, não bloqueio |
+| P3 | `INSTALAÇÃO DE SINALIZAÇÃO` é um item no SIPAV e três no ISA (sinalizador de estais, avifauna, placas). Por ora o exportador escreve nos três | Nada |
+| P4 | O sinalizador de estais é instalado na torre e poderia sair bem antes do condutor, mas o Alessandro listou sinalização por último. A dependência ficou em `GRAMPEAÇÃO DOS CONDUTORES` até alguém corrigir | Nada. Só a regra de bloqueio |
+| P5 | Com `GIRO E PRUMO` separada, `LANÇAMENTO CONDUTOR 100%` deveria passar a depender dela em vez de parar na montagem? | Regra de bloqueio do lançamento |
