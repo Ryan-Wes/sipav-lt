@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v38 · 2026-09-24';
+  var VERSAO = 'v39 · 2026-09-24';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -78,7 +78,14 @@ window.SIPAV = window.SIPAV || {};
 
     // Clique fora fecha os menus suspensos
     document.addEventListener('click', function (ev) {
-      if (!ev.target.closest || !ev.target.closest('.menu-wrap')) fecharMenus();
+      var alvo = ev.target;
+
+      // Alvo que já saiu do DOM não tem mais ancestrais, e passaria por
+      // "clique fora" mesmo tendo sido dentro. Acontece quando algo redesenha
+      // o elemento durante o próprio clique.
+      if (!alvo || !document.contains(alvo)) return;
+
+      if (!alvo.closest || !alvo.closest('.menu-wrap')) fecharMenus();
     });
   }
 
@@ -339,10 +346,11 @@ window.SIPAV = window.SIPAV || {};
     var alvo = $(id);
     var jaAberto = alvo && !alvo.classList.contains('hidden');
     fecharMenus();
-    if (alvo && !jaAberto) {
-      alvo.classList.remove('hidden');
-      ui.icones();
-    }
+    if (alvo && !jaAberto) alvo.classList.remove('hidden');
+
+    // Sem ui.icones() aqui de propósito: os ícones dos menus já foram
+    // materializados na carga, e recriá-los trocaria o próprio elemento
+    // clicado por um nó novo no meio do evento.
   }
 
   /* ---------------------------------------------------------- Logotipos --- */
