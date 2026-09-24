@@ -60,19 +60,12 @@ window.SIPAV = window.SIPAV || {};
     var restrito = torre.tem_restricao;
 
     var classes = ['cartao-torre'];
-    var estilo = '';
 
-    if (restrito) {
-      classes.push('cartao-restrito');
-    } else if (temProg) {
-      classes.push('cartao-programado');
-    } else if (torre.ultima_atividade_cor) {
-      // Cor viva só na borda; o fundo é um véu dela. O texto continua vindo do
-      // tema, então a legibilidade não depende da cor da atividade.
-      var cor = torre.ultima_atividade_cor;
-      estilo = 'border-color:' + cor + ';border-width:2px;' +
-               'background:' + ui.rgba(cor, 0.16) + ';';
-    }
+    // A faixa do topo responde "o que importa nesta torre agora", nesta ordem:
+    // travada > programada > estágio atual. O corpo do cartão fica neutro.
+    var corFaixa = torre.ultima_atividade_cor || null;
+    if (restrito)      { classes.push('cartao-restrito');   corFaixa = '#E11D48'; }
+    else if (temProg)  { classes.push('cartao-programado'); corFaixa = '#F97316'; }
 
     // Legenda: o que importa ver de relance
     var legenda;
@@ -102,9 +95,10 @@ window.SIPAV = window.SIPAV || {};
       ' — ' + esc(legenda);
 
     return '' +
-      '<div class="' + classes.join(' ') + '" style="' + estilo + '" ' +
+      '<div class="' + classes.join(' ') + '" ' +
            'onclick="SIPAV.app.abrirTorre(\'' + torre.torre_id + '\')" ' +
            'title="' + dica + '">' +
+        '<span class="faixa"' + (corFaixa ? ' style="background:' + corFaixa + '"' : '') + '></span>' +
         (temProg ? '<span class="selo-contagem">' + progs.length + '</span>' : '') +
         '<span class="identificador">' + esc(torre.identificador) + '</span>' +
         pastilha +
