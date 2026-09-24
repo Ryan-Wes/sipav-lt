@@ -39,7 +39,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
   <!-- ?v= força o navegador a buscar de novo quando o código muda. -->
-  <link rel="stylesheet" href="css/app.css?v=44">
+  <link rel="stylesheet" href="css/app.css?v=45">
 </head>
 <body class="h-full flex flex-col antialiased">
 
@@ -375,7 +375,7 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label class="rotulo">Atividade</label>
-            <select id="campoAtividade" class="campo" onchange="SIPAV.app.verificarBloqueio()"></select>
+            <select id="campoAtividade" class="campo" onchange="SIPAV.app.mudarAtividade()"></select>
           </div>
           <div>
             <label class="rotulo">Data</label>
@@ -388,6 +388,17 @@
           <div>
             <label class="rotulo">Observação (opcional)</label>
             <input id="campoObservacao" class="campo" placeholder="Ex.: equipe reduzida">
+          </div>
+
+          <!-- Só aparece nas atividades de cabo-guarda. É o que decide se a
+               linha vai para a seção 4.1 ou 4.2 do relatório da ISA. -->
+          <div id="blocoCabo" class="hidden sm:col-span-2">
+            <label class="rotulo">Cabo</label>
+            <select id="campoCabo" class="campo">
+              <option value="">Escolha o cabo…</option>
+              <option value="OPGW">OPGW</option>
+              <option value="PARA_RAIO">Para-raio 3/8 / Dotterel</option>
+            </select>
           </div>
         </div>
 
@@ -497,10 +508,10 @@
   </div>
 </div>
 
-<script src="js/config.js?v=44"></script>
-<script src="js/db.js?v=44"></script>
-<script src="js/ui.js?v=44"></script>
-<script src="js/render.js?v=44"></script>
-<script src="js/app.js?v=44"></script>
+<script src="js/config.js?v=45"></script>
+<script src="js/db.js?v=45"></script>
+<script src="js/ui.js?v=45"></script>
+<script src="js/render.js?v=45"></script>
+<script src="js/app.js?v=45"></script>
 </body>
 </html>

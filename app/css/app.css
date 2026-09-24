@@ -251,6 +251,16 @@ body::before {
 /* Sem texto ele viraria uma pílula vazia — visível sobretudo no grid do celular */
 .resumo:empty { display: none; }
 
+/* Qual cabo-guarda: OPGW ou para-raio. Some quando a atividade não pede. */
+.selo-cabo {
+  display: inline-block; vertical-align: middle; margin-left: .375rem;
+  font-size: .625rem; font-weight: 700; letter-spacing: .03em;
+  padding: .0625rem .3125rem; border-radius: .25rem;
+  color: var(--acento);
+  background: rgba(249,115,22,.12);
+  border: 1px solid rgba(249,115,22,.30);
+}
+
 /* --------------------------------------------------------- Campos de form -- */
 
 .rotulo {

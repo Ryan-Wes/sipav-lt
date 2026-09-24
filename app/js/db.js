@@ -305,7 +305,7 @@ window.SIPAV = window.SIPAV || {};
   /* ======================================================================== */
 
   var SELECT_PROGRAMACAO =
-    'id, data, situacao, observacao, override_motivo, criado_em,' +
+    'id, data, situacao, observacao, override_motivo, cabo, criado_em,' +
     'torre:torre_id!inner ( id, identificador, ordem, km, trecho_id, canteiro_id ),' +
     'atividade:atividade_id ( id, nome, ordem_execucao, cor_fundo, cor_texto, icone ),' +
     'encarregado:encarregado_id ( id, nome )';
@@ -343,7 +343,7 @@ window.SIPAV = window.SIPAV || {};
 
   /**
    * @param {object} dados {torreId, atividadeId, encarregadoId, data, observacao,
-   *                        situacao, overrideMotivo}
+   *                        situacao, overrideMotivo, cabo}
    */
   function criarProgramacao(dados) {
     return auth.usuario().then(function (u) {
@@ -357,6 +357,7 @@ window.SIPAV = window.SIPAV || {};
           observacao:      dados.observacao || null,
           situacao:        dados.situacao || 'APROVADA',
           override_motivo: dados.overrideMotivo || null,
+          cabo:            dados.cabo || null,
           criado_por:      u ? u.id : null
         })
         .select(SELECT_PROGRAMACAO)

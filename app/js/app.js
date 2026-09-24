@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v44 · 2026-09-24';
+  var VERSAO = 'v45 · 2026-09-24';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -537,12 +537,54 @@ window.SIPAV = window.SIPAV || {};
 
     $('campoData').value = ui.hoje();
     $('campoObservacao').value = '';
+    $('campoCabo').value = '';
     programacaoEmEdicao = null;
     atualizarModoFormulario();
     limparAvisos();
     renderListaDoModal();
 
     ui.abrirModal('modalProgramacao');
+    mudarAtividade();
+  }
+
+  /* ------------------------------------------------------------- Cabo ----- */
+
+  /**
+   * As seis etapas de cabo-guarda existem em duas versões na planilha da ISA:
+   * seção 4.1 para o para-raio convencional e 4.2 para o OPGW. A obra tem as
+   * duas condições — Buritirama leva OPGW dos dois lados, Barra–Correntina leva
+   * para-raio de um lado e OPGW do outro —, então quem programa precisa dizer
+   * qual é. O condutor tem seção própria (4.3) e não entra aqui.
+   */
+  var ATIVIDADES_COM_CABO = [
+    'INSTALAÇÃO DE BANDOLAS',
+    'LANÇAMENTO DO PILOTO',
+    'LANÇAMENTO DO CABO OPGW/PR',
+    'NIVELAMENTO OPGW / PARA-RAIO',
+    'GRAMPEAÇÃO OPGW / PARA-RAIO',
+    'ANCORAGEM OPGW / PARA-RAIO'
+  ];
+
+  /** 'PARA_RAIO' é o valor do enum; na tela ele aparece como o campo fala. */
+  function rotuloCabo(cabo) {
+    return cabo === 'PARA_RAIO' ? 'PARA-RAIO' : cabo;
+  }
+
+  function pedeCabo(atividadeId) {
+    var a = E.atividades.find(function (x) { return x.id === atividadeId; });
+    return !!a && ATIVIDADES_COM_CABO.indexOf(a.nome) !== -1;
+  }
+
+  /** Mostra ou esconde o seletor de cabo conforme a atividade escolhida. */
+  function atualizarCampoCabo() {
+    var precisa = pedeCabo($('campoAtividade').value);
+    $('blocoCabo').classList.toggle('hidden', !precisa);
+    if (!precisa) $('campoCabo').value = '';
+  }
+
+  /** Trocar a atividade mexe no seletor de cabo e na checagem de precedência. */
+  function mudarAtividade() {
+    atualizarCampoCabo();
     verificarBloqueio();
   }
 
@@ -570,7 +612,9 @@ window.SIPAV = window.SIPAV || {};
           '<div class="w-1.5 h-9 rounded-full shrink-0" style="background:' + cor + '"></div>' +
           '<div class="flex-1 min-w-0">' +
             '<p class="text-sm font-semibold text-slate-800 truncate">' +
-              esc(p.atividade ? p.atividade.nome : '—') + '</p>' +
+              esc(p.atividade ? p.atividade.nome : '—') +
+              (p.cabo ? ' <span class="selo-cabo">' + esc(rotuloCabo(p.cabo)) + '</span>' : '') +
+            '</p>' +
             '<p class="text-xs text-slate-500">' +
               ui.dataLonga(p.data) +
               (p.encarregado ? ' · ' + esc(p.encarregado.nome) : '') +
@@ -706,30 +750,45 @@ window.SIPAV = window.SIPAV || {};
       return;
     }
 
+    // Sem o cabo o relatório da ISA não sabe se a linha é da seção 4.1 ou da
+    // 4.2. Melhor cobrar agora do que descobrir na hora de exportar.
+    var atividadeId = $('campoAtividade').value;
+    var cabo = pedeCabo(atividadeId) ? ($('campoCabo').value || null) : null;
+
+    if (pedeCabo(atividadeId) && !cabo) {
+      ui.avisar('Escolha o cabo: OPGW ou para-raio.', 'alerta');
+      $('campoCabo').focus();
+      return;
+    }
+
     var editando = programacaoEmEdicao;
     ui.processando(editando ? 'Salvando alteração…' : 'Gravando programação…');
 
     var gravar = editando
       ? db.atualizarProgramacao(editando, {
-          atividade_id:    $('campoAtividade').value,
+          atividade_id:    atividadeId,
           encarregado_id:  $('campoEncarregado').value || null,
           data:            $('campoData').value,
           observacao:      $('campoObservacao').value.trim() || null,
-          override_motivo: override ? motivo : null
+          override_motivo: override ? motivo : null,
+          cabo:            cabo
         })
       : db.criarProgramacao({
           torreId: torreAberta.torre_id,
-          atividadeId: $('campoAtividade').value,
+          atividadeId: atividadeId,
           encarregadoId: $('campoEncarregado').value || null,
           data: $('campoData').value,
           observacao: $('campoObservacao').value.trim() || null,
           situacao: E.perfil.papel === 'SUPERVISOR' ? 'SOLICITADA' : 'APROVADA',
-          overrideMotivo: override ? motivo : null
+          overrideMotivo: override ? motivo : null,
+          cabo: cabo
         });
 
     gravar
       .then(function () {
         $('campoObservacao').value = '';
+        $('campoCabo').value = '';
+        atualizarCampoCabo();
         programacaoEmEdicao = null;
         atualizarModoFormulario();
         limparAvisos();
@@ -844,6 +903,9 @@ window.SIPAV = window.SIPAV || {};
     $('campoEncarregado').value = p.encarregado ? p.encarregado.id : '';
     $('campoObservacao').value  = p.observacao || '';
 
+    atualizarCampoCabo();
+    $('campoCabo').value = p.cabo || '';
+
     atualizarModoFormulario();
     verificarBloqueio();
 
@@ -857,7 +919,9 @@ window.SIPAV = window.SIPAV || {};
   function cancelarEdicao() {
     programacaoEmEdicao = null;
     $('campoObservacao').value = '';
+    $('campoCabo').value = '';
     atualizarModoFormulario();
+    atualizarCampoCabo();
     verificarBloqueio();
   }
 
@@ -2115,6 +2179,7 @@ window.SIPAV = window.SIPAV || {};
     verificarConflito: verificarConflito,
     alternarOverride: alternarOverride,
     adicionarProgramacao: adicionarProgramacao,
+    mudarAtividade: mudarAtividade,
     editarProgramacao: editarProgramacao,
     cancelarEdicao: cancelarEdicao,
     alternarExecucao: alternarExecucao,
