@@ -66,19 +66,29 @@ O conteúdo é a lista de torres, separada por vírgula:
 J: JOSE SOARES | K: 46/2 | L: 47/1 | M: 47/2 | N: 48/1 | O: 48/2 | P: 49/1 | R: 6
 ```
 
-Quando mais de um encarregado divide a mesma linha, o nome vem separado por ` / ` e
-**cada célula do dia traz o mesmo número de pedaços, na mesma ordem**:
+Quando mais de um encarregado divide a mesma linha, os nomes ficam **empilhados
+dentro da célula, um por linha** (quebra de linha, não barra), e **cada célula do dia
+repete o empilhamento na mesma ordem**. As torres de cada um saem separadas por
+vírgula:
 
-```
-J: ALIELTON / EDUARDO / CELSO
-K: 259/2  /  282/2  /  263/2, 264/1
-L: 261/1  /  282/1  /  264/2, 265/1
-```
+| | ENCARREGADO | SEGUNDA | TERÇA |
+|---|---|---|---|
+| `PROG. 1` | ROMÁRIO<br>WEMERSON | 1/1, 2/1<br>5/1, 5/2, 6/1 | 2/2, 3/1<br>6/2, 8/1, 8/2 |
+
+As células precisam de `wrapText`, senão o Excel mostra tudo grudado.
+
+> **Correção de 24/09.** A primeira versão desta especificação dizia que o separador
+> era ` / `. Estava errado, e o erro foi de leitura: o script que extraiu as
+> planilhas trocava quebra de linha por ` / ` para caber numa linha de texto, e eu li
+> a saída do script como se fosse a convenção do documento. Existem algumas células
+> com ` / ` digitado à mão (`BENEDITO / MANOEL`), mas o padrão é o empilhamento.
 
 Convenções observadas:
 
 - Domingo (coluna Q) é sempre `DSR`.
-- Dia sem serviço é `-`.
+- Dia sem serviço é `-`, nunca célula vazia.
+- Encarregado sempre em CAIXA ALTA.
+- A cada nova quinzena, a programação da anterior é **apagada**, não acumulada.
 - Texto livre substitui a torre quando é o caso: `FERIADO`, `FOLGA DE CAMPO`,
   `MUDANÇA PARA IGARITÉ`, `APOIO REATERRO ESTAI`, `MUDANÇA DO GUINDASTE PARA WANDERLEY`.
 - Complemento entre parênteses depois da torre: `74/2, 73/2 (RETIRADA DE FLAMBAGEM)`,

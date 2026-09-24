@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v52 · 2026-09-24';
+  var VERSAO = 'v53 · 2026-09-24';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -2213,16 +2213,14 @@ window.SIPAV = window.SIPAV || {};
       'não programa — topografia, sondagem, armação, canteiro, comissionamento — não foram tocados, ' +
       'nem a linha EXEC., nem os totais.'));
 
-    // O mais importante do relato: o SIPAV é a fonte da verdade, então tudo que
-    // estava programado na planilha e não está no SIPAV foi apagado. Se a
-    // programação ainda não foi toda passada para o sistema, isto é perda real
-    // de trabalho e a pessoa precisa ver antes de mandar o arquivo.
+    // Apagar a quinzena anterior é o procedimento normal, então isto não é
+    // alarme — é conferência. A lista serve para bater o olho e perceber se
+    // alguma coisa deixou de ser programada no SIPAV por esquecimento.
     if (r.apagados && r.apagados.length) {
-      partes.push(bloco('border-rose-300 bg-rose-50 text-rose-800',
-        '⚠ ' + r.apagados.length + ' item(ns) tinham programação na planilha e foram apagados',
-        'Esses itens estavam preenchidos no arquivo que você subiu, mas não têm programação ' +
-        'no SIPAV para esta quinzena — então a planilha ficou sem eles. ' +
-        '<strong>Se essa programação era para valer, ela precisa entrar no SIPAV antes.</strong><br><br>' +
+      partes.push(bloco('border-slate-200 bg-slate-50 text-slate-700',
+        r.apagados.length + ' item(ns) da quinzena anterior foram limpos',
+        'Tinham programação no arquivo que você subiu e não têm nesta quinzena. ' +
+        'Vale bater o olho para ver se algum ficou de fora do SIPAV sem querer.<br><br>' +
         esc(r.apagados.map(function (a) { return a.nome; }).join(' · ')) + '.'));
     }
 

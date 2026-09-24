@@ -309,8 +309,9 @@ window.SIPAV = window.SIPAV || {};
 
   /**
    * Agrupa a programação em { item: { semana: { encarregado: { dia: [torres] } } } }.
-   * Encarregado vira chave porque a planilha empacota vários na mesma linha,
-   * separados por ' / ', e cada célula do dia repete a mesma ordem.
+   * Encarregado vira chave porque a planilha empilha vários dentro da mesma
+   * célula, um por linha, e cada célula do dia repete o empilhamento na mesma
+   * ordem.
    */
   function agrupar(progs, torresPorId, segundaS1) {
     var isoS1 = ui.iso(segundaS1);
@@ -389,19 +390,33 @@ window.SIPAV = window.SIPAV || {};
     var encs = Object.keys(porEncarregado).sort();
     if (!encs.length) return 0;
 
-    // O documento inteiro escreve encarregado em caixa alta
-    ws.getCell(linha, COL.ENCARREGADO).value =
-      encs.map(function (e) { return e.toUpperCase(); }).join(' / ');
+    /**
+     * Um encarregado por linha DENTRO da célula, empilhado por quebra de linha —
+     * não lado a lado com barra. A célula do dia repete o empilhamento na mesma
+     * ordem, e as torres de cada um saem separadas por vírgula:
+     *
+     *      ENCARREGADO          SEGUNDA            TERÇA
+     *      ROMÁRIO              1/1, 2/1           2/2, 3/1
+     *      WEMERSON             5/1, 5/2, 6/1      6/2, 8/1, 8/2
+     *
+     * Precisa de wrapText, senão o Excel mostra tudo grudado numa linha só.
+     */
+    function empilhar(celula, partes) {
+      celula.value = partes.join('\n');
+      celula.alignment = Object.assign({}, celula.alignment, { wrapText: true });
+    }
+
+    empilhar(ws.getCell(linha, COL.ENCARREGADO),
+      encs.map(function (e) { return e.toUpperCase(); }));   // a planilha é toda em caixa alta
 
     var total = 0;
     for (var dia = 0; dia < 6; dia++) {           // segunda a sábado
-      var pedacos = encs.map(function (e) {
+      empilhar(ws.getCell(linha, COL.SEGUNDA + dia), encs.map(function (e) {
         var torres = porEncarregado[e][dia];
         if (!torres || !torres.length) return '-';
         total += torres.length;
         return torres.join(', ');
-      });
-      ws.getCell(linha, COL.SEGUNDA + dia).value = pedacos.join(' / ');
+      }));
     }
     ws.getCell(linha, COL.SEGUNDA + 6).value = 'DSR';    // domingo
     ws.getCell(linha, COL.TOTAL).value = total || '-';
