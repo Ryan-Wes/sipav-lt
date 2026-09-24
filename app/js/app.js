@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v42 · 2026-09-24';
+  var VERSAO = 'v43 · 2026-09-24';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -1170,7 +1170,7 @@ window.SIPAV = window.SIPAV || {};
 
           '<div class="border-t border-slate-200 pt-4">' +
             '<h4 class="text-xs font-bold uppercase tracking-wide text-slate-500 mb-3">Nova restrição</h4>' +
-            '<div class="grid grid-cols-2 gap-3">' +
+            '<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">' +
               '<div><label class="rotulo">Tipo</label>' +
                 '<select id="restricaoTipo" class="campo">' +
                   '<option value="AMBIENTAL">Ambiental</option>' +
@@ -1179,7 +1179,7 @@ window.SIPAV = window.SIPAV || {};
                 '</select></div>' +
               '<div><label class="rotulo">Previsão de liberação</label>' +
                 '<input id="restricaoPrevisao" type="date" class="campo"></div>' +
-              '<div class="col-span-2"><label class="rotulo">Descrição</label>' +
+              '<div class="sm:col-span-2"><label class="rotulo">Descrição</label>' +
                 '<input id="restricaoDescricao" class="campo" placeholder="Ex.: aguardando ASV"></div>' +
             '</div>' +
           '</div>' +

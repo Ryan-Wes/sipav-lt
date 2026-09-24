@@ -60,6 +60,7 @@ Situação conferida em **23/09/2026**, item por item, contra o que está public
 | P2 | Fluxo de solicitação → aceite | [PI-3] | ⚠️ RLS pronta e a programação já nasce `SOLICITADA`, mas não há tela de aprovação — o que o supervisor lançar fica invisível |
 | P3 | Mobile-first | [REU] | ✅ testado no celular |
 | P4 | Funcionar offline | [WR] | ❌ |
+| **P5** | **Responsividade em telas intermediárias** | [WR] 24/09 | ✅ o cabeçalho se enxuga por etapas (rótulos → nome da obra → nome do usuário) e só quebra no celular; filtros em duas colunas no celular; grade nunca respeita mais colunas do que cabem |
 
 > Enquanto P2 não existir, **ninguém pode receber o papel SUPERVISOR** — a
 > programação dele entraria e sumiria da vista.

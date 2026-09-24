@@ -103,7 +103,7 @@ body::before {
 }
 
 /* Logotipos: a troca claro/escuro é feita por src, em app.js */
-#logoSimbolo, #logoTexto, #logoLogin { display: block; }
+#logoSimbolo, #logoTexto, #logoLogin { display: block; max-width: 100%; }
 
 /* ---------------------------------------------------------------- Botões -- */
 
@@ -248,6 +248,8 @@ body::before {
   border: 1px solid rgba(249,115,22,.25);
   border-radius: .5rem; padding: .4375rem .6875rem;
 }
+/* Sem texto ele viraria uma pílula vazia — visível sobretudo no grid do celular */
+.resumo:empty { display: none; }
 
 /* --------------------------------------------------------- Campos de form -- */
 
@@ -516,6 +518,91 @@ html.dark .hover\:bg-rose-100:hover    { background-color: rgba(225,29,72,.16) !
 html.dark .hover\:bg-emerald-100:hover { background-color: rgba(16,185,129,.16) !important; }
 html.dark .hover\:bg-slate-100:hover,
 html.dark .hover\:bg-slate-200:hover   { background-color: var(--superficie-3) !important; }
+
+/* ---------------------------------------------------------- Responsivo -- */
+/* O cabeçalho tem coisa demais para caber em notebook com os rótulos abertos.
+   Em vez de deixar quebrar em duas linhas, ele vai se enxugando por etapas:
+   primeiro somem os rótulos dos botões, depois o nome da obra, depois o nome
+   do usuário. Só no celular ele realmente quebra — e aí quebra centralizado. */
+
+.rotulo-btn { display: inline; }
+
+#seletorTrecho { min-width: 210px; }
+.bloco-trecho  { flex: 0 1 auto; }
+.bloco-usuario { display: block; }
+
+/* Etapa 1 — botões viram só ícone. O title de cada um continua explicando. */
+@media (max-width: 1499px) {
+  .rotulo-btn { display: none; }
+  .btn-header { padding-left: .5625rem; padding-right: .5625rem; }
+  .aba { padding-left: .6875rem; padding-right: .6875rem; }
+}
+
+/* Etapa 2 — o seletor de trecho encolhe e o nome da obra sai */
+@media (max-width: 1199px) {
+  #seletorTrecho { min-width: 0; width: 100%; max-width: 190px; }
+  #nomeObra { display: none; }
+  .barra-cabecalho { padding-left: 1rem; padding-right: 1rem; }
+}
+
+/* Etapa 3 — nome e papel do usuário saem; o menu de config dá acesso a tudo.
+   O selo "Ao vivo" fica só com a bolinha pulsando, que já é o sinal. */
+@media (max-width: 991px) {
+  .bloco-usuario { display: none; }
+  .rotulo-vivo   { display: none; }
+  #indicadorTempoReal { padding: .4375rem; }
+  #seletorTrecho { max-width: 160px; }
+}
+
+/* Etapa 4 — celular e tablet estreito: aí sim pode quebrar em duas linhas */
+@media (max-width: 767px) {
+  main { padding-left: .875rem !important; padding-right: .875rem !important; }
+  .barra-cabecalho { padding-left: .875rem; padding-right: .875rem; }
+
+  /* Abas e filtros ocupam a largura toda, um bloco por linha */
+  .barra-ferramentas > div { width: 100%; justify-content: center; }
+  .aba { flex: 1 1 auto; justify-content: center; }
+
+  /* A escolha de colunas do usuário é ignorada: numa tela dessas ela só
+     esmagaria os cartões. Vale o que couber. */
+  #visaoGrade { grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr)) !important; }
+}
+
+@media (max-width: 1023px) {
+  #visaoGrade { grid-template-columns: repeat(auto-fill, minmax(min(100%, 155px), 1fr)) !important; }
+}
+
+/* No celular os filtros viram duas colunas: um por linha empilhava seis caixas
+   e empurrava os cartões para fora da primeira tela. */
+@media (max-width: 639px) {
+  .barra-ferramentas > div:last-child {
+    display: grid; grid-template-columns: 1fr 1fr; align-items: stretch;
+  }
+  .barra-ferramentas .caixa-filtro { width: 100%; }
+  .barra-ferramentas .select-filtro { flex: 1; min-width: 0; max-width: none; }
+  #filtroBusca { width: 100% !important; min-width: 0; }
+  #resumoEstatisticas, #btnLimparFiltros { grid-column: 1 / -1; justify-content: center; }
+  /* Ocupando a linha inteira, este aqui tem espaço de sobra para o rótulo */
+  #btnLimparFiltros .rotulo-btn { display: inline; }
+}
+
+@media (max-width: 519px) {
+  #visaoGrade { grid-template-columns: repeat(auto-fill, minmax(min(100%, 132px), 1fr)) !important; }
+  #logoTexto { height: 14px !important; }
+  #logoSimbolo { height: 30px !important; }
+  .modal { padding: .5rem; }
+  .modal-caixa { max-height: 94vh; }
+}
+
+/* Selects de filtro com nome longo (atividade, canteiro) não podem empurrar
+   a barra inteira para fora */
+.select-filtro { max-width: 190px; }
+
+/* Os menus suspensos abrem à direita; perto da borda esquerda isso os jogaria
+   para fora da tela */
+@media (max-width: 767px) {
+  .menu { min-width: 180px; max-width: calc(100vw - 2rem); }
+}
 
 /* ------------------------------------------------------------- Impressão -- */
 /* PDF sai sempre no claro: papel é branco. */

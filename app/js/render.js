@@ -46,8 +46,11 @@ window.SIPAV = window.SIPAV || {};
     });
   }
 
+  /* O min() garante que em tela estreita o cartão vire uma coluna só em vez de
+     estourar a largura. O número fixo de colunas ainda é respeitado no desktop;
+     em tela pequena o app.css o substitui por auto-fill. */
   function colunasCss() {
-    if (E.colunas === 'auto') return 'repeat(auto-fill, minmax(84px, 1fr))';
+    if (E.colunas === 'auto') return 'repeat(auto-fill, minmax(min(100%, 158px), 1fr))';
     return 'repeat(' + E.colunas + ', minmax(0, 1fr))';
   }
 
@@ -244,16 +247,16 @@ window.SIPAV = window.SIPAV || {};
     var totalKm = itens.reduce(function (s, p) { return s + (p.torre ? Number(p.torre.km) || 0 : 0); }, 0);
     return '' +
       '<section class="bloco-quadrante painel overflow-hidden">' +
-        '<header class="flex items-baseline justify-between px-4 py-2.5 bg-slate-50 border-b border-slate-200">' +
-          '<div>' +
+        '<header class="flex flex-wrap items-baseline justify-between gap-x-3 px-4 py-2.5 bg-slate-50 border-b border-slate-200">' +
+          '<div class="min-w-0">' +
             '<h3 class="font-bold text-slate-800">' + esc(titulo) + '</h3>' +
             (subtitulo ? '<p class="text-xs text-slate-500">' + esc(subtitulo) + '</p>' : '') +
           '</div>' +
-          '<span class="text-xs font-semibold text-slate-500">' +
+          '<span class="text-xs font-semibold text-slate-500 shrink-0">' +
             itens.length + (itens.length === 1 ? ' torre' : ' torres') + ' · ' + ui.km(totalKm) + ' km' +
           '</span>' +
         '</header>' +
-        '<div class="p-3 grid gap-2" style="grid-template-columns:repeat(auto-fill,minmax(240px,1fr))">' +
+        '<div class="p-3 grid gap-2" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr))">' +
           itens.map(function (p) { return chipProgramacao(p, op); }).join('') +
         '</div>' +
       '</section>';

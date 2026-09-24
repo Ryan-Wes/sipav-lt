@@ -39,7 +39,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
   <!-- ?v= força o navegador a buscar de novo quando o código muda. -->
-  <link rel="stylesheet" href="css/app.css?v=42">
+  <link rel="stylesheet" href="css/app.css?v=43">
 </head>
 <body class="h-full flex flex-col antialiased">
 
@@ -106,15 +106,15 @@
 <div id="telaApp" class="hidden h-full flex flex-col">
 
   <header class="app-header no-print sticky top-0 z-30">
-    <!-- justify-center enquanto quebra em duas linhas, para o cabeçalho não
-         encostar na esquerda em tela de notebook -->
-    <div class="max-w-[1600px] mx-auto px-5 py-3 flex flex-wrap justify-center xl:justify-between items-center gap-x-3 gap-y-2">
+    <!-- Uma linha só até o cabeçalho realmente não caber; aí quebra centralizado.
+         O que encolhe primeiro são os rótulos dos botões (ver app.css) -->
+    <div class="barra-cabecalho max-w-[1600px] mx-auto px-5 py-3 flex flex-wrap justify-center md:justify-between items-center gap-x-4 gap-y-2">
 
-      <div class="flex items-center gap-3">
-        <div onclick="SIPAV.app.limparFiltros()" class="flex items-center gap-3 cursor-pointer"
+      <div class="flex items-center gap-3 min-w-0">
+        <div onclick="SIPAV.app.limparFiltros()" class="flex items-center gap-3 cursor-pointer shrink-0"
              title="Voltar à visão completa, sem filtros">
           <img id="logoSimbolo" alt="" class="shrink-0" style="height:36px;width:auto">
-          <div class="leading-tight">
+          <div class="leading-tight bloco-marca">
             <img id="logoTexto" alt="SIPAV LT" style="height:16px;width:auto">
             <p class="text-[11px] mt-1" id="nomeObra" style="color:var(--texto-fraco)">
               LT Serra Dourada
@@ -123,9 +123,9 @@
         </div>
 
         <!-- Seletor de trecho: resolve o "um HTML por trecho" do protótipo -->
-        <div class="ml-2 pl-4" style="border-left:1px solid var(--borda)">
+        <div class="bloco-trecho ml-2 pl-4 min-w-0" style="border-left:1px solid var(--borda)">
           <label class="rotulo" style="margin-bottom:.25rem">Trecho</label>
-          <select id="seletorTrecho" class="campo text-sm font-medium min-w-[210px]"
+          <select id="seletorTrecho" class="campo text-sm font-medium"
                   style="padding:.3125rem .5rem"></select>
         </div>
       </div>
@@ -134,13 +134,13 @@
 
         <button onclick="SIPAV.app.abrirImportacao()" class="btn-header" title="Importar torres colando da planilha">
           <i data-lucide="clipboard-paste" class="w-4 h-4" style="color:var(--acento)"></i>
-          <span class="hidden lg:inline">Importar</span>
+          <span class="rotulo-btn">Importar</span>
         </button>
 
         <div class="menu-wrap">
           <button onclick="SIPAV.app.alternarMenu('menuExportar')" class="btn-header" title="Exportar e compartilhar">
             <i data-lucide="share-2" class="w-4 h-4"></i>
-            <span class="hidden lg:inline">Exportar</span>
+            <span class="rotulo-btn">Exportar</span>
             <i data-lucide="chevron-down" class="w-3 h-3 opacity-60"></i>
           </button>
           <div id="menuExportar" class="menu hidden">
@@ -156,7 +156,7 @@
         <div class="menu-wrap">
           <button onclick="SIPAV.app.alternarMenu('menuCadastros')" class="btn-header" title="Atividades e encarregados">
             <i data-lucide="library" class="w-4 h-4"></i>
-            <span class="hidden lg:inline">Cadastros</span>
+            <span class="rotulo-btn">Cadastros</span>
             <i data-lucide="chevron-down" class="w-3 h-3 opacity-60"></i>
           </button>
           <div id="menuCadastros" class="menu hidden">
@@ -171,12 +171,12 @@
 
         <button onclick="SIPAV.app.abrirHistoricoDoTrecho()" class="btn-header" title="Quem mexeu no quê neste trecho">
           <i data-lucide="history" class="w-4 h-4"></i>
-          <span class="hidden xl:inline">Histórico</span>
+          <span class="rotulo-btn">Histórico</span>
         </button>
 
         <button onclick="SIPAV.app.limparProgramacoesDoPeriodo()" class="btn-header" title="Remover as programações deste trecho no período exibido">
           <i data-lucide="eraser" class="w-4 h-4 icone-perigo"></i>
-          <span class="hidden xl:inline">Limpar</span>
+          <span class="rotulo-btn">Limpar</span>
         </button>
 
         <div class="flex items-center gap-2 pl-2.5 ml-1" style="border-left:1px solid var(--borda)">
@@ -185,10 +185,10 @@
                 style="background:rgba(16,185,129,.10);color:#34D399;border:1px solid rgba(16,185,129,.25)"
                 title="Alterações de outros usuários aparecem aqui na hora">
             <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-            Ao vivo
+            <span class="rotulo-vivo">Ao vivo</span>
           </span>
 
-          <div class="text-right hidden sm:block leading-tight">
+          <div class="bloco-usuario text-right leading-tight">
             <p class="text-xs font-semibold" id="nomeUsuario" style="color:var(--texto)">—</p>
             <p class="text-[10px]" id="papelUsuario" style="color:var(--texto-fraco)">—</p>
           </div>
@@ -218,7 +218,7 @@
   <main class="max-w-[1600px] mx-auto px-5 mt-5 flex-1 w-full pb-12">
 
     <!-- Abas + filtros -->
-    <div class="painel p-3 mb-5 flex flex-wrap justify-between items-center gap-4 no-print">
+    <div class="barra-ferramentas painel p-3 mb-5 flex flex-wrap justify-between items-center gap-4 no-print">
 
       <div class="flex flex-wrap gap-1">
         <button id="abaGrade"        onclick="SIPAV.app.trocarAba('grade')"        class="aba aba-ativa">
@@ -288,7 +288,7 @@
         <button id="btnLimparFiltros" onclick="SIPAV.app.limparFiltros()"
                 class="btn-header hidden" title="Remover todos os filtros e ver tudo">
           <i data-lucide="filter-x" class="w-4 h-4 icone-perigo"></i>
-          <span class="hidden lg:inline">Limpar filtros</span>
+          <span class="rotulo-btn">Limpar filtros</span>
         </button>
       </div>
     </div>
@@ -497,10 +497,10 @@
   </div>
 </div>
 
-<script src="js/config.js?v=42"></script>
-<script src="js/db.js?v=42"></script>
-<script src="js/ui.js?v=42"></script>
-<script src="js/render.js?v=42"></script>
-<script src="js/app.js?v=42"></script>
+<script src="js/config.js?v=43"></script>
+<script src="js/db.js?v=43"></script>
+<script src="js/ui.js?v=43"></script>
+<script src="js/render.js?v=43"></script>
+<script src="js/app.js?v=43"></script>
 </body>
 </html>
