@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
     perfil: null, obra: null,
     trechos: [], trechoAtual: null,
     torres: [], atividades: [], dependencias: [], encarregados: [], canteiros: [],
-    programacoes: [],
+    programacoes: [], execucoes: [],
     aba: 'grade', colunas: 'auto', filtroAtividade: '', filtroCanteiro: '', busca: '',
     // Recorte de datas da programação. de/ate nulos = todo o período.
     periodo: { modo: 'duas', de: null, ate: null }
@@ -29,6 +29,11 @@ window.SIPAV = window.SIPAV || {};
 
   function programacoesDaTorre(torreId) {
     return E.programacoes.filter(function (p) { return p.torre && p.torre.id === torreId; });
+  }
+
+  /** A execução apontada para esta programação, se houver. */
+  function execucaoDa(programacaoId) {
+    return E.execucoes.find(function (x) { return x.programacao_id === programacaoId; }) || null;
   }
 
   function torresFiltradas() {
@@ -385,6 +390,7 @@ window.SIPAV = window.SIPAV || {};
   window.SIPAV.render = {
     tudo: tudo,
     programacoesDaTorre: programacoesDaTorre,
+    execucaoDa: execucaoDa,
     torresFiltradas: torresFiltradas
   };
 })();

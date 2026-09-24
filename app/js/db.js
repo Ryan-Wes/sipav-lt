@@ -645,6 +645,71 @@ window.SIPAV = window.SIPAV || {};
       .then(function (r) { return ok(r, 'Falha ao importar torres'); });
   }
 
+  /* ======================================================================== */
+  /* APONTAMENTO DO EXECUTADO                                                 */
+  /* ======================================================================== */
+
+  /** Execuções apontadas em campo no trecho e período. Sem a carga da planilha. */
+  function execucoes(filtro) {
+    filtro = filtro || {};
+    var q = cliente()
+      .from('execucao')
+      .select('id, programacao_id, torre_id, atividade_id, encarregado_id, ' +
+              'data_execucao, percentual, observacao, ' +
+              'torre:torre_id!inner ( trecho_id )')
+      .eq('carga_inicial', false)
+      .eq('torre.trecho_id', filtro.trechoId);
+
+    if (filtro.de)  q = q.gte('data_execucao', filtro.de);
+    if (filtro.ate) q = q.lte('data_execucao', filtro.ate);
+
+    return q.then(function (r) { return ok(r, 'Falha ao carregar apontamentos'); });
+  }
+
+  /**
+   * Aponta uma programação como executada.
+   * @param {object} p a programação, já com torre, atividade e encarregado
+   * @param {string} dataExecucao dia em que aconteceu; por padrão o programado
+   */
+  function apontarExecucao(p, dataExecucao, observacao) {
+    return auth.usuario().then(function (u) {
+      return cliente()
+        .from('execucao')
+        .insert({
+          torre_id:       p.torre.id,
+          atividade_id:   p.atividade.id,
+          encarregado_id: p.encarregado ? p.encarregado.id : null,
+          programacao_id: p.id,
+          data_execucao:  dataExecucao || p.data,
+          percentual:     100,
+          carga_inicial:  false,
+          observacao:     observacao || null,
+          registrado_por: u ? u.id : null
+        })
+        .select('id')
+        .single()
+        .then(function (r) {
+          if (r.error && r.error.code === '23505') {
+            throw new SipavErro('Esta programação já foi apontada como executada.', r.error);
+          }
+          return ok(r, 'Falha ao apontar execução');
+        });
+    });
+  }
+
+  /** Desfaz o apontamento de uma programação. */
+  function desfazerApontamento(programacaoId) {
+    return cliente()
+      .from('execucao')
+      .delete()
+      .eq('programacao_id', programacaoId)
+      .eq('carga_inicial', false)
+      .then(function (r) {
+        if (r.error) throw traduzErro(r.error, 'Falha ao desfazer apontamento');
+        return true;
+      });
+  }
+
   /* --------------------------------------------------------- Carga inicial -- */
 
   /**
@@ -776,6 +841,10 @@ window.SIPAV = window.SIPAV || {};
     removerProgramacao: removerProgramacao,
     limparProgramacoesDaTorre: limparProgramacoesDaTorre,
     limparProgramacoesDoPeriodo: limparProgramacoesDoPeriodo,
+
+    execucoes: execucoes,
+    apontarExecucao: apontarExecucao,
+    desfazerApontamento: desfazerApontamento,
     conflitosDoEncarregado: conflitosDoEncarregado,
 
     historicoDaTorre: historicoDaTorre,

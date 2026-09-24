@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v24 · 2026-09-24';
+  var VERSAO = 'v25 · 2026-09-24';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -210,14 +210,25 @@ window.SIPAV = window.SIPAV || {};
     };
   }
 
+  /**
+   * Apontamentos vêm SEM recorte de data, de propósito: uma programação de 25/09
+   * pode ter sido executada em 03/10. Filtrando por data, ela apareceria como
+   * pendente só porque a execução caiu fora da janela.
+   */
+  function filtroExecucao() {
+    return { trechoId: E.trechoAtual.id };
+  }
+
   function carregarTrecho() {
     if (!E.trechoAtual) return Promise.resolve();
     return Promise.all([
       db.torres(E.trechoAtual.id),
-      db.programacoes(filtroProgramacao())
+      db.programacoes(filtroProgramacao()),
+      db.execucoes(filtroExecucao())
     ]).then(function (r) {
       E.torres = r[0];
       E.programacoes = r[1];
+      E.execucoes = r[2];
       preencherFiltroCanteiro();
       render.tudo();
     });
@@ -226,10 +237,12 @@ window.SIPAV = window.SIPAV || {};
   function recarregarProgramacoes() {
     return Promise.all([
       db.torres(E.trechoAtual.id),
-      db.programacoes(filtroProgramacao())
+      db.programacoes(filtroProgramacao()),
+      db.execucoes(filtroExecucao())
     ]).then(function (r) {
       E.torres = r[0];
       E.programacoes = r[1];
+      E.execucoes = r[2];
       render.tudo();
       if (torreAberta) renderListaDoModal();
     });
@@ -461,8 +474,11 @@ window.SIPAV = window.SIPAV || {};
 
     $('modalListaProgramacoes').innerHTML = progs.map(function (p) {
       var cor = p.atividade ? p.atividade.cor_fundo : '#94a3b8';
+      var ex = render.execucaoDa(p.id);
+
       return '' +
-        '<div class="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">' +
+        '<div class="flex items-center gap-3 rounded-lg border px-3 py-2 ' +
+             (ex ? 'border-emerald-300 bg-emerald-50' : 'border-slate-200 bg-slate-50') + '">' +
           '<div class="w-1.5 h-9 rounded-full shrink-0" style="background:' + cor + '"></div>' +
           '<div class="flex-1 min-w-0">' +
             '<p class="text-sm font-semibold text-slate-800 truncate">' +
@@ -472,12 +488,25 @@ window.SIPAV = window.SIPAV || {};
               (p.encarregado ? ' · ' + esc(p.encarregado.nome) : '') +
               (p.observacao ? ' · ' + esc(p.observacao) : '') +
             '</p>' +
+            (ex
+              ? '<p class="text-xs text-emerald-700 font-medium mt-0.5 flex items-center gap-1">' +
+                  '<i data-lucide="check-circle" class="w-3 h-3"></i> ' +
+                  'Executado em ' + ui.dataCurta(ex.data_execucao) +
+                  (ex.data_execucao !== p.data ? ' (programado para ' + ui.dataCurta(p.data) + ')' : '') +
+                '</p>'
+              : '') +
             (p.override_motivo
               ? '<p class="text-xs text-amber-600 mt-0.5 flex items-center gap-1">' +
                   '<i data-lucide="alert-triangle" class="w-3 h-3"></i> ' +
                   'Fora da sequência: ' + esc(p.override_motivo) + '</p>'
               : '') +
           '</div>' +
+          '<button onclick="SIPAV.app.alternarExecucao(\'' + p.id + '\')" ' +
+                  'class="p-1.5 rounded-lg transition shrink-0 ' +
+                  (ex ? 'text-emerald-600 hover:bg-emerald-100' : 'text-slate-300 hover:bg-emerald-100 hover:text-emerald-600') + '" ' +
+                  'title="' + (ex ? 'Desfazer apontamento' : 'Marcar como executado') + '">' +
+            '<i data-lucide="' + (ex ? 'check-circle-2' : 'circle') + '" class="w-5 h-5"></i>' +
+          '</button>' +
           '<button onclick="SIPAV.app.editarProgramacao(\'' + p.id + '\')" ' +
                   'class="p-1.5 rounded-lg hover:bg-slate-200 text-slate-400 hover:text-slate-700 transition" ' +
                   'title="Alterar">' +
@@ -640,6 +669,77 @@ window.SIPAV = window.SIPAV || {};
         ui.pronto();
         ui.avisar(e.message, 'erro', 6000);
       });
+  }
+
+  /* ---------------------------------------------- Apontar o executado ----- */
+
+  /**
+   * Marca ou desmarca uma programação como executada. É o que transforma o
+   * SIPAV de ferramenta de planejar em registro do que a obra andou: daqui saem
+   * produtividade por encarregado, aderência da programação e curva de avanço.
+   */
+  function alternarExecucao(id) {
+    var p = E.programacoes.find(function (x) { return x.id === id; });
+    if (!p) return;
+
+    var ex = render.execucaoDa(id);
+
+    if (ex) {
+      ui.confirmar(
+        'Desfazer apontamento',
+        esc(p.atividade ? p.atividade.nome : 'A atividade') + ' volta a constar como ' +
+        'pendente, e o estágio da torre recua se não houver nada mais avançado.',
+        'Desfazer'
+      ).then(function (sim) {
+        if (!sim) return;
+        ui.processando('Desfazendo…');
+        return db.desfazerApontamento(id)
+          .then(recarregarProgramacoes)
+          .then(function () { ui.pronto(); ui.avisar('Apontamento desfeito.', 'sucesso'); });
+      }).catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro'); });
+      return;
+    }
+
+    // Data real de execução: por padrão a programada, mas ela pode ter escorregado
+    var corpo =
+      '<div class="space-y-3">' +
+        '<p class="text-sm text-slate-600">' +
+          '<strong>' + esc(p.atividade ? p.atividade.nome : '—') + '</strong> na torre ' +
+          '<strong>' + esc(p.torre.identificador) + '</strong>' +
+          (p.encarregado ? ', com ' + esc(p.encarregado.nome) : '') + '.' +
+        '</p>' +
+        '<div><label class="rotulo">Executado em</label>' +
+          '<input id="dataExecucao" type="date" class="campo" value="' + p.data + '"></div>' +
+        '<div><label class="rotulo">Observação <span class="text-slate-400 font-normal">(opcional)</span></label>' +
+          '<input id="obsExecucao" class="campo" placeholder="Ex.: concluído com equipe reduzida"></div>' +
+        '<p class="text-xs text-slate-400">' +
+          'Programado para ' + ui.dataLonga(p.data) + '. Se saiu em outro dia, corrija a ' +
+          'data — é dela que sai a aderência da programação.' +
+        '</p>' +
+      '</div>';
+
+    ui.modalGenerico({
+      titulo: 'Apontar execução',
+      corpoHtml: corpo,
+      botoes: [
+        { rotulo: 'Cancelar', classe: 'btn-secundario' },
+        { rotulo: 'Confirmar execução', classe: 'btn-primario', acao: function () {
+            var data = $('dataExecucao').value;
+            var obs  = $('obsExecucao').value.trim() || null;
+            if (!data) { ui.avisar('Informe a data de execução.', 'alerta'); return; }
+
+            ui.processando('Apontando…');
+            db.apontarExecucao(p, data, obs)
+              .then(recarregarProgramacoes)
+              .then(function () {
+                ui.pronto();
+                ui.fecharModal('modalGenerico');
+                ui.avisar('Execução apontada.', 'sucesso');
+              })
+              .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro', 6000); });
+          } }
+      ]
+    });
   }
 
   /* ------------------------------------------------- Alterar e limpar ----- */
@@ -1891,6 +1991,7 @@ window.SIPAV = window.SIPAV || {};
     adicionarProgramacao: adicionarProgramacao,
     editarProgramacao: editarProgramacao,
     cancelarEdicao: cancelarEdicao,
+    alternarExecucao: alternarExecucao,
     removerProgramacao: removerProgramacao,
     limparProgramacoesDaTorre: limparProgramacoesDaTorre,
     limparProgramacoesDoPeriodo: limparProgramacoesDoPeriodo,
