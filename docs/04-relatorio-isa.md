@@ -86,6 +86,37 @@ Convenções observadas:
 - `R` (total semanal) é digitado à mão e às vezes é fracionário (`2.5`, `3.5` em
   montagem — meia torre).
 
+### Semana e quinzena
+
+O relatório cobre **duas semanas**, não uma. `PROG. 1` é a semana que começa na data
+do cabeçalho; `PROG. 2` é a seguinte. No SIPAV isso já existe: o filtro de período
+tem o preset *Esta e a próxima*.
+
+Os títulos divergem — Barra–Correntina e Buritirama dizem só `SEMANAL`, Campo Formoso
+e Juazeiro dizem `SEMANAL / QUINZENAL`. Padronizar para `SEMANAL / QUINZENAL`, que é
+o que a planilha de fato é.
+
+### Linhas ocultas
+
+O que não vai ser executado na semana é **ocultado**, não apagado. Por isso a planilha
+em branco parece maior que as preenchidas: ela está com tudo reexibido.
+
+| Trecho | Linhas ocultas (de 13 até o rodapé) |
+|---|---|
+| Barra II – Correntina | 233 de 281 |
+| Buritirama – Barra II | 218 de 312 |
+| Campo Formoso II – Barra II | 115 de 202 |
+| Juazeiro III – Campo Formoso II | 54 de 105 |
+
+Campo Formoso e Juazeiro ocultam também as colunas X–AF (o bloco auxiliar quebrado);
+a planilha em branco oculta U–AF.
+
+Consequência para o exportador: **reexibir toda linha que for preencher**. Uma
+programação escrita numa linha oculta não aparece para ninguém, nem para a
+fiscalização. Vale ir além e deixar o SIPAV cuidar da visibilidade inteira — mostra os
+itens com programação no período, oculta o resto —, o que elimina um passo manual
+da sexta.
+
 ### Rodapé
 
 `OBSERVAÇÕES:` e, mais abaixo, `ELABORADO: NOME: JOSE CARLOS GOMES JUNIOR` /
@@ -216,7 +247,7 @@ mais consistente internamente. Correções aplicadas: E1–E7, D1–D4.
 |---|---|---|
 | 1.3.1 | Limpeza de Área de Torre | TORRE |
 | 1.3.2 | Limpeza da Faixa | KM |
-| 1.3.3 | Corte Seletivo | **definir** |
+| 1.3.3 | Corte Seletivo | TORRE |
 | 1.3.4 | Supressão de Área de Queimada | KM |
 | 1.3.5 | Supressão de Praça de Lançamento | KM |
 | 1.3.6 | Alinhamento da Faixa para Supressão | KM |
@@ -275,14 +306,14 @@ outros não; Campo Formoso e Juazeiro agrupam as vigas em `Solo I & II` e
 | 2.2.2 | Instalação do Contrapeso - Complemento | TORRE |
 | 2.2.3 | Medição de Resistência | TORRE |
 | 2.2.4 | Complemento de Cabo Contrapeso | TORRE |
-| 2.2.5 | Seccionamento e Aterramento de Cercas | **definir** |
+| 2.2.5 | Seccionamento e Aterramento de Cercas | KM |
 
 ### 3.0 Montagem de Estrutura — Pátio
 
 | Item | Atividade | Unid. |
 |---|---|---|
 | 3.0.1 | Corte de Estais | TORRE |
-| 3.0.2 | Transporte de Estrutura | **definir** |
+| 3.0.2 | Transporte de Estrutura | TORRE |
 
 ### 3.1 Montagem de Estrutura — Estaiada
 
@@ -374,8 +405,7 @@ sujeito à confirmação de engenharia descrita acima.
 | ESCAVAÇÃO | 2.1.4 + 2.1.5 | 2.1.5 só para EST |
 | PERFURAÇÃO EM ROCHA | 2.1.6 + 2.1.7 | 2.1.7 só para EST |
 | INJEÇÃO DE NATA | 2.1.8 + 2.1.9 | 2.1.9 só para EST |
-| INSTALAÇÃO DE PRÉ-MOLDADOS | 2.1.10 + 2.1.11 | 2.1.11 só para EST |
-| PREPARAÇÃO | 2.1.10 + 2.1.11 | **colide** — ver Q3 |
+| INSTALAÇÃO DE PRÉ-MOLDADOS | 2.1.10 + 2.1.11 | 2.1.11 só para EST. Absorve `PREPARAÇÃO` — ver **DEC-2** |
 | CONCRETAGEM / TUBULÃO | 2.1.12 + 2.1.13 | 2.1.13 só para EST |
 | REATERRO 100% | 2.1.16 + 2.1.17 | 2.1.17 só para EST |
 | TESTE DE ARRANCAMENTO | 2.1.18 | |
@@ -383,7 +413,9 @@ sujeito à confirmação de engenharia descrita acima.
 | MEDIÇÃO DE RESISTÊNCIA | 2.2.3 | |
 | PRÉ-MONTAGEM | 3.1.1 (EST) · 3.2.1 (AUP) | |
 | MONTAGEM | 3.1.3 (EST) · 3.2.2 (AUP) | |
-| REVISÃO / GIRO E PRUMO | 3.1.5 (EST) · 3.2.3 (AUP) | **ver Q4** |
+| REVISÃO EM SOLO | 3.1.2 | nova — ver **DEC-3** |
+| REVISÃO FINAL | 3.1.4 (EST) · 3.2.3 (AUP) | nova — ver **DEC-3** |
+| GIRO E PRUMO | 3.1.5 | nova — ver **DEC-3** |
 | INSTALAÇÃO DE BANDOLAS | 4.1.1 + 4.2.1 | |
 | LANÇAMENTO DO PILOTO | 4.1.2 + 4.2.2 | |
 | LANÇAMENTO DO CABO OPGW/PR | 4.1.3 + 4.2.3 | |
@@ -397,6 +429,11 @@ sujeito à confirmação de engenharia descrita acima.
 | FLAMBAGEM | — | hoje vira texto `(RETIRADA DE FLAMBAGEM)` dentro de 3.1.4 |
 
 ### Itens do ISA que o SIPAV não programa
+
+Confirmado com o Wesley em 24/09: **topografia, sondagem, armação, canteiro e
+comissionamento não entram no planejamento**. Continuam manuais e o exportador não
+encosta neles.
+
 
 Topografia (1.0.1–1.0.5), estudos de solo (1.1.1–1.1.2), croqui e placa de acesso
 (1.2.1, 1.2.2), colchetes (1.2.4), recuperação de acesso (1.2.5), queimada, praça e
@@ -413,31 +450,53 @@ exportador tem que escrever dentro do arquivo existente em vez de gerar um novo.
 
 ## 5. Como o exportador vai funcionar
 
-1. Você escolhe o trecho e o período, e sobe o `.xlsx` daquela semana.
+1. Você escolhe o trecho e a quinzena, e sobe o `.xlsx` daquela semana.
 2. O SIPAV abre a aba `PS`, lê a coluna C e localiza a linha de cada item pelo código.
 3. Confere que as datas das linhas 11 e 12 batem com o período escolhido; se não
    baterem, avisa antes de escrever.
 4. Para cada item mapeado, escreve **só** `PROG. 1` e `PROG. 2`:
    coluna J com os encarregados separados por ` / `, colunas K–P com as torres do dia
    na mesma ordem dos encarregados, coluna Q com `DSR`, coluna R com a contagem.
-5. Não encosta na linha `EXEC.`, nem nas colunas S–V, nem no cabeçalho, nem no
+5. **Reexibe a linha que preencheu** e oculta as que ficaram sem programação no
+   período — é o que hoje se faz à mão.
+6. Não encosta na linha `EXEC.`, nem nas colunas S–V, nem no cabeçalho, nem no
    rodapé, nem no bloco auxiliar.
-6. Devolve um arquivo novo para baixar — o original nunca é sobrescrito.
+7. Devolve um arquivo novo para baixar — o original nunca é sobrescrito.
 
 Fora de escopo por ora: a linha `EXEC.` (depende do apontamento de campo, item **F5**
 do backlog) e os itens em KM, que precisam de quantidade e não de contagem de torre.
 
 ---
 
-## 6. Em aberto
+## 6. Decisões tomadas
 
-| # | Pergunta | Trava o quê |
+| # | Decisão | Quem / quando |
 |---|---|---|
-| Q1 | 4.1 é para-raio convencional ou OPGW direito? As duas coisas existem na obra ou uma das planilhas está errada? | Fechar as seções 4.1 / 4.2 do catálogo |
-| Q2 | `PERFURAÇÃO DE TUBULÃO` do SIPAV entra em `2.1.6 Perfuração em Rocha / Cravação de Estacas` ou vira item novo? | De-para |
-| Q3 | `PREPARAÇÃO` e `INSTALAÇÃO DE PRÉ-MOLDADOS` são atividades separadas no SIPAV e caem na mesma linha do ISA. Juntar no SIPAV ou desmembrar no ISA? | De-para |
-| Q4 | `REVISÃO / GIRO E PRUMO` no SIPAV é uma coisa só; no ISA são três (revisão em solo, revisão final, giro e prumo). Qual recebe? | De-para |
-| Q5 | `INSTALAÇÃO DE ACESSÓRIOS` cobre jumper, espaçadores e sinalização. Desmembrar no SIPAV? | De-para |
-| Q6 | Corte Seletivo, Seccionamento de Cercas e Transporte de Estrutura têm unidade diferente entre trechos. Qual vale? | Catálogo e contagem |
-| Q7 | Fabricação de pré-moldado: detalhar por altura e por solo (como BRR) ou agrupar (como CAF/JZR)? | Catálogo |
-| Q8 | A padronização precisa de aval da fiscalização ou é decisão interna da Elecnor? | Quando aplicar |
+| DEC-1 | Topografia, sondagem, armação, canteiro e comissionamento não são planejados. Permanecem manuais | Wesley, 24/09 |
+| DEC-2 | `PREPARAÇÃO` é absorvida por `INSTALAÇÃO DE PRÉ-MOLDADOS` no SIPAV, que é o que a linha do ISA já junta. Migração é segura: nada depende de `PREPARAÇÃO` e as duas dependem de `ESCAVAÇÃO` | Wesley, 24/09 |
+| DEC-3 | `REVISÃO / GIRO E PRUMO` é desmembrada em três, iguais ao ISA: `REVISÃO EM SOLO`, `REVISÃO FINAL`, `GIRO E PRUMO`. `FLAMBAGEM` continua separada e vai como texto dentro de `3.1.4` | Wesley, 24/09 — **confirmar com o Alessandro**, ver A2 |
+| DEC-4 | Unidades: Corte Seletivo = `TORRE`, Seccionamento e Aterramento de Cercas = `KM`, Transporte de Estrutura = `TORRE` | Wesley, 24/09 |
+| DEC-5 | O exportador gerencia a visibilidade das linhas | Wesley, 24/09 |
+
+> **DEC-3 contraria o que o Alessandro disse antes.** No áudio da cadeia de
+> atividades ele tratou "revisão, giro e prumo" como uma coisa só e a flambagem como
+> outra — foi por isso que o SIPAV ficou com `REVISÃO / GIRO E PRUMO` numa atividade.
+> A planilha da ISA separa em três. Confirmar antes de migrar.
+
+## 7. Em aberto
+
+### Com o Alessandro
+
+| # | Pergunta |
+|---|---|
+| A1 | `PERFURAÇÃO DE TUBULÃO` é a mesma coisa que `2.1.6 Perfuração em Rocha / Cravação de Estacas`, ou é serviço diferente que precisa de linha própria? |
+| A2 | Revisão em solo, revisão final e giro e prumo são três apontamentos separados em campo ou um só? (ver DEC-3) |
+| A3 | `INSTALAÇÃO DE ACESSÓRIOS` cobre jumper (`4.3.7`), espaçadores (`4.3.8`) e sinalização (`4.4.1`–`4.4.3`). Vale separar ou o pessoal aponta tudo junto? |
+| A4 | Fabricação de pré-moldado: detalhar mastro por altura e viga por solo (como Barra–Correntina) ou agrupar (como Campo Formoso e Juazeiro)? |
+| A5 | Padronizar as quatro planilhas precisa de aval da fiscalização ou é decisão interna? |
+
+### Parado por falta de informação
+
+| # | Assunto |
+|---|---|
+| P1 | `4.1` é para-raio convencional e `4.2` OPGW (Barra–Correntina), ou `4.1` OPGW direito e `4.2` OPGW esquerdo (Buritirama)? Wesley levantou que **a configuração muda ao longo do trecho**, por faixa de torre — o catálogo pode precisar das duas seções convivendo, e o de-para pode ter que olhar o número da torre. Levantar com a engenharia |
