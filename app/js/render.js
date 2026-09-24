@@ -187,6 +187,22 @@ window.SIPAV = window.SIPAV || {};
            '</div>';
   }
 
+  /** Torres distintas e km somado de um conjunto de programações. */
+  function totais(itens) {
+    var torres = {}, km = 0;
+    itens.forEach(function (p) {
+      if (p.torre && !torres[p.torre.id]) {
+        torres[p.torre.id] = true;
+        km += Number(p.torre.km) || 0;
+      }
+    });
+    return { torres: Object.keys(torres).length, km: km };
+  }
+
+  /**
+   * Por data, agrupada por semana. A programação é semanal: ver 15 dias
+   * corridos sem separação obrigava a contar no dedo onde uma semana acaba.
+   */
   function renderPorData() {
     var lista = programacoesVisiveis().slice().sort(function (a, b) {
       return a.data < b.data ? -1 : a.data > b.data ? 1 : 0;
@@ -194,9 +210,33 @@ window.SIPAV = window.SIPAV || {};
     var cont = $('visaoDatas');
     if (!lista.length) { cont.innerHTML = vazio('Nenhuma atividade programada neste trecho'); return; }
 
-    var g = agrupar(lista, function (p) { return p.data; });
-    cont.innerHTML = g.ordem.map(function (data) {
-      return blocoQuadrante(ui.dataLonga(data), null, g.mapa[data], true);
+    var porSemana = agrupar(lista, function (p) {
+      return ui.iso(ui.segundaDaSemana(ui.paraData(p.data)));
+    });
+
+    cont.innerHTML = porSemana.ordem.map(function (segunda) {
+      var daSemana = porSemana.mapa[segunda];
+      var t = totais(daSemana);
+      var domingo = ui.iso(ui.somarDias(ui.paraData(segunda), 6));
+      var porDia = agrupar(daSemana, function (p) { return p.data; });
+
+      return '' +
+        '<section class="space-y-3">' +
+          '<header class="flex flex-wrap items-baseline justify-between gap-2 px-1 pb-1" ' +
+                  'style="border-bottom:2px solid var(--laranja)">' +
+            '<h2 class="text-sm font-bold uppercase tracking-wide" style="color:var(--laranja)">' +
+              'Semana de ' + ui.dataCurta(segunda) + ' a ' + ui.dataCurta(domingo) +
+            '</h2>' +
+            '<span class="text-xs font-semibold text-slate-500">' +
+              t.torres + (t.torres === 1 ? ' torre' : ' torres') + ' · ' +
+              ui.km(t.km) + ' km · ' +
+              daSemana.length + (daSemana.length === 1 ? ' atividade' : ' atividades') +
+            '</span>' +
+          '</header>' +
+          porDia.ordem.map(function (data) {
+            return blocoQuadrante(ui.dataLonga(data), null, porDia.mapa[data], true);
+          }).join('') +
+        '</section>';
     }).join('');
   }
 
@@ -213,7 +253,59 @@ window.SIPAV = window.SIPAV || {};
     });
 
     var g = agrupar(ordenada, function (p) { return p.encarregado ? p.encarregado.nome : 'Sem encarregado'; });
-    cont.innerHTML = g.ordem.map(function (nome) {
+
+    // Consolidado no topo: é o número que a fiscalização e a coordenação pedem,
+    // e que antes só dava para somar olhando bloco a bloco.
+    var resumo = g.ordem.map(function (nome) {
+      var itens = g.mapa[nome];
+      var t = totais(itens);
+      var datas = {};
+      itens.forEach(function (p) { datas[p.data] = true; });
+      return { nome: nome, torres: t.torres, km: t.km,
+               dias: Object.keys(datas).length, atividades: itens.length };
+    });
+
+    var geral = totais(lista);
+
+    var tabela =
+      '<section class="bloco-quadrante bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">' +
+        '<header class="px-4 py-2.5 bg-slate-50 border-b border-slate-200">' +
+          '<h3 class="font-bold text-slate-800">Consolidado por encarregado</h3>' +
+          '<p class="text-xs text-slate-500">' +
+            ui.rotuloPeriodo(E.periodo.de, E.periodo.ate) + '</p>' +
+        '</header>' +
+        '<div class="overflow-x-auto"><table class="w-full text-sm">' +
+          '<thead><tr class="text-left text-xs uppercase tracking-wide text-slate-500">' +
+            '<th class="px-4 py-2 font-semibold">Encarregado</th>' +
+            '<th class="px-3 py-2 font-semibold text-right">Torres</th>' +
+            '<th class="px-3 py-2 font-semibold text-right">km</th>' +
+            '<th class="px-3 py-2 font-semibold text-right">Atividades</th>' +
+            '<th class="px-4 py-2 font-semibold text-right">Dias</th>' +
+          '</tr></thead><tbody>' +
+          resumo.map(function (r) {
+            return '<tr class="border-t border-slate-200">' +
+              '<td class="px-4 py-2 font-medium text-slate-700">' + esc(r.nome) + '</td>' +
+              '<td class="px-3 py-2 text-right text-slate-600">' + r.torres + '</td>' +
+              '<td class="px-3 py-2 text-right text-slate-600">' + ui.km(r.km) + '</td>' +
+              '<td class="px-3 py-2 text-right text-slate-600">' + r.atividades + '</td>' +
+              '<td class="px-4 py-2 text-right text-slate-600">' + r.dias + '</td>' +
+            '</tr>';
+          }).join('') +
+          '<tr class="border-t-2 border-slate-300 font-bold">' +
+            '<td class="px-4 py-2 text-slate-800">Total do trecho</td>' +
+            '<td class="px-3 py-2 text-right text-slate-800">' + geral.torres + '</td>' +
+            '<td class="px-3 py-2 text-right text-slate-800">' + ui.km(geral.km) + '</td>' +
+            '<td class="px-3 py-2 text-right text-slate-800">' + lista.length + '</td>' +
+            '<td class="px-4 py-2"></td>' +
+          '</tr>' +
+        '</tbody></table></div>' +
+        '<p class="px-4 py-2 text-[11px] text-slate-400 border-t border-slate-200">' +
+          'O total de torres não é a soma da coluna: uma torre atendida por dois ' +
+          'encarregados conta uma vez só no trecho.' +
+        '</p>' +
+      '</section>';
+
+    cont.innerHTML = tabela + g.ordem.map(function (nome) {
       var itens = g.mapa[nome];
       var datas = {};
       itens.forEach(function (p) { datas[p.data] = true; });

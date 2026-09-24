@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v23 · 2026-09-24';
+  var VERSAO = 'v24 · 2026-09-24';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -803,21 +803,28 @@ window.SIPAV = window.SIPAV || {};
 
     var id = $('estagioNovo').value;
     var registros = [];
+    var nova = null;
 
     if (id) {
       var a = E.atividades.find(function (x) { return x.id === id; });
       if (a) {
+        nova = a.nome;
         expandirEstagio(a).forEach(function (aid) {
           registros.push({ torreId: torre.torre_id, atividadeId: aid });
         });
       }
     }
 
+    var anterior = torre.ultima_atividade || null;
+
     ui.processando('Atualizando estágio…');
 
     db.limparCargaInicial([torre.torre_id])
       .then(function () {
         return db.registrarCargaInicial(registros, 'Estágio corrigido manualmente');
+      })
+      .then(function () {
+        return db.registrarCorrecaoEstagio(torre.torre_id, nova, anterior);
       })
       .then(recarregarProgramacoes)
       .then(function () {
@@ -840,24 +847,29 @@ window.SIPAV = window.SIPAV || {};
   var ESTILO_ACAO = {
     CRIOU:   { cor: '#10B981', icone: 'plus',    verbo: 'programou' },
     ALTEROU: { cor: '#F59E0B', icone: 'pencil',  verbo: 'alterou' },
-    REMOVEU: { cor: '#E11D48', icone: 'trash-2', verbo: 'removeu' }
+    REMOVEU: { cor: '#E11D48', icone: 'trash-2', verbo: 'removeu' },
+    ESTAGIO: { cor: '#0284C7', icone: 'flag',    verbo: 'corrigiu o estágio' }
   };
 
   var ROTULO_CAMPO = {
     data: 'Data', atividade: 'Atividade', encarregado: 'Encarregado',
-    situacao: 'Situação', observacao: 'Observação'
+    situacao: 'Situação', observacao: 'Observação', estagio: 'Estágio'
   };
 
   function linhaHistorico(h, mostrarTorre) {
     var e = ESTILO_ACAO[h.acao] || ESTILO_ACAO.ALTEROU;
 
-    var alvo = (mostrarTorre ? 'torre ' + esc(h.torre_identificador) + ' · ' : '') +
-               '<strong>' + esc(h.atividade_nome || '—') + '</strong>' +
-               ' em ' + ui.dataCurta(h.data) +
-               (h.encarregado_nome ? ' · ' + esc(h.encarregado_nome) : '');
+    // Correção de estágio não tem data nem encarregado: a frase é outra
+    var alvo = h.acao === 'ESTAGIO'
+      ? (mostrarTorre ? 'da torre ' + esc(h.torre_identificador) : 'desta torre') +
+        ' para <strong>' + esc(h.atividade_nome || 'nada executado') + '</strong>'
+      : (mostrarTorre ? 'torre ' + esc(h.torre_identificador) + ' · ' : '') +
+        '<strong>' + esc(h.atividade_nome || '—') + '</strong>' +
+        ' em ' + ui.dataCurta(h.data) +
+        (h.encarregado_nome ? ' · ' + esc(h.encarregado_nome) : '');
 
     var detalhe = '';
-    if (h.acao === 'ALTEROU' && h.mudancas) {
+    if ((h.acao === 'ALTEROU' || h.acao === 'ESTAGIO') && h.mudancas) {
       detalhe = Object.keys(h.mudancas).map(function (campo) {
         var m = h.mudancas[campo];
         var de   = campo === 'data' ? ui.dataCurta(m.de)   : (m.de   || '—');
@@ -1087,6 +1099,9 @@ window.SIPAV = window.SIPAV || {};
       .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro', 6000); });
   }
 
+  // id do encarregado com o nome aberto para edição
+  var encarregadoEmEdicao = null;
+
   function abrirEncarregados() {
     var corpo =
       '<div class="space-y-4">' +
@@ -1095,23 +1110,73 @@ window.SIPAV = window.SIPAV || {};
           '<button onclick="SIPAV.app.adicionarEncarregado()" class="btn-primario whitespace-nowrap">Adicionar</button>' +
         '</div>' +
         '<div class="space-y-1.5">' +
-          E.encarregados.map(function (e) {
-            return '<div class="flex items-center gap-3 rounded-lg border border-slate-200 px-3 py-2">' +
-              '<i data-lucide="user" class="w-4 h-4 text-slate-400"></i>' +
-              '<span class="flex-1 text-sm font-medium text-slate-700">' + esc(e.nome) + '</span>' +
-              '<button onclick="SIPAV.app.removerEncarregado(\'' + e.id + '\',\'' + esc(e.nome) + '\')" ' +
-                      'class="p-1.5 rounded-lg hover:bg-rose-100 text-slate-400 hover:text-rose-600">' +
-                '<i data-lucide="trash-2" class="w-4 h-4"></i></button>' +
-            '</div>';
-          }).join('') +
+          E.encarregados.map(linhaEncarregado).join('') +
         '</div>' +
         '<p class="text-xs text-slate-400">' +
-          'Remover um encarregado não altera o que ele já executou nem as programações ' +
-          'passadas — ele só deixa de aparecer em novas programações.' +
+          'Corrigir o nome vale para tudo, inclusive o que já foi programado — é a ' +
+          'mesma pessoa. Remover não altera o histórico: ela só deixa de aparecer em ' +
+          'novas programações.' +
         '</p>' +
       '</div>';
 
     ui.modalGenerico({ titulo: 'Encarregados', corpoHtml: corpo });
+  }
+
+  function linhaEncarregado(e) {
+    if (encarregadoEmEdicao === e.id) {
+      return '' +
+        '<div class="flex items-center gap-2 rounded-lg border border-indigo-300 px-3 py-2">' +
+          '<i data-lucide="user" class="w-4 h-4 text-slate-400 shrink-0"></i>' +
+          '<input id="nomeEncarregado" class="campo py-1" value="' + esc(e.nome) + '">' +
+          '<button onclick="SIPAV.app.salvarNomeEncarregado(\'' + e.id + '\')" ' +
+                  'class="p-1.5 rounded-lg hover:bg-emerald-100 text-emerald-600 shrink-0" title="Salvar">' +
+            '<i data-lucide="check" class="w-4 h-4"></i></button>' +
+          '<button onclick="SIPAV.app.editarEncarregado(null)" ' +
+                  'class="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 shrink-0" title="Cancelar">' +
+            '<i data-lucide="x" class="w-4 h-4"></i></button>' +
+        '</div>';
+    }
+
+    return '' +
+      '<div class="flex items-center gap-3 rounded-lg border border-slate-200 px-3 py-2">' +
+        '<i data-lucide="user" class="w-4 h-4 text-slate-400 shrink-0"></i>' +
+        '<span class="flex-1 text-sm font-medium text-slate-700 truncate">' + esc(e.nome) + '</span>' +
+        '<button onclick="SIPAV.app.editarEncarregado(\'' + e.id + '\')" ' +
+                'class="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 shrink-0" title="Corrigir nome">' +
+          '<i data-lucide="pencil" class="w-4 h-4"></i></button>' +
+        '<button onclick="SIPAV.app.removerEncarregado(\'' + e.id + '\',\'' + esc(e.nome) + '\')" ' +
+                'class="p-1.5 rounded-lg hover:bg-rose-100 text-slate-400 hover:text-rose-600 shrink-0" title="Remover">' +
+          '<i data-lucide="trash-2" class="w-4 h-4"></i></button>' +
+      '</div>';
+  }
+
+  function editarEncarregado(id) {
+    encarregadoEmEdicao = id;
+    ui.fecharModal('modalGenerico');
+    abrirEncarregados();
+    if (id) setTimeout(function () {
+      var campo = $('nomeEncarregado');
+      if (campo) { campo.focus(); campo.select(); }
+    }, 60);
+  }
+
+  function salvarNomeEncarregado(id) {
+    var nome = $('nomeEncarregado').value.trim();
+    if (!nome) { ui.avisar('O nome não pode ficar vazio.', 'alerta'); return; }
+
+    ui.processando('Salvando…');
+    db.salvarEncarregado(nome, id)
+      .then(function () { return db.encarregados(); })
+      .then(function (lista) {
+        E.encarregados = lista;
+        encarregadoEmEdicao = null;
+        ui.pronto();
+        ui.fecharModal('modalGenerico');
+        abrirEncarregados();
+        return recarregarProgramacoes();
+      })
+      .then(function () { ui.avisar('Nome corrigido.', 'sucesso'); })
+      .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro'); });
   }
 
   function adicionarEncarregado() {
@@ -1838,6 +1903,8 @@ window.SIPAV = window.SIPAV || {};
 
     abrirEncarregados: abrirEncarregados,
     adicionarEncarregado: adicionarEncarregado,
+    editarEncarregado: editarEncarregado,
+    salvarNomeEncarregado: salvarNomeEncarregado,
     removerEncarregado: removerEncarregado,
     abrirAtividades: abrirAtividades,
     editarAtividade: editarAtividade,

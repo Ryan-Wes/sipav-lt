@@ -449,6 +449,23 @@ window.SIPAV = window.SIPAV || {};
       .then(function (r) { return ok(r, 'Falha ao carregar histórico'); });
   }
 
+  /**
+   * Registra a correção de estágio no histórico — uma linha por ação, não uma
+   * por execução reescrita.
+   */
+  function registrarCorrecaoEstagio(torreId, estagio, anterior) {
+    return cliente()
+      .rpc('registrar_correcao_estagio', {
+        p_torre_id: torreId,
+        p_estagio: estagio || 'nada executado',
+        p_anterior: anterior || null
+      })
+      .then(function (r) {
+        if (r.error) throw traduzErro(r.error, 'Falha ao registrar no histórico');
+        return true;
+      });
+  }
+
   /** Últimas alterações do trecho inteiro. */
   function historicoDoTrecho(trechoId, limite) {
     return cliente()
@@ -763,6 +780,7 @@ window.SIPAV = window.SIPAV || {};
 
     historicoDaTorre: historicoDaTorre,
     historicoDoTrecho: historicoDoTrecho,
+    registrarCorrecaoEstagio: registrarCorrecaoEstagio,
 
     restricoes: restricoes,
     criarRestricao: criarRestricao,
