@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v36 · 2026-09-24';
+  var VERSAO = 'v37 · 2026-09-24';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -38,6 +38,8 @@ window.SIPAV = window.SIPAV || {};
 
   function iniciar() {
     console.log('%cSIPAV LT ' + VERSAO, 'color:#F97316;font-weight:bold');
+
+    aplicarLogos();
 
     try {
       db.iniciar();
@@ -343,10 +345,37 @@ window.SIPAV = window.SIPAV || {};
     }
   }
 
+  /* ---------------------------------------------------------- Logotipos --- */
+
+  // Versão branca no tema escuro, preta no claro. A troca é feita pela origem
+  // da imagem, e não escondendo uma das duas por CSS: assim o navegador baixa
+  // só a que está em uso.
+  var LOGOS = {
+    dark: {
+      logoLogin:   'img/completo-branco.png',
+      logoSimbolo: 'img/simbolo-branco.webp',
+      logoTexto:   'img/texto-branco.webp'
+    },
+    light: {
+      logoLogin:   'img/completo-preto.webp',
+      logoSimbolo: 'img/simbolo-preto.png',
+      logoTexto:   'img/texto-preto.webp'
+    }
+  };
+
+  function aplicarLogos() {
+    var jogo = LOGOS[document.documentElement.classList.contains('dark') ? 'dark' : 'light'];
+    Object.keys(jogo).forEach(function (id) {
+      var el = $(id);
+      if (el) el.src = jogo[id];
+    });
+  }
+
   /** Alterna claro/escuro e guarda a escolha. Padrão da aplicação é escuro. */
   function alternarTema() {
     var escuro = document.documentElement.classList.toggle('dark');
     try { localStorage.setItem('sipav_tema', escuro ? 'dark' : 'light'); } catch (e) {}
+    aplicarLogos();
     ui.icones();
   }
 

@@ -94,14 +94,8 @@ body::before {
   border-bottom: 1px solid var(--borda);
 }
 
-/* Marca discreta, no lugar da antiga barra colorida */
-.marca {
-  width: 34px; height: 34px; border-radius: .625rem;
-  display: flex; align-items: center; justify-content: center;
-  background: linear-gradient(140deg, var(--acento), var(--acento-escuro));
-  color: #fff;
-  box-shadow: 0 2px 10px rgba(249,115,22,.30);
-}
+/* Logotipos: a troca claro/escuro é feita por src, em app.js */
+#logoSimbolo, #logoTexto, #logoLogin { display: block; }
 
 /* ---------------------------------------------------------------- Botões -- */
 

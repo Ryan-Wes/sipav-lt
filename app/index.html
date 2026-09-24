@@ -38,7 +38,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
   <!-- ?v= força o navegador a buscar de novo quando o código muda. -->
-  <link rel="stylesheet" href="css/app.css?v=36">
+  <link rel="stylesheet" href="css/app.css?v=37">
 </head>
 <body class="h-full flex flex-col antialiased">
 
@@ -49,13 +49,9 @@
      style="background:var(--fundo);background-image:var(--brilho)">
   <div class="w-full max-w-sm">
     <div class="text-center mb-8">
-      <div class="marca mx-auto mb-4" style="width:44px;height:44px;border-radius:.875rem">
-        <i data-lucide="trending-up" class="w-6 h-6"></i>
-      </div>
-      <h1 class="text-2xl font-bold tracking-tight" style="color:var(--texto)">
-        SIPAV <span style="color:var(--acento)">LT</span>
-      </h1>
-      <p class="text-sm mt-1" style="color:var(--texto-fraco)">Sistema de Planejamento de Avanço</p>
+      <img id="logoLogin" alt="SIPAV LT" class="mx-auto mb-3"
+           style="height:76px;width:auto">
+      <p class="text-sm" style="color:var(--texto-fraco)">Sistema de Planejamento de Avanço</p>
     </div>
 
     <form id="formLogin" class="painel p-6 space-y-4">
@@ -114,15 +110,11 @@
     <div class="max-w-[1600px] mx-auto px-5 py-3 flex flex-wrap justify-center xl:justify-between items-center gap-x-3 gap-y-2">
 
       <div class="flex items-center gap-3">
-        <div class="marca shrink-0">
-          <i data-lucide="trending-up" class="w-4 h-4"></i>
-        </div>
+        <img id="logoSimbolo" alt="" class="shrink-0" style="height:36px;width:auto">
         <div class="leading-tight">
-          <h1 class="text-base font-bold tracking-tight" style="color:var(--texto)">
-            SIPAV <span style="color:var(--acento)">LT</span>
-          </h1>
-          <p class="text-[11px]" id="nomeObra" style="color:var(--texto-fraco)">
-            Sistema de Planejamento de Avanço
+          <img id="logoTexto" alt="SIPAV LT" style="height:16px;width:auto">
+          <p class="text-[11px] mt-1" id="nomeObra" style="color:var(--texto-fraco)">
+            LT Serra Dourada
           </p>
         </div>
 
@@ -495,10 +487,10 @@
   </div>
 </div>
 
-<script src="js/config.js?v=36"></script>
-<script src="js/db.js?v=36"></script>
-<script src="js/ui.js?v=36"></script>
-<script src="js/render.js?v=36"></script>
-<script src="js/app.js?v=36"></script>
+<script src="js/config.js?v=37"></script>
+<script src="js/db.js?v=37"></script>
+<script src="js/ui.js?v=37"></script>
+<script src="js/render.js?v=37"></script>
+<script src="js/app.js?v=37"></script>
 </body>
 </html>
