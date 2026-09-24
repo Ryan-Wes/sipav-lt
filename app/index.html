@@ -25,7 +25,7 @@
           colors: {
             indigo: {
               50:'#FFF7ED', 100:'#FFEDD5', 200:'#FED7AA', 300:'#FDBA74',
-              400:'#FB923C', 500:'#F97316', 600:'#EA6A0C', 700:'#C2560C',
+              400:'#A78BFA', 500:'#8B5CF6', 600:'#7C3AED', 700:'#C2560C',
               800:'#9A3412', 900:'#7C2D12', 950:'#431407'
             }
           }
@@ -38,7 +38,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
   <!-- ?v= força o navegador a buscar de novo quando o código muda. -->
-  <link rel="stylesheet" href="css/app.css?v=30">
+  <link rel="stylesheet" href="css/app.css?v=31">
 </head>
 <body class="h-full flex flex-col antialiased">
 
@@ -53,7 +53,7 @@
         <i data-lucide="trending-up" class="w-6 h-6"></i>
       </div>
       <h1 class="text-2xl font-bold tracking-tight" style="color:var(--texto)">
-        SIPAV <span style="color:var(--laranja)">LT</span>
+        SIPAV <span style="color:var(--acento)">LT</span>
       </h1>
       <p class="text-sm mt-1" style="color:var(--texto-fraco)">Sistema de Planejamento de Avanço</p>
     </div>
@@ -98,7 +98,7 @@
      style="background:var(--fundo)">
   <div class="text-center">
     <div class="w-10 h-10 rounded-full animate-spin mx-auto mb-3"
-         style="border:3px solid var(--borda);border-top-color:var(--laranja)"></div>
+         style="border:3px solid var(--borda);border-top-color:var(--acento)"></div>
     <p class="text-sm" id="textoCarregando" style="color:var(--texto-suave)">Carregando…</p>
   </div>
 </div>
@@ -119,7 +119,7 @@
         </div>
         <div class="leading-tight">
           <h1 class="text-base font-bold tracking-tight" style="color:var(--texto)">
-            SIPAV <span style="color:var(--laranja)">LT</span>
+            SIPAV <span style="color:var(--acento)">LT</span>
           </h1>
           <p class="text-[11px]" id="nomeObra" style="color:var(--texto-fraco)">
             Sistema de Planejamento de Avanço
@@ -136,8 +136,8 @@
 
       <div class="flex flex-wrap items-center justify-center gap-2">
 
-        <button onclick="SIPAV.app.abrirImportacao()" class="btn-header btn-header-acento" title="Importar torres colando da planilha">
-          <i data-lucide="clipboard-paste" class="w-4 h-4"></i>
+        <button onclick="SIPAV.app.abrirImportacao()" class="btn-header" title="Importar torres colando da planilha">
+          <i data-lucide="clipboard-paste" class="w-4 h-4" style="color:var(--acento)"></i>
           <span class="hidden lg:inline">Importar</span>
         </button>
 
@@ -308,7 +308,7 @@
       <i data-lucide="inbox" class="w-12 h-12 mx-auto mb-3" style="color:var(--texto-fraco)"></i>
       <p class="font-medium" style="color:var(--texto-suave)">Nenhuma torre neste trecho</p>
       <p class="text-sm mt-1" style="color:var(--texto-fraco)">
-        Use <strong style="color:var(--laranja)">Importar</strong> para colar as torres da planilha
+        Use <strong style="color:var(--acento)">Importar</strong> para colar as torres da planilha
       </p>
     </div>
   </main>
@@ -490,15 +490,15 @@
      style="background:rgba(0,0,0,.6)">
   <div class="modal-caixa max-w-xs px-6 py-5 flex items-center gap-3" style="flex-direction:row">
     <div class="w-5 h-5 rounded-full animate-spin shrink-0"
-         style="border:2px solid var(--borda);border-top-color:var(--laranja)"></div>
+         style="border:2px solid var(--borda);border-top-color:var(--acento)"></div>
     <span id="processandoTexto" class="text-sm font-medium" style="color:var(--texto)">Processando…</span>
   </div>
 </div>
 
-<script src="js/config.js?v=30"></script>
-<script src="js/db.js?v=30"></script>
-<script src="js/ui.js?v=30"></script>
-<script src="js/render.js?v=30"></script>
-<script src="js/app.js?v=30"></script>
+<script src="js/config.js?v=31"></script>
+<script src="js/db.js?v=31"></script>
+<script src="js/ui.js?v=31"></script>
+<script src="js/render.js?v=31"></script>
+<script src="js/app.js?v=31"></script>
 </body>
 </html>

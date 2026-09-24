@@ -1,4 +1,4 @@
-/* =============================================================================
+﻿/* =============================================================================
    SIPAV LT — Renderização das visões
    =============================================================================
    Lê SIPAV.estado e desenha. Não fala com o banco e não altera estado.
@@ -134,6 +134,9 @@ window.SIPAV = window.SIPAV || {};
             '<span class="flex-1">' +
               '<span class="data">' + ui.dataCurta(p.data) + '</span> ' +
               esc(p.atividade ? p.atividade.nome : '—') +
+              (p.encarregado
+                ? '<span class="encarregado">' + esc(p.encarregado.nome) + '</span>'
+                : '') +
             '</span>' +
             (conflito[p.id]
               ? '<i data-lucide="alert-triangle" class="conflito" style="width:11px;height:11px"></i>'
@@ -178,7 +181,7 @@ window.SIPAV = window.SIPAV || {};
           '<span class="legenda">' +
             '<span class="ponto-atividade" style="background:' +
               (corEstado || 'var(--borda-forte)') + '"></span>' +
-            '<span class="texto">' + esc(estado) + '</span>' +
+            esc(estado) +
           '</span>' +
         '</span>' +
         lista +
@@ -301,8 +304,8 @@ window.SIPAV = window.SIPAV || {};
       return '' +
         '<section class="space-y-3">' +
           '<header class="flex flex-wrap items-baseline justify-between gap-2 px-1 pb-1" ' +
-                  'style="border-bottom:2px solid var(--laranja)">' +
-            '<h2 class="text-sm font-bold uppercase tracking-wide" style="color:var(--laranja)">' +
+                  'style="border-bottom:2px solid var(--acento)">' +
+            '<h2 class="text-sm font-bold uppercase tracking-wide" style="color:var(--acento)">' +
               'Semana de ' + ui.dataCurta(segunda) + ' a ' + ui.dataCurta(domingo) +
             '</h2>' +
             '<span class="text-xs font-semibold text-slate-500">' +
