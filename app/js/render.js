@@ -95,7 +95,8 @@ window.SIPAV = window.SIPAV || {};
     var restrito = torre.tem_restricao;
 
     var classes = ['cartao-torre'];
-    if (restrito) classes.push('cartao-restrito');
+    if (restrito)       classes.push('cartao-restrito');
+    if (progs.length)   classes.push('cartao-programado');
 
     // A linha do topo e o ponto mostram o ESTADO da torre. Programação é plano,
     // não estado, e por isso não pinta o cartão — ela tem selo e lista próprios.

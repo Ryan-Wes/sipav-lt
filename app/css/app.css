@@ -31,7 +31,8 @@
   --superficie-3:   #EFEFF1;
   --borda:          #E4E4E7;
   --borda-forte:    #D4D4D8;
-  --borda-cartao:   rgba(0,0,0,.12);
+  --borda-cartao:   rgba(0,0,0,.16);
+  --superficie-prog:#F1F1F4;    /* cartão com programação: um degrau acima */
   --texto:          #18181B;
   --texto-suave:    #71717A;
   --texto-fraco:    #A1A1AA;
@@ -49,7 +50,8 @@ html.dark {
   --superficie-3:   #232327;
   --borda:          #26262B;
   --borda-forte:    #35353C;
-  --borda-cartao:   rgba(255,255,255,.10);
+  --borda-cartao:   rgba(255,255,255,.15);
+  --superficie-prog:#1F1F25;    /* cartão com programação: um degrau acima */
   --texto:          #EDEDEF;
   --texto-suave:    #9B9BA4;
   --texto-fraco:    #6A6A73;
@@ -373,7 +375,7 @@ select option, select optgroup {
 
 /* Programação NÃO pinta o cartão de cor: ela é plano, não estado. Ganha só um
    degrau de claridade, para destacar sem virar circo. */
-.cartao-programado { background: var(--superficie-2); }
+.cartao-programado { background: var(--superficie-prog); }
 .cartao-programado:hover { background: var(--superficie-3); }
 
 /* Torre travada por restrição — isso sim é estado */
