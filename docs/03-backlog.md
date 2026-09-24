@@ -49,7 +49,8 @@ Situação conferida em **23/09/2026**, item por item, contra o que está public
 | S3 | PDF visual + WhatsApp | [REU] | ✅ |
 | S4 | Filtros por encarregado / atividade / torre | [REU] | ✅ |
 | **S5** | **Filtro por período (semana / quinzena)** | [WR] 23/09 | ✅ presets de semana, quinzena e mês, mais personalizado |
-| **S6** | **Total de km e torres por encarregado no relatório** | [REU] | ⚠️ aparece por bloco, não consolidado |
+| **S6** | **Total de km e torres por encarregado no relatório** | [REU] | ✅ tabela consolidada no topo da visão |
+| **S7** | **Filtro do histórico por pessoa e por data** | [WR] 24/09 | ❌ com pouco movimento não incomoda; em duas semanas vai |
 
 ## Fluxo de pré-programação do supervisor
 
