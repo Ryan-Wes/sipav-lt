@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v50 · 2026-09-24';
+  var VERSAO = 'v51 · 2026-09-24';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -2161,7 +2161,19 @@ window.SIPAV = window.SIPAV || {};
     ui.fecharModal('modalGenerico');
     ui.processando('Preenchendo a planilha…');
 
-    SIPAV.isa.gerar(arquivo, ui.paraData(segunda), E.programacoes, E.torres)
+    // Busca do banco em vez de usar E.programacoes: aquela lista vem recortada
+    // pelo filtro de período da tela, e exportar a quinzena que vem com o filtro
+    // em "esta semana" deixaria programação de fora sem avisar ninguém.
+    var inicio = ui.paraData(segunda);
+
+    db.programacoes({
+      trechoId: E.trechoAtual.id,
+      de:  ui.iso(inicio),
+      ate: ui.iso(ui.somarDias(inicio, 13))
+    })
+      .then(function (progs) {
+        return SIPAV.isa.gerar(arquivo, inicio, progs, E.torres);
+      })
       .then(function (r) {
         ui.pronto();
         baixarBlob(r.blob, arquivo.name.replace(/\.xlsx$/i, '') + ' - SIPAV.xlsx');
