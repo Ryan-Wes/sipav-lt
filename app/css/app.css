@@ -308,8 +308,10 @@ select option, select optgroup {
    de longe sem que 145 cartões virem uma parede de contornos coloridos. */
 .cartao-torre {
   position: relative; cursor: pointer; overflow: hidden;
-  border: 1px solid var(--borda-cartao);      /* fina, mas visível */
-  border-top: 4px solid var(--borda-forte);   /* a cor do ESTADO entra aqui */
+  /* Contorno todo na cor do estado, vinda inline: 4px em cima, 1px diluído nos
+     lados e na base. Estes valores são o fallback de torre sem estágio. */
+  border: 1px solid var(--borda-cartao);
+  border-top: 4px solid var(--borda-forte);
   border-radius: .625rem;
   background: var(--superficie); color: var(--texto);
   padding: .875rem .625rem;
@@ -378,13 +380,9 @@ select option, select optgroup {
 .cartao-programado { background: var(--superficie-prog); }
 .cartao-programado:hover { background: var(--superficie-3); }
 
-/* Torre travada por restrição — isso sim é estado */
-.cartao-restrito {
-  background: rgba(225,29,72,.06);
-  border-left-color: rgba(225,29,72,.35);
-  border-right-color: rgba(225,29,72,.35);
-  border-bottom-color: rgba(225,29,72,.35);
-}
+/* Torre travada por restrição — isso sim é estado.
+   A cor do contorno vem inline, como nas demais; aqui só o fundo. */
+.cartao-restrito { background: rgba(225,29,72,.06); }
 .cartao-restrito:hover { background: rgba(225,29,72,.10); }
 
 /* ------------------------------------------------- Programação no cartão -- */

@@ -169,9 +169,15 @@ window.SIPAV = window.SIPAV || {};
       ' — ' + esc(estado) +
       (ordenadas.length ? ' · ' + ordenadas.length + ' programada(s)' : '');
 
+    // Contorno inteiro na cor do estado: cheia em cima, diluída nos lados e na
+    // base, para o cartão ter a cor sem virar um bloco de contorno grosso.
+    var estilo = corEstado
+      ? 'border-color:' + ui.rgba(corEstado, 0.45) + ';border-top-color:' + corEstado + ';'
+      : '';
+
     return '' +
       '<div class="' + classes.join(' ') + '" ' +
-           (corEstado ? 'style="border-top-color:' + corEstado + '" ' : '') +
+           (estilo ? 'style="' + estilo + '" ' : '') +
            'onclick="SIPAV.app.abrirTorre(\'' + torre.torre_id + '\')" ' +
            'title="' + dica + '">' +
         selo +
