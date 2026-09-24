@@ -1,4 +1,4 @@
--- =============================================================================
+﻿-- =============================================================================
 -- Pilotinho e piloto são cabos diferentes — 24/09/2026
 -- =============================================================================
 -- Wesley: "piloto só é pro condutor e pilotinho que é pros para-raios, OPGW".
@@ -10,7 +10,7 @@
 --   4.2.2  LANÇAMENTO DO CABO PILOTINHO PARA LANÇAMENTO DO CABO OPGW       [KM]
 --   4.3.2  Lançamento do cabo Piloto do condutor                           [KM]
 --
--- A atividade que existe hoje é a do cabo-guarda: ela nasceu no 05 entre as
+-- A atividade que existe hoje é a do para-raio/OPGW: ela nasceu no 05 entre as
 -- bandolas e o lançamento do OPGW/para-raio, e é ela que carrega o campo
 -- 'cabo'. Então vira PILOTINHO por rename, preservando id, programação e
 -- histórico. O piloto do condutor nasce novo.
@@ -30,7 +30,7 @@ where obra_id = (select id from obra where codigo = 'SD')
 -- =============================================================================
 -- 2. O piloto do condutor nasce
 -- =============================================================================
--- Ordem 178: depois da ancoragem do cabo-guarda (175) e antes do lançamento do
+-- Ordem 178: depois da ancoragem do para-raio/OPGW (175) e antes do lançamento do
 -- condutor (180). Sem campo 'cabo' — o condutor tem seção própria no relatório,
 -- não se divide em OPGW e para-raio.
 insert into atividade (obra_id, nome, ordem_execucao, cor_fundo, cor_texto, icone, obrigatoria)
@@ -54,7 +54,7 @@ on conflict (obra_id, nome) do nothing;
 -- o para-raio é que você vai poder trabalhar com o condutor". Agora isso passa
 -- pelo piloto do condutor, que é o primeiro passo desse trabalho.
 
--- 3a. O condutor não depende mais direto do pilotinho, que é do cabo-guarda
+-- 3a. O condutor não depende mais direto do pilotinho, que é do para-raio/OPGW
 delete from atividade_dependencia
 where (atividade_id, requer_atividade_id) in (
   select a.id, r.id
@@ -65,7 +65,7 @@ where (atividade_id, requer_atividade_id) in (
     and r.nome in ('LANÇAMENTO DO PILOTINHO', 'LANÇAMENTO DO CABO OPGW/PR')
 );
 
--- 3b. A corrente nova. O vínculo com o cabo-guarda continua existindo, só que
+-- 3b. A corrente nova. O vínculo com o para-raio/OPGW continua existindo, só que
 --     agora pelo piloto do condutor — e o bloqueio transitivo cobre o resto.
 insert into atividade_dependencia (atividade_id, requer_atividade_id)
 select a.id, r.id
@@ -86,7 +86,7 @@ on conflict do nothing;
 -- =============================================================================
 -- Devem sair 34 linhas. Confira que:
 --   · 140 é LANÇAMENTO DO PILOTINHO
---   · 178 é LANÇAMENTO DO PILOTO DO CONDUTOR, exigindo o cabo-guarda lançado
+--   · 178 é LANÇAMENTO DO PILOTO DO CONDUTOR, exigindo o para-raio/OPGW lançado
 --   · 180 LANÇAMENTO CONDUTOR 100% exige o piloto do condutor
 select
   a.ordem_execucao as ordem,

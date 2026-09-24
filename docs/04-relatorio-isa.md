@@ -1,4 +1,4 @@
-# Relatório de Programação Semanal (RPSQ) — ISA
+﻿# Relatório de Programação Semanal (RPSQ) — ISA
 
 Especificação do relatório que a fiscalização recebe toda sexta e do que o SIPAV
 precisa para gerá-lo. Base: os quatro arquivos de **21/09/2026** mais o modelo em
@@ -203,7 +203,7 @@ CAF 2.1.9) · `WAMDERLEY` (BRR L195) · `EMPACADURA` / `EMPANCADURA` usados junt
 - **BRR-COR**: seção 4.1 = `PARA-RAIO CONVENCIONAL 3/8 ou DOTTEREL`, 4.2 = `OPGW`
 - **BRT-BRR**: 4.1 = `PARA-RAIO OPGW DIREITO`, 4.2 = `PARA-RAIO OPGW ESQUERDO`
 
-Ou seja, projetos de cabo-guarda diferentes — um trecho com para-raio convencional de
+Ou seja, projetos de para-raio/OPGW diferentes — um trecho com para-raio convencional de
 um lado e OPGW do outro, o outro com OPGW dos dois lados. **Confirmar com a engenharia
 antes de unificar**, porque se for real as duas seções têm que conviver no modelo.
 
@@ -440,7 +440,7 @@ de-para fica quase todo 1 para 1.
 | MONTAGEM | 3.1.3 (EST) · 3.2.2 (AUP) | içamento |
 | REVISÃO | 3.1.4 (EST) · 3.2.3 (AUP) | inclui a flambagem, como texto na célula |
 | GIRO E PRUMO | 3.1.5 | |
-| INSTALAÇÃO DE BANDOLAS DO CABO-GUARDA | 4.1.1 **ou** 4.2.1 | pelo campo `cabo` — ver DEC-14 |
+| INSTALAÇÃO DE BANDOLAS OPGW / PARA-RAIO | 4.1.1 **ou** 4.2.1 | pelo campo `cabo` — ver DEC-14 |
 | LANÇAMENTO DO PILOTINHO | 4.1.2 **ou** 4.2.2 | pelo campo `cabo` — ver DEC-12 |
 | LANÇAMENTO DO CABO OPGW/PR | 4.1.3 **ou** 4.2.3 | pelo campo `cabo` |
 | NIVELAMENTO OPGW / PARA-RAIO | 4.1.4 **ou** 4.2.4 | pelo campo `cabo` |
@@ -514,11 +514,11 @@ do backlog) e os itens em KM, que precisam de quantidade e não de contagem de t
 | DEC-7 | Cadeia de montagem corrigida: **revisão em solo vai junto com a pré-montagem** (só estaiada, decide se dá para içar com guindaste), içamento depois, **flambagem vai junto com a revisão**, e **giro e prumo sai sozinho depois**. No SIPAV: `FLAMBAGEM` é absorvida por `REVISÃO` e `GIRO E PRUMO` vira atividade própria | Alessandro, 24/09 (A2) |
 | DEC-8 | Grampeação e ancoragem são apontadas separadas, e `INSTALAÇÃO DE ACESSÓRIOS` se abre em espaçador, jumper e sinalização | Alessandro, 24/09 (A3) |
 | DEC-9 | Fabricação de pré-moldado sai do planejamento. O que se programa é a **instalação**, em três sabores — só mastro central, só viga L, ou os dois — porque as equipes se dividem assim | Alessandro, 24/09 (A4) |
-| DEC-10 | O cabo-guarda vira um campo na programação, `OPGW` ou `PARA_RAIO`, em vez de atividades duplicadas. É ele que decide se a linha vai para `4.1` ou `4.2` | Alessandro, 24/09 (A6) |
+| DEC-10 | O para-raio/OPGW vira um campo na programação, `OPGW` ou `PARA_RAIO`, em vez de atividades duplicadas. É ele que decide se a linha vai para `4.1` ou `4.2` | Alessandro, 24/09 (A6) |
 | DEC-11 | A padronização das quatro planilhas será apresentada à fiscalização antes de valer | Alessandro, 24/09 (A5) |
-| DEC-12 | **Pilotinho e piloto são cabos diferentes.** O pilotinho puxa o cabo-guarda (`4.1.2` / `4.2.2`), o piloto puxa o condutor (`4.3.2`). O SIPAV tinha uma atividade só para os dois: ela vira `LANÇAMENTO DO PILOTINHO` e nasce `LANÇAMENTO DO PILOTO DO CONDUTOR`. 33 → 34 atividades. [`db/23`](../db/23-piloto-e-pilotinho.sql) | Wesley, 24/09 |
+| DEC-12 | **Pilotinho e piloto são cabos diferentes.** O pilotinho puxa o para-raio/OPGW (`4.1.2` / `4.2.2`), o piloto puxa o condutor (`4.3.2`). O SIPAV tinha uma atividade só para os dois: ela vira `LANÇAMENTO DO PILOTINHO` e nasce `LANÇAMENTO DO PILOTO DO CONDUTOR`. 33 → 34 atividades. [`db/23`](../db/23-piloto-e-pilotinho.sql) | Wesley, 24/09 |
 | DEC-13 | `LANÇAMENTO DO PILOTINHO` exige `GIRO E PRUMO`. Não se lança cabo em torre não aprumada, e como é a primeira etapa em que se puxa cabo, o bloqueio transitivo cobre todo o resto da fase. Bandolas fica de fora porque é acessório na torre, não lançamento. [`db/22`](../db/22-lancamento-depende-do-prumo.sql) | Wesley, 24/09 |
-| DEC-14 | **Bandola do cabo-guarda e bandola do condutor são dois serviços.** "Primeiro colocam bandola de para-raio, lançam o cabo, e só depois é que vai colocar bandola de condutor e lançar condutor." A que existe vira `INSTALAÇÃO DE BANDOLAS DO CABO-GUARDA` e nasce `INSTALAÇÃO DE BANDOLAS E ISOLADORES`. 34 → 35 atividades. [`db/24`](../db/24-bandolas-em-duas-etapas.sql) | Wesley, 24/09 |
+| DEC-14 | **Bandola do para-raio/OPGW e bandola do condutor são dois serviços.** "Primeiro colocam bandola de para-raio, lançam o cabo, e só depois é que vai colocar bandola de condutor e lançar condutor." A que existe vira `INSTALAÇÃO DE BANDOLAS OPGW / PARA-RAIO` e nasce `INSTALAÇÃO DE BANDOLAS E ISOLADORES`. 34 → 35 atividades. [`db/24`](../db/24-bandolas-em-duas-etapas.sql) | Wesley, 24/09 |
 
 > **DEC-7 revoga a DEC-3 e corrige o `06-correcoes.sql`.** O que se junta à revisão é
 > a flambagem, não o giro e prumo. Saldo: a lista do SIPAV vai de 28 para 33
@@ -532,4 +532,4 @@ do backlog) e os itens em KM, que precisam de quantidade e não de contagem de t
 | P3 | `INSTALAÇÃO DE SINALIZAÇÃO` é um item no SIPAV e três no ISA (sinalizador de estais, avifauna, placas). Por ora o exportador escreve nos três | Nada |
 | P4 | O sinalizador de estais é instalado na torre e poderia sair bem antes do condutor, mas o Alessandro listou sinalização por último. A dependência ficou em `GRAMPEAÇÃO DOS CONDUTORES` até alguém corrigir | Nada. Só a regra de bloqueio |
 | P5 | ~~`LANÇAMENTO CONDUTOR 100%` deveria depender de `GIRO E PRUMO`?~~ — resolvido pela DEC-13 | — |
-| P6 | ~~Bandolas do cabo-guarda e do condutor são duas etapas?~~ — resolvido pela DEC-14 | — |
+| P6 | ~~Bandolas do para-raio/OPGW e do condutor são duas etapas?~~ — resolvido pela DEC-14 | — |

@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v47 · 2026-09-24';
+  var VERSAO = 'v48 · 2026-09-24';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -550,17 +550,17 @@ window.SIPAV = window.SIPAV || {};
   /* ------------------------------------------------------------- Cabo ----- */
 
   /**
-   * As seis etapas de cabo-guarda existem em duas versões na planilha da ISA:
+   * As seis etapas de para-raio/OPGW existem em duas versões na planilha da ISA:
    * seção 4.1 para o para-raio convencional e 4.2 para o OPGW. A obra tem as
    * duas condições — Buritirama leva OPGW dos dois lados, Barra–Correntina leva
    * para-raio de um lado e OPGW do outro —, então quem programa precisa dizer
    * qual é.
    *
    * O condutor tem seção própria (4.3) e não entra aqui, nem o piloto dele: o
-   * pilotinho é o cabo-guia do cabo-guarda, o piloto é o do condutor.
+   * pilotinho é o cabo-guia do para-raio/OPGW, o piloto é o do condutor.
    */
   var ATIVIDADES_COM_CABO = [
-    'INSTALAÇÃO DE BANDOLAS DO CABO-GUARDA',
+    'INSTALAÇÃO DE BANDOLAS OPGW / PARA-RAIO',
     'LANÇAMENTO DO PILOTINHO',
     'LANÇAMENTO DO CABO OPGW/PR',
     'NIVELAMENTO OPGW / PARA-RAIO',
@@ -1907,16 +1907,16 @@ window.SIPAV = window.SIPAV || {};
     'jumper':                    'INSTALAÇÃO DE JUMPER',
     'sinalizacao':               'INSTALAÇÃO DE SINALIZAÇÃO',
 
-    // Bandola do cabo-guarda e bandola do condutor são etapas diferentes: a do
-    // condutor vem depois do cabo-guarda lançado, e leva isolador junto
-    'bandolas':                    'INSTALAÇÃO DE BANDOLAS DO CABO-GUARDA',
-    'bandola':                     'INSTALAÇÃO DE BANDOLAS DO CABO-GUARDA',
-    'instalacao de bandolas':      'INSTALAÇÃO DE BANDOLAS DO CABO-GUARDA',
+    // Bandola do para-raio/OPGW e bandola do condutor são etapas diferentes: a do
+    // condutor vem depois do para-raio/OPGW lançado, e leva isolador junto
+    'bandolas':                    'INSTALAÇÃO DE BANDOLAS OPGW / PARA-RAIO',
+    'bandola':                     'INSTALAÇÃO DE BANDOLAS OPGW / PARA-RAIO',
+    'instalacao de bandolas':      'INSTALAÇÃO DE BANDOLAS OPGW / PARA-RAIO',
     'bandolas e isoladores':       'INSTALAÇÃO DE BANDOLAS E ISOLADORES',
     'bandola de condutor':         'INSTALAÇÃO DE BANDOLAS E ISOLADORES',
     'bandolas do condutor':        'INSTALAÇÃO DE BANDOLAS E ISOLADORES',
 
-    // Pilotinho é o cabo-guia do cabo-guarda; piloto é o do condutor
+    // Pilotinho é o cabo-guia do para-raio/OPGW; piloto é o do condutor
     'pilotinho':                   'LANÇAMENTO DO PILOTINHO',
     'lancamento do pilotinho':     'LANÇAMENTO DO PILOTINHO',
     'lancam. pilotinho':           'LANÇAMENTO DO PILOTINHO',

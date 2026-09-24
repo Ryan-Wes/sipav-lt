@@ -1,5 +1,5 @@
--- =============================================================================
--- Bandola do cabo-guarda e bandola do condutor são etapas diferentes — 24/09/2026
+﻿-- =============================================================================
+-- Bandola do para-raio/OPGW e bandola do condutor são etapas diferentes — 24/09/2026
 -- =============================================================================
 -- Wesley: "são dois serviços, eles primeiro colocam bandola de para-raio, lançam
 -- o cabo e só depois é que vai colocar bandola de condutor e lançar condutor".
@@ -10,11 +10,11 @@
 --   4.2.1  INSTALAÇÃO DE BANDOLAS PARA O CABO OPGW       [TORRE]
 --   4.3.1  Instalação de Bandolas e Isoladores           [TORRE]  ← condutor
 --
--- A atividade que existe é a do cabo-guarda: é ela que carrega o campo 'cabo'.
+-- A atividade que existe é a do para-raio/OPGW: é ela que carrega o campo 'cabo'.
 -- Ganha nome explícito e o condutor ganha a sua, que leva isolador junto.
 --
 -- A frase do Wesley também corrige a 23: eu tinha pendurado o piloto do condutor
--- direto no lançamento do cabo-guarda, porque na época não existia a bandola do
+-- direto no lançamento do para-raio/OPGW, porque na época não existia a bandola do
 -- condutor para ficar no meio. Agora fica.
 --
 -- 34 atividades → 35.
@@ -36,9 +36,9 @@ end $$;
 
 
 -- =============================================================================
--- 1. A bandola que existe é a do cabo-guarda
+-- 1. A bandola que existe é a do para-raio/OPGW
 -- =============================================================================
-update atividade set nome = 'INSTALAÇÃO DE BANDOLAS DO CABO-GUARDA'
+update atividade set nome = 'INSTALAÇÃO DE BANDOLAS OPGW / PARA-RAIO'
 where obra_id = (select id from obra where codigo = 'SD')
   and nome = 'INSTALAÇÃO DE BANDOLAS';
 
@@ -46,7 +46,7 @@ where obra_id = (select id from obra where codigo = 'SD')
 -- =============================================================================
 -- 2. A bandola do condutor nasce
 -- =============================================================================
--- Ordem 177: depois da ancoragem do cabo-guarda (175) e antes do piloto do
+-- Ordem 177: depois da ancoragem do para-raio/OPGW (175) e antes do piloto do
 -- condutor (178). Sem campo 'cabo' — condutor não se divide em OPGW e para-raio.
 insert into atividade (obra_id, nome, ordem_execucao, cor_fundo, cor_texto, icone, obrigatoria)
 select o.id, 'INSTALAÇÃO DE BANDOLAS E ISOLADORES', 177, '#7986cb', '#ffffff', 'link', true
@@ -61,7 +61,7 @@ on conflict (obra_id, nome) do nothing;
 --   antes   … → CABO OPGW/PR → PILOTO DO CONDUTOR → CONDUTOR
 --   agora   … → CABO OPGW/PR → BANDOLAS E ISOLADORES → PILOTO DO CONDUTOR → CONDUTOR
 
--- 3a. O piloto do condutor não pendura mais direto no lançamento do cabo-guarda
+-- 3a. O piloto do condutor não pendura mais direto no lançamento do para-raio/OPGW
 delete from atividade_dependencia
 where (atividade_id, requer_atividade_id) in (
   select a.id, r.id
@@ -92,7 +92,7 @@ on conflict do nothing;
 -- =============================================================================
 -- Devem sair 35 linhas. A fase de cabo fica assim, de 130 a 180:
 --
---   130  INSTALAÇÃO DE BANDOLAS DO CABO-GUARDA   ← pede o cabo (OPGW / para-raio)
+--   130  INSTALAÇÃO DE BANDOLAS OPGW / PARA-RAIO   ← pede o cabo (OPGW / para-raio)
 --   140  LANÇAMENTO DO PILOTINHO                 ← pede o cabo · exige GIRO E PRUMO
 --   150  LANÇAMENTO DO CABO OPGW/PR              ← pede o cabo
 --   160  NIVELAMENTO OPGW / PARA-RAIO            ← pede o cabo
