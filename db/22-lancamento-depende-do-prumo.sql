@@ -31,12 +31,15 @@
 -- aprumada para o ramo inteiro acusar bloqueio, dizendo qual etapa falta.
 -- =============================================================================
 
+-- Aceita os dois nomes de propósito: o 23 renomeia esta atividade para
+-- 'LANÇAMENTO DO PILOTINHO', e sem isto rodar o 23 primeiro faria este insert
+-- não casar com nada e falhar calado.
 insert into atividade_dependencia (atividade_id, requer_atividade_id)
 select a.id, r.id
 from atividade a
 join atividade r on r.obra_id = a.obra_id
 where a.obra_id = (select id from obra where codigo = 'SD')
-  and a.nome = 'LANÇAMENTO DO PILOTO'
+  and a.nome in ('LANÇAMENTO DO PILOTO', 'LANÇAMENTO DO PILOTINHO')
   and r.nome = 'GIRO E PRUMO'
 on conflict do nothing;
 
