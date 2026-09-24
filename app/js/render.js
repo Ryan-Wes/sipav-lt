@@ -53,38 +53,102 @@ window.SIPAV = window.SIPAV || {};
 
   /* -------------------------------------------------------- Cartão torre -- */
 
+  /* ------------------------------------------- Dependências transitivas --- */
+
+  var fechoDependencias = null;
+
+  /** Refeito a cada render: 28 atividades, custo irrelevante. */
+  function montarFecho() {
+    var diretas = {};
+    E.dependencias.forEach(function (d) {
+      (diretas[d.atividade_id] = diretas[d.atividade_id] || []).push(d.requer_atividade_id);
+    });
+
+    function subir(id, acc, visto) {
+      (diretas[id] || []).forEach(function (r) {
+        if (visto[r]) return;
+        visto[r] = true;
+        acc[r] = true;
+        subir(r, acc, visto);
+      });
+    }
+
+    fechoDependencias = {};
+    Object.keys(diretas).forEach(function (id) {
+      var acc = {};
+      subir(id, acc, {});
+      fechoDependencias[id] = acc;
+    });
+  }
+
+  /** a depende de b, direta ou indiretamente? */
+  function dependeDe(a, b) {
+    if (!fechoDependencias) montarFecho();
+    return !!(fechoDependencias[a] && fechoDependencias[a][b]);
+  }
+
+  /* --------------------------------------------------- Cartão de torre --- */
+
   function cartaoTorre(torre) {
     // A view torre_situacao expõe a chave como torre_id, não id
     var progs = programacoesDaTorre(torre.torre_id);
-    var temProg = progs.length > 0;
     var restrito = torre.tem_restricao;
 
     var classes = ['cartao-torre'];
-    if (restrito)     classes.push('cartao-restrito');
-    else if (temProg) classes.push('cartao-programado');
+    if (restrito) classes.push('cartao-restrito');
 
-    // A linha de cima responde "o que importa nesta torre agora":
-    // travada > programada > estágio atual.
-    var corLinha = restrito ? '#E11D48'
-                 : temProg  ? '#F97316'
-                 : (torre.ultima_atividade_cor || null);
+    // A linha do topo e o ponto mostram o ESTADO da torre. Programação é plano,
+    // não estado, e por isso não pinta o cartão — ela tem selo e lista próprios.
+    var corEstado = restrito ? '#E11D48' : (torre.ultima_atividade_cor || null);
+    var estado = restrito
+      ? 'Restrição ' + String(torre.restricao_tipo || '').toLowerCase()
+      : (torre.ultima_atividade || 'Não iniciada');
 
-    // Legenda: o que importa ver de relance. O ponto colorido descreve
-    // exatamente este texto — programação, restrição ou estágio.
-    var legenda, corPonto;
-    if (temProg) {
-      var prox = progs.slice().sort(function (a, b) { return a.data < b.data ? -1 : 1; })[0];
-      legenda = ui.dataCurta(prox.data) + ' · ' + (prox.atividade ? prox.atividade.nome : '');
-      corPonto = prox.atividade ? prox.atividade.cor_fundo : '#F97316';
-    } else if (restrito) {
-      legenda = 'Restrição ' + String(torre.restricao_tipo || '').toLowerCase();
-      corPonto = '#E11D48';
-    } else {
-      legenda = torre.ultima_atividade || 'Não iniciada';
-      corPonto = torre.ultima_atividade_cor || null;
-    }
+    // Por data. Empate de data cai na ordem de execução, que é a única leitura
+    // possível de "o que teria que vir primeiro".
+    var ordenadas = progs.slice().sort(function (a, b) {
+      if (a.data !== b.data) return a.data < b.data ? -1 : 1;
+      var oa = a.atividade ? a.atividade.ordem_execucao : 9999;
+      var ob = b.atividade ? b.atividade.ordem_execucao : 9999;
+      return oa - ob;
+    });
 
-    // Estrutura e modelo, cada um na sua linha
+    // Conflito de data: duas atividades no mesmo dia em que uma depende da
+    // outra. Duas atividades independentes no mesmo dia são normais na obra.
+    var conflito = {};
+    ordenadas.forEach(function (p) {
+      ordenadas.forEach(function (q) {
+        if (p === q || p.data !== q.data || !p.atividade || !q.atividade) return;
+        if (dependeDe(q.atividade.id, p.atividade.id)) {
+          conflito[p.id] = true;
+          conflito[q.id] = true;
+        }
+      });
+    });
+
+    var lista = ordenadas.length
+      ? '<div class="lista-prog">' + ordenadas.map(function (p) {
+          var cor = p.atividade ? p.atividade.cor_fundo : '#94A3B8';
+          return '<span class="item-prog">' +
+            '<span class="ponto-atividade" style="background:' + cor + ';margin-top:.25rem"></span>' +
+            '<span class="flex-1">' +
+              '<span class="data">' + ui.dataCurta(p.data) + '</span> ' +
+              esc(p.atividade ? p.atividade.nome : '—') +
+            '</span>' +
+            (conflito[p.id]
+              ? '<i data-lucide="alert-triangle" class="conflito" style="width:11px;height:11px"></i>'
+              : '') +
+          '</span>';
+        }).join('') + '</div>'
+      : '';
+
+    var selo = ordenadas.length
+      ? '<span class="selo-prog" title="' + ordenadas.length + ' programada(s)">' +
+          '<i data-lucide="calendar-check" style="width:10px;height:10px"></i>' +
+          ordenadas.length +
+        '</span>'
+      : '';
+
     var estaiada = torre.estrutura === 'ESTAIADA';
     var pastilha = torre.estrutura
       ? '<span class="pastilha-estrutura ' + (estaiada ? 'est' : 'aup') + '">' +
@@ -97,27 +161,32 @@ window.SIPAV = window.SIPAV || {};
 
     var dica = esc(torre.identificador) +
       (torre.modelo ? ' · ' + esc(torre.modelo) : '') +
-      (torre.estrutura ? ' · ' + (torre.estrutura === 'ESTAIADA' ? 'estaiada' : 'autoportante') : '') +
-      ' — ' + esc(legenda);
+      (torre.estrutura ? ' · ' + (estaiada ? 'estaiada' : 'autoportante') : '') +
+      ' — ' + esc(estado) +
+      (ordenadas.length ? ' · ' + ordenadas.length + ' programada(s)' : '');
 
     return '' +
       '<div class="' + classes.join(' ') + '" ' +
-           (corLinha ? 'style="border-top-color:' + corLinha + '" ' : '') +
+           (corEstado ? 'style="border-top-color:' + corEstado + '" ' : '') +
            'onclick="SIPAV.app.abrirTorre(\'' + torre.torre_id + '\')" ' +
            'title="' + dica + '">' +
-        (temProg ? '<span class="selo-contagem">' + progs.length + '</span>' : '') +
-        '<span class="identificador">' + esc(torre.identificador) + '</span>' +
-        pastilha +
-        modelo +
-        '<span class="legenda">' +
-          '<span class="ponto-atividade" style="background:' +
-            (corPonto || 'var(--borda-forte)') + '"></span>' +
-          '<span class="texto">' + esc(legenda) + '</span>' +
+        selo +
+        '<span class="identidade">' +
+          '<span class="identificador">' + esc(torre.identificador) + '</span>' +
+          pastilha +
+          modelo +
+          '<span class="legenda">' +
+            '<span class="ponto-atividade" style="background:' +
+              (corEstado || 'var(--borda-forte)') + '"></span>' +
+            '<span class="texto">' + esc(estado) + '</span>' +
+          '</span>' +
         '</span>' +
+        lista +
       '</div>';
   }
 
   function renderGrade() {
+    montarFecho();                 // a cadeia pode ter sido editada na tela
     var lista = torresFiltradas();
     var cont = $('visaoGrade');
 

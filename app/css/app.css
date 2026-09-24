@@ -299,16 +299,22 @@ select option, select optgroup {
    de longe sem que 145 cartões virem uma parede de contornos coloridos. */
 .cartao-torre {
   position: relative; cursor: pointer; overflow: hidden;
-  border: 1px solid var(--borda);
-  border-top: 4px solid var(--borda-forte);   /* a cor entra aqui, por linha */
+  border: 1px solid var(--borda-forte);       /* fina, mas visível */
+  border-top: 4px solid var(--borda-forte);   /* a cor do ESTADO entra aqui */
   border-radius: .625rem;
   background: var(--superficie); color: var(--texto);
   padding: .875rem .625rem;
   text-align: center; min-height: 160px;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  display: flex; flex-direction: column; align-items: center;
   gap: .4375rem;
   box-shadow: var(--sombra);
   transition: transform .15s, box-shadow .15s, border-color .15s, background-color .15s;
+}
+
+/* Bloco de identificação ocupa o espaço livre; a programação desce para o pé */
+.cartao-torre .identidade {
+  display: flex; flex-direction: column; align-items: center; gap: .4375rem;
+  flex: 1; justify-content: center; width: 100%;
 }
 .cartao-torre:hover {
   transform: translateY(-2px);
@@ -358,27 +364,45 @@ select option, select optgroup {
 }
 .cartao-torre .legenda .texto {
   display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
-  overflow: hidden; text-align: left;
+  overflow: hidden; text-align: center;
 }
 
-/* Torre com programação: véu discreto, o peso fica na linha e no selo.
-   A cor da linha do topo vem inline, e não é sobrescrita aqui. */
-.cartao-programado {
-  background: rgba(249,115,22,.06);
-  border-left-color: rgba(249,115,22,.30);
-  border-right-color: rgba(249,115,22,.30);
-  border-bottom-color: rgba(249,115,22,.30);
-}
-.cartao-programado:hover { background: rgba(249,115,22,.10); }
+/* Programação NÃO pinta o cartão: ela é plano, não estado. Fica no selo do
+   canto e na lista do pé, para não sobrepor a cor do estágio da torre. */
 
-/* Torre travada por restrição */
+/* Torre travada por restrição — isso sim é estado */
 .cartao-restrito {
   background: rgba(225,29,72,.06);
-  border-left-color: rgba(225,29,72,.30);
-  border-right-color: rgba(225,29,72,.30);
-  border-bottom-color: rgba(225,29,72,.30);
+  border-left-color: rgba(225,29,72,.35);
+  border-right-color: rgba(225,29,72,.35);
+  border-bottom-color: rgba(225,29,72,.35);
 }
 .cartao-restrito:hover { background: rgba(225,29,72,.10); }
+
+/* ------------------------------------------------- Programação no cartão -- */
+
+.selo-prog {
+  position: absolute; top: 7px; right: 7px;
+  display: inline-flex; align-items: center; gap: .1875rem;
+  padding: .125rem .3125rem; border-radius: .3125rem;
+  background: rgba(249,115,22,.14); color: var(--laranja);
+  border: 1px solid rgba(249,115,22,.35);
+  font-size: .625rem; font-weight: 700; line-height: 1;
+}
+
+.lista-prog {
+  width: 100%; margin-top: .5rem; padding-top: .5rem;
+  border-top: 1px dashed var(--borda-forte);
+  display: flex; flex-direction: column; gap: .25rem;
+}
+
+.item-prog {
+  display: flex; align-items: flex-start; gap: .3125rem;
+  font-size: .625rem; line-height: 1.25; text-align: left;
+  color: var(--texto-suave);
+}
+.item-prog .data { font-weight: 700; color: var(--texto); white-space: nowrap; }
+.item-prog .conflito { color: #FBBF24; flex-shrink: 0; margin-top: .0625rem; }
 .cartao-restrito::after {
   content: ''; position: absolute; inset: 0;
   background: repeating-linear-gradient(45deg,
