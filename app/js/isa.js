@@ -32,6 +32,15 @@ window.SIPAV = window.SIPAV || {};
   var LINHA_DATAS_S1 = 11;
   var LINHA_DATAS_S2 = 12;
 
+  // A data do cabeçalho. É a única data digitada da planilha: todas as outras
+  // saem dela por fórmula encadeada —
+  //   K10 = Q5-7  (segunda da semana executada)  →  …  →  Q10 (domingo)
+  //   K11 = Q10+1 (segunda da semana 1)          →  …  →  Q11
+  //   K12 = Q11+1 (segunda da semana 2)
+  // Mudar Q5 reposiciona o relatório inteiro.
+  var LINHA_CABECALHO_DATA = 5;
+  var COL_CABECALHO_DATA = 17;   // Q
+
   /* --------------------------------------------------------- De-para ------ */
 
   /**
@@ -412,7 +421,24 @@ window.SIPAV = window.SIPAV || {};
         var ws = wb.getWorksheet('PS');
         if (!ws) throw new Error('Não achei a aba "PS" neste arquivo. É a planilha certa?');
 
+        // Guarda contra o arquivo com as colunas deslocadas (existe um por aí,
+        // com duas colunas apagadas). Escrever nele acertaria tudo errado.
+        if (norm(valor(ws.getCell(9, COL.ITEM))) !== 'item') {
+          throw new Error(
+            'As colunas desta planilha não estão onde deveriam: a linha 9 deveria ' +
+            'começar com ITEM na coluna C. Use o arquivo que vocês preenchem toda semana.'
+          );
+        }
+
+        // Lido antes de reposicionar, para poder dizer de que semana era
         var datas = conferirDatas(ws, segundaS1);
+
+        // Reposiciona o relatório na quinzena escolhida. Uma célula só; o resto
+        // das datas é fórmula e o Excel refaz na abertura por causa do
+        // fullCalcOnLoad lá embaixo.
+        ws.getCell(LINHA_CABECALHO_DATA, COL_CABECALHO_DATA).value = new Date(Date.UTC(
+          segundaS1.getFullYear(), segundaS1.getMonth(), segundaS1.getDate()
+        ));
         var mapa = mapearLinhas(ws);
         var g = agrupar(progs, torresPorId, segundaS1);
 
@@ -443,6 +469,12 @@ window.SIPAV = window.SIPAV || {};
 
           ws.getRow(alvo.linhaItem).hidden = false;   // o cabeçalho do item também
         });
+
+        // O ExcelJS não tem motor de cálculo: as datas derivadas continuam com o
+        // resultado antigo em cache até alguém recalcular. Isto manda o Excel
+        // refazer tudo assim que o arquivo abre.
+        wb.calcProperties = wb.calcProperties || {};
+        wb.calcProperties.fullCalcOnLoad = true;
 
         return wb.xlsx.writeBuffer().then(function (out) {
           return {

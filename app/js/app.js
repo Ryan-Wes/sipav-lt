@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v49 · 2026-09-24';
+  var VERSAO = 'v50 · 2026-09-24';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -2203,13 +2203,13 @@ window.SIPAV = window.SIPAV || {};
       'foram tocados.'));
 
     var d = r.datas;
-    if (d.s1 !== d.esperadoS1 || d.s2 !== d.esperadoS2) {
-      partes.push(bloco('border-amber-300 bg-amber-50 text-amber-800',
-        'As datas da planilha não batem com a quinzena escolhida',
-        'A planilha diz semana 1 em <strong>' + (d.s1 ? ui.dataCurta(d.s1) : '?') + '</strong> e ' +
-        'semana 2 em <strong>' + (d.s2 ? ui.dataCurta(d.s2) : '?') + '</strong>. ' +
-        'Você pediu ' + ui.dataCurta(d.esperadoS1) + ' e ' + ui.dataCurta(d.esperadoS2) + '. ' +
-        'Confira se é o arquivo da semana certa.'));
+    if (d.s1 && d.s1 !== d.esperadoS1) {
+      partes.push(bloco('border-sky-300 bg-sky-50 text-sky-800',
+        'Datas do relatório atualizadas',
+        'O arquivo que você subiu era da quinzena de <strong>' + ui.dataCurta(d.s1) + '</strong>. ' +
+        'Mudei a data do cabeçalho para <strong>' + ui.dataCurta(d.esperadoS1) + '</strong> e o Excel ' +
+        'recalcula as três faixas de dias ao abrir — inclusive a da linha EXEC., que passa a ser a ' +
+        'semana anterior à nova.'));
     }
 
     if (r.semCabo.length) {
