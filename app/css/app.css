@@ -313,15 +313,18 @@ select option, select optgroup {
   padding: .875rem .625rem;
   text-align: center; min-height: 160px;
   display: flex; flex-direction: column; align-items: center;
+  justify-content: flex-start;   /* identidade ancorada no topo */
   gap: .4375rem;
   box-shadow: var(--sombra);
   transition: transform .15s, box-shadow .15s, border-color .15s, background-color .15s;
 }
 
-/* Bloco de identificação ocupa o espaço livre; a programação desce para o pé */
+/* Identificação fixa no topo: assim torre, tipo e estado ficam na mesma altura
+   em todos os cartões, com ou sem programação. Antes ela se centralizava no
+   espaço restante e subia quando a lista de programação aparecia. */
 .cartao-torre .identidade {
   display: flex; flex-direction: column; align-items: center; gap: .4375rem;
-  flex: 1; justify-content: center; width: 100%;
+  flex: none; width: 100%;
 }
 .cartao-torre:hover {
   transform: translateY(-2px);
@@ -393,8 +396,9 @@ select option, select optgroup {
   font-size: .625rem; font-weight: 700; line-height: 1;
 }
 
+/* margin-top auto empurra a lista para o pé: o cartão cresce para baixo */
 .lista-prog {
-  width: 100%; margin-top: .5rem; padding-top: .5rem;
+  width: 100%; margin-top: auto; padding-top: .5rem;
   border-top: 1px dashed var(--borda-forte);
   display: flex; flex-direction: column; gap: .25rem;
 }
