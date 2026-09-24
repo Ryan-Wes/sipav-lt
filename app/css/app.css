@@ -71,14 +71,22 @@ html, body { background-color: var(--fundo); }
 body {
   font-family: 'Inter', system-ui, sans-serif;
   color: var(--texto);
-  background-image: var(--brilho);
-  background-repeat: no-repeat;
-  background-attachment: fixed;
   transition: background-color .2s ease, color .2s ease;
 }
 
-/* Malha de pontos bem discreta: tira o chapado do preto sem virar ruído.
-   Em pseudo-elemento para não brigar com as camadas de brilho do body. */
+/* Fundo em dois pseudo-elementos fixos, e não no body.
+   O body tem height 100%, então a caixa dele é só a altura da janela: um fundo
+   pintado nele acabava junto com essa caixa e sumia ao rolar a página. */
+
+/* Brilhos e gradiente */
+body::after {
+  content: '';
+  position: fixed; inset: 0; z-index: -2; pointer-events: none;
+  background-image: var(--brilho);
+  background-repeat: no-repeat;
+}
+
+/* Malha de pontos bem discreta: tira o chapado do preto sem virar ruído */
 body::before {
   content: '';
   position: fixed; inset: 0; z-index: -1; pointer-events: none;
