@@ -241,6 +241,27 @@ alter table programacao enable trigger programacao_valida;
 -- =============================================================================
 -- 4. Ordem de execução definitiva
 -- =============================================================================
+
+-- 4a. Tira todo mundo do caminho primeiro.
+--
+-- A tabela tem unique (obra_id, ordem_execucao). Qualquer atividade fora da
+-- lista da 4b — criada à mão na tela de Cadastros, ou sobrando de um seed
+-- antigo — fica parada numa ordem e derruba o script quando uma das nossas
+-- tenta ocupar aquele número. Foi o que aconteceu na primeira tentativa, com a
+-- ordem 220.
+--
+-- Jogar todas para uma faixa temporária alta e única resolve sem precisar saber
+-- quem é a intrusa. Quem não estiver na 4b fica lá em cima, no fim da lista,
+-- justamente para aparecer.
+update atividade a set ordem_execucao = 900 + x.rn
+from (
+  select id, row_number() over (order by ordem_execucao, nome) as rn
+  from atividade
+  where obra_id = (select id from obra where codigo = 'SD')
+) x
+where a.id = x.id;
+
+-- 4b. Agora sim, cada uma no seu lugar
 update atividade a set
   ordem_execucao = v.ordem,
   obrigatoria    = v.obrig
@@ -390,14 +411,45 @@ comment on column programacao.cabo is
 -- =============================================================================
 -- Conferência
 -- =============================================================================
+-- Devem sair 33 linhas. Qualquer uma com ordem acima de 900 é atividade que não
+-- está no catálogo do relatório: ou foi criada à mão na tela de Cadastros, ou
+-- sobrou de seed antigo. Decidir caso a caso se fica, some ou entra no de-para.
 select
   a.ordem_execucao as ordem,
   a.nome           as atividade,
   case when a.obrigatoria then 'obrigatória' else 'condicional' end as tipo,
-  coalesce(string_agg(d.nome, '  +  ' order by d.ordem_execucao), '— livre —') as depende_de
+  coalesce(string_agg(d.nome, '  +  ' order by d.ordem_execucao), '— livre —') as depende_de,
+  case when a.ordem_execucao > 900 then '⚠ fora do catálogo' else '' end as alerta
 from atividade a
 left join atividade_dependencia ad on ad.atividade_id = a.id
 left join atividade d on d.id = ad.requer_atividade_id
 where a.obra_id = (select id from obra where codigo = 'SD')
 group by a.id, a.ordem_execucao, a.nome, a.obrigatoria
 order by a.ordem_execucao;
+
+
+-- =============================================================================
+-- As duas programações que mudaram de atividade sem eu saber qual era a certa
+-- =============================================================================
+-- PREPARAÇÃO e INSTALAÇÃO DE ACESSÓRIOS tinham uma programação cada. Como as
+-- duas atividades deixaram de existir, as programações foram para um destino
+-- escolhido por mim. Esta consulta mostra quais são, para conferir na tela se
+-- o destino bate com o serviço que ia ser feito de verdade.
+select
+  t.identificador   as torre,
+  tr.nome           as trecho,
+  p.data,
+  enc.nome          as encarregado,
+  a.nome            as atividade_agora,
+  p.observacao
+from programacao p
+join torre t     on t.id = p.torre_id
+join trecho tr   on tr.id = t.trecho_id
+join atividade a on a.id = p.atividade_id
+left join encarregado enc on enc.id = p.encarregado_id
+where a.obra_id = (select id from obra where codigo = 'SD')
+  and a.nome in (
+    'INSTALAÇÃO DE PRÉ-MOLDADOS - MC E VIGA L',   -- veio de PREPARAÇÃO
+    'INSTALAÇÃO DE ESPAÇADORES'                   -- veio de INSTALAÇÃO DE ACESSÓRIOS
+  )
+order by tr.nome, p.data, t.identificador;
