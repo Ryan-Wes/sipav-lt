@@ -60,22 +60,22 @@ window.SIPAV = window.SIPAV || {};
     var restrito = torre.tem_restricao;
 
     var classes = ['cartao-torre'];
+    if (restrito)     classes.push('cartao-restrito');
+    else if (temProg) classes.push('cartao-programado');
 
-    // A faixa do topo responde "o que importa nesta torre agora", nesta ordem:
-    // travada > programada > estágio atual. O corpo do cartão fica neutro.
-    var corFaixa = torre.ultima_atividade_cor || null;
-    if (restrito)      { classes.push('cartao-restrito');   corFaixa = '#E11D48'; }
-    else if (temProg)  { classes.push('cartao-programado'); corFaixa = '#F97316'; }
-
-    // Legenda: o que importa ver de relance
-    var legenda;
+    // Legenda: o que importa ver de relance. O ponto colorido descreve
+    // exatamente este texto — programação, restrição ou estágio.
+    var legenda, corPonto;
     if (temProg) {
       var prox = progs.slice().sort(function (a, b) { return a.data < b.data ? -1 : 1; })[0];
       legenda = ui.dataCurta(prox.data) + ' · ' + (prox.atividade ? prox.atividade.nome : '');
+      corPonto = prox.atividade ? prox.atividade.cor_fundo : '#F97316';
     } else if (restrito) {
       legenda = 'Restrição ' + String(torre.restricao_tipo || '').toLowerCase();
+      corPonto = '#E11D48';
     } else {
       legenda = torre.ultima_atividade || 'Não iniciada';
+      corPonto = torre.ultima_atividade_cor || null;
     }
 
     // Estrutura e modelo, cada um na sua linha
@@ -98,12 +98,15 @@ window.SIPAV = window.SIPAV || {};
       '<div class="' + classes.join(' ') + '" ' +
            'onclick="SIPAV.app.abrirTorre(\'' + torre.torre_id + '\')" ' +
            'title="' + dica + '">' +
-        '<span class="faixa"' + (corFaixa ? ' style="background:' + corFaixa + '"' : '') + '></span>' +
         (temProg ? '<span class="selo-contagem">' + progs.length + '</span>' : '') +
         '<span class="identificador">' + esc(torre.identificador) + '</span>' +
         pastilha +
         modelo +
-        '<span class="legenda">' + esc(legenda) + '</span>' +
+        '<span class="legenda">' +
+          '<span class="ponto-atividade" style="background:' +
+            (corPonto || 'var(--borda-forte)') + '"></span>' +
+          '<span class="texto">' + esc(legenda) + '</span>' +
+        '</span>' +
       '</div>';
   }
 
