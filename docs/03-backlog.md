@@ -44,7 +44,7 @@ Situação conferida em **23/09/2026**, item por item, contra o que está public
 
 | # | Item | Fonte | |
 |---|---|---|---|
-| S1 | Exportar no layout oficial da fiscalização | [REU] | ❌ depende do modelo, com o Alisson |
+| S1 | Exportar no layout oficial da fiscalização | [REU] | ⚠️ modelos recebidos 24/09 e analisados em [04-relatorio-isa.md](04-relatorio-isa.md). Falta fechar o catálogo unificado (Q1–Q8) antes de codar |
 | S2 | Quebra do relatório por semana | [REU] | ❌ |
 | S3 | PDF visual + WhatsApp | [REU] | ✅ |
 | S4 | Filtros por encarregado / atividade / torre | [REU] | ✅ |
