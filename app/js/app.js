@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v33 · 2026-09-24';
+  var VERSAO = 'v34 · 2026-09-24';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -37,7 +37,7 @@ window.SIPAV = window.SIPAV || {};
   /* ======================================================================== */
 
   function iniciar() {
-    console.log('%cSIPAV LT ' + VERSAO, 'color:#8B5CF6;font-weight:bold');
+    console.log('%cSIPAV LT ' + VERSAO, 'color:#F97316;font-weight:bold');
 
     try {
       db.iniciar();

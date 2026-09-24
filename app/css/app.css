@@ -2,7 +2,7 @@
    SIPAV LT — Estilos
    =============================================================================
    Dashboard escuro: fundo quase preto, superfícies em grafite, bordas finas de
-   baixo contraste e roxo usado com parcimônia, só onde precisa chamar.
+   baixo contraste e laranja usado com parcimônia, só onde precisa chamar.
 
    Sem barra de marca colorida no topo — o cabeçalho faz parte da página.
 
@@ -16,9 +16,9 @@
 
 :root {
   /* Acento — constante nos dois temas */
-  --acento:        #8B5CF6;
-  --acento-claro:  #A78BFA;
-  --acento-escuro: #7C3AED;
+  --acento:        #F97316;
+  --acento-claro:  #FB923C;
+  --acento-escuro: #EA6A0C;
 
   /* Estrutura da torre */
   --aup:            #C026D3;   /* autoportante — magenta */
@@ -36,8 +36,8 @@
   --texto-suave:    #71717A;
   --texto-fraco:    #A1A1AA;
   --sombra:         0 1px 2px rgba(0,0,0,.04), 0 1px 3px rgba(0,0,0,.06);
-  --brilho:         linear-gradient(180deg, rgba(139,92,246,.05), transparent 520px),
-                    radial-gradient(900px 320px at 50% -140px, rgba(139,92,246,.06), transparent 70%),
+  --brilho:         linear-gradient(180deg, rgba(249,115,22,.05), transparent 520px),
+                    radial-gradient(900px 320px at 50% -140px, rgba(249,115,22,.06), transparent 70%),
                     radial-gradient(760px 320px at 100% 100%, rgba(56,189,248,.04), transparent 70%);
   --textura:        rgba(0,0,0,.035);
 }
@@ -57,7 +57,7 @@ html.dark {
   /* Gradiente vertical suave por cima dos dois brilhos: tira o chapado sem
      que se perceba de onde vem a luz. */
   --brilho:         linear-gradient(180deg, rgba(255,255,255,.028), transparent 560px),
-                    radial-gradient(1000px 380px at 50% -160px, rgba(139,92,246,.11), transparent 70%),
+                    radial-gradient(1000px 380px at 50% -160px, rgba(249,115,22,.11), transparent 70%),
                     radial-gradient(820px 360px at 100% 100%, rgba(56,189,248,.055), transparent 70%);
   --textura:        rgba(255,255,255,.04);
 }
@@ -98,7 +98,7 @@ body::before {
   display: flex; align-items: center; justify-content: center;
   background: linear-gradient(140deg, var(--acento), var(--acento-escuro));
   color: #fff;
-  box-shadow: 0 2px 10px rgba(139,92,246,.30);
+  box-shadow: 0 2px 10px rgba(249,115,22,.30);
 }
 
 /* ---------------------------------------------------------------- Botões -- */
@@ -240,8 +240,8 @@ body::before {
 
 .resumo {
   font-size: .75rem; font-weight: 600;
-  color: var(--acento); background: rgba(139,92,246,.10);
-  border: 1px solid rgba(139,92,246,.25);
+  color: var(--acento); background: rgba(249,115,22,.10);
+  border: 1px solid rgba(249,115,22,.25);
   border-radius: .5rem; padding: .4375rem .6875rem;
 }
 
@@ -262,7 +262,7 @@ body::before {
 .campo::placeholder { color: var(--texto-fraco); }
 .campo:focus {
   outline: none; border-color: var(--acento);
-  box-shadow: 0 0 0 3px rgba(139,92,246,.18);
+  box-shadow: 0 0 0 3px rgba(249,115,22,.18);
 }
 .campo:disabled { background: var(--superficie-3); color: var(--texto-fraco); }
 
@@ -391,8 +391,8 @@ select option, select optgroup {
   position: absolute; top: 7px; right: 7px;
   display: inline-flex; align-items: center; gap: .1875rem;
   padding: .125rem .3125rem; border-radius: .3125rem;
-  background: rgba(139,92,246,.14); color: var(--acento);
-  border: 1px solid rgba(139,92,246,.35);
+  background: rgba(249,115,22,.14); color: var(--acento);
+  border: 1px solid rgba(249,115,22,.35);
   font-size: .625rem; font-weight: 700; line-height: 1;
 }
 
