@@ -148,7 +148,7 @@ window.SIPAV = window.SIPAV || {};
   function blocoQuadrante(titulo, subtitulo, itens, mostrarTorre) {
     var totalKm = itens.reduce(function (s, p) { return s + (p.torre ? Number(p.torre.km) || 0 : 0); }, 0);
     return '' +
-      '<section class="bloco-quadrante bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden">' +
+      '<section class="bloco-quadrante painel overflow-hidden">' +
         '<header class="flex items-baseline justify-between px-4 py-2.5 bg-slate-50 border-b border-slate-200">' +
           '<div>' +
             '<h3 class="font-bold text-slate-800">' + esc(titulo) + '</h3>' +
@@ -273,7 +273,7 @@ window.SIPAV = window.SIPAV || {};
     var geral = totais(lista);
 
     var tabela =
-      '<section class="bloco-quadrante bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">' +
+      '<section class="bloco-quadrante painel overflow-hidden">' +
         '<header class="px-4 py-2.5 bg-slate-50 border-b border-slate-200">' +
           '<h3 class="font-bold text-slate-800">Consolidado por encarregado</h3>' +
           '<p class="text-xs text-slate-500">' +

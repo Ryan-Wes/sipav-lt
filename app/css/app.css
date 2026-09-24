@@ -1,9 +1,10 @@
 /* =============================================================================
-   SIPAV LT — Identidade visual Elecnor
+   SIPAV LT — Estilos
    =============================================================================
-   Dois temas, claro e escuro, começando no escuro. O tema mora numa classe
-   `dark` no <html>, aplicada antes da primeira pintura por um script no <head>
-   para não dar flash de tema errado.
+   Dashboard escuro: fundo quase preto, superfícies em grafite, bordas finas de
+   baixo contraste e laranja usado com parcimônia, só onde precisa chamar.
+
+   Sem barra de marca colorida no topo — o cabeçalho faz parte da página.
 
    CSS puro: o Tailwind aqui é o Play CDN, que não processa @apply em arquivo
    externo. Layout vem das utilitárias no HTML; cor vem dos tokens daqui.
@@ -14,45 +15,41 @@
 /* -------------------------------------------------------------- Tokens --- */
 
 :root {
-  /* Marca — constantes nos dois temas */
-  --laranja:        #F7801E;
-  --laranja-claro:  #FB9A47;
-  --laranja-escuro: #E06E0F;
-  --navy:           #0F2A4A;
-  --navy-fundo:     #0B1F38;
+  /* Acento — constante nos dois temas */
+  --laranja:        #F97316;
+  --laranja-claro:  #FB923C;
+  --laranja-escuro: #EA6A0C;
 
   /* Estrutura da torre */
   --aup:            #C026D3;   /* autoportante — magenta */
   --est:            #0284C7;   /* estaiada — azul */
 
-  /* Tema claro (padrão) */
-  --fundo:          #F4F6F9;
+  /* Tema claro */
+  --fundo:          #FAFAFA;
   --superficie:     #FFFFFF;
-  --superficie-2:   #F8FAFC;
-  --borda:          #E2E8F0;
-  --borda-forte:    #CBD5E1;
-  --texto:          #0F2A4A;
-  --texto-suave:    #64748B;
-  --texto-fraco:    #94A3B8;
-  --cabecalho:      #0F2A4A;
-  --sombra:         0 1px 2px rgba(15,42,74,.06), 0 2px 8px rgba(15,42,74,.05);
-  --brilho:         radial-gradient(1200px 400px at 50% -160px, rgba(247,128,30,.10), transparent 70%);
+  --superficie-2:   #F4F4F5;
+  --superficie-3:   #EFEFF1;
+  --borda:          #E4E4E7;
+  --borda-forte:    #D4D4D8;
+  --texto:          #18181B;
+  --texto-suave:    #71717A;
+  --texto-fraco:    #A1A1AA;
+  --sombra:         0 1px 2px rgba(0,0,0,.04), 0 1px 3px rgba(0,0,0,.06);
+  --brilho:         none;
 }
 
-/* Tema escuro neutro, em grafite. Fundo azul competia com as torres coloridas:
-   atividade azul sobre fundo azul some. O navy da marca fica só no cabeçalho. */
 html.dark {
-  --fundo:          #0D0E10;
-  --superficie:     #17181B;
-  --superficie-2:   #1E2024;
-  --borda:          #2B2E33;
-  --borda-forte:    #3B3F46;
-  --texto:          #E9EAEC;
-  --texto-suave:    #A1A5AC;
-  --texto-fraco:    #72767E;
-  --cabecalho:      #0F2A4A;
-  --sombra:         0 1px 2px rgba(0,0,0,.40), 0 2px 10px rgba(0,0,0,.30);
-  --brilho:         radial-gradient(1200px 420px at 50% -200px, rgba(247,128,30,.10), transparent 70%);
+  --fundo:          #09090B;
+  --superficie:     #141417;
+  --superficie-2:   #1B1B1F;
+  --superficie-3:   #232327;
+  --borda:          #26262B;
+  --borda-forte:    #35353C;
+  --texto:          #EDEDEF;
+  --texto-suave:    #9B9BA4;
+  --texto-fraco:    #6A6A73;
+  --sombra:         0 1px 2px rgba(0,0,0,.5);
+  --brilho:         radial-gradient(900px 300px at 50% -140px, rgba(249,115,22,.07), transparent 70%);
 }
 
 /* ----------------------------------------------------------------- Base -- */
@@ -68,25 +65,66 @@ body {
   transition: background-color .2s ease, color .2s ease;
 }
 
+/* ------------------------------------------------------------ Cabeçalho -- */
+
+.app-header {
+  background: var(--fundo);
+  border-bottom: 1px solid var(--borda);
+}
+
+/* Marca discreta, no lugar da antiga barra colorida */
+.marca {
+  width: 34px; height: 34px; border-radius: .625rem;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(140deg, var(--laranja), var(--laranja-escuro));
+  color: #fff;
+  box-shadow: 0 2px 10px rgba(249,115,22,.30);
+}
+
 /* ---------------------------------------------------------------- Botões -- */
 
+/* Pílula neutra: o ícone carrega o significado, não um bloco colorido */
 .btn-header {
-  display: inline-flex; align-items: center; gap: .375rem;
-  padding: .5rem .75rem; border-radius: .5rem;
-  font-size: .875rem; font-weight: 500; color: #fff;
-  box-shadow: 0 1px 2px rgba(0,0,0,.12);
-  transition: background-color .15s;
+  display: inline-flex; align-items: center; gap: .4375rem;
+  padding: .4375rem .75rem; border-radius: .5rem;
+  font-size: .8125rem; font-weight: 500;
+  color: var(--texto-suave);
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  transition: background-color .15s, border-color .15s, color .15s;
+}
+.btn-header:hover {
+  background: var(--superficie-2);
+  border-color: var(--borda-forte);
+  color: var(--texto);
 }
 
-/* Botão de tema, maior que os demais */
+.btn-header-acento {
+  color: #fff; background: var(--laranja); border-color: var(--laranja);
+}
+.btn-header-acento:hover { background: var(--laranja-escuro); border-color: var(--laranja-escuro); color: #fff; }
+
+.icone-pdf      { color: #F43F5E; }
+.icone-whatsapp { color: #10B981; }
+.icone-perigo   { color: #F43F5E; }
+
 .btn-tema {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 38px; height: 38px; border-radius: .625rem;
-  color: #fff; background: rgba(255,255,255,.10);
-  border: 1px solid rgba(255,255,255,.18);
-  transition: background-color .15s, border-color .15s;
+  width: 36px; height: 36px; border-radius: .5rem;
+  color: var(--texto-suave);
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  transition: background-color .15s, color .15s;
 }
-.btn-tema:hover { background: rgba(255,255,255,.20); border-color: rgba(255,255,255,.30); }
+.btn-tema:hover { background: var(--superficie-2); color: var(--texto); }
+
+.btn-icone {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; border-radius: .5rem;
+  color: var(--texto-fraco);
+  transition: background-color .15s, color .15s;
+}
+.btn-icone:hover { background: var(--superficie-2); color: var(--texto); }
 
 .btn-secundario {
   padding: .5rem 1rem; border-radius: .5rem;
@@ -95,7 +133,7 @@ body {
   border: 1px solid var(--borda-forte);
   transition: background-color .15s;
 }
-.btn-secundario:hover { background: var(--superficie-2); }
+.btn-secundario:hover { background: var(--superficie-2); color: var(--texto); }
 
 .btn-primario {
   padding: .5rem 1rem; border-radius: .5rem;
@@ -117,78 +155,86 @@ body {
 
 .aba {
   display: inline-flex; align-items: center; gap: .5rem;
-  padding: .5rem 1rem; font-size: .875rem; font-weight: 600;
-  color: var(--texto-suave); border-bottom: 2px solid transparent;
-  transition: color .15s, border-color .15s;
+  padding: .5rem .875rem; border-radius: .5rem;
+  font-size: .8125rem; font-weight: 600;
+  color: var(--texto-suave);
+  transition: color .15s, background-color .15s;
 }
-.aba:hover { color: var(--laranja); }
-.aba-ativa { color: var(--laranja); border-bottom-color: var(--laranja); }
+.aba:hover { color: var(--texto); background: var(--superficie-2); }
+
+/* Aba ativa como pílula preenchida, no lugar do sublinhado */
+.aba-ativa, .aba-ativa:hover {
+  color: var(--texto);
+  background: var(--superficie-3);
+  box-shadow: inset 0 0 0 1px var(--borda);
+}
+
+/* --------------------------------------------------------------- Painéis -- */
+
+.painel {
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: .875rem;
+  box-shadow: var(--sombra);
+}
 
 /* --------------------------------------------------------------- Filtros -- */
 
 .caixa-filtro {
   display: inline-flex; align-items: center; gap: .375rem;
   background: var(--superficie-2); border: 1px solid var(--borda);
-  border-radius: .5rem; padding: .25rem .5rem;
+  border-radius: .5rem; padding: .3125rem .5625rem;
 }
 
 .select-filtro {
   font-size: .75rem; font-weight: 600; color: var(--texto);
-  background: var(--superficie); border: 1px solid var(--borda-forte);
-  border-radius: .25rem; padding: .125rem .375rem;
+  background: transparent; border: 0;
+  padding: .0625rem .25rem;
 }
-.select-filtro:focus { outline: none; box-shadow: 0 0 0 2px var(--laranja); }
+.select-filtro:focus { outline: none; color: var(--laranja); }
 
 .resumo {
   font-size: .75rem; font-weight: 600;
-  color: var(--laranja); background: rgba(247,128,30,.10);
-  border: 1px solid rgba(247,128,30,.30);
-  border-radius: .5rem; padding: .375rem .625rem;
+  color: var(--laranja); background: rgba(249,115,22,.10);
+  border: 1px solid rgba(249,115,22,.25);
+  border-radius: .5rem; padding: .4375rem .6875rem;
 }
 
 /* --------------------------------------------------------- Campos de form -- */
 
 .rotulo {
-  display: block; font-size: .75rem; font-weight: 600;
-  color: var(--texto-suave); margin-bottom: .375rem;
+  display: block; font-size: .6875rem; font-weight: 600;
+  letter-spacing: .02em; text-transform: uppercase;
+  color: var(--texto-fraco); margin-bottom: .375rem;
 }
 
 .campo {
   width: 100%; font-size: .875rem;
-  border: 1px solid var(--borda-forte); border-radius: .5rem;
+  border: 1px solid var(--borda); border-radius: .5rem;
   padding: .5rem .75rem;
-  background: var(--superficie); color: var(--texto);
+  background: var(--superficie-2); color: var(--texto);
 }
 .campo::placeholder { color: var(--texto-fraco); }
 .campo:focus {
   outline: none; border-color: var(--laranja);
-  box-shadow: 0 0 0 2px rgba(247,128,30,.25);
+  box-shadow: 0 0 0 3px rgba(249,115,22,.18);
 }
-.campo:disabled { background: var(--superficie-2); color: var(--texto-fraco); }
+.campo:disabled { background: var(--superficie-3); color: var(--texto-fraco); }
 
-/* Calendário legível no escuro */
-html.dark input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.8); }
+html.dark input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.75); }
 
-/* -------------------------------------------------- Lista aberta do select --
-   O navegador pinta a lista suspensa com a cor do <option>, não do <select>.
-   Sem isto ela sai branca mesmo com o campo escuro.
-   -------------------------------------------------------------------------- */
+/* A lista suspensa usa a cor do <option>, não do <select> */
 select option, select optgroup {
   background-color: var(--superficie);
   color: var(--texto);
-}
-
-/* O seletor de trecho fica sobre o cabeçalho navy nos dois temas */
-#seletorTrecho option {
-  background-color: #0B1F38;
-  color: #FFFFFF;
 }
 
 /* ---------------------------------------------------------------- Modais -- */
 
 .modal {
   position: fixed; inset: 0; z-index: 50;
-  background: rgba(0,0,0,.62);
+  background: rgba(0,0,0,.70);
+  backdrop-filter: blur(3px);
   display: flex; align-items: center; justify-content: center;
   padding: 1rem;
 }
@@ -198,15 +244,13 @@ select option, select optgroup {
   width: 100%; background: var(--superficie);
   border: 1px solid var(--borda);
   border-radius: 1rem;
-  box-shadow: 0 24px 40px -12px rgba(0,0,0,.45);
+  box-shadow: 0 24px 48px -12px rgba(0,0,0,.6);
   max-height: 92vh; display: flex; flex-direction: column;
   color: var(--texto);
 }
 
-.modal-topo, .modal-rodape { border-color: var(--borda) !important; }
 .modal-rodape { background: var(--superficie-2); }
 
-/* Telas de estado usam .hidden mas precisam de flex quando visíveis */
 #telaLogin:not(.hidden),
 #processando:not(.hidden) { display: flex; }
 #indicadorTempoReal:not(.hidden) { display: inline-flex; }
@@ -215,78 +259,70 @@ select option, select optgroup {
 
 .cartao-torre {
   position: relative; cursor: pointer;
-  border: 1px solid var(--borda); border-radius: .625rem;
+  border: 1px solid var(--borda); border-radius: .75rem;
   background: var(--superficie); color: var(--texto);
   padding: .75rem .5rem;
   text-align: center; min-height: 160px;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: .5rem;
   box-shadow: var(--sombra);
-  transition: transform .15s, box-shadow .15s;
+  transition: transform .15s, box-shadow .15s, border-color .15s;
 }
 .cartao-torre:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 16px -6px rgba(0,0,0,.28);
+  border-color: var(--borda-forte);
+  box-shadow: 0 12px 20px -8px rgba(0,0,0,.45);
   z-index: 10;
 }
 
-/* Empilhados: identificador · estrutura · modelo · situação */
-
 .cartao-torre .identificador { font-weight: 700; font-size: 1rem; line-height: 1.1; }
 
-/* Estrutura da torre: pastilha preenchida, uma cor para cada tipo.
-   Hues escolhidos fora da paleta das atividades para não confundir com estágio. */
 .pastilha-estrutura {
   font-size: .625rem; font-weight: 800; line-height: 1; letter-spacing: .04em;
   padding: .25rem .4375rem; border-radius: .25rem;
   color: #fff; border: 1px solid transparent;
 }
-
 .pastilha-estrutura.aup { background: var(--aup); border-color: var(--aup); }
 .pastilha-estrutura.est { background: var(--est); border-color: var(--est); }
 
 .cartao-torre .modelo {
-  font-size: .75rem; font-weight: 600; letter-spacing: .02em; opacity: .8;
+  font-size: .75rem; font-weight: 600; letter-spacing: .02em; opacity: .7;
   max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-/* Com o cartão mais alto cabem duas linhas — "SUPRESSÃO DE ÁREA DE TORRE"
-   deixa de virar reticências no meio da primeira palavra. */
+
 .cartao-torre .legenda {
-  font-size: .6875rem; line-height: 1.3; opacity: .9; max-width: 100%;
+  font-size: .6875rem; line-height: 1.3; opacity: .85; max-width: 100%;
   display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
   overflow: hidden;
 }
 
-/* Mesma linguagem dos cartões por atividade: borda viva, fundo em véu.
-   Torre com programação — laranja da marca no lugar do amarelo do protótipo */
+/* Torre com programação */
 .cartao-programado {
-  background: rgba(247,128,30,.16);
+  background: rgba(249,115,22,.10);
   border-color: var(--laranja);
   border-width: 2px;
-  color: var(--texto);
 }
 
 /* Torre travada por restrição */
 .cartao-restrito {
-  background: rgba(225,29,72,.14);
+  background: rgba(225,29,72,.10);
   border-color: #E11D48;
   border-width: 2px;
-  color: var(--texto);
 }
 .cartao-restrito::after {
-  content: ''; position: absolute; inset: 0; border-radius: .625rem;
+  content: ''; position: absolute; inset: 0; border-radius: .75rem;
   background: repeating-linear-gradient(45deg,
-    transparent, transparent 6px, rgba(225,29,72,.12) 6px, rgba(225,29,72,.12) 12px);
+    transparent, transparent 6px, rgba(225,29,72,.10) 6px, rgba(225,29,72,.10) 12px);
   pointer-events: none;
 }
 
 .selo-contagem {
-  position: absolute; top: -5px; right: -5px;
-  min-width: 17px; height: 17px; padding: 0 4px;
+  position: absolute; top: -6px; right: -6px;
+  min-width: 18px; height: 18px; padding: 0 5px;
   border-radius: 999px; background: var(--laranja); color: #fff;
   font-size: .625rem; font-weight: 700;
   display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 1px 3px rgba(0,0,0,.35);
+  box-shadow: 0 2px 6px rgba(0,0,0,.4);
 }
 
 .cartao-destaque { box-shadow: 0 0 0 2px var(--laranja), var(--sombra); }
@@ -294,25 +330,24 @@ select option, select optgroup {
 /* ------------------------------------------------------- Barra de rolagem -- */
 
 .barra-fina::-webkit-scrollbar { width: 6px; height: 6px; }
-.barra-fina::-webkit-scrollbar-track { background: var(--superficie-2); border-radius: 4px; }
+.barra-fina::-webkit-scrollbar-track { background: transparent; }
 .barra-fina::-webkit-scrollbar-thumb { background: var(--borda-forte); border-radius: 4px; }
 .barra-fina::-webkit-scrollbar-thumb:hover { background: var(--texto-fraco); }
 
 /* =============================================================================
-   Remapeamento das utilitárias do Tailwind no tema escuro
+   Remapeamento das utilitárias do Tailwind
    =============================================================================
-   A interface é montada em JS com classes utilitárias de cor (bg-white,
+   A interface é montada em JS com classes de cor do Tailwind (bg-white,
    text-slate-500, border-slate-200...). Em vez de reescrever cada string nos
-   três arquivos de JS, o tema escuro remapeia essas classes para os tokens.
-   Quando migrarmos para Next.js com build de verdade, isso vira `dark:` nas
-   próprias classes e este bloco desaparece.
+   arquivos de JS, elas são remapeadas para os tokens. Some quando migrarmos
+   para Next.js com build de verdade.
    ========================================================================== */
 
 html.dark .bg-white       { background-color: var(--superficie) !important; }
 html.dark .bg-slate-50    { background-color: var(--superficie-2) !important; }
-html.dark .bg-slate-100   { background-color: var(--fundo) !important; }
+html.dark .bg-slate-100   { background-color: var(--superficie-2) !important; }
 html.dark .bg-slate-800,
-html.dark .bg-slate-900   { background-color: #1E2024 !important; }
+html.dark .bg-slate-900   { background-color: var(--superficie-3) !important; }
 
 html.dark .text-slate-900,
 html.dark .text-slate-800,
@@ -325,24 +360,29 @@ html.dark .text-slate-300 { color: var(--texto-fraco) !important; }
 html.dark .border-slate-200,
 html.dark .border-slate-300 { border-color: var(--borda) !important; }
 
-/* Caixas de aviso ganham versão translúcida no escuro */
-html.dark .bg-amber-50 { background-color: rgba(245,158,11,.12) !important; }
-html.dark .border-amber-300, html.dark .border-amber-400 { border-color: rgba(245,158,11,.45) !important; }
+html.dark .bg-amber-50 { background-color: rgba(245,158,11,.10) !important; }
+html.dark .border-amber-300, html.dark .border-amber-400 { border-color: rgba(245,158,11,.35) !important; }
 html.dark .text-amber-900, html.dark .text-amber-800 { color: #FCD9A0 !important; }
 html.dark .text-amber-600, html.dark .text-amber-500 { color: #FBBF24 !important; }
 
-html.dark .bg-sky-50 { background-color: rgba(14,165,233,.12) !important; }
-html.dark .border-sky-300 { border-color: rgba(14,165,233,.45) !important; }
+html.dark .bg-sky-50 { background-color: rgba(14,165,233,.10) !important; }
+html.dark .border-sky-300 { border-color: rgba(14,165,233,.35) !important; }
 html.dark .text-sky-800 { color: #BAE6FD !important; }
 html.dark .text-sky-600 { color: #38BDF8 !important; }
 
-html.dark .bg-rose-50 { background-color: rgba(225,29,72,.12) !important; }
-html.dark .bg-rose-100 { background-color: rgba(225,29,72,.18) !important; }
-html.dark .border-rose-200 { border-color: rgba(225,29,72,.40) !important; }
+html.dark .bg-rose-50  { background-color: rgba(225,29,72,.10) !important; }
+html.dark .bg-rose-100 { background-color: rgba(225,29,72,.16) !important; }
+html.dark .border-rose-200 { border-color: rgba(225,29,72,.35) !important; }
 html.dark .text-rose-800, html.dark .text-rose-700 { color: #FDA4AF !important; }
 
-html.dark .hover\:bg-rose-100:hover { background-color: rgba(225,29,72,.20) !important; }
-html.dark .hover\:bg-slate-100:hover { background-color: var(--superficie-2) !important; }
+html.dark .bg-emerald-50  { background-color: rgba(16,185,129,.10) !important; }
+html.dark .border-emerald-300 { border-color: rgba(16,185,129,.35) !important; }
+html.dark .text-emerald-700 { color: #6EE7B7 !important; }
+
+html.dark .hover\:bg-rose-100:hover    { background-color: rgba(225,29,72,.16) !important; }
+html.dark .hover\:bg-emerald-100:hover { background-color: rgba(16,185,129,.16) !important; }
+html.dark .hover\:bg-slate-100:hover,
+html.dark .hover\:bg-slate-200:hover   { background-color: var(--superficie-3) !important; }
 
 /* ------------------------------------------------------------- Impressão -- */
 /* PDF sai sempre no claro: papel é branco. */
