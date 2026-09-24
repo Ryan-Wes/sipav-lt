@@ -176,6 +176,69 @@ on conflict (obra_id, nome) do nothing;
 
 
 -- =============================================================================
+-- 3b. Desdobramento da grampeação — o que era uma etapa vira duas
+-- =============================================================================
+-- Conferido no pré-voo de 24/09: 'GRAMPEAÇÃO E ANCORAGEM OPGW / PARA-RAIO' tem
+-- 122 execuções de carga inicial e 'GRAMPEAÇÃO E ANCORAGEM DOS CONDUTORES' tem
+-- 1 programação. Como a etapa antiga significava as DUAS coisas feitas, um
+-- simples rename para 'GRAMPEAÇÃO' apagaria a ancoragem de 122 torres e faria
+-- o avanço delas regredir na tela.
+--
+-- Então a linha fica na grampeação (pelo rename da seção 1) e ganha uma cópia
+-- na ancoragem. Como a ancoragem tem ordem maior, torre_situacao passa a
+-- mostrar 'ANCORAGEM', que é onde essas torres de fato estão.
+--
+-- Precisa vir depois da seção 3, que é onde as atividades de ancoragem nascem.
+--
+-- programacao_id vai nulo de propósito: o índice execucao_programacao_unica é
+-- parcial, só vale para valor não nulo, e a cópia não é apontamento novo.
+
+insert into execucao (torre_id, atividade_id, encarregado_id, programacao_id,
+                      data_execucao, percentual, observacao, registrado_por)
+select e.torre_id, dest.id, e.encarregado_id, null,
+       e.data_execucao, e.percentual,
+       coalesce(e.observacao || ' · ', '') ||
+         'Desdobrado de GRAMPEAÇÃO E ANCORAGEM em 24/09/2026',
+       e.registrado_por
+from execucao e
+join atividade orig on orig.id = e.atividade_id
+join atividade dest on dest.obra_id = orig.obra_id
+where orig.obra_id = (select id from obra where codigo = 'SD')
+  and (orig.nome, dest.nome) in (
+    ('GRAMPEAÇÃO OPGW / PARA-RAIO', 'ANCORAGEM OPGW / PARA-RAIO'),
+    ('GRAMPEAÇÃO DOS CONDUTORES',   'ANCORAGEM DOS CONDUTORES')
+  )
+  -- idempotente: rodar o script duas vezes não duplica
+  and not exists (
+    select 1 from execucao j
+    where j.torre_id = e.torre_id
+      and j.atividade_id = dest.id
+      and j.data_execucao = e.data_execucao
+  );
+
+-- Mesma lógica para o que está só programado
+alter table programacao disable trigger programacao_valida;
+
+insert into programacao (torre_id, atividade_id, encarregado_id, data, situacao,
+                         observacao, override_motivo, criado_por)
+select p.torre_id, dest.id, p.encarregado_id, p.data, p.situacao,
+       coalesce(p.observacao || ' · ', '') ||
+         'Desdobrado de GRAMPEAÇÃO E ANCORAGEM em 24/09/2026',
+       p.override_motivo, p.criado_por
+from programacao p
+join atividade orig on orig.id = p.atividade_id
+join atividade dest on dest.obra_id = orig.obra_id
+where orig.obra_id = (select id from obra where codigo = 'SD')
+  and (orig.nome, dest.nome) in (
+    ('GRAMPEAÇÃO OPGW / PARA-RAIO', 'ANCORAGEM OPGW / PARA-RAIO'),
+    ('GRAMPEAÇÃO DOS CONDUTORES',   'ANCORAGEM DOS CONDUTORES')
+  )
+on conflict (torre_id, atividade_id, data) do nothing;
+
+alter table programacao enable trigger programacao_valida;
+
+
+-- =============================================================================
 -- 4. Ordem de execução definitiva
 -- =============================================================================
 update atividade a set

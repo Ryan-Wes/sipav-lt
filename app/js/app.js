@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v43 · 2026-09-24';
+  var VERSAO = 'v44 · 2026-09-24';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -1800,8 +1800,45 @@ window.SIPAV = window.SIPAV || {};
    * a importação recusa e mostra o nome — basta acrescentar a linha aqui.
    */
   var ALIAS_ATIVIDADE = {
-    'revisao':                 'REVISÃO / GIRO E PRUMO',
-    'revisao giro e prumo':    'REVISÃO / GIRO E PRUMO',
+    // Montagem — a cadeia mudou em 24/09 (Alessandro, ver docs/04-relatorio-isa.md):
+    // a flambagem faz parte da revisão, a revisão em solo faz parte da
+    // pré-montagem, e o giro e prumo é etapa própria, depois das duas. Quando a
+    // planilha traz as duas juntas, vale a mais adiantada — é o estágio da torre.
+    'revisao':                 'REVISÃO',
+    'revisao final':           'REVISÃO',
+    'flambagem':               'REVISÃO',
+    'revisao em solo':         'PRÉ-MONTAGEM',
+    'giro e prumo':            'GIRO E PRUMO',
+    'revisao giro e prumo':    'GIRO E PRUMO',
+    'revisao / giro e prumo':  'GIRO E PRUMO',
+
+    // Fundação — preparação e instalação de pré-moldados viraram a mesma etapa,
+    // e ela se abre em três conforme o que a equipe instala
+    'preparacao':                  'INSTALAÇÃO DE PRÉ-MOLDADOS - MC E VIGA L',
+    'pre-moldados':                'INSTALAÇÃO DE PRÉ-MOLDADOS - MC E VIGA L',
+    'pre moldados':                'INSTALAÇÃO DE PRÉ-MOLDADOS - MC E VIGA L',
+    'instalacao de pre-moldados':  'INSTALAÇÃO DE PRÉ-MOLDADOS - MC E VIGA L',
+    'viga l':                      'INSTALAÇÃO DE PRÉ-MOLDADOS - VIGA L',
+    'mastro central':              'INSTALAÇÃO DE PRÉ-MOLDADOS - MC',
+    'mc':                          'INSTALAÇÃO DE PRÉ-MOLDADOS - MC',
+
+    // Lançamento — grampeação e ancoragem se separaram. A etapa antiga queria
+    // dizer as duas feitas, então vale a de ordem maior.
+    'grampeacao e ancoragem opgw / para-raio': 'ANCORAGEM OPGW / PARA-RAIO',
+    'grampeacao e ancoragem opgw':             'ANCORAGEM OPGW / PARA-RAIO',
+    'grampeacao e ancoragem dos condutores':   'ANCORAGEM DOS CONDUTORES',
+    'grampeacao opgw':                         'GRAMPEAÇÃO OPGW / PARA-RAIO',
+    'ancoragem opgw':                          'ANCORAGEM OPGW / PARA-RAIO',
+    'grampeacao condutor':                     'GRAMPEAÇÃO DOS CONDUTORES',
+    'ancoragem condutor':                      'ANCORAGEM DOS CONDUTORES',
+
+    // Acessórios abriram em três
+    'acessorios':                'INSTALAÇÃO DE ESPAÇADORES',
+    'instalacao de acessorios':  'INSTALAÇÃO DE ESPAÇADORES',
+    'espacador':                 'INSTALAÇÃO DE ESPAÇADORES',
+    'espacadores':               'INSTALAÇÃO DE ESPAÇADORES',
+    'jumper':                    'INSTALAÇÃO DE JUMPER',
+    'sinalizacao':               'INSTALAÇÃO DE SINALIZAÇÃO',
 
     'lancam. condutor':        'LANÇAMENTO CONDUTOR 100%',
     'lancam condutor':         'LANÇAMENTO CONDUTOR 100%',
