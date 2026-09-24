@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v28 · 2026-09-24';
+  var VERSAO = 'v29 · 2026-09-24';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -65,11 +65,18 @@ window.SIPAV = window.SIPAV || {};
     });
 
     $('formLogin').addEventListener('submit', aoEnviarLogin);
+
     document.addEventListener('keydown', function (ev) {
       if (ev.key === 'Escape') {
+        fecharMenus();
         var aberto = document.querySelector('.modal:not(.hidden)');
         if (aberto) ui.fecharModal(aberto.id);
       }
+    });
+
+    // Clique fora fecha os menus suspensos
+    document.addEventListener('click', function (ev) {
+      if (!ev.target.closest || !ev.target.closest('.menu-wrap')) fecharMenus();
     });
   }
 
@@ -316,6 +323,24 @@ window.SIPAV = window.SIPAV || {};
       E.filtroCanteiro = '';
     }
     $('filtroCanteiro').value = E.filtroCanteiro || '';
+  }
+
+  /* ---------------------------------------------------------- Menus ------- */
+
+  function fecharMenus() {
+    Array.prototype.forEach.call(document.querySelectorAll('.menu'), function (m) {
+      m.classList.add('hidden');
+    });
+  }
+
+  function alternarMenu(id) {
+    var alvo = $(id);
+    var jaAberto = alvo && !alvo.classList.contains('hidden');
+    fecharMenus();
+    if (alvo && !jaAberto) {
+      alvo.classList.remove('hidden');
+      ui.icones();
+    }
   }
 
   /** Alterna claro/escuro e guarda a escolha. Padrão da aplicação é escuro. */
@@ -1979,6 +2004,7 @@ window.SIPAV = window.SIPAV || {};
 
   window.SIPAV.app = {
     iniciar: iniciar, sair: sair, alternarTema: alternarTema,
+    alternarMenu: alternarMenu, fecharMenus: fecharMenus,
     abrirAlterarSenha: abrirAlterarSenha,
     trocarAba: trocarAba, mudarColunas: mudarColunas, renderizar: renderizar,
     mudarPeriodo: mudarPeriodo,

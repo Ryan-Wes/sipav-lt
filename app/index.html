@@ -38,7 +38,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
   <!-- ?v= força o navegador a buscar de novo quando o código muda. -->
-  <link rel="stylesheet" href="css/app.css?v=28">
+  <link rel="stylesheet" href="css/app.css?v=29">
 </head>
 <body class="h-full flex flex-col antialiased">
 
@@ -109,7 +109,9 @@
 <div id="telaApp" class="hidden h-full flex flex-col">
 
   <header class="app-header no-print sticky top-0 z-30">
-    <div class="max-w-[1600px] mx-auto px-5 py-3 flex flex-wrap justify-between items-center gap-3">
+    <!-- justify-center enquanto quebra em duas linhas, para o cabeçalho não
+         encostar na esquerda em tela de notebook -->
+    <div class="max-w-[1600px] mx-auto px-5 py-3 flex flex-wrap justify-center xl:justify-between items-center gap-x-3 gap-y-2">
 
       <div class="flex items-center gap-3">
         <div class="marca shrink-0">
@@ -132,39 +134,44 @@
         </div>
       </div>
 
-      <div class="flex flex-wrap items-center gap-2">
-        <span id="indicadorTempoReal"
-              class="hidden items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg"
-              style="background:rgba(16,185,129,.10);color:#34D399;border:1px solid rgba(16,185,129,.25)"
-              title="Alterações de outros usuários aparecem aqui na hora">
-          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-          Ao vivo
-        </span>
-
-        <button onclick="SIPAV.app.abrirExportarPdf()" class="btn-header" title="Exportar relatório atual em PDF">
-          <i data-lucide="file-text" class="w-4 h-4 icone-pdf"></i>
-          <span class="hidden xl:inline">PDF</span>
-        </button>
-
-        <button onclick="SIPAV.app.compartilharWhatsApp()" class="btn-header" title="Enviar resumo pelo WhatsApp">
-          <i data-lucide="message-square" class="w-4 h-4 icone-whatsapp"></i>
-          <span class="hidden xl:inline">WhatsApp</span>
-        </button>
+      <div class="flex flex-wrap items-center justify-center gap-2">
 
         <button onclick="SIPAV.app.abrirImportacao()" class="btn-header btn-header-acento" title="Importar torres colando da planilha">
           <i data-lucide="clipboard-paste" class="w-4 h-4"></i>
           <span class="hidden lg:inline">Importar</span>
         </button>
 
-        <button onclick="SIPAV.app.abrirAtividades()" class="btn-header" title="Atividades, ordem e dependências">
-          <i data-lucide="list-ordered" class="w-4 h-4"></i>
-          <span class="hidden xl:inline">Atividades</span>
-        </button>
+        <div class="menu-wrap">
+          <button onclick="SIPAV.app.alternarMenu('menuExportar')" class="btn-header" title="Exportar e compartilhar">
+            <i data-lucide="share-2" class="w-4 h-4"></i>
+            <span class="hidden lg:inline">Exportar</span>
+            <i data-lucide="chevron-down" class="w-3 h-3 opacity-60"></i>
+          </button>
+          <div id="menuExportar" class="menu hidden">
+            <button class="menu-item" onclick="SIPAV.app.fecharMenus();SIPAV.app.abrirExportarPdf()">
+              <i data-lucide="file-text" class="w-4 h-4 icone-pdf"></i> Exportar em PDF
+            </button>
+            <button class="menu-item" onclick="SIPAV.app.fecharMenus();SIPAV.app.compartilharWhatsApp()">
+              <i data-lucide="message-square" class="w-4 h-4 icone-whatsapp"></i> Enviar no WhatsApp
+            </button>
+          </div>
+        </div>
 
-        <button onclick="SIPAV.app.abrirEncarregados()" class="btn-header" title="Encarregados">
-          <i data-lucide="users" class="w-4 h-4"></i>
-          <span class="hidden xl:inline">Encarregados</span>
-        </button>
+        <div class="menu-wrap">
+          <button onclick="SIPAV.app.alternarMenu('menuCadastros')" class="btn-header" title="Atividades e encarregados">
+            <i data-lucide="library" class="w-4 h-4"></i>
+            <span class="hidden lg:inline">Cadastros</span>
+            <i data-lucide="chevron-down" class="w-3 h-3 opacity-60"></i>
+          </button>
+          <div id="menuCadastros" class="menu hidden">
+            <button class="menu-item" onclick="SIPAV.app.fecharMenus();SIPAV.app.abrirAtividades()">
+              <i data-lucide="list-ordered" class="w-4 h-4"></i> Atividades e dependências
+            </button>
+            <button class="menu-item" onclick="SIPAV.app.fecharMenus();SIPAV.app.abrirEncarregados()">
+              <i data-lucide="users" class="w-4 h-4"></i> Encarregados
+            </button>
+          </div>
+        </div>
 
         <button onclick="SIPAV.app.abrirHistoricoDoTrecho()" class="btn-header" title="Quem mexeu no quê neste trecho">
           <i data-lucide="history" class="w-4 h-4"></i>
@@ -176,20 +183,37 @@
           <span class="hidden xl:inline">Limpar</span>
         </button>
 
-        <div class="flex items-center gap-1.5 pl-2 ml-1" style="border-left:1px solid var(--borda)">
-          <button onclick="SIPAV.app.alternarTema()" class="btn-tema" title="Alternar tema claro/escuro">
-            <i data-lucide="sun-moon" class="w-4 h-4"></i>
-          </button>
-          <div class="text-right hidden sm:block ml-1 leading-tight">
+        <div class="flex items-center gap-2 pl-2.5 ml-1" style="border-left:1px solid var(--borda)">
+          <span id="indicadorTempoReal"
+                class="hidden items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg"
+                style="background:rgba(16,185,129,.10);color:#34D399;border:1px solid rgba(16,185,129,.25)"
+                title="Alterações de outros usuários aparecem aqui na hora">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            Ao vivo
+          </span>
+
+          <div class="text-right hidden sm:block leading-tight">
             <p class="text-xs font-semibold" id="nomeUsuario" style="color:var(--texto)">—</p>
             <p class="text-[10px]" id="papelUsuario" style="color:var(--texto-fraco)">—</p>
           </div>
-          <button onclick="SIPAV.app.abrirAlterarSenha()" class="btn-icone" title="Alterar minha senha">
-            <i data-lucide="key-round" class="w-4 h-4"></i>
-          </button>
-          <button onclick="SIPAV.app.sair()" class="btn-icone" title="Sair">
-            <i data-lucide="log-out" class="w-4 h-4"></i>
-          </button>
+
+          <div class="menu-wrap">
+            <button onclick="SIPAV.app.alternarMenu('menuConfig')" class="btn-tema" title="Configurações">
+              <i data-lucide="settings" class="w-4 h-4"></i>
+            </button>
+            <div id="menuConfig" class="menu hidden">
+              <button class="menu-item" onclick="SIPAV.app.alternarTema()">
+                <i data-lucide="sun-moon" class="w-4 h-4"></i> Alternar tema
+              </button>
+              <div class="menu-sep"></div>
+              <button class="menu-item" onclick="SIPAV.app.fecharMenus();SIPAV.app.abrirAlterarSenha()">
+                <i data-lucide="key-round" class="w-4 h-4"></i> Alterar minha senha
+              </button>
+              <button class="menu-item" onclick="SIPAV.app.fecharMenus();SIPAV.app.sair()">
+                <i data-lucide="log-out" class="w-4 h-4"></i> Sair
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -471,10 +495,10 @@
   </div>
 </div>
 
-<script src="js/config.js?v=28"></script>
-<script src="js/db.js?v=28"></script>
-<script src="js/ui.js?v=28"></script>
-<script src="js/render.js?v=28"></script>
-<script src="js/app.js?v=28"></script>
+<script src="js/config.js?v=29"></script>
+<script src="js/db.js?v=29"></script>
+<script src="js/ui.js?v=29"></script>
+<script src="js/render.js?v=29"></script>
+<script src="js/app.js?v=29"></script>
 </body>
 </html>

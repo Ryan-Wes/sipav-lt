@@ -63,6 +63,12 @@ window.SIPAV = window.SIPAV || {};
     if (restrito)     classes.push('cartao-restrito');
     else if (temProg) classes.push('cartao-programado');
 
+    // A linha de cima responde "o que importa nesta torre agora":
+    // travada > programada > estágio atual.
+    var corLinha = restrito ? '#E11D48'
+                 : temProg  ? '#F97316'
+                 : (torre.ultima_atividade_cor || null);
+
     // Legenda: o que importa ver de relance. O ponto colorido descreve
     // exatamente este texto — programação, restrição ou estágio.
     var legenda, corPonto;
@@ -96,6 +102,7 @@ window.SIPAV = window.SIPAV || {};
 
     return '' +
       '<div class="' + classes.join(' ') + '" ' +
+           (corLinha ? 'style="border-top-color:' + corLinha + '" ' : '') +
            'onclick="SIPAV.app.abrirTorre(\'' + torre.torre_id + '\')" ' +
            'title="' + dica + '">' +
         (temProg ? '<span class="selo-contagem">' + progs.length + '</span>' : '') +

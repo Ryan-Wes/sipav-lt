@@ -131,6 +131,31 @@ body::before {
 }
 .btn-tema:hover { background: var(--superficie-2); color: var(--texto); }
 
+/* ------------------------------------------------------------- Menus ----- */
+
+.menu-wrap { position: relative; }
+
+.menu {
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: 40;
+  min-width: 200px; padding: .3125rem;
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: .625rem;
+  box-shadow: 0 18px 36px -14px rgba(0,0,0,.65);
+}
+.menu.hidden { display: none; }
+
+.menu-item {
+  display: flex; align-items: center; gap: .5625rem; width: 100%;
+  padding: .5rem .625rem; border-radius: .4375rem;
+  font-size: .8125rem; font-weight: 500; text-align: left; white-space: nowrap;
+  color: var(--texto-suave);
+  transition: background-color .12s, color .12s;
+}
+.menu-item:hover { background: var(--superficie-2); color: var(--texto); }
+
+.menu-sep { height: 1px; background: var(--borda); margin: .25rem .3125rem; }
+
 .btn-icone {
   display: inline-flex; align-items: center; justify-content: center;
   width: 36px; height: 36px; border-radius: .5rem;
@@ -274,9 +299,11 @@ select option, select optgroup {
    de longe sem que 145 cartões virem uma parede de contornos coloridos. */
 .cartao-torre {
   position: relative; cursor: pointer; overflow: hidden;
-  border: 1px solid var(--borda); border-radius: .75rem;
+  border: 1px solid var(--borda);
+  border-top: 4px solid var(--borda-forte);   /* a cor entra aqui, por linha */
+  border-radius: .625rem;
   background: var(--superficie); color: var(--texto);
-  padding: 1rem .625rem .875rem;
+  padding: .875rem .625rem;
   text-align: center; min-height: 160px;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: .4375rem;
@@ -291,16 +318,18 @@ select option, select optgroup {
   z-index: 10;
 }
 
-/* O ponto fica colado no rótulo que ele descreve — uma faixa no topo do cartão
-   encosta no cartão de cima e vira ambígua numa grade de oito colunas. */
+/* Espaço maior entre cartões: é o que tira a ambiguidade da linha de cima,
+   que antes encostava no cartão da linha anterior. */
+#visaoGrade { gap: 13px; }
+
+/* O ponto reforça o vínculo entre a cor e o texto que ela descreve */
 .cartao-torre .legenda {
   display: flex; align-items: flex-start; justify-content: center; gap: .375rem;
 }
 
 .ponto-atividade {
-  width: 8px; height: 8px; border-radius: 999px;
+  width: 7px; height: 7px; border-radius: 999px;
   margin-top: .3125rem; flex-shrink: 0;
-  box-shadow: 0 0 0 3px rgba(255,255,255,.04);
 }
 
 .cartao-torre .identificador {
@@ -332,13 +361,24 @@ select option, select optgroup {
   overflow: hidden; text-align: left;
 }
 
-/* Torre com programação: véu discreto, o peso fica na faixa e no selo */
-.cartao-programado { background: rgba(249,115,22,.06); border-color: rgba(249,115,22,.35); }
-.cartao-programado:hover { background: rgba(249,115,22,.10); border-color: var(--laranja); }
+/* Torre com programação: véu discreto, o peso fica na linha e no selo.
+   A cor da linha do topo vem inline, e não é sobrescrita aqui. */
+.cartao-programado {
+  background: rgba(249,115,22,.06);
+  border-left-color: rgba(249,115,22,.30);
+  border-right-color: rgba(249,115,22,.30);
+  border-bottom-color: rgba(249,115,22,.30);
+}
+.cartao-programado:hover { background: rgba(249,115,22,.10); }
 
 /* Torre travada por restrição */
-.cartao-restrito { background: rgba(225,29,72,.06); border-color: rgba(225,29,72,.35); }
-.cartao-restrito:hover { background: rgba(225,29,72,.10); border-color: #E11D48; }
+.cartao-restrito {
+  background: rgba(225,29,72,.06);
+  border-left-color: rgba(225,29,72,.30);
+  border-right-color: rgba(225,29,72,.30);
+  border-bottom-color: rgba(225,29,72,.30);
+}
+.cartao-restrito:hover { background: rgba(225,29,72,.10); }
 .cartao-restrito::after {
   content: ''; position: absolute; inset: 0;
   background: repeating-linear-gradient(45deg,
