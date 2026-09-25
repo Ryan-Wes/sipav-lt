@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v62 · 2026-09-25';
+  var VERSAO = 'v63 · 2026-09-25';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -557,6 +557,8 @@ window.SIPAV = window.SIPAV || {};
   /* ======================================================================== */
 
   function abrirTorre(torreId) {
+    // Modo seleção: o clique no cartão escolhe em vez de abrir
+    if (E.modoSelecao) { alternarTorreSelecionada(torreId); return; }
     torreAberta = E.torres.find(function (t) { return t.torre_id === torreId; });
     if (!torreAberta) return;
 
@@ -1749,11 +1751,80 @@ window.SIPAV = window.SIPAV || {};
    * normal e o banco recusa o que estiver fora de sequência. O que o lote traz é
    * o relato de quais passaram e quais não.
    */
-  var loteSelecionadas = [];   // [{torreId, identificador, data}]
+  /* ------------------------------------------- Selecionar pelos cartões --- */
 
-  function abrirProgramacaoEmLote(atividadeId, encarregadoId, percentual, cabo) {
+  /**
+   * Escolher as torres clicando na grade, em vez de caçar identificador na
+   * lista. É a forma natural quando o planejamento está olhando o mapa da linha
+   * e decide "essas aqui".
+   *
+   * Enquanto o modo está ligado, clicar no cartão marca em vez de abrir a torre.
+   */
+  function alternarModoSelecao() {
+    E.modoSelecao = !E.modoSelecao;
+    if (!E.modoSelecao) E.selecionadas = {};
+    document.body.classList.toggle('modo-selecao', E.modoSelecao);
+    if (E.aba !== 'grade') trocarAba('grade');
+    render.tudo();
+    renderBarraSelecao();
+  }
+
+  function alternarTorreSelecionada(torreId) {
+    if (E.selecionadas[torreId]) delete E.selecionadas[torreId];
+    else E.selecionadas[torreId] = true;
+    render.tudo();
+    renderBarraSelecao();
+  }
+
+  function limparSelecao() {
+    E.selecionadas = {};
+    render.tudo();
+    renderBarraSelecao();
+  }
+
+  /** Marca tudo que está visível com os filtros atuais. */
+  function selecionarTodasVisiveis() {
+    render.torresFiltradas().forEach(function (t) { E.selecionadas[t.torre_id] = true; });
+    render.tudo();
+    renderBarraSelecao();
+  }
+
+  function renderBarraSelecao() {
+    var barra = $('barraSelecao');
+    var n = Object.keys(E.selecionadas).length;
+
+    barra.classList.toggle('hidden', !E.modoSelecao);
+    if (!E.modoSelecao) return;
+
+    $('contagemSelecao').textContent =
+      n ? n + (n === 1 ? ' torre selecionada' : ' torres selecionadas')
+        : 'Clique nos cartões para escolher';
+    $('btnProgramarSelecao').disabled = !n;
+    $('btnLimparSelecao').classList.toggle('hidden', !n);
+  }
+
+  /** Abre o lote já com o que está marcado na grade. */
+  function programarSelecionadas() {
+    var ids = Object.keys(E.selecionadas);
+    if (!ids.length) return;
+
+    var torres = ids.map(function (id) {
+      return E.torres.find(function (t) { return t.torre_id === id; });
+    }).filter(Boolean);
+
+    // Na ordem da linha, que é como a obra anda — e como as datas serão dadas
+    torres.sort(function (a, b) { return (a.ordem || 0) - (b.ordem || 0); });
+
+    abrirProgramacaoEmLote(null, null, 100, null, torres);
+  }
+
+  var loteSelecionadas = [];   // [{torreId, identificador, data, percentual}]
+
+  function abrirProgramacaoEmLote(atividadeId, encarregadoId, percentual, cabo, torresIniciais) {
     if (!E.trechoAtual) return;
-    loteSelecionadas = [];
+    loteSelecionadas = (torresIniciais || []).map(function (t) {
+      return { torreId: t.torre_id, identificador: t.identificador, data: '', percentual: percentual || 100 };
+    });
 
     var corpo =
       '<div class="space-y-4">' +
@@ -1773,9 +1844,15 @@ window.SIPAV = window.SIPAV || {};
                        (e.id === encarregadoId ? ' selected' : '') + '>' + esc(e.nome) + '</option>';
               }).join('') +
             '</select></div>' +
-          '<div><label class="rotulo">Percentual da torre</label>' +
-            '<input id="lotePercentual" type="number" min="1" max="100" step="1" class="campo" ' +
-                   'value="' + (percentual || 100) + '"></div>' +
+          '<div><label class="rotulo">Percentual padrão</label>' +
+            '<div class="flex items-center gap-2">' +
+              '<input id="lotePercentual" type="number" min="1" max="100" step="1" class="campo" ' +
+                     'value="' + (percentual || 100) + '">' +
+              '<button class="btn-secundario whitespace-nowrap" ' +
+                      'onclick="SIPAV.app.aplicarPercentualLote()">Aplicar a todas</button>' +
+            '</div>' +
+            '<p class="text-xs mt-1" style="color:var(--texto-fraco)">' +
+              'Vale para as próximas que entrarem; cada linha pode ter o seu.</p></div>' +
           '<div id="loteBlocoCabo" class="hidden"><label class="rotulo">Cabo</label>' +
             '<select id="loteCabo" class="campo">' +
               '<option value="">Escolha o cabo…</option>' +
@@ -1873,7 +1950,8 @@ window.SIPAV = window.SIPAV || {};
     var t = E.torres.find(function (x) { return x.torre_id === torreId; });
     if (!t) return;
     if (loteSelecionadas.some(function (x) { return x.torreId === torreId; })) return;
-    loteSelecionadas.push({ torreId: torreId, identificador: t.identificador, data: '' });
+    loteSelecionadas.push({ torreId: torreId, identificador: t.identificador,
+                            data: '', percentual: percentualPadraoLote() });
     filtrarTorresLote();
     renderLoteEscolhidas();
   }
@@ -1895,7 +1973,8 @@ window.SIPAV = window.SIPAV || {};
 
     E.torres.slice(iDe, iAte + 1).forEach(function (t) {
       if (!loteSelecionadas.some(function (x) { return x.torreId === t.torre_id; })) {
-        loteSelecionadas.push({ torreId: t.torre_id, identificador: t.identificador, data: '' });
+        loteSelecionadas.push({ torreId: t.torre_id, identificador: t.identificador,
+                                data: '', percentual: percentualPadraoLote() });
       }
     });
 
@@ -1932,6 +2011,33 @@ window.SIPAV = window.SIPAV || {};
     if (x) { x.data = valor; renderLoteEscolhidas(); }
   }
 
+  function percentualPadraoLote() {
+    var v = Number($('lotePercentual') ? $('lotePercentual').value : 100);
+    return (v > 0 && v <= 100) ? v : 100;
+  }
+
+  function mudarPercentualLote(torreId, valor) {
+    var v = Number(valor);
+    if (!(v > 0 && v <= 100)) { ui.avisar('O percentual tem que ficar entre 1 e 100.', 'alerta'); }
+    var x = loteSelecionadas.find(function (y) { return y.torreId === torreId; });
+    if (x) { x.percentual = (v > 0 && v <= 100) ? v : 100; renderLoteEscolhidas(); }
+  }
+
+  /** O botão ao lado do campo geral: reescreve todas as linhas. */
+  function aplicarPercentualLote() {
+    var v = percentualPadraoLote();
+    loteSelecionadas.forEach(function (x) { x.percentual = v; });
+    renderLoteEscolhidas();
+  }
+
+  /** Soma dos percentuais em torres inteiras — é o total que a ISA recebe. */
+  function equivalenteEmTorres() {
+    var soma = loteSelecionadas.reduce(function (s, x) {
+      return s + (Number(x.percentual) || 100);
+    }, 0) / 100;
+    return (Math.round(soma * 100) / 100).toLocaleString('pt-BR');
+  }
+
   function renderLoteEscolhidas() {
     var caixa = $('loteEscolhidas');
     if (!caixa) return;
@@ -1954,12 +2060,26 @@ window.SIPAV = window.SIPAV || {};
                  'value="' + (x.data || '') + '" ' +
                  'onchange="SIPAV.app.mudarDataLote(\'' + x.torreId + '\', this.value)">' +
           '<span class="lote-dia' + (domingo ? ' fim-de-semana' : '') + '">' + esc(dia) + '</span>' +
+          // Percentual por linha: uma torre pode levar o dia inteiro e a
+          // seguinte só meio, e forçar o mesmo número nas duas seria mentira
+          '<span class="lote-pct">' +
+            '<input type="number" min="1" max="100" step="1" class="campo" ' +
+                   'style="padding:.25rem .3125rem;font-size:.75rem;width:56px;text-align:right" ' +
+                   'value="' + (x.percentual || 100) + '" ' +
+                   'onchange="SIPAV.app.mudarPercentualLote(\'' + x.torreId + '\', this.value)">' +
+            '<span>%</span>' +
+          '</span>' +
           '<button class="lote-remover" onclick="SIPAV.app.removerTorreLote(\'' + x.torreId + '\')" ' +
                   'title="Tirar do lote">&times;</button>' +
         '</div>';
       }).join('') + '</div>' +
       '<p class="text-xs mt-2" style="color:var(--texto-fraco)">' +
-        loteSelecionadas.length + ' torre(s) no lote</p>';
+        loteSelecionadas.length + ' torre(s) no lote' +
+        // A soma dos percentuais é o número que vai para a coluna TOTAL da ISA
+        (equivalenteEmTorres() !== loteSelecionadas.length
+          ? ' · equivalem a ' + equivalenteEmTorres() + ' torre(s) inteira(s)'
+          : '') +
+      '</p>';
   }
 
   /**
@@ -1985,7 +2105,6 @@ window.SIPAV = window.SIPAV || {};
       return;
     }
 
-    var percentual = Number($('lotePercentual').value) || 100;
     var encarregadoId = $('loteEncarregado').value || null;
     var situacao = E.perfil.papel === 'SUPERVISOR' ? 'SOLICITADA' : 'APROVADA';
 
@@ -1997,7 +2116,7 @@ window.SIPAV = window.SIPAV || {};
       return antes.then(function () {
         return db.criarProgramacao({
           torreId: x.torreId, atividadeId: atividadeId, encarregadoId: encarregadoId,
-          data: x.data, percentual: percentual, cabo: cabo, situacao: situacao
+          data: x.data, percentual: x.percentual || 100, cabo: cabo, situacao: situacao
         })
           .then(function () { ok.push(x.identificador); })
           .catch(function (e) { falhou.push({ torre: x.identificador, motivo: e.message }); });
@@ -3325,6 +3444,12 @@ window.SIPAV = window.SIPAV || {};
     removerTorreLote: removerTorreLote,
     distribuirLote: distribuirLote,
     mudarDataLote: mudarDataLote,
+    mudarPercentualLote: mudarPercentualLote,
+    aplicarPercentualLote: aplicarPercentualLote,
+    alternarModoSelecao: alternarModoSelecao,
+    limparSelecao: limparSelecao,
+    selecionarTodasVisiveis: selecionarTodasVisiveis,
+    programarSelecionadas: programarSelecionadas,
     liberarRestricao: liberarRestricao,
     abrirCorrigirEstagio: abrirCorrigirEstagio,
     abrirHistoricoDaTorre: abrirHistoricoDaTorre,

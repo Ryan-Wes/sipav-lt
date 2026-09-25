@@ -41,7 +41,7 @@
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 
   <!-- ?v= força o navegador a buscar de novo quando o código muda. -->
-  <link rel="stylesheet" href="css/app.css?v=62">
+  <link rel="stylesheet" href="css/app.css?v=63">
 </head>
 <body class="h-full flex flex-col antialiased">
 
@@ -179,6 +179,12 @@
                 title="Mesma atividade em várias torres, uma data para cada">
           <i data-lucide="layers" class="w-4 h-4" style="color:var(--acento)"></i>
           <span class="rotulo-btn">Em lote</span>
+        </button>
+
+        <button onclick="SIPAV.app.alternarModoSelecao()" class="btn-header"
+                id="btnModoSelecao" title="Escolher torres clicando nos cartões">
+          <i data-lucide="mouse-pointer-click" class="w-4 h-4"></i>
+          <span class="rotulo-btn">Selecionar</span>
         </button>
 
         <button onclick="SIPAV.app.abrirHistoricoDoTrecho()" class="btn-header" title="Quem mexeu no quê na obra inteira">
@@ -565,6 +571,22 @@
   </div>
 </div>
 
+<!-- Barra do modo de seleção. Fica no rodapé para não cobrir a grade, que é
+     justamente onde se está clicando. -->
+<div id="barraSelecao" class="hidden no-print">
+  <div class="barra-selecao-caixa">
+    <i data-lucide="mouse-pointer-click" class="w-4 h-4 shrink-0" style="color:var(--acento)"></i>
+    <span id="contagemSelecao" class="text-sm font-semibold" style="color:var(--texto)"></span>
+    <button onclick="SIPAV.app.selecionarTodasVisiveis()" class="btn-secundario">Todas visíveis</button>
+    <button id="btnLimparSelecao" onclick="SIPAV.app.limparSelecao()" class="btn-secundario hidden">Limpar</button>
+    <button id="btnProgramarSelecao" onclick="SIPAV.app.programarSelecionadas()"
+            class="btn-primario">Programar em lote</button>
+    <button onclick="SIPAV.app.alternarModoSelecao()" class="btn-icone" title="Sair do modo seleção">
+      <i data-lucide="x" class="w-4 h-4"></i>
+    </button>
+  </div>
+</div>
+
 <!-- Aviso flutuante -->
 <div id="aviso" class="fixed bottom-5 right-5 z-[60] hidden">
   <div id="avisoInterno" class="flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-lg text-sm font-medium">
@@ -583,11 +605,11 @@
   </div>
 </div>
 
-<script src="js/config.js?v=62"></script>
-<script src="js/db.js?v=62"></script>
-<script src="js/ui.js?v=62"></script>
-<script src="js/render.js?v=62"></script>
-<script src="js/isa.js?v=62"></script>
-<script src="js/app.js?v=62"></script>
+<script src="js/config.js?v=63"></script>
+<script src="js/db.js?v=63"></script>
+<script src="js/ui.js?v=63"></script>
+<script src="js/render.js?v=63"></script>
+<script src="js/isa.js?v=63"></script>
+<script src="js/app.js?v=63"></script>
 </body>
 </html>

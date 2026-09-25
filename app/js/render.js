@@ -20,7 +20,10 @@ window.SIPAV = window.SIPAV || {};
     programacoes: [], execucoes: [],
     aba: 'grade', colunas: 'auto', filtroAtividade: '', filtroCanteiro: '', busca: '',
     // Recorte de datas da programação. de/ate nulos = todo o período.
-    periodo: { modo: 'duas', de: null, ate: null }
+    periodo: { modo: 'duas', de: null, ate: null },
+    // Escolher torres clicando nos cartões, para mandar de uma vez para o lote.
+    // Enquanto ligado, o clique marca em vez de abrir a torre.
+    modoSelecao: false, selecionadas: {}
   };
 
   var E = window.SIPAV.estado;
@@ -105,6 +108,7 @@ window.SIPAV = window.SIPAV || {};
     var restrito = torre.tem_restricao;
 
     var classes = ['cartao-torre'];
+    if (E.modoSelecao && E.selecionadas[torre.torre_id]) classes.push('cartao-selecionado');
     if (restrito)       classes.push('cartao-restrito');
     if (progs.length)   classes.push('cartao-programado');
 

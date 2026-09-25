@@ -752,6 +752,39 @@ html.dark .hover\:bg-slate-200:hover   { background-color: var(--superficie-3) !
 .modo-pdf .cartao-torre,
 .modo-pdf .bloco-quadrante { page-break-inside: avoid !important; break-inside: avoid !important; }
 
+/* ------------------------------------------------------ Modo de seleção -- */
+
+#barraSelecao {
+  position: fixed; bottom: 1rem; left: 50%; transform: translateX(-50%);
+  z-index: 44; padding: 0 1rem; max-width: 100%;
+}
+#barraSelecao.hidden { display: none; }
+
+.barra-selecao-caixa {
+  display: flex; flex-wrap: wrap; align-items: center; gap: .5rem;
+  padding: .625rem .875rem;
+  background: var(--superficie);
+  border: 1px solid var(--borda-forte);
+  border-radius: .75rem;
+  box-shadow: 0 20px 40px -12px rgba(0,0,0,.7);
+}
+
+/* No modo seleção o cartão deixa de parecer um botão de abrir */
+body.modo-selecao .cartao-torre { cursor: copy; }
+body.modo-selecao .cartao-torre:hover { transform: none; }
+
+.cartao-torre.cartao-selecionado {
+  outline: 2px solid var(--acento);
+  outline-offset: 2px;
+  background: rgba(249,115,22,.07);
+}
+
+/* Percentual por linha do lote */
+.lote-pct {
+  display: inline-flex; align-items: center; gap: .1875rem; flex-shrink: 0;
+  font-size: .6875rem; font-weight: 600; color: var(--texto-fraco);
+}
+
 /* ---------------------------------------------------- Programação em lote -- */
 
 .lote-grade {
