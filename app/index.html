@@ -41,7 +41,7 @@
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 
   <!-- ?v= força o navegador a buscar de novo quando o código muda. -->
-  <link rel="stylesheet" href="css/app.css?v=57">
+  <link rel="stylesheet" href="css/app.css?v=58">
 </head>
 <body class="h-full flex flex-col antialiased">
 
@@ -394,7 +394,11 @@
           </div>
           <div>
             <label class="rotulo">Data</label>
-            <input id="campoData" type="date" class="campo" onchange="SIPAV.app.verificarBloqueio()">
+            <input id="campoData" type="date" class="campo"
+                   onchange="SIPAV.app.mudarData()" oninput="SIPAV.app.mostrarDiaDaSemana()">
+            <!-- A planilha é organizada por dia da semana, então é o dia que
+                 precisa saltar aos olhos, não a data -->
+            <p id="diaDaSemana" class="dia-semana"></p>
           </div>
           <!-- Quanto da torre cabe neste dia. Serviço que leva dois dias vira
                duas programações que repartem o percentual. -->
@@ -409,7 +413,17 @@
           </div>
           <div>
             <label class="rotulo">Encarregado</label>
-            <select id="campoEncarregado" class="campo" onchange="SIPAV.app.verificarConflito()"></select>
+            <!-- Combo com busca: são dezenas de encarregados, e rolar uma lista
+                 suspensa procurando "Jose Fernandes" é mais lento que digitar -->
+            <div class="combo">
+              <input id="buscaEncarregado" class="campo" autocomplete="off"
+                     placeholder="Digite para buscar…"
+                     oninput="SIPAV.app.filtrarEncarregados()"
+                     onfocus="SIPAV.app.filtrarEncarregados()"
+                     onkeydown="SIPAV.app.teclaEncarregado(event)">
+              <input type="hidden" id="campoEncarregado">
+              <div id="listaEncarregados" class="combo-lista hidden"></div>
+            </div>
           </div>
           <div>
             <label class="rotulo">Observação (opcional)</label>
@@ -534,11 +548,11 @@
   </div>
 </div>
 
-<script src="js/config.js?v=57"></script>
-<script src="js/db.js?v=57"></script>
-<script src="js/ui.js?v=57"></script>
-<script src="js/render.js?v=57"></script>
-<script src="js/isa.js?v=57"></script>
-<script src="js/app.js?v=57"></script>
+<script src="js/config.js?v=58"></script>
+<script src="js/db.js?v=58"></script>
+<script src="js/ui.js?v=58"></script>
+<script src="js/render.js?v=58"></script>
+<script src="js/isa.js?v=58"></script>
+<script src="js/app.js?v=58"></script>
 </body>
 </html>

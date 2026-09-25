@@ -141,6 +141,20 @@ window.SIPAV = window.SIPAV || {};
 
   function hoje() { return new Date().toISOString().slice(0, 10); }
 
+  /** 'segunda-feira', 'sábado', 'domingo'. A obra planeja por dia da semana. */
+  function diaDaSemana(iso) {
+    var d = paraData(iso);
+    if (!d) return '';
+    var nome = DIAS[d.getDay()];
+    return (d.getDay() === 0 || d.getDay() === 6) ? nome : nome + '-feira';
+  }
+
+  /** Domingo é DSR na planilha da ISA; sábado costuma ser meia jornada. */
+  function fimDeSemana(iso) {
+    var d = paraData(iso);
+    return !!d && (d.getDay() === 0 || d.getDay() === 6);
+  }
+
   /** Carimbo de tempo em linguagem de gente: "agora", "há 2 horas", "ontem". */
   function quandoRelativo(carimbo) {
     var d = new Date(carimbo);
@@ -246,6 +260,7 @@ window.SIPAV = window.SIPAV || {};
     icones: icones, avisar: avisar, confirmar: confirmar,
     processando: processando, pronto: pronto,
     paraData: paraData, dataCurta: dataCurta, dataLonga: dataLonga, hoje: hoje,
+    diaDaSemana: diaDaSemana, fimDeSemana: fimDeSemana,
     iso: iso, somarDias: somarDias, segundaDaSemana: segundaDaSemana,
     primeiroDiaDoMes: primeiroDiaDoMes, ultimoDiaDoMes: ultimoDiaDoMes,
     rotuloPeriodo: rotuloPeriodo, quandoRelativo: quandoRelativo,

@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v57 · 2026-09-25';
+  var VERSAO = 'v58 · 2026-09-25';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -584,13 +584,10 @@ window.SIPAV = window.SIPAV || {};
       return '<option value="' + a.id + '">' + esc(a.nome) + '</option>';
     }).join('');
 
-    $('campoEncarregado').innerHTML =
-      '<option value="">— sem encarregado —</option>' +
-      E.encarregados.map(function (e) {
-        return '<option value="' + e.id + '">' + esc(e.nome) + '</option>';
-      }).join('');
+    preencherEncarregado('');
 
     $('campoData').value = ui.hoje();
+    mostrarDiaDaSemana();
     $('campoObservacao').value = '';
     $('campoCabo').value = '';
     $('campoPercentual').value = 100;
@@ -646,6 +643,115 @@ window.SIPAV = window.SIPAV || {};
     atualizarCampoCabo();
     mostrarSomaPercentual();
     verificarBloqueio();
+  }
+
+  /* ----------------------------------------------------- Dia da semana ---- */
+
+  /**
+   * A planilha da ISA é uma grade de SEG a DOM, e o pessoal programa pensando
+   * "quinta o Mário sobe na 51/1". Só a data numérica obriga a converter de
+   * cabeça toda vez, e é onde nasce erro de um dia.
+   */
+  function mostrarDiaDaSemana() {
+    var campo = $('diaDaSemana');
+    if (!campo) return;
+
+    var iso = $('campoData').value;
+    if (!iso) { campo.textContent = ''; campo.className = 'dia-semana'; return; }
+
+    var domingo = ui.paraData(iso).getDay() === 0;
+    campo.textContent = ui.diaDaSemana(iso) + (domingo ? ' · DSR na planilha' : '');
+    campo.className = 'dia-semana' + (ui.fimDeSemana(iso) ? ' fim-de-semana' : '');
+  }
+
+  function mudarData() {
+    mostrarDiaDaSemana();
+    verificarBloqueio();
+    verificarConflito();
+  }
+
+  /* ------------------------------------------------------- Encarregado ---- */
+
+  /**
+   * Combo com busca em vez de lista suspensa.
+   *
+   * O valor de verdade mora no input escondido `campoEncarregado`, que continua
+   * respondendo a `.value` como o <select> respondia — por isso o resto do
+   * fluxo de gravação não mudou.
+   */
+  var encMarcado = -1;   // item destacado pelas setas
+
+  function encarregadosFiltrados() {
+    var termo = normalizar($('buscaEncarregado').value.trim());
+    if (!termo) return E.encarregados.slice(0, 50);
+    return E.encarregados.filter(function (e) {
+      return normalizar(e.nome).indexOf(termo) !== -1;
+    });
+  }
+
+  function filtrarEncarregados() {
+    var lista = encarregadosFiltrados();
+    encMarcado = -1;
+
+    $('listaEncarregados').innerHTML =
+      '<button type="button" class="combo-item" onmousedown="SIPAV.app.escolherEncarregado(\'\')">' +
+        '<span style="color:var(--texto-fraco)">— sem encarregado —</span>' +
+      '</button>' +
+      (lista.length
+        ? lista.map(function (e) {
+            return '<button type="button" class="combo-item" ' +
+                   'onmousedown="SIPAV.app.escolherEncarregado(\'' + e.id + '\')">' +
+                   esc(e.nome) + '</button>';
+          }).join('')
+        : '<p class="px-3 py-2 text-xs" style="color:var(--texto-fraco)">' +
+          'Nenhum encarregado com esse nome</p>');
+
+    $('listaEncarregados').classList.remove('hidden');
+  }
+
+  function escolherEncarregado(id) {
+    var e = E.encarregados.find(function (x) { return x.id === id; });
+    $('campoEncarregado').value = id || '';
+    $('buscaEncarregado').value = e ? e.nome : '';
+    $('listaEncarregados').classList.add('hidden');
+    verificarConflito();
+  }
+
+  /** Setas percorrem, Enter escolhe, Esc fecha sem mexer no que já estava. */
+  function teclaEncarregado(ev) {
+    var caixa = $('listaEncarregados');
+    var itens = caixa.querySelectorAll('.combo-item');
+
+    if (ev.key === 'Escape') { caixa.classList.add('hidden'); return; }
+    if (!itens.length) return;
+
+    if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
+      ev.preventDefault();
+      if (caixa.classList.contains('hidden')) filtrarEncarregados();
+      encMarcado += (ev.key === 'ArrowDown' ? 1 : -1);
+      if (encMarcado < 0) encMarcado = itens.length - 1;
+      if (encMarcado >= itens.length) encMarcado = 0;
+      Array.prototype.forEach.call(itens, function (it, i) {
+        it.classList.toggle('marcado', i === encMarcado);
+      });
+      itens[encMarcado].scrollIntoView({ block: 'nearest' });
+      return;
+    }
+
+    if (ev.key === 'Enter') {
+      ev.preventDefault();
+      // Sem seta, Enter pega o primeiro da lista — que é o que o dedo espera
+      var alvo = itens[encMarcado >= 0 ? encMarcado : (itens.length > 1 ? 1 : 0)];
+      if (alvo) alvo.dispatchEvent(new MouseEvent('mousedown'));
+    }
+  }
+
+  /** Repõe o combo a partir do id, ao abrir a torre ou ao editar. */
+  function preencherEncarregado(id) {
+    var e = id && E.encarregados.find(function (x) { return x.id === id; });
+    $('campoEncarregado').value = e ? e.id : '';
+    $('buscaEncarregado').value = e ? e.nome : '';
+    $('listaEncarregados').classList.add('hidden');
   }
 
   /* -------------------------------------------------------- Percentual ---- */
@@ -827,7 +933,8 @@ window.SIPAV = window.SIPAV || {};
       .then(function (lista) {
         if (!lista.length) { ui.esconder('avisoConflito'); return; }
         var torres = lista.map(function (c) { return c.torre ? c.torre.identificador : '?'; });
-        var nome = $('campoEncarregado').selectedOptions[0].text;
+        var enc = E.encarregados.find(function (x) { return x.id === encarregadoId; });
+        var nome = enc ? enc.nome : 'o encarregado';
         $('textoConflito').textContent =
           nome + ' já está programado em ' + ui.dataCurta(data) + ' na(s) torre(s) ' +
           torres.join(', ') + '. Confira se a equipe dá conta.';
@@ -897,6 +1004,7 @@ window.SIPAV = window.SIPAV || {};
         $('campoObservacao').value = '';
         $('campoCabo').value = '';
         $('campoPercentual').value = 100;
+        preencherEncarregado('');
         atualizarCampoCabo();
         programacaoEmEdicao = null;
         atualizarModoFormulario();
@@ -1009,7 +1117,8 @@ window.SIPAV = window.SIPAV || {};
 
     $('campoAtividade').value   = p.atividade ? p.atividade.id : '';
     $('campoData').value        = p.data;
-    $('campoEncarregado').value = p.encarregado ? p.encarregado.id : '';
+    mostrarDiaDaSemana();
+    preencherEncarregado(p.encarregado ? p.encarregado.id : '');
     $('campoObservacao').value  = p.observacao || '';
 
     atualizarCampoCabo();
@@ -2562,6 +2671,11 @@ window.SIPAV = window.SIPAV || {};
     adicionarProgramacao: adicionarProgramacao,
     mudarAtividade: mudarAtividade,
     mostrarSomaPercentual: mostrarSomaPercentual,
+    mostrarDiaDaSemana: mostrarDiaDaSemana,
+    mudarData: mudarData,
+    filtrarEncarregados: filtrarEncarregados,
+    escolherEncarregado: escolherEncarregado,
+    teclaEncarregado: teclaEncarregado,
     editarProgramacao: editarProgramacao,
     cancelarEdicao: cancelarEdicao,
     alternarExecucao: alternarExecucao,
