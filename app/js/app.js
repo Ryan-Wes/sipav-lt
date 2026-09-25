@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v55 · 2026-09-25';
+  var VERSAO = 'v56 · 2026-09-25';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -2002,6 +2002,13 @@ window.SIPAV = window.SIPAV || {};
     'giro e prumo':            'GIRO E PRUMO',
     'revisao giro e prumo':    'GIRO E PRUMO',
     'revisao / giro e prumo':  'GIRO E PRUMO',
+
+    // Escavação também se abre em três, conforme o que a equipe cava
+    'escavacao de estai':          'ESCAVAÇÃO - ESTAI',
+    'escavacao estai':             'ESCAVAÇÃO - ESTAI',
+    'escavacao de mc':             'ESCAVAÇÃO - MC',
+    'escavacao mc':                'ESCAVAÇÃO - MC',
+    'escavacao mastro central':    'ESCAVAÇÃO - MC',
 
     // Fundação — preparação e instalação de pré-moldados viraram a mesma etapa,
     // e ela se abre em três conforme o que a equipe instala

@@ -144,7 +144,11 @@ window.SIPAV = window.SIPAV || {};
     'SUPRESSÃO DA FAIXA':                       { itens: ['1.3.2'] },
     'CORTE SELETIVO':                           { itens: ['1.3.3'] },
 
+    // Numa autoportante o mastro central não existe, então a escavação completa
+    // dela é só a dos pés
     'ESCAVAÇÃO':                                { est: ['2.1.4', '2.1.5'],   aup: ['2.1.4'] },
+    'ESCAVAÇÃO - ESTAI':                        { itens: ['2.1.4'] },
+    'ESCAVAÇÃO - MC':                           { itens: ['2.1.5'] },
     'PERFURAÇÃO DE TUBULÃO':                    { est: ['2.1.20', '2.1.21'], aup: ['2.1.20'] },
     'PERFURAÇÃO EM ROCHA':                      { est: ['2.1.6', '2.1.7'],   aup: ['2.1.6'] },
     'INJEÇÃO DE NATA':                          { est: ['2.1.8', '2.1.9'],   aup: ['2.1.8'] },

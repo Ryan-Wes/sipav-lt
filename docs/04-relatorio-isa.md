@@ -435,6 +435,8 @@ de-para fica quase todo 1 para 1.
 | SUPRESSÃO DE ÁREA DE TORRE | 1.3.1 | |
 | SUPRESSÃO DA FAIXA | 1.3.2 | |
 | ESCAVAÇÃO | 2.1.4 + 2.1.5 | 2.1.5 só para EST |
+| ESCAVAÇÃO - ESTAI | 2.1.4 | nova — ver DEC-15 |
+| ESCAVAÇÃO - MC | 2.1.5 | nova — ver DEC-15 |
 | PERFURAÇÃO DE TUBULÃO | **2.1.20 + 2.1.21** | itens novos — ver DEC-6 |
 | PERFURAÇÃO EM ROCHA | 2.1.6 + 2.1.7 | 2.1.7 só para EST |
 | INSTALAÇÃO DE PRÉ-MOLDADOS - VIGA L | 2.1.10 | |
@@ -528,6 +530,7 @@ do backlog) e os itens em KM, que precisam de quantidade e não de contagem de t
 | DEC-11 | A padronização das quatro planilhas será apresentada à fiscalização antes de valer | Alessandro, 24/09 (A5) |
 | DEC-12 | **Pilotinho e piloto são cabos diferentes.** O pilotinho puxa o para-raio/OPGW (`4.1.2` / `4.2.2`), o piloto puxa o condutor (`4.3.2`). O SIPAV tinha uma atividade só para os dois: ela vira `LANÇAMENTO DO PILOTINHO` e nasce `LANÇAMENTO DO PILOTO DO CONDUTOR`. 33 → 34 atividades. [`db/23`](../db/23-piloto-e-pilotinho.sql) | Wesley, 24/09 |
 | DEC-13 | `LANÇAMENTO DO PILOTINHO` exige `GIRO E PRUMO`. Não se lança cabo em torre não aprumada, e como é a primeira etapa em que se puxa cabo, o bloqueio transitivo cobre todo o resto da fase. Bandolas fica de fora porque é acessório na torre, não lançamento. [`db/22`](../db/22-lancamento-depende-do-prumo.sql) | Wesley, 24/09 |
+| DEC-15 | **Escavação em três sabores**, como os pré-moldados: `ESCAVAÇÃO - ESTAI`, `ESCAVAÇÃO - MC` e a genérica `ESCAVAÇÃO`, que faz as duas. A genérica mantém nome e id porque carrega a carga inicial inteira. 35 → 37 atividades. [`db/27`](../db/27-escavacao-em-tres.sql) | Wesley, 25/09 |
 | DEC-14 | **Bandola do para-raio/OPGW e bandola do condutor são dois serviços.** "Primeiro colocam bandola de para-raio, lançam o cabo, e só depois é que vai colocar bandola de condutor e lançar condutor." A que existe vira `INSTALAÇÃO DE BANDOLAS OPGW / PARA-RAIO` e nasce `INSTALAÇÃO DE BANDOLAS E ISOLADORES`. 34 → 35 atividades. [`db/24`](../db/24-bandolas-em-duas-etapas.sql) | Wesley, 24/09 |
 
 > **DEC-7 revoga a DEC-3 e corrige o `06-correcoes.sql`.** O que se junta à revisão é
