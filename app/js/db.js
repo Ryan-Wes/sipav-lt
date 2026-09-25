@@ -436,7 +436,7 @@ window.SIPAV = window.SIPAV || {};
   /* ======================================================================== */
 
   var CAMPOS_HISTORICO =
-    'id, quando, acao, quem_nome, torre_identificador, atividade_nome, ' +
+    'id, quando, acao, quem_nome, torre_identificador, trecho_id, atividade_nome, ' +
     'encarregado_nome, data, situacao, observacao, override_motivo, mudancas';
 
   /** Histórico de uma torre, do mais recente para o mais antigo. */
@@ -467,12 +467,21 @@ window.SIPAV = window.SIPAV || {};
       });
   }
 
-  /** Últimas alterações do trecho inteiro. */
+  /**
+   * Últimas alterações. Sem trechoId, traz a obra inteira.
+   *
+   * Vale a obra inteira por padrão: com quatro pessoas dividindo quatro trechos,
+   * filtrar por trecho fazia cada um enxergar só o próprio trabalho e concluir
+   * que o histórico dos outros não estava sendo gravado.
+   */
   function historicoDoTrecho(trechoId, limite) {
-    return cliente()
+    var q = cliente()
       .from('programacao_historico')
-      .select(CAMPOS_HISTORICO)
-      .eq('trecho_id', trechoId)
+      .select(CAMPOS_HISTORICO);
+
+    if (trechoId) q = q.eq('trecho_id', trechoId);
+
+    return q
       .order('quando', { ascending: false })
       .limit(limite || 60)
       .then(function (r) { return ok(r, 'Falha ao carregar histórico'); });

@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v54 · 2026-09-24';
+  var VERSAO = 'v55 · 2026-09-25';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -1212,13 +1212,50 @@ window.SIPAV = window.SIPAV || {};
       '</div>';
   }
 
-  function montarHistorico(lista, titulo, mostrarTorre) {
+  function montarHistorico(lista, titulo, mostrarTorre, comFiltros) {
+    var filtros = '';
+
+    if (comFiltros) {
+      // As pessoas saem do próprio histórico: quem nunca mexeu não precisa
+      // aparecer no seletor.
+      var pessoas = [];
+      lista.forEach(function (h) {
+        if (h.quem_nome && pessoas.indexOf(h.quem_nome) === -1) pessoas.push(h.quem_nome);
+      });
+      pessoas.sort(function (a, b) { return a.localeCompare(b, 'pt-BR'); });
+
+      filtros =
+        '<div class="flex flex-wrap items-center gap-2">' +
+          '<div class="caixa-filtro">' +
+            '<i data-lucide="user" class="w-3.5 h-3.5" style="color:var(--texto-fraco)"></i>' +
+            '<select id="histQuem" class="select-filtro" onchange="SIPAV.app.filtrarHistorico()">' +
+              '<option value="">Todo mundo</option>' +
+              pessoas.map(function (p) {
+                return '<option value="' + esc(p) + '">' + esc(p) + '</option>';
+              }).join('') +
+            '</select>' +
+          '</div>' +
+          '<div class="caixa-filtro">' +
+            '<i data-lucide="git-branch" class="w-3.5 h-3.5" style="color:var(--texto-fraco)"></i>' +
+            '<select id="histTrecho" class="select-filtro" onchange="SIPAV.app.filtrarHistorico()">' +
+              '<option value="">Toda a obra</option>' +
+              E.trechos.map(function (t) {
+                return '<option value="' + t.id + '"' +
+                       (E.trechoAtual && t.id === E.trechoAtual.id ? '' : '') + '>' +
+                       esc(t.nome) + '</option>';
+              }).join('') +
+            '</select>' +
+          '</div>' +
+          '<span id="histContagem" class="resumo"></span>' +
+        '</div>';
+    }
+
     var corpo = lista.length
-      ? '<div class="space-y-1.5">' +
+      ? '<div id="histLista" class="space-y-1.5">' +
           lista.map(function (h) { return linhaHistorico(h, mostrarTorre); }).join('') +
         '</div>'
-      : '<p class="text-sm text-slate-400 italic text-center py-8">' +
-          'Nenhuma alteração registrada ainda.</p>';
+      : '<div id="histLista"><p class="text-sm text-slate-400 italic text-center py-8">' +
+          'Nenhuma alteração registrada ainda.</p></div>';
 
     ui.modalGenerico({
       titulo: titulo,
@@ -1227,9 +1264,11 @@ window.SIPAV = window.SIPAV || {};
           '<p class="text-xs text-slate-500">' +
             'Registro gravado pelo banco a cada criação, alteração ou remoção. ' +
             'Não pode ser editado nem apagado pela aplicação.' +
-          '</p>' + corpo +
+          '</p>' + filtros + corpo +
         '</div>'
     });
+
+    if (comFiltros) filtrarHistorico();
   }
 
   function abrirHistoricoDaTorre() {
@@ -1244,15 +1283,45 @@ window.SIPAV = window.SIPAV || {};
       .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro'); });
   }
 
+  /**
+   * Histórico da obra inteira, com filtro por pessoa e por trecho.
+   *
+   * Nasceu preso ao trecho aberto, e com a equipe dividida por trecho cada um
+   * via só o próprio trabalho — dava a impressão de que o sistema não registrava
+   * o que os outros faziam. Agora o padrão é a obra toda.
+   */
+  var historicoCarregado = [];
+
   function abrirHistoricoDoTrecho() {
-    if (!E.trechoAtual) return;
     ui.processando('Carregando histórico…');
-    db.historicoDoTrecho(E.trechoAtual.id, 80)
+    db.historicoDoTrecho(null, 300)
       .then(function (lista) {
         ui.pronto();
-        montarHistorico(lista, 'Últimas alterações — ' + E.trechoAtual.nome, true);
+        historicoCarregado = lista;
+        montarHistorico(lista, 'Últimas alterações', true, true);
       })
       .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro'); });
+  }
+
+  /** Aplica os dois seletores sobre o que já veio do banco. */
+  function filtrarHistorico() {
+    var quem   = $('histQuem') ? $('histQuem').value : '';
+    var trecho = $('histTrecho') ? $('histTrecho').value : '';
+
+    var lista = historicoCarregado.filter(function (h) {
+      if (quem && h.quem_nome !== quem) return false;
+      if (trecho && h.trecho_id !== trecho) return false;
+      return true;
+    });
+
+    $('histLista').innerHTML = lista.length
+      ? lista.map(function (h) { return linhaHistorico(h, true); }).join('')
+      : '<p class="text-sm text-slate-400 italic text-center py-8">' +
+        'Nenhuma alteração com esses filtros.</p>';
+
+    $('histContagem').textContent =
+      lista.length + (lista.length === 1 ? ' alteração' : ' alterações');
+    ui.icones();
   }
 
   /* ======================================================================== */
@@ -2444,6 +2513,7 @@ window.SIPAV = window.SIPAV || {};
     abrirCorrigirEstagio: abrirCorrigirEstagio,
     abrirHistoricoDaTorre: abrirHistoricoDaTorre,
     abrirHistoricoDoTrecho: abrirHistoricoDoTrecho,
+    filtrarHistorico: filtrarHistorico,
 
     abrirEncarregados: abrirEncarregados,
     adicionarEncarregado: adicionarEncarregado,
