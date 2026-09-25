@@ -265,6 +265,25 @@ body::before {
 
 .combo { position: relative; }
 
+/* Atividades já escolhidas, acima do campo de busca. Cada uma na cor dela, para
+   o olho reconhecer a fase sem ler. */
+.chips-escolhidos {
+  display: flex; flex-wrap: wrap; gap: .25rem;
+}
+.chips-escolhidos:not(:empty) { margin-bottom: .375rem; }
+
+.chip-escolhido {
+  display: inline-flex; align-items: center; gap: .3125rem;
+  padding: .1875rem .25rem .1875rem .4375rem;
+  border-radius: .3125rem;
+  font-size: .625rem; font-weight: 700; line-height: 1.2;
+}
+.chip-escolhido button {
+  font-size: .875rem; line-height: 1; opacity: .7;
+  padding: 0 .125rem;
+}
+.chip-escolhido button:hover { opacity: 1; }
+
 .combo-lista {
   position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 45;
   max-height: 208px; overflow-y: auto;

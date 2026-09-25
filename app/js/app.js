@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v61 · 2026-09-25';
+  var VERSAO = 'v62 · 2026-09-25';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -580,9 +580,7 @@ window.SIPAV = window.SIPAV || {};
       selo.classList.add('hidden');
     }
 
-    $('campoAtividade').innerHTML = E.atividades.map(function (a) {
-      return '<option value="' + a.id + '">' + esc(a.nome) + '</option>';
-    }).join('');
+    preencherAtividades([]);
 
     preencherEncarregado('');
 
@@ -633,14 +631,129 @@ window.SIPAV = window.SIPAV || {};
 
   /** Mostra ou esconde o seletor de cabo conforme a atividade escolhida. */
   function atualizarCampoCabo() {
-    var precisa = pedeCabo($('campoAtividade').value);
+    var precisa = atividadesEscolhidas.some(pedeCabo);
     $('blocoCabo').classList.toggle('hidden', !precisa);
     if (!precisa) $('campoCabo').value = '';
+  }
+
+  /* -------------------------------------------------------- Atividades ---- */
+
+  /**
+   * Várias atividades de uma vez.
+   *
+   * Encarregado que faz abertura de acesso, supressão de área e supressão da
+   * faixa na mesma torre no mesmo dia é rotina — são três programações, mas não
+   * precisam ser três idas ao modal.
+   *
+   * Com UMA escolhida, tudo funciona como antes: precedência, aviso de serviço
+   * repetido e soma de percentual, todos ao vivo. Com mais de uma, essas
+   * conferências passam para a hora de gravar, e o relato final diz quais
+   * entraram e quais não — mesmo caminho da programação em lote, que já provou
+   * funcionar.
+   */
+  var atividadesEscolhidas = [];
+
+  function renderChipsAtividade() {
+    // campoAtividade guarda a primeira: é ela que alimenta as checagens ao vivo
+    $('campoAtividade').value = atividadesEscolhidas[0] || '';
+
+    $('chipsAtividade').innerHTML = atividadesEscolhidas.map(function (id) {
+      var a = E.atividades.find(function (x) { return x.id === id; });
+      if (!a) return '';
+      var cor = a.cor_fundo || '#94A3B8';
+      return '<span class="chip-escolhido" style="background:' + cor + ';color:' +
+             ui.corDoTexto(cor) + '">' + esc(a.nome) +
+             '<button type="button" onclick="SIPAV.app.tirarAtividade(\'' + id + '\')" ' +
+             'title="Tirar">&times;</button></span>';
+    }).join('');
+
+    $('buscaAtividade').placeholder = atividadesEscolhidas.length
+      ? 'Adicionar outra atividade…' : 'Buscar atividade…';
+  }
+
+  function filtrarAtividades() {
+    var termo = normalizar(($('buscaAtividade').value || '').trim());
+    var lista = E.atividades.filter(function (a) {
+      if (atividadesEscolhidas.indexOf(a.id) !== -1) return false;
+      return !termo || normalizar(a.nome).indexOf(termo) !== -1;
+    });
+
+    $('listaAtividades').innerHTML = lista.length
+      ? lista.map(function (a) {
+          var cor = a.cor_fundo || '#94A3B8';
+          return '<button type="button" class="combo-item" ' +
+                 'onmousedown="SIPAV.app.escolherAtividade(\'' + a.id + '\')">' +
+                 '<span class="ponto-atividade" style="background:' + cor + '"></span>' +
+                 esc(a.nome) + '</button>';
+        }).join('')
+      : '<p class="px-3 py-2 text-xs" style="color:var(--texto-fraco)">' +
+        (atividadesEscolhidas.length ? 'Todas já escolhidas' : 'Nenhuma atividade com esse nome') + '</p>';
+
+    $('listaAtividades').classList.remove('hidden');
+  }
+
+  function escolherAtividade(id) {
+    // Editando, trocar a atividade substitui em vez de somar: a linha é uma só
+    if (programacaoEmEdicao) atividadesEscolhidas = [id];
+    else if (atividadesEscolhidas.indexOf(id) === -1) atividadesEscolhidas.push(id);
+
+    $('buscaAtividade').value = '';
+    $('listaAtividades').classList.add('hidden');
+    renderChipsAtividade();
+    mudarAtividade();
+  }
+
+  function tirarAtividade(id) {
+    atividadesEscolhidas = atividadesEscolhidas.filter(function (x) { return x !== id; });
+    renderChipsAtividade();
+    mudarAtividade();
+  }
+
+  function teclaAtividade(ev) {
+    var caixa = $('listaAtividades');
+    var itens = caixa.querySelectorAll('.combo-item');
+
+    if (ev.key === 'Escape') { caixa.classList.add('hidden'); return; }
+
+    // Backspace com o campo vazio tira a última escolhida
+    if (ev.key === 'Backspace' && !$('buscaAtividade').value && atividadesEscolhidas.length) {
+      ev.preventDefault();
+      tirarAtividade(atividadesEscolhidas[atividadesEscolhidas.length - 1]);
+      return;
+    }
+
+    if (ev.key === 'Enter' && itens.length) {
+      ev.preventDefault();
+      itens[0].dispatchEvent(new MouseEvent('mousedown'));
+    }
+  }
+
+  /** Repõe o seletor a partir de uma lista de ids. */
+  function preencherAtividades(ids) {
+    atividadesEscolhidas = (ids || []).filter(function (id) {
+      return E.atividades.some(function (a) { return a.id === id; });
+    });
+    $('buscaAtividade').value = '';
+    $('listaAtividades').classList.add('hidden');
+    renderChipsAtividade();
   }
 
   /** Trocar a atividade mexe no seletor de cabo e na checagem de precedência. */
   function mudarAtividade() {
     atualizarCampoCabo();
+
+    // Com várias escolhidas as conferências ao vivo perdem o sentido: elas são
+    // por atividade, e mostrar cinco painéis empilhados seria pior que não
+    // mostrar nada. O relato da gravação cobre.
+    if (atividadesEscolhidas.length > 1) {
+      limparAvisos();
+      $('somaPercentual').textContent =
+        atividadesEscolhidas.length + ' atividades escolhidas · a sequência e a ' +
+        'duplicidade são conferidas ao gravar, uma por uma';
+      $('somaPercentual').style.color = 'var(--texto-fraco)';
+      return;
+    }
+
     mostrarSomaPercentual();
     verificarBloqueio();
     verificarMesmoServico();
@@ -999,6 +1112,36 @@ window.SIPAV = window.SIPAV || {};
       .catch(function () { /* aviso, não bloqueio */ });
   }
 
+  /** Parte entrou e parte não: dizer qual é qual, com o motivo de cada recusa. */
+  function relatarAtividades(criadas, recusadas) {
+    ui.modalGenerico({
+      titulo: 'Programação da torre ' + (torreAberta ? torreAberta.identificador : ''),
+      corpoHtml:
+        '<div class="space-y-2">' +
+          (criadas.length
+            ? '<div class="rounded-lg border border-emerald-300 bg-emerald-50 p-3">' +
+                '<p class="text-sm font-semibold text-emerald-800">' +
+                  criadas.length + ' programada(s)</p>' +
+                '<p class="text-xs text-emerald-800 mt-1">' + esc(criadas.join(' · ')) + '</p>' +
+              '</div>'
+            : '') +
+          '<div class="rounded-lg border border-rose-200 bg-rose-50 p-3">' +
+            '<p class="text-sm font-semibold text-rose-800">' + recusadas.length + ' não entrou</p>' +
+            '<div class="text-xs text-rose-800 mt-1 space-y-1">' +
+              recusadas.map(function (r) {
+                return '<p><strong>' + esc(r.nome) + '</strong> — ' + esc(r.motivo) + '</p>';
+              }).join('') +
+            '</div>' +
+            '<p class="text-xs text-rose-700 mt-2">' +
+              'Em geral é precedência. Para forçar, adicione uma de cada vez e marque ' +
+              '"programar mesmo assim" com a justificativa.' +
+            '</p>' +
+          '</div>' +
+        '</div>',
+      botoes: [{ rotulo: 'Fechar', classe: 'btn-primario' }]
+    });
+  }
+
   function adicionarProgramacao() {
     if (!torreAberta) return;
 
@@ -1011,19 +1154,31 @@ window.SIPAV = window.SIPAV || {};
       return;
     }
 
-    // Sem o cabo o relatório da ISA não sabe se a linha é da seção 4.1 ou da
-    // 4.2. Melhor cobrar agora do que descobrir na hora de exportar.
-    var atividadeId = $('campoAtividade').value;
-    var cabo = pedeCabo(atividadeId) ? ($('campoCabo').value || null) : null;
-    var percentual = Number($('campoPercentual').value) || 100;
+    if (!atividadesEscolhidas.length) {
+      ui.avisar('Escolha pelo menos uma atividade.', 'alerta');
+      $('buscaAtividade').focus();
+      return;
+    }
 
+    var percentual = Number($('campoPercentual').value) || 100;
     if (percentual <= 0 || percentual > 100) {
       ui.avisar('O percentual tem que ficar entre 1 e 100.', 'alerta');
       $('campoPercentual').focus();
       return;
     }
 
-    // Dividir o serviço entre equipes é legítimo, mas tem que ser deliberado
+    // Sem o cabo o relatório da ISA não sabe se a linha é da seção 4.1 ou da
+    // 4.2. Melhor cobrar agora do que descobrir na hora de exportar.
+    var cabo = $('campoCabo').value || null;
+    var faltaCabo = atividadesEscolhidas.filter(function (id) { return pedeCabo(id); });
+    if (faltaCabo.length && !cabo) {
+      ui.avisar('Escolha o cabo: OPGW ou para-raio.', 'alerta');
+      $('campoCabo').focus();
+      return;
+    }
+
+    // Dividir o serviço entre equipes é legítimo, mas tem que ser deliberado.
+    // Só vale com uma atividade: com várias o aviso não chegou a rodar.
     var avisoDuplo = !$('avisoMesmoServico').classList.contains('hidden');
     if (avisoDuplo && !$('campoPermitirDuplo').checked) {
       ui.avisar('Já tem gente nesse serviço. Marque "adicionar outro mesmo assim" para dividir.', 'alerta', 6000);
@@ -1031,39 +1186,60 @@ window.SIPAV = window.SIPAV || {};
       return;
     }
 
-    if (pedeCabo(atividadeId) && !cabo) {
-      ui.avisar('Escolha o cabo: OPGW ou para-raio.', 'alerta');
-      $('campoCabo').focus();
-      return;
-    }
-
     var editando = programacaoEmEdicao;
-    ui.processando(editando ? 'Salvando alteração…' : 'Gravando programação…');
+    var comuns = {
+      encarregadoId: $('campoEncarregado').value || null,
+      data: $('campoData').value,
+      observacao: $('campoObservacao').value.trim() || null,
+      percentual: percentual,
+      overrideMotivo: override ? motivo : null
+    };
 
+    ui.processando(editando ? 'Salvando alteração…'
+      : 'Gravando ' + atividadesEscolhidas.length + ' programação(ões)…');
+
+    var criadas = [], recusadas = [];
+
+    // Uma por atividade, em sequência. Em bloco o trigger de precedência
+    // recusaria tudo junto sem dizer qual atividade travou.
     var gravar = editando
       ? db.atualizarProgramacao(editando, {
-          atividade_id:    atividadeId,
-          encarregado_id:  $('campoEncarregado').value || null,
-          data:            $('campoData').value,
-          observacao:      $('campoObservacao').value.trim() || null,
-          override_motivo: override ? motivo : null,
-          cabo:            cabo,
+          atividade_id:    atividadesEscolhidas[0],
+          encarregado_id:  comuns.encarregadoId,
+          data:            comuns.data,
+          observacao:      comuns.observacao,
+          override_motivo: comuns.overrideMotivo,
+          cabo:            pedeCabo(atividadesEscolhidas[0]) ? cabo : null,
           percentual:      percentual
         })
-      : db.criarProgramacao({
-          torreId: torreAberta.torre_id,
-          atividadeId: atividadeId,
-          encarregadoId: $('campoEncarregado').value || null,
-          data: $('campoData').value,
-          observacao: $('campoObservacao').value.trim() || null,
-          situacao: E.perfil.papel === 'SUPERVISOR' ? 'SOLICITADA' : 'APROVADA',
-          overrideMotivo: override ? motivo : null,
-          cabo: cabo,
-          percentual: percentual
-        });
+      : atividadesEscolhidas.reduce(function (antes, id) {
+          return antes.then(function () {
+            var a = E.atividades.find(function (x) { return x.id === id; });
+            return db.criarProgramacao({
+              torreId: torreAberta.torre_id,
+              atividadeId: id,
+              encarregadoId: comuns.encarregadoId,
+              data: comuns.data,
+              observacao: comuns.observacao,
+              situacao: E.perfil.papel === 'SUPERVISOR' ? 'SOLICITADA' : 'APROVADA',
+              overrideMotivo: comuns.overrideMotivo,
+              cabo: pedeCabo(id) ? cabo : null,
+              percentual: percentual
+            })
+              .then(function () { criadas.push(a ? a.nome : id); })
+              .catch(function (e) { recusadas.push({ nome: a ? a.nome : id, motivo: e.message }); });
+          });
+        }, Promise.resolve());
 
     gravar
       .then(function () {
+        // Uma atividade só e ela foi recusada: erro direto, como era antes
+        if (!editando && !criadas.length && recusadas.length === 1) {
+          throw new Error(recusadas[0].motivo);
+        }
+      })
+      .then(function () {
+        preencherAtividades([]);
         $('campoObservacao').value = '';
         $('campoCabo').value = '';
         $('campoPercentual').value = 100;
@@ -1084,12 +1260,18 @@ window.SIPAV = window.SIPAV || {};
         var fora = (E.periodo.de && data < E.periodo.de) ||
                    (E.periodo.ate && data > E.periodo.ate);
 
-        if (fora) {
+        if (recusadas.length) {
+          // Parte entrou e parte não: detalhar, senão fica a dúvida de qual é qual
+          relatarAtividades(criadas, recusadas);
+        } else if (fora) {
           ui.avisar('Gravada para ' + ui.dataCurta(data) + ', fora do período exibido (' +
                     ui.rotuloPeriodo(E.periodo.de, E.periodo.ate) +
                     '). Troque o período para vê-la.', 'alerta', 7000);
+        } else if (editando) {
+          ui.avisar('Programação alterada.', 'sucesso');
         } else {
-          ui.avisar(editando ? 'Programação alterada.' : 'Programação adicionada.', 'sucesso');
+          ui.avisar(criadas.length === 1 ? 'Programação adicionada.'
+            : criadas.length + ' programações adicionadas.', 'sucesso');
         }
         verificarBloqueio();
       })
@@ -1179,7 +1361,7 @@ window.SIPAV = window.SIPAV || {};
 
     programacaoEmEdicao = id;
 
-    $('campoAtividade').value   = p.atividade ? p.atividade.id : '';
+    preencherAtividades(p.atividade ? [p.atividade.id] : []);
     $('campoData').value        = p.data;
     mostrarDiaDaSemana();
     preencherEncarregado(p.encarregado ? p.encarregado.id : '');
@@ -1202,6 +1384,7 @@ window.SIPAV = window.SIPAV || {};
 
   function cancelarEdicao() {
     programacaoEmEdicao = null;
+    preencherAtividades([]);
     $('campoObservacao').value = '';
     $('campoCabo').value = '';
     $('campoPercentual').value = 100;
@@ -3113,6 +3296,10 @@ window.SIPAV = window.SIPAV || {};
     alternarOverride: alternarOverride,
     adicionarProgramacao: adicionarProgramacao,
     mudarAtividade: mudarAtividade,
+    filtrarAtividades: filtrarAtividades,
+    escolherAtividade: escolherAtividade,
+    tirarAtividade: tirarAtividade,
+    teclaAtividade: teclaAtividade,
     mostrarSomaPercentual: mostrarSomaPercentual,
     mostrarDiaDaSemana: mostrarDiaDaSemana,
     mudarData: mudarData,

@@ -41,7 +41,7 @@
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 
   <!-- ?v= força o navegador a buscar de novo quando o código muda. -->
-  <link rel="stylesheet" href="css/app.css?v=61">
+  <link rel="stylesheet" href="css/app.css?v=62">
 </head>
 <body class="h-full flex flex-col antialiased">
 
@@ -396,7 +396,19 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label class="rotulo">Atividade</label>
-            <select id="campoAtividade" class="campo" onchange="SIPAV.app.mudarAtividade()"></select>
+            <!-- Multi: um encarregado costuma fazer abertura, supressão de área
+                 e supressão da faixa na mesma torre no mesmo dia. Cada uma vira
+                 uma programação; o campo só evita repetir o modal três vezes. -->
+            <div class="combo">
+              <div id="chipsAtividade" class="chips-escolhidos"></div>
+              <input id="buscaAtividade" class="campo" autocomplete="off"
+                     placeholder="Buscar atividade…"
+                     oninput="SIPAV.app.filtrarAtividades()"
+                     onfocus="SIPAV.app.filtrarAtividades()"
+                     onkeydown="SIPAV.app.teclaAtividade(event)">
+              <input type="hidden" id="campoAtividade">
+              <div id="listaAtividades" class="combo-lista hidden"></div>
+            </div>
           </div>
           <div>
             <label class="rotulo">Data</label>
@@ -571,11 +583,11 @@
   </div>
 </div>
 
-<script src="js/config.js?v=61"></script>
-<script src="js/db.js?v=61"></script>
-<script src="js/ui.js?v=61"></script>
-<script src="js/render.js?v=61"></script>
-<script src="js/isa.js?v=61"></script>
-<script src="js/app.js?v=61"></script>
+<script src="js/config.js?v=62"></script>
+<script src="js/db.js?v=62"></script>
+<script src="js/ui.js?v=62"></script>
+<script src="js/render.js?v=62"></script>
+<script src="js/isa.js?v=62"></script>
+<script src="js/app.js?v=62"></script>
 </body>
 </html>
