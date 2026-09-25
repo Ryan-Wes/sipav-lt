@@ -498,6 +498,36 @@ select option, select optgroup {
   font-size: .75rem; color: var(--texto-suave); line-height: 1.25;
 }
 
+/* Data no chip. Fica discreta e de largura fixa, para as linhas alinharem
+   mesmo com nomes de atividade de tamanhos diferentes. */
+.chip-data {
+  font-size: .6875rem; font-weight: 700;
+  color: var(--texto-fraco);
+  flex-shrink: 0; min-width: 34px;
+}
+
+.chip-parcial {
+  font-size: .625rem; font-weight: 700; flex-shrink: 0;
+  color: var(--acento);
+}
+
+/* Empilhado: torre, data e atividade na primeira linha; encarregado embaixo.
+   Usado na visão por data, onde os três lado a lado quebravam o nome da
+   atividade em três linhas e desalinhavam a grade. */
+.chip-prog.empilhado {
+  flex-direction: column; align-items: stretch; gap: .1875rem;
+}
+.chip-prog.empilhado .chip-linha {
+  display: flex; align-items: center; gap: .5rem; min-width: 0;
+}
+.chip-prog.empilhado .chip-abaixo {
+  /* Alinha o encarregado com a atividade de cima, não com a torre. O empilhado
+     só é usado na visão por data, onde a data está no título do bloco e sai do
+     chip — por isso o recuo é largura da torre mais o espaçamento. */
+  padding-left: calc(40px + .5rem);
+}
+.chip-prog.empilhado .chip-atividade { flex: 1; min-width: 0; }
+
 /* ------------------------------------------------- Programação no cartão -- */
 
 .selo-prog {

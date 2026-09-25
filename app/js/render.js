@@ -226,37 +226,57 @@ window.SIPAV = window.SIPAV || {};
   /**
    * @param {object} op quais partes mostrar. O que já está no título do bloco
    *                    é omitido: repetir só rouba espaço de quem precisa.
+   *                    `empilhado` põe o segundo dado numa linha própria, em vez
+   *                    de tudo lado a lado — é o que salva a visão por data, onde
+   *                    atividade e encarregado juntos quebram o nome da atividade
+   *                    em três linhas e desalinham a grade inteira.
    */
   function chipProgramacao(p, op) {
     op = op || {};
     var cor = p.atividade ? p.atividade.cor_fundo : '#94A3B8';
 
-    return '' +
-      '<div class="chip-prog" ' +
-           'onclick="SIPAV.app.abrirTorre(\'' + (p.torre ? p.torre.id : '') + '\')">' +
+    var pastilha = op.atividade === false
+      // Sem a pastilha da atividade, um ponto mantém a cor presente
+      ? '<span class="ponto-atividade" style="background:' + cor + '"></span>'
+      : '<span class="chip-atividade" style="background:' + cor + ';color:' +
+          ui.corDoTexto(cor) + '">' + esc(p.atividade ? p.atividade.nome : '—') + '</span>';
 
-        (op.torre === false ? ''
-          : '<span class="chip-torre">' + esc(p.torre ? p.torre.identificador : '?') + '</span>') +
+    var alerta = p.override_motivo
+      ? '<i data-lucide="alert-triangle" class="w-3 h-3 text-amber-500 shrink-0" ' +
+        'title="Programada fora da sequência"></i>'
+      : '';
 
-        // Sem a pastilha da atividade, um ponto mantém a cor presente
-        (op.atividade === false
-          ? '<span class="ponto-atividade" style="background:' + cor + '"></span>'
-          : '<span class="chip-atividade" style="background:' + cor + ';color:' +
-              ui.corDoTexto(cor) + '">' +
-              esc(p.atividade ? p.atividade.nome : '—') +
-            '</span>') +
+    var torre = op.torre === false ? ''
+      : '<span class="chip-torre">' + esc(p.torre ? p.torre.identificador : '?') + '</span>';
 
-        (op.encarregado === false || !p.encarregado ? ''
-          : '<span class="chip-encarregado">' + esc(p.encarregado.nome) + '</span>') +
+    // A data é o que faltava: sem ela, "108/1 · Darlos" não diz quando
+    var data = op.data === false ? ''
+      : '<span class="chip-data">' + esc(ui.dataCurta(p.data)) + '</span>';
 
-        (p.override_motivo
-          ? '<i data-lucide="alert-triangle" class="w-3 h-3 text-amber-500 shrink-0" title="Programada fora da sequência"></i>'
-          : '') +
-      '</div>';
+    var enc = (op.encarregado === false || !p.encarregado) ? ''
+      : '<span class="chip-encarregado">' + esc(p.encarregado.nome) + '</span>';
+
+    var parcial = Number(p.percentual) < 100
+      ? '<span class="chip-parcial">' + pct(p.percentual) + '</span>' : '';
+
+    var abrir = '<div class="chip-prog' + (op.empilhado ? ' empilhado' : '') + '" ' +
+      'onclick="SIPAV.app.abrirTorre(\'' + (p.torre ? p.torre.id : '') + '\')">';
+
+    if (!op.empilhado) {
+      return abrir + torre + data + pastilha + enc + parcial + alerta + '</div>';
+    }
+
+    return abrir +
+      '<div class="chip-linha">' + torre + data + pastilha + parcial + alerta + '</div>' +
+      (enc ? '<div class="chip-linha chip-abaixo">' + enc + '</div>' : '') +
+    '</div>';
   }
 
   function blocoQuadrante(titulo, subtitulo, itens, op) {
-    var totalKm = itens.reduce(function (s, p) { return s + (p.torre ? Number(p.torre.km) || 0 : 0); }, 0);
+    // Conta torre distinta, não linha de programação. Três atividades na mesma
+    // torre no mesmo dia são uma torre só — antes o cabeçalho dizia "9 torres"
+    // onde havia 3, e somava o km três vezes.
+    var t = totais(itens);
     return '' +
       '<section class="bloco-quadrante painel overflow-hidden">' +
         '<header class="flex flex-wrap items-baseline justify-between gap-x-3 px-4 py-2.5 bg-slate-50 border-b border-slate-200">' +
@@ -265,7 +285,10 @@ window.SIPAV = window.SIPAV || {};
             (subtitulo ? '<p class="text-xs text-slate-500">' + esc(subtitulo) + '</p>' : '') +
           '</div>' +
           '<span class="text-xs font-semibold text-slate-500 shrink-0">' +
-            itens.length + (itens.length === 1 ? ' torre' : ' torres') + ' · ' + ui.km(totalKm) + ' km' +
+            t.torres + (t.torres === 1 ? ' torre' : ' torres') + ' · ' + ui.km(t.km) + ' km' +
+            (itens.length !== t.torres
+              ? ' · ' + itens.length + (itens.length === 1 ? ' atividade' : ' atividades')
+              : '') +
           '</span>' +
         '</header>' +
         '<div class="p-3 grid gap-2" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr))">' +
@@ -349,8 +372,11 @@ window.SIPAV = window.SIPAV || {};
             '</span>' +
           '</header>' +
           porDia.ordem.map(function (data) {
+            // A data esta no titulo do bloco, entao sai do chip. O encarregado
+            // desce para a segunda linha: lado a lado, o nome da atividade quebra
+            // em tres linhas e a grade perde o alinhamento.
             return blocoQuadrante(ui.dataLonga(data), null, porDia.mapa[data],
-              { torre: true, atividade: true, encarregado: true });
+              { torre: true, data: false, atividade: true, encarregado: true, empilhado: true });
           }).join('') +
         '</section>';
     }).join('');
@@ -427,7 +453,7 @@ window.SIPAV = window.SIPAV || {};
       itens.forEach(function (p) { datas[p.data] = true; });
       var qtd = Object.keys(datas).length;
       return blocoQuadrante(nome, qtd + (qtd === 1 ? ' dia programado' : ' dias programados'),
-        itens, { torre: true, atividade: true, encarregado: false });
+        itens, { torre: true, data: true, atividade: true, encarregado: false });
     }).join('');
   }
 
@@ -448,7 +474,7 @@ window.SIPAV = window.SIPAV || {};
     cont.innerHTML = g.ordem.map(function (nome) {
       // A atividade já está no título do bloco; o espaço vai para o encarregado
       return blocoQuadrante(nome, null, g.mapa[nome],
-        { torre: true, atividade: false, encarregado: true });
+        { torre: true, data: true, atividade: false, encarregado: true });
     }).join('');
   }
 
