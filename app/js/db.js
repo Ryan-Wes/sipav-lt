@@ -815,6 +815,83 @@ window.SIPAV = window.SIPAV || {};
     }
   }
 
+  /* ------------------------------------------------------------ Presença -- */
+
+  var canalPresenca = null;
+
+  /**
+   * Quem está com o SIPAV aberto agora, e em qual trecho.
+   *
+   * Presence do Realtime: estado efêmero que vive no canal, não no banco. Não
+   * passa por RLS nem deixa rastro — quando o navegador fecha, a pessoa some
+   * sozinha. Por isso não tem tabela nem migração aqui.
+   *
+   * Saber o trecho de cada um é o que importa de verdade: evita duas pessoas
+   * programando o mesmo trecho sem saber uma da outra.
+   *
+   * @param {object}   eu  {id, nome, papel}
+   * @param {function} cb  recebe a lista de presentes a cada mudança
+   * @returns {Promise} resolve quando entrou no canal
+   */
+  function entrarPresenca(eu, cb) {
+    sairPresenca();
+
+    canalPresenca = cliente().channel('sipav-presenca', {
+      config: { presence: { key: eu.id } }
+    });
+
+    function avisar() {
+      var estado = canalPresenca.presenceState();
+      var lista = Object.keys(estado).map(function (chave) {
+        // O Realtime guarda uma lista por chave, uma entrada por aba aberta.
+        // A mais recente é a que vale.
+        var abas = estado[chave];
+        var ultima = abas[abas.length - 1] || {};
+        return {
+          id: chave,
+          nome: ultima.nome || '—',
+          papel: ultima.papel || '',
+          trecho: ultima.trecho || null,
+          desde: ultima.desde || null,
+          abas: abas.length,
+          souEu: chave === eu.id
+        };
+      });
+      lista.sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); });
+      cb(lista);
+    }
+
+    canalPresenca
+      .on('presence', { event: 'sync' },  avisar)
+      .on('presence', { event: 'join' },  avisar)
+      .on('presence', { event: 'leave' }, avisar);
+
+    return new Promise(function (resolve) {
+      canalPresenca.subscribe(function (status) {
+        if (status === 'SUBSCRIBED') {
+          canalPresenca.track({
+            nome: eu.nome, papel: eu.papel, trecho: null, desde: new Date().toISOString()
+          }).then(resolve, resolve);
+        }
+      });
+    });
+  }
+
+  /** Atualiza o trecho que estou olhando, sem sair e entrar de novo. */
+  function anunciarTrecho(eu, trechoNome) {
+    if (!canalPresenca) return Promise.resolve();
+    return canalPresenca.track({
+      nome: eu.nome, papel: eu.papel, trecho: trechoNome, desde: new Date().toISOString()
+    });
+  }
+
+  function sairPresenca() {
+    if (canalPresenca) {
+      cliente().removeChannel(canalPresenca);
+      canalPresenca = null;
+    }
+  }
+
   /* ======================================================================== */
   /* EXPORTAÇÃO DA API                                                        */
   /* ======================================================================== */
@@ -868,6 +945,10 @@ window.SIPAV = window.SIPAV || {};
     criarTrecho: criarTrecho,
 
     escutarProgramacoes: escutarProgramacoes,
-    pararDeEscutar: pararDeEscutar
+    pararDeEscutar: pararDeEscutar,
+
+    entrarPresenca: entrarPresenca,
+    anunciarTrecho: anunciarTrecho,
+    sairPresenca: sairPresenca
   };
 })();

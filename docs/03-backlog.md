@@ -59,6 +59,7 @@ Situação conferida em **23/09/2026**, item por item, contra o que está public
 | P1 | Painel do supervisor | [PI-3] [REU] | ❌ |
 | P2 | Fluxo de solicitação → aceite | [PI-3] | ⚠️ RLS pronta e a programação já nasce `SOLICITADA`, mas não há tela de aprovação — o que o supervisor lançar fica invisível |
 | P3 | Mobile-first | [REU] | ✅ testado no celular |
+| **P6** | **Quem está no SIPAV agora** | [WR] 24/09 | ✅ Presence do Realtime no selo "Ao vivo", mostrando também o trecho de cada um — evita duas pessoas programando o mesmo trecho sem saber |
 | P4 | Funcionar offline | [WR] | ❌ |
 | **P5** | **Responsividade em telas intermediárias** | [WR] 24/09 | ✅ o cabeçalho se enxuga por etapas (rótulos → nome da obra → nome do usuário) e só quebra no celular; filtros em duas colunas no celular; grade nunca respeita mais colunas do que cabem |
 

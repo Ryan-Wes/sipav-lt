@@ -41,7 +41,7 @@
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 
   <!-- ?v= força o navegador a buscar de novo quando o código muda. -->
-  <link rel="stylesheet" href="css/app.css?v=53">
+  <link rel="stylesheet" href="css/app.css?v=54">
 </head>
 <body class="h-full flex flex-col antialiased">
 
@@ -186,13 +186,22 @@
         </button>
 
         <div class="flex items-center gap-2 pl-2.5 ml-1" style="border-left:1px solid var(--borda)">
-          <span id="indicadorTempoReal"
-                class="hidden items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg"
-                style="background:rgba(16,185,129,.10);color:#34D399;border:1px solid rgba(16,185,129,.25)"
-                title="Alterações de outros usuários aparecem aqui na hora">
-            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span class="rotulo-vivo">Ao vivo</span>
-          </span>
+          <!-- O selo "ao vivo" agora também é a porta de entrada da presença:
+               quem está com o SIPAV aberto e em qual trecho -->
+          <div class="menu-wrap">
+            <button id="indicadorTempoReal" onclick="SIPAV.app.alternarMenu('menuPresenca')"
+                    class="hidden items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg"
+                    style="background:rgba(16,185,129,.10);color:#34D399;border:1px solid rgba(16,185,129,.25)"
+                    title="Quem está no SIPAV agora">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span class="rotulo-vivo">Ao vivo</span>
+              <span id="contagemPresenca" class="font-bold"></span>
+            </button>
+            <div id="menuPresenca" class="menu hidden" style="min-width:260px">
+              <p class="rotulo" style="padding:.375rem .625rem;margin-bottom:0">No SIPAV agora</p>
+              <div id="listaPresenca"></div>
+            </div>
+          </div>
 
           <div class="bloco-usuario text-right leading-tight">
             <p class="text-xs font-semibold" id="nomeUsuario" style="color:var(--texto)">—</p>
@@ -514,11 +523,11 @@
   </div>
 </div>
 
-<script src="js/config.js?v=53"></script>
-<script src="js/db.js?v=53"></script>
-<script src="js/ui.js?v=53"></script>
-<script src="js/render.js?v=53"></script>
-<script src="js/isa.js?v=53"></script>
-<script src="js/app.js?v=53"></script>
+<script src="js/config.js?v=54"></script>
+<script src="js/db.js?v=54"></script>
+<script src="js/ui.js?v=54"></script>
+<script src="js/render.js?v=54"></script>
+<script src="js/isa.js?v=54"></script>
+<script src="js/app.js?v=54"></script>
 </body>
 </html>

@@ -252,6 +252,29 @@ body::before {
 /* Sem texto ele viraria uma pílula vazia — visível sobretudo no grid do celular */
 .resumo:empty { display: none; }
 
+/* ------------------------------------------------------------- Presença -- */
+
+#indicadorTempoReal { cursor: pointer; }
+#indicadorTempoReal:hover { background: rgba(16,185,129,.18) !important; }
+
+.item-presenca {
+  display: flex; align-items: center; gap: .5625rem;
+  padding: .4375rem .625rem; border-radius: .4375rem;
+}
+.item-presenca:hover { background: var(--superficie-2); }
+
+/* Iniciais em vez de foto: ninguém tem avatar cadastrado, e círculo com duas
+   letras já distingue quem é quem numa equipe de quatro. */
+.avatar-presenca {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; flex-shrink: 0;
+  border-radius: 999px;
+  font-size: .625rem; font-weight: 700; letter-spacing: .02em;
+  color: #34D399;
+  background: rgba(16,185,129,.12);
+  border: 1px solid rgba(16,185,129,.30);
+}
+
 /* Qual cabo-guarda: OPGW ou para-raio. Some quando a atividade não pede. */
 .selo-cabo {
   display: inline-block; vertical-align: middle; margin-left: .375rem;

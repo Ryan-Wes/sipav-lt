@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v53 · 2026-09-24';
+  var VERSAO = 'v54 · 2026-09-24';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -158,7 +158,11 @@ window.SIPAV = window.SIPAV || {};
 
   function sair() {
     ui.confirmar('Sair do sistema', 'Você precisará entrar novamente.', 'Sair')
-      .then(function (sim) { if (sim) db.auth.sair().then(mostrarLogin); });
+      .then(function (sim) {
+        if (!sim) return;
+        db.sairPresenca();
+        return db.auth.sair().then(mostrarLogin);
+      });
   }
 
   /* ======================================================================== */
@@ -286,6 +290,56 @@ window.SIPAV = window.SIPAV || {};
       }, 350);
     });
     ui.mostrar('indicadorTempoReal');
+    ligarPresenca();
+  }
+
+  /* ------------------------------------------------------------ Presença -- */
+
+  function euNaPresenca() {
+    return {
+      id: E.perfil.id,
+      nome: E.perfil.nome || E.perfil.email || 'Alguém',
+      papel: E.perfil.papel || ''
+    };
+  }
+
+  function ligarPresenca() {
+    db.entrarPresenca(euNaPresenca(), renderPresenca)
+      .then(anunciarTrechoAtual)
+      .catch(function () { /* presença é conforto, não pode derrubar a tela */ });
+
+    // Sai na hora em vez de esperar o servidor perceber que caiu
+    window.addEventListener('beforeunload', function () { db.sairPresenca(); });
+  }
+
+  function anunciarTrechoAtual() {
+    if (!E.perfil) return;
+    db.anunciarTrecho(euNaPresenca(), E.trechoAtual ? E.trechoAtual.nome : null)
+      .catch(function () {});
+  }
+
+  function renderPresenca(lista) {
+    var outros = lista.filter(function (p) { return !p.souEu; });
+    $('contagemPresenca').textContent = outros.length ? '· ' + lista.length : '';
+
+    $('listaPresenca').innerHTML = lista.map(function (p) {
+      var iniciais = p.nome.trim().split(/\s+/).slice(0, 2)
+        .map(function (x) { return x[0]; }).join('').toUpperCase();
+
+      return '' +
+        '<div class="item-presenca">' +
+          '<span class="avatar-presenca">' + esc(iniciais) + '</span>' +
+          '<div class="min-w-0 flex-1">' +
+            '<p class="text-sm font-semibold truncate" style="color:var(--texto)">' +
+              esc(p.nome) + (p.souEu ? ' <span style="color:var(--texto-fraco)">(você)</span>' : '') +
+            '</p>' +
+            '<p class="text-xs truncate" style="color:var(--texto-fraco)">' +
+              (p.trecho ? esc(p.trecho) : 'sem trecho aberto') +
+              (p.abas > 1 ? ' · ' + p.abas + ' abas' : '') +
+            '</p>' +
+          '</div>' +
+        '</div>';
+    }).join('');
   }
 
   /* ======================================================================== */
@@ -300,6 +354,7 @@ window.SIPAV = window.SIPAV || {};
       var escolhido = ev.target.value;
       E.trechoAtual = E.trechos.find(function (t) { return t.id === escolhido; });
       localStorage.setItem('sipav_trecho', E.trechoAtual.id);
+      anunciarTrechoAtual();
       ui.processando('Carregando trecho…');
       carregarTrecho().then(ui.pronto).catch(function (e) {
         ui.pronto(); ui.avisar(e.message, 'erro');
