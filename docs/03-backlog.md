@@ -95,6 +95,32 @@ Situação conferida em **23/09/2026**, item por item, contra o que está public
 | D1 | **SQL aplicado à mão** — o repositório guarda os scripts, mas nada os executa. A CLI do Supabase transformaria `db/` em migrations versionadas, com um comando só. Adiar até depois da demonstração | ❌ |
 | D2 | **Correção de estágio não tem trilha de auditoria própria** — fica só `registrado_por` e a observação na linha de execução. O histórico com trigger cobre programação, não execução | ⚠️ |
 | D3 | **Tailwind e demais bibliotecas vêm de CDN** — sem build, e com aviso do próprio Tailwind de que não é para produção. Some na migração para Next.js | ⚠️ |
+| D4 | **O que libera o reaterro quando a escavação é programada em partes** — ver abaixo | ⚠️ |
+
+### D4 — escavação em partes e a liberação do reaterro
+
+Decisão adiada pelo Wesley em 25/09: *"deixa como está por enquanto, mas depois
+volte nesse assunto"*.
+
+A [`db/27`](../db/27-escavacao-em-tres.sql) criou `ESCAVAÇÃO - ESTAI` e
+`ESCAVAÇÃO - MC` ao lado da `ESCAVAÇÃO` genérica. Mas `REATERRO 100%` e
+`ATERRAMENTO / CONTRAPESO` continuam dependendo só da genérica, e
+`atividade_dependencia` é um **E**, não um **OU** — não há como dizer "reaterro
+precisa de qualquer uma das três".
+
+Efeito hoje: quem programar só as duas específicas vê aviso de fora de sequência
+no reaterro e precisa marcar "programar mesmo assim".
+
+As três saídas:
+
+| | O quê | Custo |
+|---|---|---|
+| **a** | Pelo tipo da torre: estaiada exige estai **e** mastro central, autoportante exige só o estai — ela não tem mastro | Regra nova em `motivo_bloqueio_programacao()`. Afeta todo mundo, precisa de teste |
+| **b** | Apontar também a genérica quando as duas específicas terminarem | Zero de código, mas um apontamento a mais no campo e alguém vai esquecer |
+| **c** | Deixar como está e usar o override | Zero agora. Mas aviso que aparece à toa treina todo mundo a ignorar aviso — inclusive os verdadeiros |
+
+Recomendação: **(a)**. É a única que descreve a obra de verdade e faz o aviso
+sumir sozinho em vez de ser contornado.
 
 ## Levantado na reunião, ainda fora do escopo
 
