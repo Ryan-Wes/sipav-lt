@@ -39,6 +39,13 @@ window.SIPAV = window.SIPAV || {};
     var code = erro.code || '';
 
     if (code === '23505') {
+      // Desde a 29 a chave inclui o encarregado: duas equipes podem dividir a
+      // mesma torre no mesmo dia, mas a mesma equipe não entra duas vezes.
+      if (/programacao_sem_duplicata/.test(msg)) {
+        return new SipavErro(
+          'Este encarregado já está nesta atividade, nesta torre e nesta data. ' +
+          'Para dividir o serviço, escolha outro encarregado.', erro);
+      }
       if (msg.indexOf('programacao') !== -1) {
         return new SipavErro('Essa atividade já está programada para esta torre nesta data.', erro);
       }

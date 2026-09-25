@@ -586,8 +586,9 @@ html.dark .text-amber-600, html.dark .text-amber-500 { color: #FBBF24 !important
 
 html.dark .bg-sky-50 { background-color: rgba(14,165,233,.10) !important; }
 html.dark .border-sky-300 { border-color: rgba(14,165,233,.35) !important; }
-html.dark .text-sky-800 { color: #BAE6FD !important; }
+html.dark .text-sky-900, html.dark .text-sky-800 { color: #BAE6FD !important; }
 html.dark .text-sky-600 { color: #38BDF8 !important; }
+html.dark .border-sky-400 { border-color: rgba(14,165,233,.45) !important; }
 
 html.dark .bg-rose-50  { background-color: rgba(225,29,72,.10) !important; }
 html.dark .bg-rose-100 { background-color: rgba(225,29,72,.16) !important; }

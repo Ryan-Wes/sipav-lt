@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v59 · 2026-09-25';
+  var VERSAO = 'v60 · 2026-09-25';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -643,6 +643,7 @@ window.SIPAV = window.SIPAV || {};
     atualizarCampoCabo();
     mostrarSomaPercentual();
     verificarBloqueio();
+    verificarMesmoServico();
   }
 
   /* ----------------------------------------------------- Dia da semana ---- */
@@ -668,6 +669,7 @@ window.SIPAV = window.SIPAV || {};
     mostrarDiaDaSemana();
     verificarBloqueio();
     verificarConflito();
+    verificarMesmoServico();
   }
 
   /* ------------------------------------------------------- Encarregado ---- */
@@ -871,10 +873,55 @@ window.SIPAV = window.SIPAV || {};
   function limparAvisos() {
     ui.esconder('avisoBloqueio');
     ui.esconder('avisoConflito');
+    ui.esconder('avisoMesmoServico');
     $('campoOverride').checked = false;
     $('campoOverrideMotivo').value = '';
     $('campoOverrideMotivo').classList.add('hidden');
+    $('campoPermitirDuplo').checked = false;
     $('btnAdicionar').disabled = false;
+  }
+
+  /**
+   * Alguém já está nesse serviço, nessa torre, nesse dia.
+   *
+   * Dividir a atividade entre duas equipes no mesmo dia é rotina em campo — o
+   * banco deixa, desde que sejam encarregados diferentes. Mas lançar em cima sem
+   * perceber também acontece, então avisa e pede confirmação explícita.
+   *
+   * Roda sobre o que já está em memória: a lista da torre acabou de ser
+   * desenhada no próprio modal, não vale ida ao banco.
+   */
+  function verificarMesmoServico() {
+    if (!torreAberta) return;
+
+    var atividadeId = $('campoAtividade').value;
+    var data = $('campoData').value;
+    if (!atividadeId || !data) { ui.esconder('avisoMesmoServico'); return; }
+
+    var jaTem = render.programacoesDaTorre(torreAberta.torre_id).filter(function (p) {
+      return p.id !== programacaoEmEdicao &&
+             p.data === data &&
+             p.atividade && p.atividade.id === atividadeId;
+    });
+
+    if (!jaTem.length) {
+      ui.esconder('avisoMesmoServico');
+      $('campoPermitirDuplo').checked = false;
+      return;
+    }
+
+    var nomes = jaTem.map(function (p) {
+      return (p.encarregado ? p.encarregado.nome : 'sem encarregado') +
+             (Number(p.percentual) < 100 ? ' (' + formatarPercentual(p.percentual) + ')' : '');
+    });
+
+    $('textoMesmoServico').textContent =
+      nomes.join(' e ') + (jaTem.length === 1 ? ' já está' : ' já estão') +
+      ' com esta atividade nesta torre em ' + ui.dataCurta(data) +
+      '. Se a equipe vai dividir o serviço, siga — vale conferir os percentuais.';
+
+    ui.mostrar('avisoMesmoServico');
+    ui.icones();
   }
 
   // Cada consulta de bloqueio recebe um número. Só a mais recente pode pintar a
@@ -976,6 +1023,14 @@ window.SIPAV = window.SIPAV || {};
       return;
     }
 
+    // Dividir o serviço entre equipes é legítimo, mas tem que ser deliberado
+    var avisoDuplo = !$('avisoMesmoServico').classList.contains('hidden');
+    if (avisoDuplo && !$('campoPermitirDuplo').checked) {
+      ui.avisar('Já tem gente nesse serviço. Marque "adicionar outro mesmo assim" para dividir.', 'alerta', 6000);
+      $('campoPermitirDuplo').focus();
+      return;
+    }
+
     if (pedeCabo(atividadeId) && !cabo) {
       ui.avisar('Escolha o cabo: OPGW ou para-raio.', 'alerta');
       $('campoCabo').focus();
@@ -1017,6 +1072,7 @@ window.SIPAV = window.SIPAV || {};
         programacaoEmEdicao = null;
         atualizarModoFormulario();
         limparAvisos();
+        verificarMesmoServico();
         return recarregarProgramacoes();
       })
       .then(function () {
@@ -1135,6 +1191,7 @@ window.SIPAV = window.SIPAV || {};
 
     atualizarModoFormulario();
     verificarBloqueio();
+    verificarMesmoServico();
 
     // verificarBloqueio limpa a justificativa; devolve a original depois dela,
     // para quem estava editando não ter que redigitar o motivo.
@@ -3052,6 +3109,7 @@ window.SIPAV = window.SIPAV || {};
     abrirTorre: abrirTorre,
     verificarBloqueio: verificarBloqueio,
     verificarConflito: verificarConflito,
+    verificarMesmoServico: verificarMesmoServico,
     alternarOverride: alternarOverride,
     adicionarProgramacao: adicionarProgramacao,
     mudarAtividade: mudarAtividade,
