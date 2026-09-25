@@ -252,6 +252,21 @@ body::before {
 /* Sem texto ele viraria uma pílula vazia — visível sobretudo no grid do celular */
 .resumo:empty { display: none; }
 
+/* Serviço repartido em mais de um dia. Só aparece quando é menos de 100%. */
+.item-prog .parcial {
+  margin-left: .25rem;
+  font-size: .5625rem; font-weight: 700;
+  color: var(--acento);
+}
+.selo-parcial {
+  display: inline-block; vertical-align: middle; margin-left: .25rem;
+  font-size: .625rem; font-weight: 700;
+  padding: .0625rem .3125rem; border-radius: .25rem;
+  color: var(--acento);
+  background: rgba(249,115,22,.12);
+  border: 1px solid rgba(249,115,22,.30);
+}
+
 /* ------------------------------------------------------------- Presença -- */
 
 #indicadorTempoReal { cursor: pointer; }

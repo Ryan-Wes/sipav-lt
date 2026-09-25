@@ -93,8 +93,11 @@ Convenções observadas:
   `MUDANÇA PARA IGARITÉ`, `APOIO REATERRO ESTAI`, `MUDANÇA DO GUINDASTE PARA WANDERLEY`.
 - Complemento entre parênteses depois da torre: `74/2, 73/2 (RETIRADA DE FLAMBAGEM)`,
   `286/1 PÉ A, D`, `49/2 À 59/2 (4KM)`.
-- `R` (total semanal) é digitado à mão e às vezes é fracionário (`2.5`, `3.5` em
-  montagem — meia torre).
+- `R` (total semanal) é **a soma dos percentuais, não a contagem de torres**. Era por
+  isso que aparecia fracionário na planilha de vocês (`2,5` e `3,5` em montagem):
+  um serviço que leva dois dias na mesma torre se reparte, e cada dia leva a sua
+  parte. Torre repartida sai com o percentual na célula — `244/2 (50%)` —, senão a
+  célula diria que a torre inteira foi feita nos dois dias.
 
 ### Semana e quinzena
 

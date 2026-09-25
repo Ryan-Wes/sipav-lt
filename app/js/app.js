@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v56 · 2026-09-25';
+  var VERSAO = 'v57 · 2026-09-25';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -593,6 +593,7 @@ window.SIPAV = window.SIPAV || {};
     $('campoData').value = ui.hoje();
     $('campoObservacao').value = '';
     $('campoCabo').value = '';
+    $('campoPercentual').value = 100;
     programacaoEmEdicao = null;
     atualizarModoFormulario();
     limparAvisos();
@@ -643,7 +644,44 @@ window.SIPAV = window.SIPAV || {};
   /** Trocar a atividade mexe no seletor de cabo e na checagem de precedência. */
   function mudarAtividade() {
     atualizarCampoCabo();
+    mostrarSomaPercentual();
     verificarBloqueio();
+  }
+
+  /* -------------------------------------------------------- Percentual ---- */
+
+  /**
+   * Quanto desta atividade já está repartido nesta torre.
+   *
+   * Sem isso, programar 50% e depois 80% do mesmo serviço passa batido. A soma
+   * não é travada de propósito — o planejamento pode cobrir só parte da
+   * atividade na quinzena —, mas passar de 100% quase sempre é engano.
+   */
+  function mostrarSomaPercentual() {
+    var campo = $('somaPercentual');
+    if (!campo || !torreAberta) return;
+
+    var atividadeId = $('campoAtividade').value;
+    var outras = render.programacoesDaTorre(torreAberta.torre_id).filter(function (p) {
+      return p.atividade && p.atividade.id === atividadeId && p.id !== programacaoEmEdicao;
+    });
+
+    if (!outras.length) { campo.textContent = ''; campo.style.color = 'var(--texto-fraco)'; return; }
+
+    var jaTem = outras.reduce(function (s, p) { return s + (Number(p.percentual) || 100); }, 0);
+    var agora = Number($('campoPercentual').value) || 0;
+    var total = jaTem + agora;
+
+    campo.textContent = 'Já programado ' + formatarPercentual(jaTem) + ' em ' +
+      outras.length + (outras.length === 1 ? ' dia' : ' dias') +
+      ' · total ficaria ' + formatarPercentual(total);
+    campo.style.color = total > 100 ? '#F59E0B' : 'var(--texto-fraco)';
+  }
+
+  /** 50 → "50%", 12.5 → "12,5%" */
+  function formatarPercentual(n) {
+    var v = Number(n) || 0;
+    return (Math.round(v * 100) / 100).toLocaleString('pt-BR') + '%';
   }
 
   function renderListaDoModal() {
@@ -672,6 +710,9 @@ window.SIPAV = window.SIPAV || {};
             '<p class="text-sm font-semibold text-slate-800 truncate">' +
               esc(p.atividade ? p.atividade.nome : '—') +
               (p.cabo ? ' <span class="selo-cabo">' + esc(rotuloCabo(p.cabo)) + '</span>' : '') +
+              (Number(p.percentual) < 100
+                ? ' <span class="selo-parcial">' + formatarPercentual(p.percentual) + '</span>'
+                : '') +
             '</p>' +
             '<p class="text-xs text-slate-500">' +
               ui.dataLonga(p.data) +
@@ -812,6 +853,13 @@ window.SIPAV = window.SIPAV || {};
     // 4.2. Melhor cobrar agora do que descobrir na hora de exportar.
     var atividadeId = $('campoAtividade').value;
     var cabo = pedeCabo(atividadeId) ? ($('campoCabo').value || null) : null;
+    var percentual = Number($('campoPercentual').value) || 100;
+
+    if (percentual <= 0 || percentual > 100) {
+      ui.avisar('O percentual tem que ficar entre 1 e 100.', 'alerta');
+      $('campoPercentual').focus();
+      return;
+    }
 
     if (pedeCabo(atividadeId) && !cabo) {
       ui.avisar('Escolha o cabo: OPGW ou para-raio.', 'alerta');
@@ -829,7 +877,8 @@ window.SIPAV = window.SIPAV || {};
           data:            $('campoData').value,
           observacao:      $('campoObservacao').value.trim() || null,
           override_motivo: override ? motivo : null,
-          cabo:            cabo
+          cabo:            cabo,
+          percentual:      percentual
         })
       : db.criarProgramacao({
           torreId: torreAberta.torre_id,
@@ -839,13 +888,15 @@ window.SIPAV = window.SIPAV || {};
           observacao: $('campoObservacao').value.trim() || null,
           situacao: E.perfil.papel === 'SUPERVISOR' ? 'SOLICITADA' : 'APROVADA',
           overrideMotivo: override ? motivo : null,
-          cabo: cabo
+          cabo: cabo,
+          percentual: percentual
         });
 
     gravar
       .then(function () {
         $('campoObservacao').value = '';
         $('campoCabo').value = '';
+        $('campoPercentual').value = 100;
         atualizarCampoCabo();
         programacaoEmEdicao = null;
         atualizarModoFormulario();
@@ -963,6 +1014,7 @@ window.SIPAV = window.SIPAV || {};
 
     atualizarCampoCabo();
     $('campoCabo').value = p.cabo || '';
+    $('campoPercentual').value = p.percentual == null ? 100 : p.percentual;
 
     atualizarModoFormulario();
     verificarBloqueio();
@@ -978,6 +1030,7 @@ window.SIPAV = window.SIPAV || {};
     programacaoEmEdicao = null;
     $('campoObservacao').value = '';
     $('campoCabo').value = '';
+    $('campoPercentual').value = 100;
     atualizarModoFormulario();
     atualizarCampoCabo();
     verificarBloqueio();
@@ -2508,6 +2561,7 @@ window.SIPAV = window.SIPAV || {};
     alternarOverride: alternarOverride,
     adicionarProgramacao: adicionarProgramacao,
     mudarAtividade: mudarAtividade,
+    mostrarSomaPercentual: mostrarSomaPercentual,
     editarProgramacao: editarProgramacao,
     cancelarEdicao: cancelarEdicao,
     alternarExecucao: alternarExecucao,

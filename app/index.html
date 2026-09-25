@@ -41,7 +41,7 @@
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 
   <!-- ?v= força o navegador a buscar de novo quando o código muda. -->
-  <link rel="stylesheet" href="css/app.css?v=56">
+  <link rel="stylesheet" href="css/app.css?v=57">
 </head>
 <body class="h-full flex flex-col antialiased">
 
@@ -396,6 +396,17 @@
             <label class="rotulo">Data</label>
             <input id="campoData" type="date" class="campo" onchange="SIPAV.app.verificarBloqueio()">
           </div>
+          <!-- Quanto da torre cabe neste dia. Serviço que leva dois dias vira
+               duas programações que repartem o percentual. -->
+          <div>
+            <label class="rotulo">Percentual da torre</label>
+            <div class="flex items-center gap-2">
+              <input id="campoPercentual" type="number" min="1" max="100" step="1" value="100"
+                     class="campo" oninput="SIPAV.app.mostrarSomaPercentual()">
+              <span class="text-sm font-semibold shrink-0" style="color:var(--texto-fraco)">%</span>
+            </div>
+            <p id="somaPercentual" class="text-xs mt-1" style="color:var(--texto-fraco)"></p>
+          </div>
           <div>
             <label class="rotulo">Encarregado</label>
             <select id="campoEncarregado" class="campo" onchange="SIPAV.app.verificarConflito()"></select>
@@ -523,11 +534,11 @@
   </div>
 </div>
 
-<script src="js/config.js?v=56"></script>
-<script src="js/db.js?v=56"></script>
-<script src="js/ui.js?v=56"></script>
-<script src="js/render.js?v=56"></script>
-<script src="js/isa.js?v=56"></script>
-<script src="js/app.js?v=56"></script>
+<script src="js/config.js?v=57"></script>
+<script src="js/db.js?v=57"></script>
+<script src="js/ui.js?v=57"></script>
+<script src="js/render.js?v=57"></script>
+<script src="js/isa.js?v=57"></script>
+<script src="js/app.js?v=57"></script>
 </body>
 </html>

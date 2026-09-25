@@ -208,6 +208,11 @@ window.SIPAV = window.SIPAV || {};
     return v;
   }
 
+  /** 50 → "50%", 12.5 → "12,5%" */
+  function pct(n) {
+    return (Math.round((Number(n) || 0) * 100) / 100).toLocaleString('pt-BR') + '%';
+  }
+
   /** Minúscula, sem acento, sem pontuação, espaços colapsados. */
   function norm(texto) {
     return String(texto == null ? '' : texto)
@@ -351,7 +356,10 @@ window.SIPAV = window.SIPAV || {};
         dados[item][semana][enc] = dados[item][semana][enc] || {};
         var caixa = dados[item][semana][enc];
         caixa[dia] = caixa[dia] || [];
-        caixa[dia].push(p.torre ? p.torre.identificador : '?');
+        caixa[dia].push({
+          torre: p.torre ? p.torre.identificador : '?',
+          percentual: Number(p.percentual) || 100
+        });
       });
     });
 
@@ -413,17 +421,25 @@ window.SIPAV = window.SIPAV || {};
     empilhar(ws.getCell(linha, COL.ENCARREGADO),
       encs.map(function (e) { return e.toUpperCase(); }));   // a planilha é toda em caixa alta
 
+    // O total soma PERCENTUAIS, não torres. É o que explica os valores
+    // fracionários que já existiam na planilha — `2,5` e `3,5` em montagem não
+    // eram erro de digitação, eram meia torre.
     var total = 0;
     for (var dia = 0; dia < 6; dia++) {           // segunda a sábado
       empilhar(ws.getCell(linha, COL.SEGUNDA + dia), encs.map(function (e) {
-        var torres = porEncarregado[e][dia];
-        if (!torres || !torres.length) return '-';
-        total += torres.length;
-        return torres.join(', ');
+        var itens = porEncarregado[e][dia];
+        if (!itens || !itens.length) return '-';
+        return itens.map(function (x) {
+          total += x.percentual / 100;
+          // Torre repartida leva o percentual junto, senão a célula diz que a
+          // torre inteira foi feita naquele dia
+          return x.torre + (x.percentual < 100 ? ' (' + pct(x.percentual) + ')' : '');
+        }).join(', ');
       }));
     }
     ws.getCell(linha, COL.SEGUNDA + 6).value = 'DSR';    // domingo
-    ws.getCell(linha, COL.TOTAL).value = total || '-';
+    ws.getCell(linha, COL.TOTAL).value =
+      total ? Math.round(total * 100) / 100 : '-';
 
     ws.getRow(linha).hidden = false;             // senão ninguém vê o que foi escrito
     return total;

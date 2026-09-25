@@ -1,4 +1,4 @@
-/* =============================================================================
+﻿/* =============================================================================
    SIPAV LT — Camada de dados
    =============================================================================
    Tudo que fala com o Supabase mora aqui. O resto da aplicação nunca chama o
@@ -305,7 +305,7 @@ window.SIPAV = window.SIPAV || {};
   /* ======================================================================== */
 
   var SELECT_PROGRAMACAO =
-    'id, data, situacao, observacao, override_motivo, cabo, criado_em,' +
+    'id, data, situacao, observacao, override_motivo, cabo, percentual, criado_em,' +
     'torre:torre_id!inner ( id, identificador, ordem, km, trecho_id, canteiro_id ),' +
     'atividade:atividade_id ( id, nome, ordem_execucao, cor_fundo, cor_texto, icone ),' +
     'encarregado:encarregado_id ( id, nome )';
@@ -358,6 +358,7 @@ window.SIPAV = window.SIPAV || {};
           situacao:        dados.situacao || 'APROVADA',
           override_motivo: dados.overrideMotivo || null,
           cabo:            dados.cabo || null,
+          percentual:      dados.percentual || 100,
           criado_por:      u ? u.id : null
         })
         .select(SELECT_PROGRAMACAO)

@@ -49,6 +49,13 @@ window.SIPAV = window.SIPAV || {};
   /* O min() garante que em tela estreita o cartão vire uma coluna só em vez de
      estourar a largura. O número fixo de colunas ainda é respeitado no desktop;
      em tela pequena o app.css o substitui por auto-fill. */
+  /** 50 → "50%", 12.5 → "12,5%" */
+  function pct(n) {
+    var v = Number(n);
+    if (isNaN(v)) return '';
+    return (Math.round(v * 100) / 100).toLocaleString('pt-BR') + '%';
+  }
+
   function colunasCss() {
     if (E.colunas === 'auto') return 'repeat(auto-fill, minmax(min(100%, 158px), 1fr))';
     return 'repeat(' + E.colunas + ', minmax(0, 1fr))';
@@ -138,6 +145,11 @@ window.SIPAV = window.SIPAV || {};
             '<span class="flex-1">' +
               '<span class="data">' + ui.dataCurta(p.data) + '</span> ' +
               esc(p.atividade ? p.atividade.nome : '—') +
+              // Só aparece quando o serviço foi repartido: 100% é o normal e
+              // poluiria o cartão em toda linha
+              (Number(p.percentual) < 100
+                ? '<span class="parcial">' + pct(p.percentual) + '</span>'
+                : '') +
               (p.encarregado
                 ? '<span class="encarregado">' + esc(p.encarregado.nome) + '</span>'
                 : '') +
