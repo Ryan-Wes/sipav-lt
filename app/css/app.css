@@ -1155,11 +1155,6 @@ body.modo-selecao #visaoGrade { user-select: none; }
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
-/* Apertou de verdade: o período sai do resumo. Ele já está escrito na primeira
-   caixa de filtro, ali do lado, e é o pedaço mais comprido do texto. */
-@media (max-width: 1150px) {
-  .resumo-periodo { display: none; }
-}
 
 /* Uma linha, ponto. A quebra empurra a grade para baixo, e é a grade que se
    veio ver — então os filtros encolhem até o limite antes de quebrar. Abaixo

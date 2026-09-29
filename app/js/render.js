@@ -591,18 +591,14 @@ window.SIPAV = window.SIPAV || {};
     var btnLimpar = $('btnLimparFiltros');
     if (btnLimpar) btnLimpar.classList.toggle('hidden', !filtrando);
 
-    // O período entra no resumo de propósito: sem isso, uma torre programada
-    // fora do recorte some da grade e parece que o lançamento se perdeu.
-    //
-    // Numa tela estreita o período sai daqui — ele está escrito no filtro ao
-    // lado, e é o pedaço mais comprido. O resto cabe e a linha não quebra.
-    var periodo = esc(ui.rotuloPeriodo(E.periodo.de, E.periodo.ate));
-
+    // O período não entra aqui: ele está escrito na primeira caixa de filtro,
+    // na mesma linha, a dois palmos de distância. Estava no resumo para uma
+    // torre programada fora do recorte não parecer perdida, mas esse caso já
+    // tem aviso próprio na hora de gravar.
     $('resumoEstatisticas').innerHTML =
       '<span style="opacity:.75">' + E.torres.length + ' torres · </span>' +
       '<strong>' + qtd + ' programadas</strong>' +
-      '<span style="opacity:.75"> · ' + ui.km(kmProgramado) + ' km</span>' +
-      '<span class="resumo-periodo" style="opacity:.75"> · ' + periodo + '</span>';
+      '<span style="opacity:.75"> · ' + ui.km(kmProgramado) + ' km</span>';
 
     $('resumoEstatisticas').title =
       E.torres.length + ' torres · ' + qtd + ' programadas · ' +
