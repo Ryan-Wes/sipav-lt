@@ -787,6 +787,10 @@ body.modo-selecao .cartao-torre:hover { transform: none; }
 
 /* ---------------------------------------------------- Programação em lote -- */
 
+/* Campos da linha: compactos, para caber data, dia, encarregado e percentual
+   na mesma altura sem a linha virar duas. */
+.lote-campo { padding: .25rem .375rem; font-size: .75rem; }
+
 .lote-grade {
   display: flex; flex-wrap: wrap; gap: .3125rem;
   max-height: 148px; overflow-y: auto;
@@ -821,12 +825,14 @@ body.modo-selecao .cartao-torre:hover { transform: none; }
 .lote-linha:hover { background: var(--superficie-2); }
 
 .lote-id {
-  width: 68px; flex-shrink: 0;
+  width: 58px; flex-shrink: 0;
   font-size: .8125rem; font-weight: 700; color: var(--texto);
 }
 
 .lote-dia {
-  flex: 1; min-width: 0;
+  /* Só as três primeiras letras, largura fixa: com o encarregado na linha,
+     deixar o dia crescer desalinha tudo que vem depois. */
+  width: 32px; flex-shrink: 0;
   font-size: .6875rem; font-weight: 700;
   text-transform: uppercase; letter-spacing: .02em;
   color: var(--acento);
