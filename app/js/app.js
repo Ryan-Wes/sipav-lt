@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v87 · 2026-09-29';
+  var VERSAO = 'v88 · 2026-09-29';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -4792,11 +4792,19 @@ window.SIPAV = window.SIPAV || {};
     torres.forEach(function (t) { idPor[t.identificador] = t.id; });
 
     var registros = [];
+    var jaTem = {};
+
     linhas.forEach(function (l) {
       if (!l.estagio) return;                    // "Não iniciada" cai aqui
       var torreId = idPor[l.identificador];
       if (!torreId) return;
       expandirEstagio(acharAtividade(l.estagio)).forEach(function (aid) {
+        // A mesma torre repetida na colagem, ou dois estágios que expandem para
+        // a mesma atividade, gerariam duas execuções iguais — e execução
+        // contada em dobro vira avanço em dobro no relatório da ISA.
+        var chave = torreId + '|' + aid;
+        if (jaTem[chave]) return;
+        jaTem[chave] = true;
         registros.push({ torreId: torreId, atividadeId: aid });
       });
     });
