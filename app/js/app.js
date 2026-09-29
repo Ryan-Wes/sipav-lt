@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v70 · 2026-09-29';
+  var VERSAO = 'v71 · 2026-09-29';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -1888,9 +1888,63 @@ window.SIPAV = window.SIPAV || {};
    * identificador era um caminho paralelo que ninguém usava e que dava margem a
    * marcar torre errada sem ver.
    */
-  var loteSelecionadas = [];   // [{torreId, identificador, data, encarregadoId, percentual, bloqueio}]
+  /**
+   * O lote tem duas listas, e elas não são a mesma coisa.
+   *
+   * loteTorres é o que marquei na grade. loteLinhas é o que vai virar
+   * programação: uma linha para cada torre e cada atividade, com data,
+   * encarregado e percentual próprios. Vinte torres e duas atividades são
+   * quarenta linhas, e é isso mesmo — são quarenta programações.
+   *
+   * Antes a data era da torre e a atividade carregava um "+N dias" em cima
+   * dela. Ninguém entendia o campo, nem eu.
+   */
+  var loteTorres = [];         // [{torreId, identificador}]
+  var loteLinhas = [];         // [{torreId, identificador, atividadeId, data, encarregadoId, percentual, bloqueio}]
   var loteAtividades = [];     // ids
   var loteUltimoLote = [];     // ids das programações do último lote, para desfazer
+  var lotePadrao = { encarregadoId: '', percentual: 100 };
+
+  /** Dia seguinte, pulando domingo, que é DSR. */
+  function diaSeguinteUtil(iso) {
+    var d = ui.somarDias(ui.paraData(iso), 1);
+    while (d.getDay() === 0) d = ui.somarDias(d, 1);
+    return ui.iso(d);
+  }
+
+  /**
+   * Refaz as linhas quando as torres ou as atividades mudam, preservando o que
+   * eu já tinha ajustado à mão.
+   *
+   * A atividade nova de uma torre que já tem data nasce no dia seguinte útil da
+   * anterior, não em cima dela: a cadeia exige o pré-requisito programado para
+   * uma data ANTERIOR, e no mesmo dia ela trava. Nasce visível e dá para mudar.
+   */
+  function sincronizarLinhasLote() {
+    var antigas = {};
+    loteLinhas.forEach(function (l) { antigas[l.torreId + '|' + l.atividadeId] = l; });
+
+    var novas = [];
+    loteTorres.forEach(function (t) {
+      var anterior = null;
+      loteAtividades.forEach(function (aid) {
+        var achada = antigas[t.torreId + '|' + aid];
+        if (achada) { novas.push(achada); anterior = achada; return; }
+
+        var nova = {
+          torreId: t.torreId, identificador: t.identificador, atividadeId: aid,
+          data: anterior && anterior.data ? diaSeguinteUtil(anterior.data) : '',
+          encarregadoId: lotePadrao.encarregadoId,
+          percentual: lotePadrao.percentual,
+          bloqueio: null
+        };
+        novas.push(nova);
+        anterior = nova;
+      });
+    });
+
+    loteLinhas = novas;
+  }
 
   function abrirProgramacaoEmLote(atividadeId, encarregadoId, percentual, cabo, torresIniciais) {
     if (!E.trechoAtual) return;
@@ -1902,14 +1956,13 @@ window.SIPAV = window.SIPAV || {};
     }
 
     dataAtividade = {};
+    lotePadrao = { encarregadoId: encarregadoId || '', percentual: percentual || 100 };
     loteAtividades = atividadeId ? [atividadeId] : [];
-    loteSelecionadas = torres.map(function (t) {
-      return {
-        torreId: t.torre_id, identificador: t.identificador, data: '',
-        encarregadoId: encarregadoId || '', percentual: percentual || 100,
-        bloqueio: null
-      };
+    loteLinhas = [];
+    loteTorres = torres.map(function (t) {
+      return { torreId: t.torre_id, identificador: t.identificador };
     });
+    sincronizarLinhasLote();
 
     var opcoesEnc = E.encarregados.map(function (e) {
       return '<option value="' + e.id + '">' + esc(e.nome) + '</option>';
@@ -1919,8 +1972,8 @@ window.SIPAV = window.SIPAV || {};
       '<div class="space-y-4">' +
 
         '<p class="text-xs" style="color:var(--texto-fraco)">' +
-          'O que você preencher aqui vale para as <strong>' + loteSelecionadas.length +
-          '</strong> torres marcadas. Abaixo dá para ajustar torre a torre.' +
+          'O que você preencher aqui vale para as <strong>' + loteTorres.length +
+          '</strong> torres marcadas. Cada atividade vira uma linha ali embaixo, com data, encarregado e percentual próprios.' +
         '</p>' +
 
         '<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">' +
@@ -1988,7 +2041,7 @@ window.SIPAV = window.SIPAV || {};
 
         '<div class="pt-3" style="border-top:1px solid var(--borda)">' +
           '<div class="flex flex-wrap items-center justify-between gap-2 mb-2">' +
-            '<label class="rotulo" style="margin-bottom:0">Torres marcadas</label>' +
+            '<label class="rotulo" style="margin-bottom:0">O que vai ser programado</label>' +
             '<div class="flex items-center gap-2">' +
               '<button id="btnConferirLote" class="btn-secundario" ' +
                       'style="font-size:.6875rem;padding:.25rem .5rem" ' +
@@ -2001,7 +2054,7 @@ window.SIPAV = window.SIPAV || {};
       '</div>';
 
     ui.modalGenerico({
-      titulo: 'Programar ' + loteSelecionadas.length + ' torres — ' + E.trechoAtual.nome,
+      titulo: 'Programar ' + loteTorres.length + ' torres — ' + E.trechoAtual.nome,
       corpoHtml: corpo,
       botoes: [
         { rotulo: 'Cancelar', classe: 'btn-secundario' },
@@ -2032,40 +2085,13 @@ window.SIPAV = window.SIPAV || {};
 
   /* --------------------------------------------- Atividades do lote ------- */
 
-  /**
-   * Quantos dias depois da data da torre cada atividade cai, no lote.
-   *
-   * Aqui não dá para usar data fixa como na janela de uma torre só: no lote cada
-   * torre tem a sua data, então o que a atividade carrega é a distância.
-   */
-  var deslocLote = {};   // { atividadeId: dias }
-
-  function dataLoteDaAtividade(base, id) {
-    if (!base) return '';
-    var n = Number(deslocLote[id]) || 0;
-    return n ? ui.iso(ui.somarDias(ui.paraData(base), n)) : base;
-  }
-
   function renderChipsAtividadeLote() {
-    var varias = loteAtividades.length > 1;
-
     $('chipsAtividadeLote').innerHTML = loteAtividades.map(function (id) {
       var a = E.atividades.find(function (x) { return x.id === id; });
       if (!a) return '';
       var cor = a.cor_fundo || '#94A3B8';
       return '<span class="chip-escolhido" style="background:' + cor + ';color:' +
                ui.corDoTexto(cor) + '">' + esc(a.nome) +
-               // Dias depois da data da torre. Sem isso, escolher supressao e
-               // escavacao juntas jogava as duas no mesmo dia e a segunda travava
-               // na precedencia, mesmo com a primeira ali do lado.
-               (varias
-                 ? '<span class="chip-desloc" title="Dias depois da data da torre">+' +
-                     '<input type="number" min="0" max="60" step="1" ' +
-                            'value="' + (Number(deslocLote[id]) || 0) + '" ' +
-                            'onchange="SIPAV.app.mudarDeslocAtividadeLote(\'' + id + '\', this.value)" ' +
-                            'onclick="event.stopPropagation()">' +
-                   '</span>'
-                 : '') +
                '<button type="button" onclick="SIPAV.app.tirarAtividadeLote(\'' + id + '\')" ' +
                'title="Tirar">&times;</button>' +
              '</span>';
@@ -2079,14 +2105,9 @@ window.SIPAV = window.SIPAV || {};
     if (!precisa) $('loteCabo').value = '';
 
     // Trocar a atividade invalida a conferência anterior
-    loteSelecionadas.forEach(function (x) { x.bloqueio = null; });
+    sincronizarLinhasLote();
+    loteLinhas.forEach(function (x) { x.bloqueio = null; });
     renderLoteEscolhidas();
-  }
-
-  function mudarDeslocAtividadeLote(id, valor) {
-    deslocLote[id] = Math.max(0, Math.min(60, Number(valor) || 0));
-    loteSelecionadas.forEach(function (x) { x.bloqueio = null; });
-    renderChipsAtividadeLote();
   }
 
   function filtrarAtividadesLote() {
@@ -2175,27 +2196,40 @@ window.SIPAV = window.SIPAV || {};
     renderLoteEscolhidas();
   }
 
-  /** @param {boolean} sequencial uma torre por dia útil, em vez de todas juntas */
+  /**
+   * Espalha a data base pelas linhas.
+   *
+   * @param {boolean} sequencial uma torre por dia útil, em vez de todas juntas
+   *
+   * Com mais de uma atividade, as atividades da mesma torre nunca caem no mesmo
+   * dia: a segunda vai para o dia seguinte útil. É o que a cadeia exige, e é o
+   * que eu faria na mão de qualquer jeito.
+   */
   function distribuirLote(sequencial) {
     var base = $('loteBase').value;
     if (!base) { ui.avisar('Informe a data.', 'alerta'); return; }
 
-    var d = ui.paraData(base);
-    loteSelecionadas.forEach(function (x, i) {
-      x.bloqueio = null;
-      if (!sequencial) { x.data = base; return; }
-      if (i > 0) {
-        d = ui.somarDias(d, 1);
-        while (d.getDay() === 0) d = ui.somarDias(d, 1);   // domingo é DSR
-      }
-      x.data = ui.iso(d);
+    var diaDaTorre = base;
+
+    loteTorres.forEach(function (t, i) {
+      if (sequencial && i > 0) diaDaTorre = diaSeguinteUtil(diaDaTorre);
+
+      var dia = diaDaTorre;
+      loteLinhas.filter(function (l) { return l.torreId === t.torreId; })
+        .forEach(function (l, j) {
+          if (j > 0) dia = diaSeguinteUtil(dia);
+          l.data = dia;
+          l.bloqueio = null;
+        });
     });
+
     renderLoteEscolhidas();
   }
 
   function aplicarEncarregadoLote() {
     var id = $('loteEncarregado').value;
-    loteSelecionadas.forEach(function (x) { x.encarregadoId = id; });
+    lotePadrao.encarregadoId = id;
+    loteLinhas.forEach(function (x) { x.encarregadoId = id; });
     renderLoteEscolhidas();
   }
 
@@ -2212,19 +2246,24 @@ window.SIPAV = window.SIPAV || {};
       campo.value = 100;
       v = 100;
     }
-    loteSelecionadas.forEach(function (x) { x.percentual = v; });
+    lotePadrao.percentual = v;
+    loteLinhas.forEach(function (x) { x.percentual = v; });
     renderLoteEscolhidas();
   }
 
   /* ------------------------------------------------- Linha por linha ------ */
 
-  function mudarDataLote(torreId, valor) {
-    var x = loteSelecionadas.find(function (y) { return y.torreId === torreId; });
+  function linhaLote(i) {
+    return loteLinhas[Number(i)] || null;
+  }
+
+  function mudarDataLote(i, valor) {
+    var x = linhaLote(i);
     if (x) { x.data = valor; x.bloqueio = null; renderLoteEscolhidas(); }
   }
 
-  function mudarEncarregadoLote(torreId, valor) {
-    var x = loteSelecionadas.find(function (y) { return y.torreId === torreId; });
+  function mudarEncarregadoLote(i, valor) {
+    var x = linhaLote(i);
     if (x) x.encarregadoId = valor;
   }
 
@@ -2232,9 +2271,9 @@ window.SIPAV = window.SIPAV || {};
    * Passar de 100% não é aviso, é recusa: a soma dos percentuais vira a coluna
    * TOTAL do relatório da ISA, e torre e meia não existe.
    */
-  function mudarPercentualLote(torreId, valor, campo) {
+  function mudarPercentualLote(i, valor, campo) {
     var v = Number(valor);
-    var x = loteSelecionadas.find(function (y) { return y.torreId === torreId; });
+    var x = linhaLote(i);
     if (!x) return;
 
     if (!(v > 0 && v <= 100)) {
@@ -2246,10 +2285,23 @@ window.SIPAV = window.SIPAV || {};
     renderLoteEscolhidas();
   }
 
-  function removerTorreLote(torreId) {
-    loteSelecionadas = loteSelecionadas.filter(function (x) { return x.torreId !== torreId; });
-    delete E.selecionadas[torreId];
-    if (!loteSelecionadas.length) {
+  /**
+   * Tira uma linha. Se era a última daquela torre, a torre sai da marcação da
+   * grade junto — senão ela ficaria marcada lá fora sem nada para gravar.
+   */
+  function removerLinhaLote(i) {
+    var x = linhaLote(i);
+    if (!x) return;
+
+    loteLinhas.splice(Number(i), 1);
+
+    var sobrou = loteLinhas.some(function (l) { return l.torreId === x.torreId; });
+    if (!sobrou) {
+      loteTorres = loteTorres.filter(function (t) { return t.torreId !== x.torreId; });
+      delete E.selecionadas[x.torreId];
+    }
+
+    if (!loteTorres.length) {
       ui.fecharModal('modalGenerico');
       ui.avisar('Nenhuma torre sobrou no lote.', 'info');
       render.tudo(); renderBarraSelecao();
@@ -2258,47 +2310,71 @@ window.SIPAV = window.SIPAV || {};
     renderLoteEscolhidas();
   }
 
+  /**
+   * Uma linha por torre e atividade — é uma linha por programação que vai ser
+   * criada. O identificador só aparece na primeira linha de cada torre: repetir
+   * "46/1" quatro vezes seguidas só atrapalha a leitura.
+   */
   function renderLoteEscolhidas() {
     var caixa = $('loteEscolhidas');
     if (!caixa) return;
 
-    var total = loteSelecionadas.length * loteAtividades.length;
-    var travadas = loteSelecionadas.filter(function (x) { return x.bloqueio; }).length;
+    var travadas = loteLinhas.filter(function (x) { return x.bloqueio; }).length;
 
-    $('loteResumo').textContent = total
-      ? loteSelecionadas.length + ' × ' + loteAtividades.length + ' = ' + total + ' programações'
-      : loteSelecionadas.length + ' torre(s) · escolha a atividade';
+    $('loteResumo').textContent = loteAtividades.length
+      ? loteTorres.length + ' × ' + loteAtividades.length + ' = ' +
+        loteLinhas.length + ' programações'
+      : loteTorres.length + ' torre(s) · escolha a atividade';
 
-    avisarDataPassada(loteSelecionadas.map(function (x) { return x.data; }));
+    avisarDataPassada(loteLinhas.map(function (x) { return x.data; }));
+
+    if (!loteAtividades.length) {
+      caixa.innerHTML =
+        '<p class="text-xs py-3 text-center" style="color:var(--texto-fraco)">' +
+          loteTorres.map(function (t) { return esc(t.identificador); }).join(', ') +
+        '</p>';
+      return;
+    }
 
     var opcoesEnc = E.encarregados.map(function (e) {
       return '<option value="' + e.id + '">' + esc(e.nome) + '</option>';
     }).join('');
 
+    var torreAnterior = null;
+
     caixa.innerHTML =
-      '<div class="space-y-1 max-h-60 overflow-y-auto barra-fina">' +
-      loteSelecionadas.map(function (x) {
+      '<div class="space-y-1 max-h-72 overflow-y-auto barra-fina">' +
+      loteLinhas.map(function (x, i) {
+        var a = E.atividades.find(function (y) { return y.id === x.atividadeId; });
+        var cor = a && a.cor_fundo ? a.cor_fundo : '#94A3B8';
+        var primeira = x.torreId !== torreAnterior;
+        torreAnterior = x.torreId;
+
         var dia = x.data ? ui.diaDaSemana(x.data) : '';
         var fds = x.data && ui.fimDeSemana(x.data);
         var passada = x.data && x.data < ui.hoje();
-        return '<div class="lote-linha' + (x.bloqueio ? ' lote-travada' : '') + '">' +
-          '<span class="lote-id">' + esc(x.identificador) + '</span>' +
+
+        return '<div class="lote-linha' + (x.bloqueio ? ' lote-travada' : '') +
+                          (primeira ? ' lote-torre-nova' : '') + '">' +
+          '<span class="lote-id">' + (primeira ? esc(x.identificador) : '') + '</span>' +
+          '<span class="lote-ativ" style="background:' + cor + ';color:' +
+            ui.corDoTexto(cor) + '">' + esc(a ? a.nome : '—') + '</span>' +
           '<input type="date" class="campo lote-campo' + (passada ? ' lote-passada' : '') + '" ' +
                  'style="width:130px" value="' + (x.data || '') + '" ' +
-                 'onchange="SIPAV.app.mudarDataLote(\'' + x.torreId + '\', this.value)">' +
+                 'onchange="SIPAV.app.mudarDataLote(' + i + ', this.value)">' +
           '<span class="lote-dia' + (fds ? ' fim-de-semana' : '') + '">' +
             esc(dia.slice(0, 3)) + '</span>' +
           '<select class="campo lote-campo lote-enc" style="width:140px" ' +
-                  'onchange="SIPAV.app.mudarEncarregadoLote(\'' + x.torreId + '\', this.value)">' +
+                  'onchange="SIPAV.app.mudarEncarregadoLote(' + i + ', this.value)">' +
             '<option value="">— sem encarregado —</option>' + opcoesEnc +
           '</select>' +
           '<span class="lote-pct">' +
             '<input type="number" min="1" max="100" step="1" class="campo lote-campo" ' +
                    'style="width:52px;text-align:right" value="' + (x.percentual || 100) + '" ' +
-                   'onchange="SIPAV.app.mudarPercentualLote(\'' + x.torreId + '\', this.value, this)">' +
+                   'onchange="SIPAV.app.mudarPercentualLote(' + i + ', this.value, this)">' +
             '<span>%</span>' +
           '</span>' +
-          '<button class="lote-remover" onclick="SIPAV.app.removerTorreLote(\'' + x.torreId + '\')" ' +
+          '<button class="lote-remover" onclick="SIPAV.app.removerLinhaLote(' + i + ')" ' +
                   'title="Tirar do lote">&times;</button>' +
           (x.bloqueio
             ? '<p class="lote-motivo">' + esc(x.bloqueio) + '</p>'
@@ -2307,12 +2383,12 @@ window.SIPAV = window.SIPAV || {};
       }).join('') + '</div>' +
       (travadas
         ? '<p class="text-xs mt-2 text-rose-500 font-semibold">' + travadas +
-          ' torre(s) fora da sequência. Tire do lote ou programe uma a uma, pelo ' +
-          'cartão, com a justificativa.</p>'
+          ' lançamento(s) fora da sequência. Tire da lista ou programe um a um, ' +
+          'pelo cartão, com a justificativa.</p>'
         : '');
 
     Array.prototype.forEach.call(caixa.querySelectorAll('.lote-enc'), function (sel, i) {
-      sel.value = loteSelecionadas[i] ? (loteSelecionadas[i].encarregadoId || '') : '';
+      sel.value = loteLinhas[i] ? (loteLinhas[i].encarregadoId || '') : '';
     });
   }
 
@@ -2328,28 +2404,23 @@ window.SIPAV = window.SIPAV || {};
       ui.avisar('Escolha a atividade antes de conferir.', 'alerta');
       return;
     }
-    var semData = loteSelecionadas.filter(function (x) { return !x.data; });
+    var semData = loteLinhas.filter(function (x) { return !x.data; });
     if (semData.length) { ui.avisar('Informe as datas antes de conferir.', 'alerta'); return; }
 
     ui.processando('Conferindo a sequência…');
 
-    Promise.all(loteSelecionadas.map(function (x) {
-      // Basta uma atividade travar para a torre entrar em alerta
-      return Promise.all(loteAtividades.map(function (aid) {
-        return db.motivoBloqueio(x.torreId, aid, dataLoteDaAtividade(x.data, aid))
-          .catch(function () { return null; });
-      })).then(function (motivos) {
-        var quais = motivos.filter(Boolean);
-        x.bloqueio = quais.length ? quais[0] : null;
-      });
+    Promise.all(loteLinhas.map(function (x) {
+      return db.motivoBloqueio(x.torreId, x.atividadeId, x.data)
+        .catch(function () { return null; })
+        .then(function (motivo) { x.bloqueio = motivo || null; });
     }))
       .then(function () {
         ui.pronto();
         renderLoteEscolhidas();
-        var travadas = loteSelecionadas.filter(function (y) { return y.bloqueio; }).length;
+        var travadas = loteLinhas.filter(function (y) { return y.bloqueio; }).length;
         ui.avisar(travadas
-          ? travadas + ' torre(s) fora da sequência — veja o motivo em cada linha.'
-          : 'Sequência conferida: todas liberadas.', travadas ? 'alerta' : 'sucesso', 5000);
+          ? travadas + ' lançamento(s) fora da sequência — veja o motivo em cada linha.'
+          : 'Sequência conferida: todos liberados.', travadas ? 'alerta' : 'sucesso', 5000);
       })
       .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro'); });
   }
@@ -2368,9 +2439,9 @@ window.SIPAV = window.SIPAV || {};
       return;
     }
 
-    var semData = loteSelecionadas.filter(function (x) { return !x.data; });
+    var semData = loteLinhas.filter(function (x) { return !x.data; });
     if (semData.length) {
-      ui.avisar(semData.length + ' torre(s) sem data.', 'alerta');
+      ui.avisar(semData.length + ' lançamento(s) sem data.', 'alerta');
       return;
     }
 
@@ -2383,16 +2454,11 @@ window.SIPAV = window.SIPAV || {};
 
     var situacao = E.perfil.papel === 'SUPERVISOR' ? 'SOLICITADA' : 'APROVADA';
 
-    var tarefas = [];
-    loteSelecionadas.forEach(function (x) {
-      loteAtividades.forEach(function (aid) {
-        tarefas.push({ linha: x, atividadeId: aid, data: dataLoteDaAtividade(x.data, aid) });
-      });
-    });
-
     // Em ordem de data: a cadeia precisa da supressão gravada antes da escavação,
     // senão o gatilho recusa a segunda por precedência.
-    tarefas.sort(function (a, b) { return a.data < b.data ? -1 : a.data > b.data ? 1 : 0; });
+    var tarefas = loteLinhas.slice().sort(function (a, b) {
+      return a.data < b.data ? -1 : a.data > b.data ? 1 : 0;
+    });
 
     ui.processando('Programando ' + tarefas.length + ' lançamento(s)…');
 
@@ -2401,13 +2467,13 @@ window.SIPAV = window.SIPAV || {};
     tarefas.reduce(function (antes, t) {
       return antes.then(function () {
         var a = E.atividades.find(function (y) { return y.id === t.atividadeId; });
-        var rotulo = t.linha.identificador + ' · ' + (a ? a.nome : '');
+        var rotulo = t.identificador + ' · ' + (a ? a.nome : '');
         return db.criarProgramacao({
-          torreId: t.linha.torreId,
+          torreId: t.torreId,
           atividadeId: t.atividadeId,
-          encarregadoId: t.linha.encarregadoId || null,
+          encarregadoId: t.encarregadoId || null,
           data: t.data,
-          percentual: t.linha.percentual || 100,
+          percentual: t.percentual || 100,
           cabo: pedeCabo(t.atividadeId) ? cabo : null,
           situacao: situacao
         })
@@ -4452,9 +4518,8 @@ window.SIPAV = window.SIPAV || {};
     filtrarAtividadesLote: filtrarAtividadesLote,
     escolherAtividadeLote: escolherAtividadeLote,
     tirarAtividadeLote: tirarAtividadeLote,
-    mudarDeslocAtividadeLote: mudarDeslocAtividadeLote,
     teclaAtividadeLote: teclaAtividadeLote,
-    removerTorreLote: removerTorreLote,
+    removerLinhaLote: removerLinhaLote,
     distribuirLote: distribuirLote,
     mudarDataLote: mudarDataLote,
     mudarDataBaseLote: mudarDataBaseLote,
