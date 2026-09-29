@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v67 · 2026-09-29';
+  var VERSAO = 'v69 · 2026-09-29';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -3583,7 +3583,8 @@ window.SIPAV = window.SIPAV || {};
           'programação e colore a grade.' +
         '</p>' +
         '<textarea id="areaImportacao" rows="12" ' +
-          'class="campo font-mono text-xs barra-fina" placeholder="Cole aqui…"></textarea>' +
+          'class="campo font-mono text-xs barra-fina" placeholder="Cole aqui…">' +
+          esc(textoImportacao) + '</textarea>' +
         '<p class="text-xs text-slate-400">' +
           'Torres já existentes no trecho têm o km atualizado. As novas são criadas na ordem colada.' +
         '</p>' +
@@ -3594,7 +3595,7 @@ window.SIPAV = window.SIPAV || {};
       corpoHtml: corpo,
       botoes: [
         { rotulo: 'Cancelar', classe: 'btn-secundario' },
-        { rotulo: 'Importar', classe: 'btn-primario', acao: executarImportacao }
+        { rotulo: 'Conferir', classe: 'btn-primario', acao: conferirImportacao }
       ]
     });
   }
@@ -3867,22 +3868,238 @@ window.SIPAV = window.SIPAV || {};
       });
   }
 
-  function executarImportacao() {
-    var linhas = interpretarLinhas($('areaImportacao').value);
+  /**
+   * Km com as mesmas casas dos dois lados da seta.
+   *
+   * ui.km encolhe o 0,617 e o 0,500 de formas diferentes, e ler "0,50 → 0,617"
+   * dá a impressão de que mudou mais do que mudou.
+   */
+  function kmIgual(n) {
+    var v = Number(n);
+    if (isNaN(v)) v = 0;
+    return v.toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+  }
+
+  /**
+   * Confere o que a colagem vai fazer ANTES de escrever no banco.
+   *
+   * É o ponto do sistema onde um erro entra mais fundo e mais calado: a
+   * importação mexe em torre, km, canteiro e estágio de uma vez, e o estágio
+   * reescreve a carga inicial inteira da torre. Já mordeu — foi assim que
+   * entraram dezenas de canteiros com nome de número, por causa de um separador
+   * errado, e só se percebeu depois.
+   *
+   * Nada é gravado aqui. Só leitura e comparação com o que já existe.
+   */
+  function analisarImportacao(linhas) {
+    var porIdent = {};
+    E.torres.forEach(function (t) { porIdent[normalizar(t.identificador)] = t; });
+
+    var canteirosConhecidos = {};
+    E.canteiros.forEach(function (c) { canteirosConhecidos[normalizar(c.nome)] = c; });
+
+    var r = {
+      novas: [], atualizadas: [], semMudanca: [],
+      canteirosNovos: [], estagios: {}, duplicadas: [],
+      estagiosDesconhecidos: [], canteirosSuspeitos: [], total: linhas.length
+    };
+
+    var vistas = {};
+
+    linhas.forEach(function (l) {
+      var chave = normalizar(l.identificador);
+
+      if (vistas[chave]) { r.duplicadas.push(l.identificador); return; }
+      vistas[chave] = true;
+
+      if (l.estagio && !acharAtividade(l.estagio)) {
+        if (r.estagiosDesconhecidos.indexOf(l.estagio) === -1) {
+          r.estagiosDesconhecidos.push(l.estagio);
+        }
+      } else if (l.estagio) {
+        r.estagios[l.estagio] = (r.estagios[l.estagio] || 0) + 1;
+      }
+
+      if (l.canteiroNome) {
+        var ck = normalizar(l.canteiroNome);
+        if (/^[0-9]+$/.test(l.canteiroNome)) {
+          if (r.canteirosSuspeitos.indexOf(l.canteiroNome) === -1) {
+            r.canteirosSuspeitos.push(l.canteiroNome);
+          }
+        } else if (!canteirosConhecidos[ck] && r.canteirosNovos.indexOf(l.canteiroNome) === -1) {
+          r.canteirosNovos.push(l.canteiroNome);
+        }
+      }
+
+      var atual = porIdent[chave];
+      if (!atual) { r.novas.push(l); return; }
+
+      // Compara campo a campo para dizer o que muda, não só "vai mexer"
+      var mudancas = [];
+      var kmAtual = Number(atual.km);
+      if (Math.abs(kmAtual - l.km) > 0.0001) {
+        mudancas.push('km ' + kmIgual(kmAtual) + ' → ' + kmIgual(l.km));
+      }
+      if (l.canteiroNome) {
+        var cAtual = E.canteiros.find(function (c) { return c.id === atual.canteiro_id; });
+        var nomeAtual = cAtual ? cAtual.nome : null;
+        if (normalizar(nomeAtual || '') !== normalizar(l.canteiroNome)) {
+          mudancas.push('canteiro ' + (nomeAtual || '—') + ' → ' + l.canteiroNome);
+        }
+      }
+      if (l.estrutura && l.estrutura !== atual.estrutura) {
+        mudancas.push('tipo ' + (atual.estrutura || '—') + ' → ' + l.estrutura);
+      }
+      if (l.modelo && normalizar(l.modelo) !== normalizar(atual.modelo || '')) {
+        mudancas.push('modelo ' + (atual.modelo || '—') + ' → ' + l.modelo);
+      }
+      if (l.estagio) {
+        var nova = acharAtividade(l.estagio);
+        if (nova && normalizar(nova.nome) !== normalizar(atual.ultima_atividade || '')) {
+          mudancas.push('estágio ' + (atual.ultima_atividade || 'não iniciada') + ' → ' + nova.nome);
+        }
+      }
+
+      if (mudancas.length) r.atualizadas.push({ linha: l, mudancas: mudancas });
+      else r.semMudanca.push(l);
+    });
+
+    return r;
+  }
+
+  /** Bloco de contagem, um por tipo de efeito. */
+  function cartaoPrevia(cor, numero, titulo, detalhe) {
+    return '<div class="previa-cartao ' + cor + '">' +
+             '<p class="previa-numero">' + numero + '</p>' +
+             '<p class="previa-titulo">' + esc(titulo) + '</p>' +
+             (detalhe ? '<p class="previa-detalhe">' + detalhe + '</p>' : '') +
+           '</div>';
+  }
+
+  function conferirImportacao() {
+    // Guarda aqui, e não em quem chama: o "Voltar e corrigir" devolve a colagem
+    // inteira. Quem colou noventa linhas e viu um estágio errado não vai
+    // recolar tudo.
+    textoImportacao = $('areaImportacao').value;
+    var linhas = interpretarLinhas(textoImportacao);
     if (!linhas.length) { ui.avisar('Nada para importar.', 'alerta'); return; }
 
-    // Valida os estágios ANTES de gravar: melhor recusar tudo do que importar
-    // metade e deixar a outra metade sem estágio, silenciosamente.
-    var desconhecidos = {};
-    linhas.forEach(function (l) {
-      if (l.estagio && !acharAtividade(l.estagio)) desconhecidos[l.estagio] = true;
-    });
-    var ruins = Object.keys(desconhecidos);
-    if (ruins.length) {
-      ui.avisar('Estágio não reconhecido: ' + ruins.join(' · ') +
-                '. Cadastre a atividade ou corrija o nome na planilha.', 'erro', 10000);
-      return;
+    importacaoPendente = linhas;
+    var r = analisarImportacao(linhas);
+
+    var impede = r.estagiosDesconhecidos.length || r.canteirosSuspeitos.length;
+
+    var corpo = '<div class="space-y-3">';
+
+    if (r.canteirosSuspeitos.length) {
+      corpo +=
+        '<div class="rounded-lg border border-rose-300 bg-rose-50 p-3">' +
+          '<p class="text-sm font-semibold text-rose-800">Separador errado</p>' +
+          '<p class="text-xs text-rose-800 mt-1">' +
+            'A terceira coluna veio com número (' +
+            esc(r.canteirosSuspeitos.slice(0, 4).join(', ')) + '…) onde deveria vir nome ' +
+            'de canteiro. Quase sempre é vírgula usada como separador — ela é o decimal ' +
+            'do km. Use <strong>tab</strong> ou <strong>ponto e vírgula</strong>.' +
+          '</p>' +
+        '</div>';
     }
+
+    if (r.estagiosDesconhecidos.length) {
+      corpo +=
+        '<div class="rounded-lg border border-rose-300 bg-rose-50 p-3">' +
+          '<p class="text-sm font-semibold text-rose-800">' +
+            r.estagiosDesconhecidos.length + ' estágio(s) que o SIPAV não conhece</p>' +
+          '<p class="text-xs text-rose-800 mt-1"><strong>' +
+            esc(r.estagiosDesconhecidos.join(' · ')) + '</strong></p>' +
+          '<p class="text-xs text-rose-700 mt-1">' +
+            'Cadastre a atividade ou corrija o nome na planilha. Nada é importado ' +
+            'enquanto isso: metade importada e metade sem estágio é pior que nada.' +
+          '</p>' +
+        '</div>';
+    }
+
+    if (r.duplicadas.length) {
+      corpo +=
+        '<div class="rounded-lg border border-amber-300 bg-amber-50 p-3">' +
+          '<p class="text-sm font-semibold text-amber-900">' +
+            r.duplicadas.length + ' torre(s) repetida(s) na colagem</p>' +
+          '<p class="text-xs text-amber-800 mt-1">' +
+            esc(r.duplicadas.slice(0, 10).join(', ')) +
+            (r.duplicadas.length > 10 ? ' e mais ' + (r.duplicadas.length - 10) : '') +
+            '. Só a primeira aparição de cada uma vale.' +
+          '</p>' +
+        '</div>';
+    }
+
+    corpo +=
+      '<div class="previa-grade">' +
+        cartaoPrevia('previa-nova', r.novas.length, 'torres novas',
+          r.novas.length
+            ? esc(r.novas.slice(0, 6).map(function (l) { return l.identificador; }).join(', ')) +
+              (r.novas.length > 6 ? '…' : '')
+            : '') +
+        cartaoPrevia('previa-muda', r.atualizadas.length, 'torres alteradas', '') +
+        cartaoPrevia('previa-igual', r.semMudanca.length, 'sem mudança', '') +
+        cartaoPrevia('previa-canteiro', r.canteirosNovos.length, 'canteiros criados',
+          esc(r.canteirosNovos.join(', '))) +
+      '</div>';
+
+    if (r.atualizadas.length) {
+      corpo +=
+        '<div>' +
+          '<p class="rotulo">O que muda nas torres que já existem</p>' +
+          '<div class="space-y-1 max-h-48 overflow-y-auto barra-fina">' +
+            r.atualizadas.map(function (a) {
+              return '<div class="previa-linha">' +
+                '<span class="lote-id">' + esc(a.linha.identificador) + '</span>' +
+                '<span class="previa-mudancas">' + esc(a.mudancas.join(' · ')) + '</span>' +
+              '</div>';
+            }).join('') +
+          '</div>' +
+        '</div>';
+    }
+
+    var estagios = Object.keys(r.estagios);
+    if (estagios.length) {
+      corpo +=
+        '<div>' +
+          '<p class="rotulo">Estágios que vão ser marcados como executados</p>' +
+          '<p class="text-xs" style="color:var(--texto-suave)">' +
+            estagios.sort().map(function (nome) {
+              return esc(nome) + ' <strong>(' + r.estagios[nome] + ')</strong>';
+            }).join(' · ') +
+          '</p>' +
+          '<p class="text-xs mt-1" style="color:var(--texto-fraco)">' +
+            'Cada estágio marca a atividade informada e todas as obrigatórias ' +
+            'anteriores da cadeia, e <strong>substitui</strong> a carga anterior da torre. ' +
+            'Apontamento feito em campo não é tocado.' +
+          '</p>' +
+        '</div>';
+    }
+
+    corpo += '</div>';
+
+    var botoes = [{ rotulo: 'Voltar e corrigir', classe: 'btn-secundario',
+                    acao: function () { ui.fecharModal('modalGenerico'); abrirImportacao(); } }];
+
+    if (!impede) {
+      botoes.push({ rotulo: 'Importar ' + (r.novas.length + r.atualizadas.length) + ' torres',
+                    classe: 'btn-primario', acao: executarImportacao });
+    }
+
+    ui.modalGenerico({
+      titulo: 'Conferir antes de importar — ' + (E.trechoAtual ? E.trechoAtual.nome : ''),
+      corpoHtml: corpo,
+      botoes: botoes
+    });
+  }
+
+  var importacaoPendente = null;
+  var textoImportacao = '';
+
+  function executarImportacao() {
+    var linhas = importacaoPendente;
+    if (!linhas || !linhas.length) { ui.avisar('Nada para importar.', 'alerta'); return; }
 
     ui.processando('Importando ' + linhas.length + ' torres…');
     resolverCanteiros(linhas)
@@ -3892,6 +4109,8 @@ window.SIPAV = window.SIPAV || {};
       .then(function () {
         ui.pronto();
         ui.fecharModal('modalGenerico');
+        importacaoPendente = null;
+        textoImportacao = '';
         ui.avisar(linhas.length + ' torres importadas.', 'sucesso');
       })
       .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro', 6000); });
@@ -4260,6 +4479,7 @@ window.SIPAV = window.SIPAV || {};
     sincronizarIcone: sincronizarIcone,
 
     abrirImportacao: abrirImportacao,
+    conferirImportacao: conferirImportacao,
     abrirExportarPdf: abrirExportarPdf,
     abrirRelatorioIsa: abrirRelatorioIsa,
     compartilharWhatsApp: compartilharWhatsApp

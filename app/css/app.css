@@ -898,3 +898,43 @@ body.modo-selecao .cartao-torre:hover { transform: none; }
   font-size: .75rem; color: var(--texto-suave);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+
+/* ------------------------------------------------- Prévia da importação -- */
+
+.previa-grade {
+  display: grid; gap: .5rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 120px), 1fr));
+}
+
+.previa-cartao {
+  padding: .625rem .75rem; border-radius: .625rem;
+  border: 1px solid var(--borda);
+  background: var(--superficie-2);
+}
+.previa-numero { font-size: 1.5rem; font-weight: 800; line-height: 1; }
+.previa-titulo {
+  margin-top: .1875rem;
+  font-size: .6875rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .02em;
+  color: var(--texto-suave);
+}
+.previa-detalhe {
+  margin-top: .25rem; font-size: .625rem; line-height: 1.35;
+  color: var(--texto-fraco);
+  overflow: hidden; text-overflow: ellipsis;
+}
+
+.previa-nova .previa-numero      { color: #34D399; }
+.previa-muda .previa-numero      { color: var(--acento); }
+.previa-igual .previa-numero     { color: var(--texto-fraco); }
+.previa-canteiro .previa-numero  { color: #38BDF8; }
+
+.previa-linha {
+  display: flex; align-items: baseline; gap: .5rem;
+  padding: .25rem .375rem; border-radius: .3125rem;
+}
+.previa-linha:hover { background: var(--superficie-2); }
+.previa-mudancas {
+  flex: 1; min-width: 0;
+  font-size: .6875rem; color: var(--texto-suave); line-height: 1.35;
+}
