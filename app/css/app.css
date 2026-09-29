@@ -844,3 +844,23 @@ body.modo-selecao .cartao-torre:hover { transform: none; }
   font-size: 1rem; line-height: 1; color: var(--texto-fraco);
 }
 .lote-remover:hover { background: rgba(244,63,94,.14); color: #F43F5E; }
+
+/* Linha do lote que a conferência de sequência reprovou. O motivo entra numa
+   segunda linha dentro da própria linha, para não abrir outro painel. */
+.lote-linha.lote-travada {
+  flex-wrap: wrap;
+  background: rgba(244,63,94,.08);
+  outline: 1px solid rgba(244,63,94,.35);
+}
+.lote-motivo {
+  width: 100%;
+  padding: .25rem .25rem 0 58px;
+  font-size: .6875rem; line-height: 1.35;
+  color: #F87171;
+}
+
+/* Data no passado: marca discreta no próprio campo, não um painel a mais */
+.lote-campo.lote-passada {
+  border-color: rgba(245,158,11,.55);
+  color: #F59E0B;
+}
