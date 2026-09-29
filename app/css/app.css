@@ -864,3 +864,20 @@ body.modo-selecao .cartao-torre:hover { transform: none; }
   border-color: rgba(245,158,11,.55);
   color: #F59E0B;
 }
+
+/* Dias que a atividade anda depois da data base, dentro do próprio chip.
+   Só aparece com mais de uma atividade escolhida. */
+.chip-desloc {
+  display: inline-flex; align-items: center; gap: .125rem;
+  margin-left: .375rem; padding-left: .375rem;
+  border-left: 1px solid rgba(255,255,255,.35);
+  font-size: .625rem; font-weight: 700;
+}
+.chip-desloc input {
+  width: 26px; padding: 0 .125rem;
+  background: rgba(255,255,255,.22);
+  border: 0; border-radius: .1875rem;
+  font-size: .625rem; font-weight: 700; text-align: center;
+  color: inherit;
+}
+.chip-desloc b { margin-left: .1875rem; opacity: .85; font-weight: 700; }
