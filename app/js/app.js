@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v81 · 2026-09-29';
+  var VERSAO = 'v83 · 2026-09-29';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -573,6 +573,8 @@ window.SIPAV = window.SIPAV || {};
   /* ======================================================================== */
 
   function abrirTorre(torreId) {
+    // Fim de um arrasto, não um clique: o gesto já decidiu o que marcar
+    if (arrastou) return;
     // Modo seleção: o clique no cartão escolhe em vez de abrir
     if (E.modoSelecao) { alternarTorreSelecionada(torreId); return; }
     torreAberta = E.torres.find(function (t) { return t.torre_id === torreId; });
@@ -663,11 +665,31 @@ window.SIPAV = window.SIPAV || {};
    * Escavação não se faz de uma vez: a torre é escavada por parte, e cada parte
    * vale uma fatia fixa do serviço.
    *
-   * Autoportante tem quatro pés, 25% cada. Estaiada tem quatro estais mais o
-   * mastro central, 20% cada. Digitar 60 e depois lembrar se era três estais ou
-   * três pés é o tipo de conta que o sistema devia fazer.
+   * Autoportante tem quatro pés. Estaiada tem quatro estais mais o mastro
+   * central, cinco partes.
+   *
+   * Os rótulos contam PARTES, não uma ordem. A primeira versão dizia "1 estai,
+   * 2 estais… + centro", como se o centro fosse sempre o último — e não é: dá
+   * para fazer só o centro antes e os estais depois. Quem escava na ordem que
+   * quiser continua achando o número certo.
    */
-  function fatiasDaEscavacao(estrutura) {
+  function fatiasDaEscavacao(atividadeId, estrutura) {
+    var a = E.atividades.find(function (x) { return x.id === atividadeId; });
+    var nome = a ? normalizar(a.nome) : '';
+
+    // O mastro central é uma coisa só: ou está feito ou não está.
+    if (nome.indexOf('- mc') !== -1 || nome.indexOf('mastro') !== -1) return [];
+
+    // A escavação só dos estais são quatro, sem o centro no meio da conta.
+    if (nome.indexOf('estai') !== -1) {
+      return [
+        { pct: 25,  rotulo: '1 estai' },
+        { pct: 50,  rotulo: '2 estais' },
+        { pct: 75,  rotulo: '3 estais' },
+        { pct: 100, rotulo: '4 estais' }
+      ];
+    }
+
     if (estrutura === 'AUTOPORTANTE') {
       return [
         { pct: 25,  rotulo: '1 pé' },
@@ -676,12 +698,14 @@ window.SIPAV = window.SIPAV || {};
         { pct: 100, rotulo: '4 pés' }
       ];
     }
+
+    // Estaiada pela escavação inteira: quatro estais e o centro, em qualquer ordem
     return [
-      { pct: 20,  rotulo: '1 estai' },
-      { pct: 40,  rotulo: '2 estais' },
-      { pct: 60,  rotulo: '3 estais' },
-      { pct: 80,  rotulo: '4 estais' },
-      { pct: 100, rotulo: '+ centro' }
+      { pct: 20,  rotulo: '1 parte' },
+      { pct: 40,  rotulo: '2 partes' },
+      { pct: 60,  rotulo: '3 partes' },
+      { pct: 80,  rotulo: '4 partes' },
+      { pct: 100, rotulo: '5 partes' }
     ];
   }
 
@@ -698,22 +722,29 @@ window.SIPAV = window.SIPAV || {};
     var caixa = $('atalhosPercentual');
     if (!caixa) return;
 
-    var mostra = torreAberta &&
-                 atividadesEscolhidas.length === 1 &&
-                 ehEscavacao(atividadesEscolhidas[0]);
+    var fatias = (torreAberta && atividadesEscolhidas.length === 1 &&
+                  ehEscavacao(atividadesEscolhidas[0]))
+      ? fatiasDaEscavacao(atividadesEscolhidas[0], torreAberta.estrutura)
+      : [];
 
-    caixa.classList.toggle('hidden', !mostra);
-    if (!mostra) { caixa.innerHTML = ''; return; }
+    caixa.classList.toggle('hidden', !fatias.length);
+    if (!fatias.length) { caixa.innerHTML = ''; return; }
 
     var atual = Number($('campoPercentual').value);
+    var estaiada = torreAberta.estrutura !== 'AUTOPORTANTE';
+    var a = E.atividades.find(function (x) { return x.id === atividadesEscolhidas[0]; });
+    var soEstais = a && normalizar(a.nome).indexOf('estai') !== -1;
 
-    caixa.innerHTML = fatiasDaEscavacao(torreAberta.estrutura).map(function (f) {
+    caixa.innerHTML = fatias.map(function (f) {
       return '<button type="button" class="atalho-pct' +
                (atual === f.pct ? ' atalho-pct-ativo' : '') + '" ' +
                'onclick="SIPAV.app.usarFatiaPercentual(' + f.pct + ')">' +
                esc(f.rotulo) + '<b>' + f.pct + '%</b>' +
              '</button>';
-    }).join('');
+    }).join('') +
+      (estaiada && !soEstais
+        ? '<span class="atalho-nota">partes = 4 estais e o centro, em qualquer ordem</span>'
+        : '');
   }
 
   function usarFatiaPercentual(pct) {
@@ -1959,41 +1990,44 @@ window.SIPAV = window.SIPAV || {};
   /* ------------------------------------------- Seleção por arrasto -------- */
 
   /**
-   * Marcar torres arrastando um retângulo pela grade.
+   * Marcar torres arrastando pela grade.
    *
-   * Uma torre por clique é o que tem hoje, e programar uma frente inteira são
-   * trinta cliques — dá para pular uma sem perceber. O arrasto pega o trecho
-   * contínuo de uma vez, que é como a frente anda em campo.
+   * Uma torre por clique é trinta cliques para uma frente inteira, e dá para
+   * pular uma sem perceber. O arrasto pega o trecho contínuo de uma vez, que é
+   * como a frente anda em campo.
    *
-   * Só funciona no modo seleção. Fora dele, arrastar na grade não faz nada,
-   * como sempre.
+   * Começa de qualquer lugar da grade, inclusive de cima de um cartão: clico no
+   * primeiro, seguro e saio arrastando pelos outros. A primeira versão só
+   * começava no vazio, e como os cartões ocupam a grade quase inteira, sobrava
+   * só a beirada à direita para pegar.
+   *
+   * O clique continua existindo: só vira arrasto depois de andar alguns pixels.
+   * Soltar sem andar é clique e marca aquela torre, como sempre.
    */
-  var laco = null;   // { x0, y0, caixa, jaMarcadas, subtraindo }
+  var laco = null;   // { x0, y0, caixa, jaMarcadas, subtraindo, mexeu }
 
   function iniciarLaco(ev) {
     if (!E.modoSelecao || ev.button !== 0) return;
 
-    // Começar em cima de um cartão é clique, não arrasto: senão não daria mais
-    // para marcar uma torre sozinha.
-    if (ev.target.closest && ev.target.closest('.cartao-torre')) return;
-
     var grade = $('visaoGrade');
     if (!grade || !grade.contains(ev.target)) return;
 
+    // Não sequestra o que já é interativo dentro do cartão
+    if (ev.target.closest && ev.target.closest('button, a, input, select')) return;
+
     ev.preventDefault();
 
-    var caixa = document.createElement('div');
-    caixa.className = 'laco-selecao';
-    document.body.appendChild(caixa);
-
     laco = {
-      x0: ev.pageX, y0: ev.pageY, caixa: caixa,
+      x0: ev.pageX, y0: ev.pageY, caixa: null,
       // Com Alt o arrasto desmarca em vez de marcar, e as que já estavam
       // marcadas antes do arrasto continuam marcadas nos dois casos.
       subtraindo: ev.altKey,
       jaMarcadas: Object.keys(E.selecionadas).reduce(function (m, id) {
         m[id] = true; return m;
       }, {}),
+      // Começou em cima de um cartão: se virar arrasto, ele entra junto mesmo
+      // que o ponteiro saia dali antes de eu desenhar o retângulo.
+      origem: ev.target.closest ? ev.target.closest('.cartao-torre') : null,
       mexeu: false
     };
 
@@ -2008,8 +2042,23 @@ window.SIPAV = window.SIPAV || {};
     var l = Math.abs(ev.pageX - laco.x0), a = Math.abs(ev.pageY - laco.y0);
 
     // Tremida de mão não é arrasto
-    if (!laco.mexeu && l < 4 && a < 4) return;
-    laco.mexeu = true;
+    if (!laco.mexeu && l < 5 && a < 5) return;
+
+    // O retângulo só nasce quando vira arrasto de verdade. Criar no mousedown
+    // deixava um ponto piscando a cada clique simples.
+    if (!laco.mexeu) {
+      laco.mexeu = true;
+      laco.caixa = document.createElement('div');
+      laco.caixa.className = 'laco-selecao';
+      document.body.appendChild(laco.caixa);
+
+      // O cartão onde o arrasto começou entra junto, mesmo que o ponteiro já
+      // tenha saído dele: foi nele que eu cliquei.
+      if (laco.origem && !laco.subtraindo) {
+        var idOrigem = laco.origem.getAttribute('data-torre');
+        if (idOrigem) laco.jaMarcadas[idOrigem] = true;
+      }
+    }
 
     laco.caixa.style.left = x + 'px';
     laco.caixa.style.top = y + 'px';
@@ -2049,17 +2098,24 @@ window.SIPAV = window.SIPAV || {};
     if (!laco) return;
 
     var mexeu = laco.mexeu;
-    if (laco.caixa.parentNode) laco.caixa.parentNode.removeChild(laco.caixa);
+    if (laco.caixa && laco.caixa.parentNode) laco.caixa.parentNode.removeChild(laco.caixa);
     laco = null;
 
     document.removeEventListener('mousemove', moverLaco);
     document.removeEventListener('mouseup', soltarLaco);
 
-    if (mexeu) {
-      render.tudo();
-      renderBarraSelecao();
-    }
+    if (!mexeu) return;
+
+    // Houve arrasto: o clique que vem logo depois é do mesmo gesto e marcaria
+    // de novo a torre onde soltei, desfazendo o que o arrasto acabou de fazer.
+    arrastou = true;
+    setTimeout(function () { arrastou = false; }, 0);
+
+    render.tudo();
+    renderBarraSelecao();
   }
+
+  var arrastou = false;
 
   function renderBarraSelecao() {
     var barra = $('barraSelecao');

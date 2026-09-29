@@ -41,7 +41,7 @@
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 
   <!-- ?v= força o navegador a buscar de novo quando o código muda. -->
-  <link rel="stylesheet" href="css/app.css?v=81">
+  <link rel="stylesheet" href="css/app.css?v=83">
 </head>
 <body class="h-full flex flex-col antialiased">
 
@@ -177,8 +177,8 @@
 
         <button onclick="SIPAV.app.alternarModoSelecao()" class="btn-header"
                 id="btnModoSelecao" title="Marcar torres na grade para programar, editar ou apagar de uma vez">
-          <i data-lucide="layers" class="w-4 h-4" style="color:var(--acento)"></i>
-          <span class="rotulo-btn">Em lote</span>
+          <i data-lucide="box-select" class="w-4 h-4" style="color:var(--acento)"></i>
+          <span class="rotulo-btn">Selecionar</span>
         </button>
 
         <button onclick="SIPAV.app.abrirHistoricoDoTrecho()" class="btn-header" title="Quem mexeu no quê na obra inteira">
@@ -188,7 +188,7 @@
 
         <button onclick="SIPAV.app.limparProgramacoesDoPeriodo()" class="btn-header" title="Remover as programações deste trecho no período exibido">
           <i data-lucide="eraser" class="w-4 h-4 icone-perigo"></i>
-          <span class="rotulo-btn">Limpar</span>
+          <span class="rotulo-btn">Limpar programação</span>
         </button>
 
         <div class="flex items-center gap-2 pl-2.5 ml-1" style="border-left:1px solid var(--borda)">
@@ -256,7 +256,7 @@
         </button>
       </div>
 
-      <div class="flex flex-wrap items-center gap-2">
+      <div class="linha-filtros">
         <div class="caixa-filtro">
           <i data-lucide="calendar-range" class="w-3.5 h-3.5" style="color:var(--texto-fraco)"></i>
           <select id="filtroPeriodo" onchange="SIPAV.app.mudarPeriodo(this.value)" class="select-filtro">
@@ -585,7 +585,7 @@
     <i data-lucide="mouse-pointer-click" class="w-4 h-4 shrink-0" style="color:var(--acento)"></i>
     <span id="contagemSelecao" class="text-sm font-semibold" style="color:var(--texto)"></span>
     <button onclick="SIPAV.app.selecionarTodasVisiveis()" class="btn-secundario">Todas visíveis</button>
-    <button id="btnLimparSelecao" onclick="SIPAV.app.limparSelecao()" class="btn-secundario hidden">Limpar</button>
+    <button id="btnLimparSelecao" onclick="SIPAV.app.limparSelecao()" class="btn-secundario hidden">Limpar seleção</button>
     <button id="btnEditarSelecao" onclick="SIPAV.app.abrirEdicaoEmLote()"
             class="btn-secundario">Editar</button>
     <button id="btnApagarSelecao" onclick="SIPAV.app.apagarProgramacoesSelecionadas()"
@@ -606,7 +606,7 @@
     <span id="contagemSelecaoProg" class="text-sm font-semibold" style="color:var(--texto)"></span>
     <button onclick="SIPAV.app.marcarTodasProgramacoesVisiveis()" class="btn-secundario">Todas visíveis</button>
     <button id="btnLimparSelecaoProg" onclick="SIPAV.app.limparSelecaoProgramacoes()"
-            class="btn-secundario hidden">Limpar</button>
+            class="btn-secundario hidden">Limpar seleção</button>
     <button id="btnApagarSelecaoProg" onclick="SIPAV.app.apagarProgramacoesMarcadas()"
             class="btn-perigo">Apagar</button>
     <button onclick="SIPAV.app.alternarSelecaoProgramacoes(false)" class="btn-icone" title="Sair">
@@ -633,11 +633,11 @@
   </div>
 </div>
 
-<script src="js/config.js?v=81"></script>
-<script src="js/db.js?v=81"></script>
-<script src="js/ui.js?v=81"></script>
-<script src="js/render.js?v=81"></script>
-<script src="js/isa.js?v=81"></script>
-<script src="js/app.js?v=81"></script>
+<script src="js/config.js?v=83"></script>
+<script src="js/db.js?v=83"></script>
+<script src="js/ui.js?v=83"></script>
+<script src="js/render.js?v=83"></script>
+<script src="js/isa.js?v=83"></script>
+<script src="js/app.js?v=83"></script>
 </body>
 </html>

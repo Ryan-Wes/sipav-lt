@@ -150,7 +150,10 @@ window.SIPAV = window.SIPAV || {};
           return '<span class="item-prog">' +
             '<span class="ponto-atividade" style="background:' + cor + ';margin-top:.25rem"></span>' +
             '<span class="flex-1">' +
-              '<span class="data">' + ui.dataCurta(p.data) + '</span> ' +
+              '<span class="data">' + ui.dataCurta(p.data) +
+                '<b class="dia-curto' + (ui.fimDeSemana(p.data) ? ' fim-de-semana' : '') + '">' +
+                  esc(ui.diaDaSemana(p.data).slice(0, 3)) + '</b>' +
+              '</span> ' +
               esc(p.atividade ? p.atividade.nome : '—') +
               // Só aparece quando o serviço foi repartido: 100% é o normal e
               // poluiria o cartão em toda linha
@@ -258,9 +261,12 @@ window.SIPAV = window.SIPAV || {};
     var torre = op.torre === false ? ''
       : '<span class="chip-torre">' + esc(p.torre ? p.torre.identificador : '?') + '</span>';
 
-    // A data é o que faltava: sem ela, "108/1 · Darlos" não diz quando
+    // A data com o dia da semana: a obra se guia por dia da semana, e "01/10"
+    // sozinho obriga a ir olhar no calendário para saber se é quarta ou sábado.
     var data = op.data === false ? ''
-      : '<span class="chip-data">' + esc(ui.dataCurta(p.data)) + '</span>';
+      : '<span class="chip-data">' + esc(ui.dataCurta(p.data)) +
+        '<b class="chip-dia' + (ui.fimDeSemana(p.data) ? ' fim-de-semana' : '') + '">' +
+          esc(ui.diaDaSemana(p.data).slice(0, 3)) + '</b></span>';
 
     var enc = (op.encarregado === false || !p.encarregado) ? ''
       : '<span class="chip-encarregado">' + esc(p.encarregado.nome) + '</span>';

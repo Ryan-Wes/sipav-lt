@@ -522,7 +522,7 @@ select option, select optgroup {
 .chip-data {
   font-size: .6875rem; font-weight: 700;
   color: var(--texto-fraco);
-  flex-shrink: 0; min-width: 34px;
+  flex-shrink: 0; min-width: 58px;   /* cabe a data e o dia */
 }
 
 .chip-parcial {
@@ -1044,3 +1044,72 @@ body.modo-selecao .cartao-torre:hover { transform: none; }
 
 /* Arrastar sobre a grade não pode sair selecionando o texto dos cartões */
 body.modo-selecao #visaoGrade { user-select: none; }
+
+/* Dia da semana colado na data, em todo lugar onde a data aparece. A obra se
+   guia por dia da semana: "01/10" sozinho manda o cara olhar o calendário. */
+.chip-data .chip-dia,
+.item-prog .data .dia-curto {
+  margin-left: .1875rem;
+  font-size: .625rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .02em;
+  color: var(--texto-fraco);
+}
+.chip-data .chip-dia.fim-de-semana,
+.item-prog .data .dia-curto.fim-de-semana { color: #F59E0B; }
+
+/* =========================================================================
+   Linha de filtros que encolhe em vez de quebrar
+   ========================================================================= */
+/* Antes era flex-wrap com tamanhos fixos: bastava a tela estreitar um pouco
+   para a linha quebrar e empurrar a grade para baixo. Agora tudo — fonte,
+   respiro e espaço entre as caixas — acompanha a largura da tela, e a quebra
+   fica sendo o último recurso, não o primeiro. */
+.linha-filtros {
+  display: flex; flex-wrap: wrap; align-items: center;
+  gap: clamp(.25rem, .55vw, .5rem);
+  min-width: 0;
+}
+
+.caixa-filtro {
+  flex: 0 1 auto; min-width: 0;
+  gap: clamp(.1875rem, .45vw, .375rem);
+  padding: clamp(.1875rem, .5vw, .3125rem) clamp(.3125rem, .7vw, .5625rem);
+}
+
+.select-filtro {
+  min-width: 0; max-width: 100%;
+  font-size: clamp(.625rem, .95vw, .75rem);
+  padding: .0625rem clamp(.0625rem, .3vw, .25rem);
+}
+
+.linha-filtros .resumo {
+  font-size: clamp(.625rem, .95vw, .75rem);
+  padding: clamp(.25rem, .6vw, .4375rem) clamp(.375rem, .8vw, .6875rem);
+}
+
+/* Os ícones das caixas são decoração: a primeira coisa a sair quando aperta */
+@media (max-width: 1100px) {
+  .caixa-filtro > i[data-lucide], .caixa-filtro > svg { display: none; }
+}
+
+/* Abaixo disto a linha vira duas de propósito, e o campo de busca ocupa a
+   segunda inteira — digitar identificador de torre num campo de 3 cm é pior
+   que uma linha a mais. */
+@media (max-width: 720px) {
+  .linha-filtros { gap: .25rem; }
+  .linha-filtros .caixa-filtro:has(#filtroBusca) { flex: 1 1 100%; }
+  .linha-filtros .caixa-filtro:has(#filtroBusca) input { width: 100%; }
+}
+
+/* Nota ao lado dos atalhos de percentual */
+.atalho-nota {
+  display: inline-block; margin-left: .25rem;
+  font-size: .625rem; color: var(--texto-fraco);
+}
+
+/* Apertou: o resumo desce inteiro para a linha de baixo e os filtros ficam
+   numa linha só por mais tempo. Uma linha de filtros com o resumo embaixo se
+   lê melhor que cinco caixas picotadas em duas linhas. */
+@media (max-width: 960px) {
+  .linha-filtros .resumo { flex: 1 1 100%; order: 10; text-align: center; }
+}
