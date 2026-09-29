@@ -1,26 +1,29 @@
 -- =============================================================================
 -- PARA COLAR NO SQL EDITOR DO SUPABASE — atualizado em 29/09/2026
 -- =============================================================================
--- Pendentes: a 33 e a 34. Confere antes com
+-- A última aplicada foi a 32. Faltam estas duas:
 --
---   select numero, arquivo from migracao order by numero;
+--   33-escavacao-cadeia-e-estrutura.sql
+--       ESCAVAÇÃO - ESTAI e ESCAVAÇÃO - MC estavam sem NENHUMA dependência no
+--       banco — por isso dava para programá-las numa torre sem nada antes.
+--       Aqui as três escavações ficam com a mesma cadeia: acesso, corte
+--       seletivo, área de torre e faixa. E atividade de estaiada para de caber
+--       em torre autoportante.
 --
--- Se a última linha for 32, é isto aqui que falta. Se já aparecer 33 ou 34,
--- pode rodar do mesmo jeito: as duas são idempotentes.
+--   34-carga-inicial-sem-repeticao.sql
+--       Apaga a REVISÃO duplicada e cria índice único para a carga inicial não
+--       repetir de novo.
 --
---   33-escavacao-cadeia-e-estrutura.sql   a escavação volta a exigir acesso e
---                                         as três supressões, e atividade de
---                                         estaiada para de caber em AUP
---   34-carga-inicial-sem-repeticao.sql    apaga a REVISÃO duplicada e impede
---                                         que a carga inicial repita de novo
+-- Cola inteiro e roda. As duas são idempotentes.
 --
--- Cola inteiro e roda. Sai bastante coisa no caminho, mas o SQL Editor só
--- mostra o resultado da ÚLTIMA consulta — que aqui é a conferência da 34, e
--- tem que vir vazia. As outras duas conferências ficam para rodar à parte,
--- copiando o bloco do fim de cada arquivo:
+-- O SQL Editor só mostra o resultado da ÚLTIMA consulta — aqui é a conferência
+-- da 34, que TEM QUE VIR VAZIA. Olhe também a aba de mensagens (Notices): a 33
+-- avisa ali se alguma escavação ficou com menos de quatro pré-requisitos.
 --
---   db/33...  lista o que já está no banco com atividade no tipo errado de torre
---   db/31...  lista o que já está com a sequência invertida
+-- Estas duas conferências ficam para rodar à parte, copiando o bloco do fim de
+-- cada arquivo:
+--   db/33...  o que já está no banco com atividade no tipo errado de torre
+--   db/31...  o que já está com a sequência invertida
 -- =============================================================================
 
 
@@ -66,6 +69,11 @@
 -- Vale para as três: a genérica e as duas repartidas.
 -- -----------------------------------------------------------------------------
 
+-- ESCAVAÇÃO - ESTAI e ESCAVAÇÃO - MC estavam SEM NENHUMA dependência no banco.
+-- A db/27 devia ter criado a da área de torre e não criou — ou foi apagada por
+-- algum dos deletes que vieram depois. Era por isso que dava para programar
+-- escavação de estai numa torre sem absolutamente nada antes: não havia regra
+-- para violar. Aqui elas recebem a cadeia inteira, a mesma da genérica.
 insert into atividade_dependencia (atividade_id, requer_atividade_id)
 select a.id, r.id
 from obra o
@@ -78,15 +86,43 @@ join (values
 
   ('ESCAVAÇÃO - ESTAI', 'ABERTURA DE ACESSO'),
   ('ESCAVAÇÃO - ESTAI', 'CORTE SELETIVO'),
+  ('ESCAVAÇÃO - ESTAI', 'SUPRESSÃO DE ÁREA DE TORRE'),
   ('ESCAVAÇÃO - ESTAI', 'SUPRESSÃO DA FAIXA'),
 
   ('ESCAVAÇÃO - MC',    'ABERTURA DE ACESSO'),
   ('ESCAVAÇÃO - MC',    'CORTE SELETIVO'),
+  ('ESCAVAÇÃO - MC',    'SUPRESSÃO DE ÁREA DE TORRE'),
   ('ESCAVAÇÃO - MC',    'SUPRESSÃO DA FAIXA')
 ) as d(atividade, requer)
   on d.atividade = a.nome and d.requer = r.nome
 where o.codigo = 'SD'
 on conflict do nothing;
+
+-- Conferência da cadeia: as três escavações têm que sair com quatro linhas cada.
+-- Se alguma vier com menos, o nome no cadastro não bate com o que está aqui.
+do $$
+declare
+  v_faltando text;
+begin
+  select string_agg(a.nome || ' (' || c.quantas || ')', ', ')
+  into v_faltando
+  from (
+    select ad.atividade_id, count(*) as quantas
+    from atividade_dependencia ad
+    group by ad.atividade_id
+  ) c
+  join atividade a on a.id = c.atividade_id
+  join obra o on o.id = a.obra_id
+  where o.codigo = 'SD'
+    and a.nome in ('ESCAVAÇÃO', 'ESCAVAÇÃO - ESTAI', 'ESCAVAÇÃO - MC')
+    and c.quantas < 4;
+
+  if v_faltando is not null then
+    raise warning 'Escavação com menos de 4 pré-requisitos: %', v_faltando;
+  else
+    raise notice 'As três escavações estão com a cadeia completa.';
+  end if;
+end $$;
 
 -- -----------------------------------------------------------------------------
 -- 2. Atividade que só existe num tipo de torre

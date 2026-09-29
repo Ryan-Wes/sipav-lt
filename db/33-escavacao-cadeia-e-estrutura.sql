@@ -35,6 +35,11 @@
 -- Vale para as três: a genérica e as duas repartidas.
 -- -----------------------------------------------------------------------------
 
+-- ESCAVAÇÃO - ESTAI e ESCAVAÇÃO - MC estavam SEM NENHUMA dependência no banco.
+-- A db/27 devia ter criado a da área de torre e não criou — ou foi apagada por
+-- algum dos deletes que vieram depois. Era por isso que dava para programar
+-- escavação de estai numa torre sem absolutamente nada antes: não havia regra
+-- para violar. Aqui elas recebem a cadeia inteira, a mesma da genérica.
 insert into atividade_dependencia (atividade_id, requer_atividade_id)
 select a.id, r.id
 from obra o
@@ -47,15 +52,43 @@ join (values
 
   ('ESCAVAÇÃO - ESTAI', 'ABERTURA DE ACESSO'),
   ('ESCAVAÇÃO - ESTAI', 'CORTE SELETIVO'),
+  ('ESCAVAÇÃO - ESTAI', 'SUPRESSÃO DE ÁREA DE TORRE'),
   ('ESCAVAÇÃO - ESTAI', 'SUPRESSÃO DA FAIXA'),
 
   ('ESCAVAÇÃO - MC',    'ABERTURA DE ACESSO'),
   ('ESCAVAÇÃO - MC',    'CORTE SELETIVO'),
+  ('ESCAVAÇÃO - MC',    'SUPRESSÃO DE ÁREA DE TORRE'),
   ('ESCAVAÇÃO - MC',    'SUPRESSÃO DA FAIXA')
 ) as d(atividade, requer)
   on d.atividade = a.nome and d.requer = r.nome
 where o.codigo = 'SD'
 on conflict do nothing;
+
+-- Conferência da cadeia: as três escavações têm que sair com quatro linhas cada.
+-- Se alguma vier com menos, o nome no cadastro não bate com o que está aqui.
+do $$
+declare
+  v_faltando text;
+begin
+  select string_agg(a.nome || ' (' || c.quantas || ')', ', ')
+  into v_faltando
+  from (
+    select ad.atividade_id, count(*) as quantas
+    from atividade_dependencia ad
+    group by ad.atividade_id
+  ) c
+  join atividade a on a.id = c.atividade_id
+  join obra o on o.id = a.obra_id
+  where o.codigo = 'SD'
+    and a.nome in ('ESCAVAÇÃO', 'ESCAVAÇÃO - ESTAI', 'ESCAVAÇÃO - MC')
+    and c.quantas < 4;
+
+  if v_faltando is not null then
+    raise warning 'Escavação com menos de 4 pré-requisitos: %', v_faltando;
+  else
+    raise notice 'As três escavações estão com a cadeia completa.';
+  end if;
+end $$;
 
 -- -----------------------------------------------------------------------------
 -- 2. Atividade que só existe num tipo de torre
