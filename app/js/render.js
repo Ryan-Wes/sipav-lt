@@ -23,7 +23,10 @@ window.SIPAV = window.SIPAV || {};
     periodo: { modo: 'duas', de: null, ate: null },
     // Escolher torres clicando nos cartões, para mandar de uma vez para o lote.
     // Enquanto ligado, o clique marca em vez de abrir a torre.
-    modoSelecao: false, selecionadas: {}
+    modoSelecao: false, selecionadas: {},
+    // O mesmo, nos painéis por data / encarregado / atividade, mas marcando a
+    // programação e não a torre. Só liga pelo "Selecionar vários" lá em cima.
+    modoSelecaoProg: false, progSelecionadas: {}
   };
 
   var E = window.SIPAV.estado;
@@ -263,15 +266,35 @@ window.SIPAV = window.SIPAV || {};
     var parcial = Number(p.percentual) < 100
       ? '<span class="chip-parcial">' + pct(p.percentual) + '</span>' : '';
 
-    var abrir = '<div class="chip-prog' + (op.empilhado ? ' empilhado' : '') + '" ' +
-      'onclick="SIPAV.app.abrirTorre(\'' + (p.torre ? p.torre.id : '') + '\')">';
+    // Com "selecionar vários" ligado, o clique marca em vez de abrir a torre.
+    // Desligado, tudo se comporta como sempre — quem não liga não vê diferença.
+    var marcando = !!E.modoSelecaoProg;
+    var marcado = marcando && !!E.progSelecionadas[p.id];
+
+    var acao = marcando
+      ? 'SIPAV.app.alternarProgramacaoMarcada(\'' + p.id + '\')'
+      : 'SIPAV.app.abrirTorre(\'' + (p.torre ? p.torre.id : '') + '\')';
+
+    // A lixeira some no modo seleção: lá o apagar é o da barra, e duas portas
+    // para a mesma coisa na mesma tela é convite para clicar na errada.
+    var lixeira = (op.apagar === false || marcando) ? ''
+      : '<button class="chip-lixeira" title="Apagar esta programação" ' +
+          'onclick="event.stopPropagation();SIPAV.app.apagarUmaProgramacao(\'' + p.id + '\')">' +
+          '<i data-lucide="trash-2" class="w-3 h-3"></i></button>';
+
+    var marca = marcando
+      ? '<span class="chip-marca' + (marcado ? ' chip-marca-on' : '') + '"></span>' : '';
+
+    var abrir = '<div class="chip-prog' + (op.empilhado ? ' empilhado' : '') +
+      (marcado ? ' chip-marcado' : '') + '" onclick="' + acao + '">';
 
     if (!op.empilhado) {
-      return abrir + torre + data + pastilha + enc + parcial + alerta + '</div>';
+      return abrir + marca + torre + data + pastilha + enc + parcial + alerta + lixeira + '</div>';
     }
 
     return abrir +
-      '<div class="chip-linha">' + torre + data + pastilha + parcial + alerta + '</div>' +
+      '<div class="chip-linha">' + marca + torre + data + pastilha + parcial + alerta +
+        lixeira + '</div>' +
       (enc ? '<div class="chip-linha chip-abaixo">' + enc + '</div>' : '') +
     '</div>';
   }
@@ -540,6 +563,7 @@ window.SIPAV = window.SIPAV || {};
   window.SIPAV.render = {
     tudo: tudo,
     programacoesDaTorre: programacoesDaTorre,
+    programacoesVisiveis: programacoesVisiveis,
     execucaoDa: execucaoDa,
     torresFiltradas: torresFiltradas
   };

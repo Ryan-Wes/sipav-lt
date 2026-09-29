@@ -995,3 +995,37 @@ body.modo-selecao .cartao-torre:hover { transform: none; }
   border-color: var(--acento); background: var(--acento); color: #fff;
 }
 .atalho-pct-ativo b { color: #fff; opacity: .85; }
+
+/* Apagar fica na barra ao lado dos outros, mas não com a mesma cara: é o único
+   que não tem desfazer. */
+.btn-secundario-perigo { color: #E11D48; border-color: rgba(225,29,72,.35); }
+.btn-secundario-perigo:hover { border-color: #E11D48; background: rgba(225,29,72,.08); }
+
+/* Lixeira no chip da programação. Discreta até o ponteiro chegar perto: é uma
+   ação sem desfazer no meio de um painel cheio de chips colados. */
+.chip-lixeira {
+  margin-left: auto; flex-shrink: 0;
+  padding: .0625rem .1875rem; border-radius: .1875rem;
+  color: var(--texto-fraco); opacity: 0;
+  transition: opacity .12s, color .12s, background .12s;
+}
+.chip-prog:hover .chip-lixeira { opacity: .75; }
+.chip-lixeira:hover { opacity: 1; color: #E11D48; background: rgba(225,29,72,.12); }
+
+/* Em telas de toque não existe "passar o ponteiro por cima": ali a lixeira
+   fica sempre visível, senão não haveria como chegar nela. */
+@media (hover: none) {
+  .chip-lixeira { opacity: .6; }
+}
+
+/* Marca da seleção de programações */
+.chip-marca {
+  width: .75rem; height: .75rem; flex-shrink: 0;
+  border: 1.5px solid var(--borda); border-radius: .1875rem;
+  background: var(--superficie);
+}
+.chip-marca-on {
+  border-color: var(--acento); background: var(--acento);
+  box-shadow: inset 0 0 0 2px var(--superficie);
+}
+.chip-marcado { outline: 2px solid var(--acento); outline-offset: -1px; }

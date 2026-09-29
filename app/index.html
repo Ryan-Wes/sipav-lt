@@ -41,7 +41,7 @@
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 
   <!-- ?v= força o navegador a buscar de novo quando o código muda. -->
-  <link rel="stylesheet" href="css/app.css?v=77">
+  <link rel="stylesheet" href="css/app.css?v=79">
 </head>
 <body class="h-full flex flex-col antialiased">
 
@@ -175,22 +175,11 @@
           </div>
         </div>
 
-        <div class="menu-wrap">
-          <button onclick="SIPAV.app.alternarMenu('menuLote')" class="btn-header"
-                  id="btnModoSelecao" title="Programar várias torres de uma vez">
-            <i data-lucide="layers" class="w-4 h-4" style="color:var(--acento)"></i>
-            <span class="rotulo-btn">Em lote</span>
-            <i data-lucide="chevron-down" class="w-3 h-3 opacity-60"></i>
-          </button>
-          <div id="menuLote" class="menu hidden">
-            <button class="menu-item" onclick="SIPAV.app.fecharMenus();SIPAV.app.alternarModoSelecao()">
-              <i data-lucide="mouse-pointer-click" class="w-4 h-4"></i> Marcar torres na grade
-            </button>
-            <button class="menu-item" onclick="SIPAV.app.fecharMenus();SIPAV.app.abrirRepetirSequencia()">
-              <i data-lucide="copy" class="w-4 h-4"></i> Repetir uma sequência já programada
-            </button>
-          </div>
-        </div>
+        <button onclick="SIPAV.app.alternarModoSelecao()" class="btn-header"
+                id="btnModoSelecao" title="Marcar torres na grade para programar, editar ou apagar de uma vez">
+          <i data-lucide="layers" class="w-4 h-4" style="color:var(--acento)"></i>
+          <span class="rotulo-btn">Em lote</span>
+        </button>
 
         <button onclick="SIPAV.app.abrirHistoricoDoTrecho()" class="btn-header" title="Quem mexeu no quê na obra inteira">
           <i data-lucide="history" class="w-4 h-4"></i>
@@ -314,6 +303,15 @@
                  class="text-xs bg-transparent focus:outline-none w-28"
                  style="color:var(--texto)">
         </div>
+
+        <!-- Só nas visões de programação. Enquanto está desmarcado, o clique no
+             chip continua abrindo a torre, como sempre foi. -->
+        <label id="caixaSelecaoProg" class="caixa-filtro hidden" style="cursor:pointer"
+               title="Marcar várias programações para apagar de uma vez">
+          <input type="checkbox" id="checkSelecaoProg"
+                 onchange="SIPAV.app.alternarSelecaoProgramacoes(this.checked)">
+          <span class="text-xs font-semibold" style="color:var(--texto-suave)">Selecionar vários</span>
+        </label>
 
         <span id="resumoEstatisticas" class="resumo"></span>
 
@@ -590,9 +588,28 @@
     <button id="btnLimparSelecao" onclick="SIPAV.app.limparSelecao()" class="btn-secundario hidden">Limpar</button>
     <button id="btnEditarSelecao" onclick="SIPAV.app.abrirEdicaoEmLote()"
             class="btn-secundario">Editar</button>
+    <button id="btnApagarSelecao" onclick="SIPAV.app.apagarProgramacoesSelecionadas()"
+            class="btn-secundario btn-secundario-perigo">Apagar</button>
     <button id="btnProgramarSelecao" onclick="SIPAV.app.programarSelecionadas()"
             class="btn-primario">Programar</button>
     <button onclick="SIPAV.app.alternarModoSelecao()" class="btn-icone" title="Sair do modo seleção">
+      <i data-lucide="x" class="w-4 h-4"></i>
+    </button>
+  </div>
+</div>
+
+<!-- Barra das programações marcadas nos painéis. Mesmo lugar e mesma cara da
+     barra de seleção de torres: é a mesma ideia, em outro objeto. -->
+<div id="barraSelecaoProg" class="hidden no-print">
+  <div class="barra-selecao-caixa">
+    <i data-lucide="check-square" class="w-4 h-4 shrink-0" style="color:var(--acento)"></i>
+    <span id="contagemSelecaoProg" class="text-sm font-semibold" style="color:var(--texto)"></span>
+    <button onclick="SIPAV.app.marcarTodasProgramacoesVisiveis()" class="btn-secundario">Todas visíveis</button>
+    <button id="btnLimparSelecaoProg" onclick="SIPAV.app.limparSelecaoProgramacoes()"
+            class="btn-secundario hidden">Limpar</button>
+    <button id="btnApagarSelecaoProg" onclick="SIPAV.app.apagarProgramacoesMarcadas()"
+            class="btn-perigo">Apagar</button>
+    <button onclick="SIPAV.app.alternarSelecaoProgramacoes(false)" class="btn-icone" title="Sair">
       <i data-lucide="x" class="w-4 h-4"></i>
     </button>
   </div>
@@ -616,11 +633,11 @@
   </div>
 </div>
 
-<script src="js/config.js?v=77"></script>
-<script src="js/db.js?v=77"></script>
-<script src="js/ui.js?v=77"></script>
-<script src="js/render.js?v=77"></script>
-<script src="js/isa.js?v=77"></script>
-<script src="js/app.js?v=77"></script>
+<script src="js/config.js?v=79"></script>
+<script src="js/db.js?v=79"></script>
+<script src="js/ui.js?v=79"></script>
+<script src="js/render.js?v=79"></script>
+<script src="js/isa.js?v=79"></script>
+<script src="js/app.js?v=79"></script>
 </body>
 </html>
