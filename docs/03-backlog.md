@@ -39,6 +39,9 @@ Situação conferida em **23/09/2026**, item por item, contra o que está public
 | **R9** | **Editar uma programação** | [WR] 23/09 | ✅ |
 | **R10** | **Limpar programações da torre / do trecho** | [PROT] | ✅ sempre limitado ao trecho e ao período |
 | **R11** | **Editar nome de encarregado** | [PROT] | ❌ só adicionar e remover |
+| **R12** | **Sequência invertida: não programar antes de quem depende** | [WR] 29/09 | ✅ `db/31` |
+| **R13** | **Atividade só no tipo de torre em que existe** | [WR] 29/09 | ✅ `db/33` — estai e mastro central só em estaiada |
+| **R14** | **Carga inicial não repete execução** | [WR] 29/09 | ✅ `db/34` — índice único; apontamento de campo continua podendo repetir |
 
 ## Relatórios e saídas
 
