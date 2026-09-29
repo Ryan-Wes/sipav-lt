@@ -95,7 +95,7 @@ Situação conferida em **23/09/2026**, item por item, contra o que está public
 | D1 | **SQL aplicado à mão** — o repositório guarda os scripts, mas nada os executa. A CLI do Supabase transformaria `db/` em migrations versionadas, com um comando só. Adiar até depois da demonstração | ❌ |
 | D2 | **Correção de estágio não tem trilha de auditoria própria** — fica só `registrado_por` e a observação na linha de execução. O histórico com trigger cobre programação, não execução | ⚠️ |
 | D3 | **Tailwind e demais bibliotecas vêm de CDN** — sem build, e com aviso do próprio Tailwind de que não é para produção. Some na migração para Next.js | ⚠️ |
-| D4 | **O que libera o reaterro quando a escavação é programada em partes** — ver abaixo | ⚠️ |
+| D4 | **O que libera o reaterro quando a escavação é programada em partes** — decidi em 29/09 deixar como está, ver abaixo | ✅ |
 
 ### D4 — escavação em partes e a liberação do reaterro
 
@@ -121,6 +121,13 @@ As três saídas:
 
 Recomendação: **(a)**. É a única que descreve a obra de verdade e faz o aviso
 sumir sozinho em vez de ser contornado.
+
+**Decidido em 29/09: (c), deixar como está.** Retomei o assunto depois de fechar
+a prévia da importação e escolhi seguir com o override por enquanto. A (a)
+continua sendo a saída certa quando isso voltar à mesa, mas ela depende de uma
+coisa que ainda não perguntei ao Alessandro: se autoportante tem mastro central
+ou só estai. Não vale cravar no banco uma premissa que eu mesmo tirei do nome da
+estrutura — já errei sete vezes assim nessa cadeia.
 
 ## Levantado na reunião, ainda fora do escopo
 
