@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v69 · 2026-09-29';
+  var VERSAO = 'v70 · 2026-09-29';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -656,26 +656,23 @@ window.SIPAV = window.SIPAV || {};
   var atividadesEscolhidas = [];
 
   /**
-   * Quantos dias depois da data base cada atividade cai.
+   * A data de cada atividade, quando escolho mais de uma na mesma torre.
+   *
+   * Só guarda as que eu mexi. As outras acompanham a data lá de cima — mudo a
+   * data da torre e elas vão junto, menos as que já tinham data própria.
    *
    * Existe porque a cadeia exige o pré-requisito programado para uma data
-   * ANTERIOR, não igual. Escolher supressão e escavação juntas jogava as duas no
-   * mesmo dia e a escavação travava, mesmo com a supressão ali do lado. Agora
-   * cada uma anda no seu dia: supressão +0, escavação +1.
-   *
-   * Vale para a mesma torre — é a "mais de uma data numa torre só".
+   * ANTERIOR, não igual: supressão e escavação no mesmo dia trava a escavação,
+   * mesmo com a supressão ali do lado.
    */
-  var deslocAtividade = {};   // { atividadeId: dias }
+  var dataAtividade = {};   // { atividadeId: 'aaaa-mm-dd' }
 
   function dataDaAtividade(base, id) {
-    if (!base) return '';
-    var n = Number(deslocAtividade[id]) || 0;
-    return n ? ui.iso(ui.somarDias(ui.paraData(base), n)) : base;
+    return dataAtividade[id] || base || '';
   }
 
-  function mudarDeslocAtividade(id, valor) {
-    var n = Math.max(0, Math.min(60, Number(valor) || 0));
-    deslocAtividade[id] = n;
+  function mudarDataAtividade(id, valor) {
+    if (valor) dataAtividade[id] = valor; else delete dataAtividade[id];
     renderChipsAtividade();
     mudarAtividade();
   }
@@ -687,23 +684,25 @@ window.SIPAV = window.SIPAV || {};
     var base = $('campoData') ? $('campoData').value : '';
     var varias = atividadesEscolhidas.length > 1;
 
+    $('chipsAtividade').classList.toggle('com-data', varias);
+
     $('chipsAtividade').innerHTML = atividadesEscolhidas.map(function (id) {
       var a = E.atividades.find(function (x) { return x.id === id; });
       if (!a) return '';
       var cor = a.cor_fundo || '#94A3B8';
       var quando = dataDaAtividade(base, id);
+      var dia = quando ? ui.diaDaSemana(quando).slice(0, 3) : '';
 
       return '<span class="chip-escolhido" style="background:' + cor + ';color:' +
                ui.corDoTexto(cor) + '">' + esc(a.nome) +
-               // O campo de dias só aparece com mais de uma atividade: com uma só
-               // ele não teria o que deslocar e seria ruído
+               // A data por atividade só aparece com mais de uma: com uma só ela
+               // seria a mesma coisa que a data lá de cima, repetida à toa
                (varias
-                 ? '<span class="chip-desloc" title="Dias depois da data escolhida">+' +
-                     '<input type="number" min="0" max="60" step="1" ' +
-                            'value="' + (Number(deslocAtividade[id]) || 0) + '" ' +
-                            'onchange="SIPAV.app.mudarDeslocAtividade(\'' + id + '\', this.value)" ' +
+                 ? '<span class="chip-quando">' +
+                     '<input type="date" value="' + esc(quando) + '" ' +
+                            'onchange="SIPAV.app.mudarDataAtividade(\'' + id + '\', this.value)" ' +
                             'onclick="event.stopPropagation()">' +
-                     (quando ? '<b>' + esc(ui.dataCurta(quando)) + '</b>' : '') +
+                     (dia ? '<b>' + esc(dia) + '</b>' : '') +
                    '</span>'
                  : '') +
                '<button type="button" onclick="SIPAV.app.tirarAtividade(\'' + id + '\')" ' +
@@ -774,7 +773,7 @@ window.SIPAV = window.SIPAV || {};
 
   /** Repõe o seletor a partir de uma lista de ids. */
   function preencherAtividades(ids) {
-    deslocAtividade = {};
+    dataAtividade = {};
     atividadesEscolhidas = (ids || []).filter(function (id) {
       return E.atividades.some(function (a) { return a.id === id; });
     });
@@ -1902,7 +1901,7 @@ window.SIPAV = window.SIPAV || {};
       return;
     }
 
-    deslocAtividade = {};
+    dataAtividade = {};
     loteAtividades = atividadeId ? [atividadeId] : [];
     loteSelecionadas = torres.map(function (t) {
       return {
@@ -2033,6 +2032,20 @@ window.SIPAV = window.SIPAV || {};
 
   /* --------------------------------------------- Atividades do lote ------- */
 
+  /**
+   * Quantos dias depois da data da torre cada atividade cai, no lote.
+   *
+   * Aqui não dá para usar data fixa como na janela de uma torre só: no lote cada
+   * torre tem a sua data, então o que a atividade carrega é a distância.
+   */
+  var deslocLote = {};   // { atividadeId: dias }
+
+  function dataLoteDaAtividade(base, id) {
+    if (!base) return '';
+    var n = Number(deslocLote[id]) || 0;
+    return n ? ui.iso(ui.somarDias(ui.paraData(base), n)) : base;
+  }
+
   function renderChipsAtividadeLote() {
     var varias = loteAtividades.length > 1;
 
@@ -2048,7 +2061,7 @@ window.SIPAV = window.SIPAV || {};
                (varias
                  ? '<span class="chip-desloc" title="Dias depois da data da torre">+' +
                      '<input type="number" min="0" max="60" step="1" ' +
-                            'value="' + (Number(deslocAtividade[id]) || 0) + '" ' +
+                            'value="' + (Number(deslocLote[id]) || 0) + '" ' +
                             'onchange="SIPAV.app.mudarDeslocAtividadeLote(\'' + id + '\', this.value)" ' +
                             'onclick="event.stopPropagation()">' +
                    '</span>'
@@ -2071,7 +2084,7 @@ window.SIPAV = window.SIPAV || {};
   }
 
   function mudarDeslocAtividadeLote(id, valor) {
-    deslocAtividade[id] = Math.max(0, Math.min(60, Number(valor) || 0));
+    deslocLote[id] = Math.max(0, Math.min(60, Number(valor) || 0));
     loteSelecionadas.forEach(function (x) { x.bloqueio = null; });
     renderChipsAtividadeLote();
   }
@@ -2323,7 +2336,7 @@ window.SIPAV = window.SIPAV || {};
     Promise.all(loteSelecionadas.map(function (x) {
       // Basta uma atividade travar para a torre entrar em alerta
       return Promise.all(loteAtividades.map(function (aid) {
-        return db.motivoBloqueio(x.torreId, aid, dataDaAtividade(x.data, aid))
+        return db.motivoBloqueio(x.torreId, aid, dataLoteDaAtividade(x.data, aid))
           .catch(function () { return null; });
       })).then(function (motivos) {
         var quais = motivos.filter(Boolean);
@@ -2373,7 +2386,7 @@ window.SIPAV = window.SIPAV || {};
     var tarefas = [];
     loteSelecionadas.forEach(function (x) {
       loteAtividades.forEach(function (aid) {
-        tarefas.push({ linha: x, atividadeId: aid, data: dataDaAtividade(x.data, aid) });
+        tarefas.push({ linha: x, atividadeId: aid, data: dataLoteDaAtividade(x.data, aid) });
       });
     });
 
@@ -4416,7 +4429,7 @@ window.SIPAV = window.SIPAV || {};
     filtrarAtividades: filtrarAtividades,
     escolherAtividade: escolherAtividade,
     tirarAtividade: tirarAtividade,
-    mudarDeslocAtividade: mudarDeslocAtividade,
+    mudarDataAtividade: mudarDataAtividade,
     teclaAtividade: teclaAtividade,
     mostrarSomaPercentual: mostrarSomaPercentual,
     mostrarDiaDaSemana: mostrarDiaDaSemana,
