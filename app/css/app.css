@@ -1113,3 +1113,28 @@ body.modo-selecao #visaoGrade { user-select: none; }
 @media (max-width: 960px) {
   .linha-filtros .resumo { flex: 1 1 100%; order: 10; text-align: center; }
 }
+
+/* Repetir o último lançamento. Discreto: é atalho, não o caminho principal. */
+.btn-repetir {
+  display: flex; align-items: center; gap: .375rem; width: 100%;
+  padding: .3125rem .5rem; border-radius: .375rem;
+  border: 1px dashed var(--borda); background: transparent;
+  text-align: left; cursor: pointer;
+}
+.btn-repetir:hover { border-color: var(--acento); background: var(--superficie-2); }
+.repetir-rotulo {
+  font-size: .625rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .02em; color: var(--texto-fraco); flex-shrink: 0;
+}
+.repetir-o-que {
+  font-size: .6875rem; font-weight: 600; color: var(--texto-suave);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.btn-repetir:hover .repetir-rotulo, .btn-repetir:hover .repetir-o-que { color: var(--texto); }
+
+/* Selo do que veio do último lançamento, no topo das listas de busca */
+.combo-ultima {
+  margin-left: auto; flex-shrink: 0;
+  font-size: .5625rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .03em; color: var(--acento);
+}

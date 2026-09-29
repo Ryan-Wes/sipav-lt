@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v83 · 2026-09-29';
+  var VERSAO = 'v84 · 2026-09-29';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -843,13 +843,26 @@ window.SIPAV = window.SIPAV || {};
       return !termo || normalizar(a.nome).indexOf(termo) !== -1;
     });
 
+    // As do último lançamento sobem para o topo. Lançando a mesma atividade
+    // torre atrás de torre, ela é a que eu quero em nove de cada dez aberturas
+    // da lista — e ficava no meio de trinta e cinco nomes.
+    var ultimas = ultimoLancamento ? ultimoLancamento.atividades : [];
+    lista.sort(function (a, b) {
+      var ia = ultimas.indexOf(a.id), ib = ultimas.indexOf(b.id);
+      if ((ia !== -1) !== (ib !== -1)) return ia !== -1 ? -1 : 1;
+      return 0;   // o resto mantém a ordem de execução que já vinha
+    });
+
     $('listaAtividades').innerHTML = lista.length
       ? lista.map(function (a) {
           var cor = a.cor_fundo || '#94A3B8';
           return '<button type="button" class="combo-item" ' +
                  'onmousedown="SIPAV.app.escolherAtividade(\'' + a.id + '\')">' +
                  '<span class="ponto-atividade" style="background:' + cor + '"></span>' +
-                 esc(a.nome) + '</button>';
+                 esc(a.nome) +
+                 (ultimas.indexOf(a.id) !== -1
+                   ? '<span class="combo-ultima">última</span>' : '') +
+                 '</button>';
         }).join('')
       : '<p class="px-3 py-2 text-xs" style="color:var(--texto-fraco)">' +
         (atividadesEscolhidas.length ? 'Todas já escolhidas' : 'Nenhuma atividade com esse nome') + '</p>';
@@ -929,6 +942,98 @@ window.SIPAV = window.SIPAV || {};
     verificarMesmoServico();
   }
 
+  /* ------------------------------------------- O último lançamento ------- */
+
+  /**
+   * O que acabei de lançar, para a próxima torre já ter à mão.
+   *
+   * A programação anda assim: injeção de nata com o mesmo encarregado, torre
+   * atrás de torre, mudando só o dia. Reabrir o combo e digitar o mesmo nome
+   * vinte vezes é onde o dedo erra e onde se perde tempo.
+   *
+   * Vive só nesta aba: fechou o SIPAV, esquece. É atalho do que estou fazendo
+   * agora, não preferência guardada.
+   */
+  var ultimoLancamento = null;
+
+  function guardarUltimoLancamento(dados) {
+    if (!dados || !dados.atividades || !dados.atividades.length) return;
+    ultimoLancamento = dados;
+  }
+
+  /** Nome curto do que ficou guardado, para o botão e para o topo das listas. */
+  function resumoUltimoLancamento() {
+    if (!ultimoLancamento) return null;
+
+    var nomes = ultimoLancamento.atividades.map(function (id) {
+      var a = E.atividades.find(function (x) { return x.id === id; });
+      return a ? a.nome : null;
+    }).filter(Boolean);
+
+    if (!nomes.length) return null;   // atividade apagada do cadastro
+
+    var enc = ultimoLancamento.encarregadoId
+      ? (E.encarregados.find(function (e) { return e.id === ultimoLancamento.encarregadoId; }) || {}).nome
+      : null;
+
+    return { nomes: nomes, encarregado: enc || null };
+  }
+
+  /**
+   * O botão de repetir, dentro da janela da torre.
+   *
+   * Preenche, não grava: ainda dá para trocar a data, o percentual ou tirar uma
+   * atividade antes de confirmar. Preencher sozinho ao abrir seria mais rápido e
+   * mais perigoso — lançaria a atividade errada na torre que eu só fui olhar.
+   */
+  function renderUltimoLancamento() {
+    var caixa = $('blocoUltimo');
+    if (!caixa) return;
+
+    var r = resumoUltimoLancamento();
+
+    // Não aparece enquanto edito uma programação: ali o formulário já está
+    // preenchido com ela, e um botão que troca tudo seria uma armadilha.
+    if (!r || programacaoEmEdicao) {
+      caixa.classList.add('hidden');
+      caixa.innerHTML = '';
+      return;
+    }
+
+    caixa.innerHTML =
+      '<button type="button" class="btn-repetir" onclick="SIPAV.app.repetirUltimoLancamento()">' +
+        '<i data-lucide="corner-up-left" class="w-3 h-3"></i>' +
+        '<span class="repetir-rotulo">Repetir o último</span>' +
+        '<span class="repetir-o-que">' + esc(r.nomes.join(' · ')) +
+          (r.encarregado ? ' · ' + esc(r.encarregado) : '') +
+        '</span>' +
+      '</button>';
+
+    caixa.classList.remove('hidden');
+    ui.icones();
+  }
+
+  function repetirUltimoLancamento() {
+    if (!ultimoLancamento) return;
+
+    // As que ainda existem no cadastro
+    var ids = ultimoLancamento.atividades.filter(function (id) {
+      return E.atividades.some(function (a) { return a.id === id; });
+    });
+    if (!ids.length) { ui.avisar('A atividade do último lançamento não existe mais.', 'alerta'); return; }
+
+    preencherAtividades(ids);
+    preencherEncarregado(ultimoLancamento.encarregadoId || '');
+
+    if (ultimoLancamento.percentual) $('campoPercentual').value = ultimoLancamento.percentual;
+    if (ultimoLancamento.cabo) $('campoCabo').value = ultimoLancamento.cabo;
+
+    // A data não vem junto: é ela que muda de uma torre para a outra, e é o
+    // único campo que eu realmente tenho que pensar a cada lançamento.
+    mudarAtividade();
+    $('campoData').focus();
+  }
+
   /* ----------------------------------------------------- Dia da semana ---- */
 
   /**
@@ -979,6 +1084,16 @@ window.SIPAV = window.SIPAV || {};
     var lista = encarregadosFiltrados();
     encMarcado = -1;
 
+    // O do último lançamento sobe: é o mesmo encarregado torre atrás de torre,
+    // e o nome dele ficava perdido no meio de dezenas.
+    var ultimo = ultimoLancamento ? ultimoLancamento.encarregadoId : null;
+    if (ultimo) {
+      lista = lista.slice().sort(function (a, b) {
+        if ((a.id === ultimo) !== (b.id === ultimo)) return a.id === ultimo ? -1 : 1;
+        return 0;
+      });
+    }
+
     $('listaEncarregados').innerHTML =
       '<button type="button" class="combo-item" onmousedown="SIPAV.app.escolherEncarregado(\'\')">' +
         '<span style="color:var(--texto-fraco)">— sem encarregado —</span>' +
@@ -987,7 +1102,9 @@ window.SIPAV = window.SIPAV || {};
         ? lista.map(function (e) {
             return '<button type="button" class="combo-item" ' +
                    'onmousedown="SIPAV.app.escolherEncarregado(\'' + e.id + '\')">' +
-                   esc(e.nome) + '</button>';
+                   esc(e.nome) +
+                   (e.id === ultimo ? '<span class="combo-ultima">último</span>' : '') +
+                   '</button>';
           }).join('')
         : '<p class="px-3 py-2 text-xs" style="color:var(--texto-fraco)">' +
           'Nenhum encarregado com esse nome</p>');
@@ -1436,6 +1553,18 @@ window.SIPAV = window.SIPAV || {};
         }
       })
       .then(function () {
+        // Guarda o que acabou de entrar, para a próxima torre já ter à mão.
+        // Só o que entrou: se tudo foi recusado, não é um lançamento a repetir.
+        if (criadas.length) {
+          guardarUltimoLancamento({
+            atividades: atividadesEscolhidas.slice(),
+            encarregadoId: comuns.encarregadoId,
+            data: comuns.data,
+            percentual: percentual,
+            cabo: cabo
+          });
+        }
+
         preencherAtividades([]);
         $('campoObservacao').value = '';
         $('campoCabo').value = '';
@@ -1598,6 +1727,9 @@ window.SIPAV = window.SIPAV || {};
     $('tituloFormulario').textContent   = editando ? 'Alterando programação' : 'Nova atividade';
     $('rotuloBtnAdicionar').textContent = editando ? 'Salvar alteração' : 'Adicionar programação';
     $('btnCancelarEdicao').classList.toggle('hidden', !editando);
+    // Passa por aqui toda vez que o formulário troca de modo, que é exatamente
+    // quando o botão de repetir precisa aparecer ou sumir.
+    renderUltimoLancamento();
     ui.icones();
   }
 
@@ -5322,6 +5454,7 @@ window.SIPAV = window.SIPAV || {};
     aplicarPercentualLote: aplicarPercentualLote,
     alternarModoSelecao: alternarModoSelecao,
     apagarProgramacoesSelecionadas: apagarProgramacoesSelecionadas,
+    repetirUltimoLancamento: repetirUltimoLancamento,
     alternarSelecaoProgramacoes: alternarSelecaoProgramacoes,
     alternarProgramacaoMarcada: alternarProgramacaoMarcada,
     limparSelecaoProgramacoes: limparSelecaoProgramacoes,
