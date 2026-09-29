@@ -41,7 +41,7 @@
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 
   <!-- ?v= força o navegador a buscar de novo quando o código muda. -->
-  <link rel="stylesheet" href="css/app.css?v=66">
+  <link rel="stylesheet" href="css/app.css?v=67">
 </head>
 <body class="h-full flex flex-col antialiased">
 
@@ -573,8 +573,10 @@
     <span id="contagemSelecao" class="text-sm font-semibold" style="color:var(--texto)"></span>
     <button onclick="SIPAV.app.selecionarTodasVisiveis()" class="btn-secundario">Todas visíveis</button>
     <button id="btnLimparSelecao" onclick="SIPAV.app.limparSelecao()" class="btn-secundario hidden">Limpar</button>
+    <button id="btnEditarSelecao" onclick="SIPAV.app.abrirEdicaoEmLote()"
+            class="btn-secundario">Editar</button>
     <button id="btnProgramarSelecao" onclick="SIPAV.app.programarSelecionadas()"
-            class="btn-primario">Programar em lote</button>
+            class="btn-primario">Programar</button>
     <button onclick="SIPAV.app.alternarModoSelecao()" class="btn-icone" title="Sair do modo seleção">
       <i data-lucide="x" class="w-4 h-4"></i>
     </button>
@@ -599,11 +601,11 @@
   </div>
 </div>
 
-<script src="js/config.js?v=66"></script>
-<script src="js/db.js?v=66"></script>
-<script src="js/ui.js?v=66"></script>
-<script src="js/render.js?v=66"></script>
-<script src="js/isa.js?v=66"></script>
-<script src="js/app.js?v=66"></script>
+<script src="js/config.js?v=67"></script>
+<script src="js/db.js?v=67"></script>
+<script src="js/ui.js?v=67"></script>
+<script src="js/render.js?v=67"></script>
+<script src="js/isa.js?v=67"></script>
+<script src="js/app.js?v=67"></script>
 </body>
 </html>

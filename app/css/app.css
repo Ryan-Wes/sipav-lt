@@ -881,3 +881,20 @@ body.modo-selecao .cartao-torre:hover { transform: none; }
   color: inherit;
 }
 .chip-desloc b { margin-left: .1875rem; opacity: .85; font-weight: 700; }
+
+/* Lista da edição em lote: uma linha por programação, com marcação */
+.ed-linha {
+  display: flex; align-items: center; gap: .5rem;
+  padding: .3125rem .4375rem; border-radius: .375rem;
+  cursor: pointer;
+}
+.ed-linha:hover { background: var(--superficie-2); }
+.ed-data {
+  width: 46px; flex-shrink: 0;
+  font-size: .6875rem; font-weight: 700; color: var(--acento);
+}
+.ed-enc {
+  flex: 1; min-width: 0;
+  font-size: .75rem; color: var(--texto-suave);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}

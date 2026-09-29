@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v66 · 2026-09-29';
+  var VERSAO = 'v67 · 2026-09-29';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -1849,6 +1849,7 @@ window.SIPAV = window.SIPAV || {};
       n ? n + (n === 1 ? ' torre selecionada' : ' torres selecionadas')
         : 'Clique nos cartões para escolher';
     $('btnProgramarSelecao').disabled = !n;
+    $('btnEditarSelecao').disabled = !n;
     $('btnLimparSelecao').classList.toggle('hidden', !n);
   }
 
@@ -2489,6 +2490,459 @@ window.SIPAV = window.SIPAV || {};
     });
   }
 
+
+  /* ======================================================================== */
+  /* EDITAR EM LOTE                                                           */
+  /* ======================================================================== */
+
+  /**
+   * Alterar de uma vez a programação que já existe nas torres marcadas.
+   *
+   * O caso que mandou fazer isto é chuva: empurrar a semana inteira dois dias
+   * sem reabrir vinte torres. Por isso a data tem o modo relativo, não só o
+   * absoluto — "adiar 2 dias" preserva a distribuição que já estava montada,
+   * enquanto "mudar para" achata tudo no mesmo dia.
+   *
+   * Campo em branco quer dizer NÃO MEXER. Nunca apagar por omissão: esvaziar o
+   * encarregado sem querer é exatamente o tipo de estrago silencioso que some
+   * até a fiscalização perguntar.
+   */
+  var edicaoLote = [];        // [{id, torreNome, atividadeNome, data, encarregadoId, percentual, marcado}]
+  var edicaoDesfazer = [];    // [{id, antes:{...}}] para voltar atrás
+
+  function abrirEdicaoEmLote() {
+    var ids = Object.keys(E.selecionadas);
+    if (!ids.length) { ui.avisar('Marque as torres na grade primeiro.', 'alerta'); return; }
+
+    var marcadas = {};
+    ids.forEach(function (id) { marcadas[id] = true; });
+
+    edicaoLote = E.programacoes
+      .filter(function (p) { return p.torre && marcadas[p.torre.id]; })
+      .map(function (p) {
+        return {
+          id: p.id,
+          torreId: p.torre.id,
+          torreNome: p.torre.identificador,
+          atividadeId: p.atividade ? p.atividade.id : null,
+          atividadeNome: p.atividade ? p.atividade.nome : '—',
+          cor: p.atividade ? p.atividade.cor_fundo : '#94A3B8',
+          data: p.data,
+          encarregadoId: p.encarregado ? p.encarregado.id : '',
+          encarregadoNome: p.encarregado ? p.encarregado.nome : '',
+          percentual: Number(p.percentual) || 100,
+          marcado: true
+        };
+      })
+      .sort(function (a, b) {
+        if (a.data !== b.data) return a.data < b.data ? -1 : 1;
+        return a.torreNome.localeCompare(b.torreNome, 'pt-BR');
+      });
+
+    if (!edicaoLote.length) {
+      ui.avisar('As torres marcadas não têm programação no período exibido.', 'alerta', 6000);
+      return;
+    }
+
+    var atividadesPresentes = [];
+    edicaoLote.forEach(function (x) {
+      if (x.atividadeId && !atividadesPresentes.some(function (a) { return a.id === x.atividadeId; })) {
+        atividadesPresentes.push({ id: x.atividadeId, nome: x.atividadeNome });
+      }
+    });
+
+    var opcoesEnc = E.encarregados.map(function (e) {
+      return '<option value="' + e.id + '">' + esc(e.nome) + '</option>';
+    }).join('');
+
+    var corpo =
+      '<div class="space-y-4">' +
+
+        '<p class="text-xs" style="color:var(--texto-fraco)">' +
+          'Alterando a programação de <strong>' + ids.length + '</strong> torre(s) marcada(s). ' +
+          'Campo em branco não é alterado.' +
+        '</p>' +
+
+        '<div class="flex flex-wrap items-center gap-2">' +
+          '<div class="caixa-filtro">' +
+            '<i data-lucide="filter" class="w-3.5 h-3.5" style="color:var(--texto-fraco)"></i>' +
+            '<select id="edFiltroAtividade" class="select-filtro" onchange="SIPAV.app.filtrarEdicao()">' +
+              '<option value="">Todas as atividades</option>' +
+              atividadesPresentes.map(function (a) {
+                return '<option value="' + a.id + '">' + esc(a.nome) + '</option>';
+              }).join('') +
+            '</select>' +
+          '</div>' +
+          '<button class="btn-secundario" style="font-size:.6875rem;padding:.25rem .5rem" ' +
+                  'onclick="SIPAV.app.marcarTodasEdicao(true)">Marcar todas</button>' +
+          '<button class="btn-secundario" style="font-size:.6875rem;padding:.25rem .5rem" ' +
+                  'onclick="SIPAV.app.marcarTodasEdicao(false)">Desmarcar</button>' +
+          '<span id="edContagem" class="resumo"></span>' +
+        '</div>' +
+
+        '<div id="edLista" class="space-y-1 max-h-56 overflow-y-auto barra-fina"></div>' +
+
+        '<div class="pt-3 space-y-3" style="border-top:1px solid var(--borda)">' +
+          '<label class="rotulo" style="margin-bottom:0">O que mudar nas marcadas</label>' +
+
+          '<div>' +
+            '<label class="rotulo" style="font-size:.625rem">Data</label>' +
+            '<div class="flex flex-wrap items-center gap-2">' +
+              '<select id="edModoData" class="campo" style="width:150px" ' +
+                      'onchange="SIPAV.app.mudarModoDataEdicao()">' +
+                '<option value="">Não alterar</option>' +
+                '<option value="deslocar">Adiar / adiantar</option>' +
+                '<option value="fixa">Mudar para</option>' +
+              '</select>' +
+              '<div id="edCaixaDeslocar" class="hidden flex items-center gap-1">' +
+                '<input id="edDias" type="number" step="1" value="1" class="campo" style="width:70px">' +
+                '<span class="text-sm" style="color:var(--texto-suave)">dia(s)' +
+                  '<span class="text-xs" style="color:var(--texto-fraco)"> · negativo adianta</span>' +
+                '</span>' +
+                '<label class="flex items-center gap-1.5 text-xs cursor-pointer ml-2" ' +
+                       'style="color:var(--texto-suave)">' +
+                  '<input type="checkbox" id="edPularDomingo" class="rounded" checked> pular domingo' +
+                '</label>' +
+              '</div>' +
+              '<input id="edDataFixa" type="date" class="campo hidden" style="width:150px">' +
+            '</div>' +
+          '</div>' +
+
+          '<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">' +
+            '<div><label class="rotulo" style="font-size:.625rem">Encarregado</label>' +
+              '<select id="edEncarregado" class="campo">' +
+                '<option value="">Não alterar</option>' +
+                '<option value="__SEM__">— tirar o encarregado —</option>' + opcoesEnc +
+              '</select></div>' +
+            '<div><label class="rotulo" style="font-size:.625rem">Percentual</label>' +
+              '<input id="edPercentual" type="number" min="1" max="100" step="1" class="campo" ' +
+                     'placeholder="Não alterar"></div>' +
+          '</div>' +
+        '</div>' +
+
+        '<div id="edPrevia" class="hidden rounded-lg border border-sky-300 bg-sky-50 p-3">' +
+          '<p class="text-sm font-semibold text-sky-900">Prévia</p>' +
+          '<div id="edPreviaTexto" class="text-xs text-sky-800 mt-1 space-y-0.5"></div>' +
+        '</div>' +
+      '</div>';
+
+    ui.modalGenerico({
+      titulo: 'Editar programação em lote',
+      corpoHtml: corpo,
+      botoes: [
+        { rotulo: 'Cancelar', classe: 'btn-secundario' },
+        { rotulo: 'Remover marcadas', classe: 'btn-perigo', acao: removerEdicaoLote },
+        { rotulo: 'Aplicar', classe: 'btn-primario', acao: aplicarEdicaoLote }
+      ]
+    });
+
+    filtrarEdicao();
+  }
+
+  function edicaoVisiveis() {
+    var f = $('edFiltroAtividade') ? $('edFiltroAtividade').value : '';
+    return edicaoLote.filter(function (x) { return !f || x.atividadeId === f; });
+  }
+
+  function edicaoMarcadas() {
+    return edicaoVisiveis().filter(function (x) { return x.marcado; });
+  }
+
+  function filtrarEdicao() {
+    var lista = edicaoVisiveis();
+    var marcadas = edicaoMarcadas().length;
+
+    $('edContagem').textContent = marcadas + ' de ' + lista.length + ' marcada(s)';
+
+    $('edLista').innerHTML = lista.map(function (x) {
+      return '<label class="ed-linha">' +
+        '<input type="checkbox" class="rounded" ' + (x.marcado ? 'checked ' : '') +
+               'onchange="SIPAV.app.marcarEdicao(\'' + x.id + '\', this.checked)">' +
+        '<span class="lote-id">' + esc(x.torreNome) + '</span>' +
+        '<span class="chip-atividade" style="background:' + x.cor + ';color:' +
+          ui.corDoTexto(x.cor) + '">' + esc(x.atividadeNome) + '</span>' +
+        '<span class="ed-data">' + esc(ui.dataCurta(x.data)) + '</span>' +
+        '<span class="ed-enc">' + esc(x.encarregadoNome || '—') + '</span>' +
+        (x.percentual < 100 ? '<span class="chip-parcial">' + pct(x.percentual) + '</span>' : '') +
+      '</label>';
+    }).join('');
+
+    atualizarPreviaEdicao();
+  }
+
+  function marcarEdicao(id, marcado) {
+    var x = edicaoLote.find(function (y) { return y.id === id; });
+    if (x) x.marcado = marcado;
+    $('edContagem').textContent =
+      edicaoMarcadas().length + ' de ' + edicaoVisiveis().length + ' marcada(s)';
+    atualizarPreviaEdicao();
+  }
+
+  function marcarTodasEdicao(valor) {
+    edicaoVisiveis().forEach(function (x) { x.marcado = valor; });
+    filtrarEdicao();
+  }
+
+  function mudarModoDataEdicao() {
+    var modo = $('edModoData').value;
+    $('edCaixaDeslocar').classList.toggle('hidden', modo !== 'deslocar');
+    $('edDataFixa').classList.toggle('hidden', modo !== 'fixa');
+    atualizarPreviaEdicao();
+  }
+
+  /** A data que a linha vai ter, conforme o modo escolhido. Null = não mexe. */
+  function novaDataEdicao(x) {
+    var modo = $('edModoData') ? $('edModoData').value : '';
+    if (!modo) return null;
+
+    if (modo === 'fixa') return $('edDataFixa').value || null;
+
+    var n = Number($('edDias').value) || 0;
+    if (!n) return null;
+
+    var d = ui.paraData(x.data);
+    if ($('edPularDomingo').checked) {
+      // Anda dia útil por dia útil, senão adiar 2 dias numa sexta cai no domingo
+      var passo = n > 0 ? 1 : -1;
+      for (var i = 0; i < Math.abs(n); i++) {
+        d = ui.somarDias(d, passo);
+        while (d.getDay() === 0) d = ui.somarDias(d, passo);
+      }
+    } else {
+      d = ui.somarDias(d, n);
+    }
+    return ui.iso(d);
+  }
+
+  /** Mostra antes → depois antes de gravar qualquer coisa. */
+  function atualizarPreviaEdicao() {
+    var caixa = $('edPrevia');
+    if (!caixa) return;
+
+    var marcadas = edicaoMarcadas();
+    var encNovo = $('edEncarregado').value;
+    var pctNovo = $('edPercentual').value;
+    var mudaData = !!$('edModoData').value;
+
+    if (!marcadas.length || (!encNovo && !pctNovo && !mudaData)) {
+      caixa.classList.add('hidden');
+      return;
+    }
+
+    var linhas = [];
+
+    if (mudaData) {
+      var exemplos = marcadas.slice(0, 3).map(function (x) {
+        var nova = novaDataEdicao(x);
+        return x.torreNome + ' ' + ui.dataCurta(x.data) + ' → ' +
+               (nova ? ui.dataCurta(nova) : '—');
+      });
+      linhas.push('<p><strong>Data:</strong> ' + esc(exemplos.join(' · ')) +
+        (marcadas.length > 3 ? ' e mais ' + (marcadas.length - 3) : '') + '</p>');
+    }
+
+    if (encNovo) {
+      var nome = encNovo === '__SEM__' ? 'sem encarregado'
+        : (E.encarregados.find(function (e) { return e.id === encNovo; }) || {}).nome;
+      linhas.push('<p><strong>Encarregado:</strong> todas passam para ' + esc(nome) + '</p>');
+    }
+
+    if (pctNovo) {
+      linhas.push('<p><strong>Percentual:</strong> todas passam para ' +
+        esc(formatarPercentual(pctNovo)) + '</p>');
+    }
+
+    linhas.push('<p class="mt-1">Afeta <strong>' + marcadas.length +
+      '</strong> programação(ões).</p>');
+
+    $('edPreviaTexto').innerHTML = linhas.join('');
+    caixa.classList.remove('hidden');
+  }
+
+  function aplicarEdicaoLote() {
+    var marcadas = edicaoMarcadas();
+    if (!marcadas.length) { ui.avisar('Marque pelo menos uma programação.', 'alerta'); return; }
+
+    var encNovo = $('edEncarregado').value;
+    var pctTexto = $('edPercentual').value;
+    var modoData = $('edModoData').value;
+
+    if (!encNovo && !pctTexto && !modoData) {
+      ui.avisar('Escolha o que mudar: data, encarregado ou percentual.', 'alerta');
+      return;
+    }
+
+    var pctNovo = null;
+    if (pctTexto) {
+      pctNovo = Number(pctTexto);
+      if (!(pctNovo > 0 && pctNovo <= 100)) {
+        ui.avisar('O percentual tem que ficar entre 1 e 100.', 'alerta');
+        $('edPercentual').focus();
+        return;
+      }
+    }
+
+    if (modoData === 'fixa' && !$('edDataFixa').value) {
+      ui.avisar('Informe a data.', 'alerta');
+      return;
+    }
+
+    ui.processando('Alterando ' + marcadas.length + ' programação(ões)…');
+
+    var ok = [], falhou = [];
+    edicaoDesfazer = [];
+
+    // Adiar anda de trás para frente: adiantar, da frente para trás. Assim a
+    // linha que se move não esbarra na que ainda não se moveu.
+    var fila = marcadas.slice().sort(function (a, b) {
+      var dias = Number($('edDias').value) || 0;
+      var atrasando = modoData === 'deslocar' ? dias > 0 : true;
+      return atrasando ? (a.data < b.data ? 1 : -1) : (a.data < b.data ? -1 : 1);
+    });
+
+    fila.reduce(function (antes, x) {
+      return antes.then(function () {
+        var campos = {};
+        var nova = novaDataEdicao(x);
+        if (nova) campos.data = nova;
+        if (encNovo) campos.encarregado_id = encNovo === '__SEM__' ? null : encNovo;
+        if (pctNovo) campos.percentual = pctNovo;
+        if (!Object.keys(campos).length) return;
+
+        return db.atualizarProgramacao(x.id, campos)
+          .then(function () {
+            ok.push(x.torreNome + ' · ' + x.atividadeNome);
+            edicaoDesfazer.push({
+              id: x.id,
+              antes: {
+                data: x.data,
+                encarregado_id: x.encarregadoId || null,
+                percentual: x.percentual
+              }
+            });
+          })
+          .catch(function (e) {
+            falhou.push({ alvo: x.torreNome + ' · ' + x.atividadeNome, motivo: e.message });
+          });
+      });
+    }, Promise.resolve())
+      .then(recarregarProgramacoes)
+      .then(function () {
+        ui.pronto();
+        ui.fecharModal('modalGenerico');
+        if (E.modoSelecao) limparSelecao();
+        relatarEdicao(ok, falhou, 'alterada');
+      })
+      .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro'); });
+  }
+
+  function removerEdicaoLote() {
+    var marcadas = edicaoMarcadas();
+    if (!marcadas.length) { ui.avisar('Marque pelo menos uma programação.', 'alerta'); return; }
+
+    ui.confirmar('Remover programações',
+      'Apaga ' + marcadas.length + ' programação(ões) das torres marcadas. ' +
+      'O histórico guarda o registro de cada remoção.', 'Remover')
+      .then(function (sim) {
+        if (!sim) return;
+
+        ui.processando('Removendo…');
+        var ok = [], falhou = [];
+        edicaoDesfazer = [];   // remoção não tem desfazer: a linha deixa de existir
+
+        return marcadas.reduce(function (antes, x) {
+          return antes.then(function () {
+            return db.removerProgramacao(x.id)
+              .then(function () { ok.push(x.torreNome + ' · ' + x.atividadeNome); })
+              .catch(function (e) {
+                falhou.push({ alvo: x.torreNome + ' · ' + x.atividadeNome, motivo: e.message });
+              });
+          });
+        }, Promise.resolve())
+          .then(recarregarProgramacoes)
+          .then(function () {
+            ui.pronto();
+            ui.fecharModal('modalGenerico');
+            if (E.modoSelecao) limparSelecao();
+            relatarEdicao(ok, falhou, 'removida');
+          });
+      })
+      .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro'); });
+  }
+
+  /** Volta cada linha ao valor que tinha antes da alteração. */
+  function desfazerEdicaoLote() {
+    if (!edicaoDesfazer.length) return;
+    var quantas = edicaoDesfazer.length;
+
+    ui.confirmar('Desfazer a alteração',
+      'Devolve ' + quantas + ' programação(ões) ao valor anterior.', 'Desfazer')
+      .then(function (sim) {
+        if (!sim) return;
+        ui.processando('Desfazendo…');
+        return edicaoDesfazer.reduce(function (antes, x) {
+          return antes.then(function () {
+            return db.atualizarProgramacao(x.id, x.antes).catch(function () {});
+          });
+        }, Promise.resolve())
+          .then(recarregarProgramacoes)
+          .then(function () {
+            edicaoDesfazer = [];
+            ui.pronto();
+            ui.fecharModal('modalGenerico');
+            ui.avisar(quantas + ' programação(ões) devolvida(s).', 'sucesso');
+          });
+      })
+      .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro'); });
+  }
+
+  function relatarEdicao(ok, falhou, verbo) {
+    var botoes = [{ rotulo: 'Fechar', classe: 'btn-secundario' }];
+    if (edicaoDesfazer.length) {
+      botoes.push({ rotulo: 'Desfazer', classe: 'btn-perigo', acao: desfazerEdicaoLote });
+    }
+
+    if (!falhou.length) {
+      ui.modalGenerico({
+        titulo: 'Edição em lote',
+        corpoHtml:
+          '<div class="rounded-lg border border-emerald-300 bg-emerald-50 p-3">' +
+            '<p class="text-sm font-semibold text-emerald-800">' +
+              ok.length + ' programação(ões) ' + esc(verbo) + '(s)</p>' +
+            '<p class="text-xs text-emerald-800 mt-1">' + esc(ok.join(' · ')) + '</p>' +
+          '</div>',
+        botoes: botoes
+      });
+      return;
+    }
+
+    ui.modalGenerico({
+      titulo: 'Edição em lote',
+      corpoHtml:
+        '<div class="space-y-2">' +
+          (ok.length
+            ? '<div class="rounded-lg border border-emerald-300 bg-emerald-50 p-3">' +
+                '<p class="text-sm font-semibold text-emerald-800">' + ok.length + ' ' +
+                  esc(verbo) + '(s)</p>' +
+                '<p class="text-xs text-emerald-800 mt-1">' + esc(ok.join(' · ')) + '</p>' +
+              '</div>'
+            : '') +
+          '<div class="rounded-lg border border-rose-200 bg-rose-50 p-3">' +
+            '<p class="text-sm font-semibold text-rose-800">' + falhou.length + ' não deu</p>' +
+            '<div class="text-xs text-rose-800 mt-1 space-y-1">' +
+              falhou.map(function (f) {
+                return '<p><strong>' + esc(f.alvo) + '</strong> — ' + esc(f.motivo) + '</p>';
+              }).join('') +
+            '</div>' +
+            '<p class="text-xs text-rose-700 mt-2">' +
+              'Mudar a data pode quebrar a sequência: se a escavação for para antes ' +
+              'da supressão, o banco recusa. Ajuste as duas juntas ou uma a uma.' +
+            '</p>' +
+          '</div>' +
+        '</div>',
+      botoes: botoes
+    });
+  }
   /* ======================================================================== */
   /* RESTRIÇÕES                                                               */
   /* ======================================================================== */
@@ -3774,6 +4228,13 @@ window.SIPAV = window.SIPAV || {};
     mudarDataBaseLote: mudarDataBaseLote,
     conferirLote: conferirLote,
     desfazerUltimoLote: desfazerUltimoLote,
+
+    abrirEdicaoEmLote: abrirEdicaoEmLote,
+    filtrarEdicao: filtrarEdicao,
+    marcarEdicao: marcarEdicao,
+    marcarTodasEdicao: marcarTodasEdicao,
+    mudarModoDataEdicao: mudarModoDataEdicao,
+    desfazerEdicaoLote: desfazerEdicaoLote,
     mudarEncarregadoLote: mudarEncarregadoLote,
     aplicarEncarregadoLote: aplicarEncarregadoLote,
     mudarPercentualLote: mudarPercentualLote,
