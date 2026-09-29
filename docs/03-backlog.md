@@ -1,6 +1,6 @@
 # Backlog consolidado
 
-Fontes: `[REU]` reunião 22/09/2026 · `[PI]` post-it · `[WR]` análise técnica · `[PROT]` existia no protótipo do Alessandro
+Fontes: `[REU]` reunião 22/09/2026 · `[PI]` post-it · `[WR]` análise técnica · `[PROT]` existia no protótipo do Alessandro · `[AM]` Alessandro em campo
 
 Situação conferida em **23/09/2026**, item por item, contra o que está publicado.
 
@@ -28,11 +28,11 @@ Situação conferida em **23/09/2026**, item por item, contra o que está public
 
 | # | Item | Fonte | |
 |---|---|---|---|
-| R1 | Bloqueio por precedência | [REU] [PI-2] | ✅ percorre a cadeia inteira |
+| R1 | Bloqueio por precedência | [REU] [PI-2] | ✅ percorre a cadeia inteira; pré-requisito no mesmo dia libera ([AM] 25/09, `db/30`) |
 | R2 | Bloqueio por data retroativa | [REU] | ✅ |
 | R3 | Bloqueio por restrição ativa | [WR] | ✅ |
 | R4 | Atividades em ordem de execução | [REU] [PI-2] | ✅ |
-| R5 | Alerta de conflito de encarregado | [WR] | ✅ |
+| R5 | Alerta de conflito de encarregado | [WR] | ✅ vale para todas as atividades escolhidas, cada uma na sua data |
 | R6 | Override com justificativa registrada | [WR] | ✅ |
 | R7 | Editor de atividades no front | [WR] 23/09 | ✅ inclusive as dependências da regra de bloqueio |
 | **R8** | **Cor e ícone da atividade pela tela** | [PROT] | ✅ |

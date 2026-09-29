@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v71 · 2026-09-29';
+  var VERSAO = 'v75 · 2026-09-29';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -68,21 +68,27 @@ window.SIPAV = window.SIPAV || {};
 
     $('formLogin').addEventListener('submit', aoEnviarLogin);
 
+    // Esc fecha a janela aberta. Clicar no fundo escuro não fecha: com formulário
+    // grande, um clique que escapa do campo jogava fora tudo o que eu tinha
+    // preenchido. Fechar é no X ou no Esc, que ninguém aperta sem querer.
     document.addEventListener('keydown', function (ev) {
-      if (ev.key === 'Escape') {
-        fecharMenus();
-        var aberto = document.querySelector('.modal:not(.hidden)');
-        if (aberto) ui.fecharModal(aberto.id);
-      }
-    });
+      if (ev.key !== 'Escape') return;
+      fecharMenus();
 
-    // Clique no fundo escuro fecha o modal. A confirmação tem tratamento
-    // próprio em ui.confirmar, porque precisa resolver a promessa como "não".
-    Array.prototype.forEach.call(document.querySelectorAll('.modal'), function (m) {
-      if (m.id === 'modalConfirmacao') return;
-      m.addEventListener('click', function (ev) {
-        if (ev.target === m) ui.fecharModal(m.id);
-      });
+      var abertos = document.querySelectorAll('.modal:not(.hidden)');
+      if (!abertos.length) return;
+
+      // A de cima, não a primeira do documento. A confirmação abre por cima da
+      // janela da torre, e pegar a primeira fechava a de trás deixando a
+      // pergunta pendurada — quem chamou ficava esperando resposta para sempre.
+      var aberto = abertos[abertos.length - 1];
+
+      // Na confirmação o Esc é o mesmo que Cancelar, pelo mesmo motivo.
+      if (aberto.id === 'modalConfirmacao') {
+        var cancelar = aberto.querySelector('.btn-secundario');
+        if (cancelar) { cancelar.click(); return; }
+      }
+      ui.fecharModal(aberto.id);
     });
 
     // Clique fora fecha os menus suspensos
@@ -626,6 +632,17 @@ window.SIPAV = window.SIPAV || {};
     return cabo === 'PARA_RAIO' ? 'PARA-RAIO' : cabo;
   }
 
+  /**
+   * Onde a atividade fica na cadeia.
+   *
+   * Serve para gravar na ordem certa quando duas caem no mesmo dia: o gatilho
+   * pede o pré-requisito já gravado, e no mesmo dia quem chega primeiro decide.
+   */
+  function ordemDaAtividade(atividadeId) {
+    var a = E.atividades.find(function (x) { return x.id === atividadeId; });
+    return a ? Number(a.ordem_execucao) || 0 : 0;
+  }
+
   function pedeCabo(atividadeId) {
     var a = E.atividades.find(function (x) { return x.id === atividadeId; });
     return !!a && ATIVIDADES_COM_CABO.indexOf(a.nome) !== -1;
@@ -786,15 +803,18 @@ window.SIPAV = window.SIPAV || {};
   function mudarAtividade() {
     atualizarCampoCabo();
 
-    // Com várias escolhidas as conferências ao vivo perdem o sentido: elas são
-    // por atividade, e mostrar cinco painéis empilhados seria pior que não
-    // mostrar nada. O relato da gravação cobre.
+    // Com várias escolhidas, a checagem de precedência ao vivo perde o sentido:
+    // ela é por atividade, e cinco painéis empilhados seriam piores que nenhum.
+    // Essa fica para a gravação, que responde uma a uma.
     if (atividadesEscolhidas.length > 1) {
       limparAvisos();
       $('somaPercentual').textContent =
-        atividadesEscolhidas.length + ' atividades escolhidas · a sequência e a ' +
-        'duplicidade são conferidas ao gravar, uma por uma';
+        atividadesEscolhidas.length + ' atividades escolhidas · a sequência é ' +
+        'conferida ao gravar, uma por uma';
       $('somaPercentual').style.color = 'var(--texto-fraco)';
+      // A duplicidade não: ela olha cada atividade na sua data e cabe num aviso
+      // só. Lançar em cima de uma equipe é erro calado demais para esperar.
+      verificarMesmoServico();
       return;
     }
 
@@ -1052,30 +1072,48 @@ window.SIPAV = window.SIPAV || {};
   function verificarMesmoServico() {
     if (!torreAberta) return;
 
-    var atividadeId = $('campoAtividade').value;
-    var data = $('campoData').value;
-    if (!atividadeId || !data) { ui.esconder('avisoMesmoServico'); return; }
+    var base = $('campoData').value;
+    if (!base || !atividadesEscolhidas.length) {
+      ui.esconder('avisoMesmoServico');
+      return;
+    }
 
-    var jaTem = render.programacoesDaTorre(torreAberta.torre_id).filter(function (p) {
-      return p.id !== programacaoEmEdicao &&
-             p.data === data &&
-             p.atividade && p.atividade.id === atividadeId;
+    var daTorre = render.programacoesDaTorre(torreAberta.torre_id);
+    var conflitos = [];
+
+    // Todas as escolhidas, cada uma na sua data. Antes olhava só a primeira e a
+    // data lá de cima, então escolher duas atividades fazia o aviso sumir — e
+    // lançar em cima de uma equipe passava calado.
+    atividadesEscolhidas.forEach(function (id) {
+      var quando = dataDaAtividade(base, id);
+      var a = E.atividades.find(function (x) { return x.id === id; });
+
+      daTorre.forEach(function (p) {
+        if (p.id === programacaoEmEdicao) return;
+        if (p.data !== quando) return;
+        if (!p.atividade || p.atividade.id !== id) return;
+
+        conflitos.push({
+          atividade: a ? a.nome : '',
+          data: quando,
+          quem: (p.encarregado ? p.encarregado.nome : 'sem encarregado') +
+                (Number(p.percentual) < 100 ? ' (' + formatarPercentual(p.percentual) + ')' : '')
+        });
+      });
     });
 
-    if (!jaTem.length) {
+    if (!conflitos.length) {
       ui.esconder('avisoMesmoServico');
       $('campoPermitirDuplo').checked = false;
       return;
     }
 
-    var nomes = jaTem.map(function (p) {
-      return (p.encarregado ? p.encarregado.nome : 'sem encarregado') +
-             (Number(p.percentual) < 100 ? ' (' + formatarPercentual(p.percentual) + ')' : '');
-    });
+    var varias = atividadesEscolhidas.length > 1;
 
-    $('textoMesmoServico').textContent =
-      nomes.join(' e ') + (jaTem.length === 1 ? ' já está' : ' já estão') +
-      ' com esta atividade nesta torre em ' + ui.dataCurta(data) +
+    $('textoMesmoServico').textContent = conflitos.map(function (c) {
+      return c.quem + ' já está' + (varias ? ' em ' + c.atividade : '') +
+             ' nesta torre em ' + ui.dataCurta(c.data);
+    }).join(' · ') +
       '. Se a equipe vai dividir o serviço, siga — vale conferir os percentuais.';
 
     ui.mostrar('avisoMesmoServico');
@@ -1223,7 +1261,7 @@ window.SIPAV = window.SIPAV || {};
     }
 
     // Dividir o serviço entre equipes é legítimo, mas tem que ser deliberado.
-    // Só vale com uma atividade: com várias o aviso não chegou a rodar.
+    // Vale para todas as atividades escolhidas, cada uma na sua data.
     var avisoDuplo = !$('avisoMesmoServico').classList.contains('hidden');
     if (avisoDuplo && !$('campoPermitirDuplo').checked) {
       ui.avisar('Já tem gente nesse serviço. Marque "adicionar outro mesmo assim" para dividir.', 'alerta', 6000);
@@ -1257,11 +1295,14 @@ window.SIPAV = window.SIPAV || {};
           cabo:            pedeCabo(atividadesEscolhidas[0]) ? cabo : null,
           percentual:      percentual
         })
-      // Em ordem de data: a cadeia precisa da supressão gravada antes da
-      // escavação, senão o gatilho recusa a segunda por precedência.
+      // Em ordem de data e, no mesmo dia, de ordem de execução: a cadeia precisa
+      // da supressão gravada antes da escavação, senão o gatilho recusa a segunda
+      // por precedência. Desde que o mesmo dia passou a liberar, as duas caem na
+      // mesma data e a ordem entre elas é o que decide.
       : atividadesEscolhidas.slice().sort(function (x, y) {
           var dx = dataDaAtividade(comuns.data, x), dy = dataDaAtividade(comuns.data, y);
-          return dx < dy ? -1 : dx > dy ? 1 : 0;
+          if (dx !== dy) return dx < dy ? -1 : 1;
+          return ordemDaAtividade(x) - ordemDaAtividade(y);
         }).reduce(function (antes, id) {
           return antes.then(function () {
             var a = E.atividades.find(function (x) { return x.id === id; });
@@ -1916,9 +1957,10 @@ window.SIPAV = window.SIPAV || {};
    * Refaz as linhas quando as torres ou as atividades mudam, preservando o que
    * eu já tinha ajustado à mão.
    *
-   * A atividade nova de uma torre que já tem data nasce no dia seguinte útil da
-   * anterior, não em cima dela: a cadeia exige o pré-requisito programado para
-   * uma data ANTERIOR, e no mesmo dia ela trava. Nasce visível e dá para mudar.
+   * A atividade nova nasce no mesmo dia da anterior daquela torre. É o normal
+   * da obra: a mesma equipe escava e instala o pré-moldado no mesmo dia, e
+   * ainda pode ter gente reaterrando na sequência. Se for para separar, é só
+   * mudar a data da linha.
    */
   function sincronizarLinhasLote() {
     var antigas = {};
@@ -1933,7 +1975,7 @@ window.SIPAV = window.SIPAV || {};
 
         var nova = {
           torreId: t.torreId, identificador: t.identificador, atividadeId: aid,
-          data: anterior && anterior.data ? diaSeguinteUtil(anterior.data) : '',
+          data: anterior ? anterior.data : '',
           encarregadoId: lotePadrao.encarregadoId,
           percentual: lotePadrao.percentual,
           bloqueio: null
@@ -2201,23 +2243,21 @@ window.SIPAV = window.SIPAV || {};
    *
    * @param {boolean} sequencial uma torre por dia útil, em vez de todas juntas
    *
-   * Com mais de uma atividade, as atividades da mesma torre nunca caem no mesmo
-   * dia: a segunda vai para o dia seguinte útil. É o que a cadeia exige, e é o
-   * que eu faria na mão de qualquer jeito.
+   * As atividades da mesma torre ficam todas no mesmo dia: escavar e instalar o
+   * pré-moldado no mesmo dia é o normal. Quem quiser separar muda a data da
+   * linha, que está ali do lado.
    */
   function distribuirLote(sequencial) {
     var base = $('loteBase').value;
     if (!base) { ui.avisar('Informe a data.', 'alerta'); return; }
 
-    var diaDaTorre = base;
+    var dia = base;
 
     loteTorres.forEach(function (t, i) {
-      if (sequencial && i > 0) diaDaTorre = diaSeguinteUtil(diaDaTorre);
+      if (sequencial && i > 0) dia = diaSeguinteUtil(dia);
 
-      var dia = diaDaTorre;
       loteLinhas.filter(function (l) { return l.torreId === t.torreId; })
-        .forEach(function (l, j) {
-          if (j > 0) dia = diaSeguinteUtil(dia);
+        .forEach(function (l) {
           l.data = dia;
           l.bloqueio = null;
         });
@@ -2454,10 +2494,12 @@ window.SIPAV = window.SIPAV || {};
 
     var situacao = E.perfil.papel === 'SUPERVISOR' ? 'SOLICITADA' : 'APROVADA';
 
-    // Em ordem de data: a cadeia precisa da supressão gravada antes da escavação,
-    // senão o gatilho recusa a segunda por precedência.
+    // Em ordem de data e, no mesmo dia, de ordem de execução: o gatilho pede o
+    // pré-requisito já gravado. Com as duas na mesma data, quem chega primeiro
+    // é o que decide se a segunda passa.
     var tarefas = loteLinhas.slice().sort(function (a, b) {
-      return a.data < b.data ? -1 : a.data > b.data ? 1 : 0;
+      if (a.data !== b.data) return a.data < b.data ? -1 : 1;
+      return ordemDaAtividade(a.atividadeId) - ordemDaAtividade(b.atividadeId);
     });
 
     ui.processando('Programando ' + tarefas.length + ' lançamento(s)…');
