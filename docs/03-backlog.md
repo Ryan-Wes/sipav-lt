@@ -95,8 +95,8 @@ Situação conferida em **23/09/2026**, item por item, contra o que está public
 
 | # | Item | |
 |---|---|---|
-| D1 | **SQL aplicado à mão** — o repositório guarda os scripts, mas nada os executa. A CLI do Supabase transformaria `db/` em migrations versionadas, com um comando só. Adiar até depois da demonstração | ❌ |
-| D2 | **Correção de estágio não tem trilha de auditoria própria** — fica só `registrado_por` e a observação na linha de execução. O histórico com trigger cobre programação, não execução | ⚠️ |
+| D1 | **SQL aplicado à mão** — eu colo cada arquivo de `db/` no SQL Editor. Desde 29/09 a tabela `migracao` diz o que já entrou, e o `db/PENDENTES.sql` junta o que falta. A CLI do Supabase acaba com o colar de vez, e vale quando outra pessoa também for aplicar | ⚠️ |
+| D2 | **Apontamento de execução não tem trilha de auditoria** — a correção de estágio passou a registrar uma linha no histórico (`db/19`), mas apontar, alterar e desfazer execução continuam sem rastro. É o dado que vira percentual para a ISA | ⚠️ |
 | D3 | **Tailwind e demais bibliotecas vêm de CDN** — sem build, e com aviso do próprio Tailwind de que não é para produção. Some na migração para Next.js | ⚠️ |
 | D4 | **O que libera o reaterro quando a escavação é programada em partes** — decidi em 29/09 deixar como está, ver abaixo | ✅ |
 

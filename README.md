@@ -16,7 +16,7 @@ Publicado em 23/09/2026, testado com dado real da obra.
 | | |
 |---|---|
 | ✅ | Banco no Supabase: precedência, restrições, RLS por papel, realtime |
-| ✅ | Cadeia de 28 atividades validada com o Alessandro |
+| ✅ | Cadeia de 37 atividades, validada com o Alessandro e corrigida em campo (`db/21` a `db/33`) |
 | ✅ | Interface: login, grade de torres, programação, 4 visões, importação, PDF/WhatsApp |
 | ✅ | Publicado na Vercel, com deploy automático a cada push |
 | ✅ | Tempo real confirmado entre abas, e grade usável no celular |
@@ -62,6 +62,8 @@ referencia/ protótipo original, ata e post-its
 | [`docs/01-contexto.md`](docs/01-contexto.md) | Domínio, vocabulário, cadeia de atividades, dores, quem é quem |
 | [`docs/02-analise-prototipo.md`](docs/02-analise-prototipo.md) | O que o protótipo faz, modelo de dados antigo, problemas estruturais |
 | [`docs/03-backlog.md`](docs/03-backlog.md) | Backlog consolidado com rastreabilidade de origem |
+| [`docs/04-relatorio-isa.md`](docs/04-relatorio-isa.md) | A planilha da ISA: estrutura, catálogo unificado, de-para e as decisões |
+| [`docs/05-decisoes.md`](docs/05-decisoes.md) | Diário de decisões — o que mudou, quando e por quê |
 
 ## Referências
 
@@ -78,6 +80,8 @@ referencia/ protótipo original, ata e post-its
 
 Em ordem de impacto, considerando o que a equipe pediu na reunião de 22/09:
 
+- [ ] **Levar o catálogo unificado à fiscalização** — as quatro planilhas divergem
+      entre si e a padronização só vale depois do aceite deles (ver `docs/04`)
 - [ ] **Excel no layout da fiscalização** — depende do modelo oficial, com o Alisson.
       É o que decide se a ferramenta é aceita ou se vira retrabalho
 - [ ] **Tela de apontamento do executado** — o schema já suporta (`execucao`), falta a
@@ -85,7 +89,6 @@ Em ordem de impacto, considerando o que a equipe pediu na reunião de 22/09:
       e curva de avanço
 - [ ] **Painel do supervisor** com fluxo de solicitação e aceite (post-it 3).
       A RLS já está pronta para isso; falta a tela de aprovação
-- [ ] **Editor de atividades no front** — hoje mexer na cadeia exige SQL
 - [ ] **Quebra do relatório por semana**, em vez da quinzena inteira
 
 Pendências menores:
@@ -93,5 +96,5 @@ Pendências menores:
 - [ ] Renomear a pasta local do projeto para `sipav-lt`
 - [ ] Avisar o Daniel que o dado da obra está em infra externa (Supabase)
 - [ ] Recuperação de senha por e-mail — exige servidor de envio configurado
-- [ ] Usar `torre.estrutura` para tratar as atividades condicionais com precisão
-      (ver rodapé de `db/05-cadeia-alessandro.sql`)
+- [x] ~~Usar `torre.estrutura` nas atividades condicionais~~ — feito na `db/33`:
+      `atividade.so_para_estrutura` barra estai e mastro central em autoportante
