@@ -198,7 +198,9 @@ window.SIPAV = window.SIPAV || {};
       : '';
 
     return '' +
-      '<div class="' + classes.join(' ') + '" ' +
+      // data-torre é o que a seleção por arrasto usa para saber de quem é cada
+      // retângulo na tela, sem ter que remontar a grade.
+      '<div class="' + classes.join(' ') + '" data-torre="' + torre.torre_id + '" ' +
            (estilo ? 'style="' + estilo + '" ' : '') +
            'onclick="SIPAV.app.abrirTorre(\'' + torre.torre_id + '\')" ' +
            'title="' + dica + '">' +

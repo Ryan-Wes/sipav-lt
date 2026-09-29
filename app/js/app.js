@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v79 · 2026-09-29';
+  var VERSAO = 'v81 · 2026-09-29';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -90,6 +90,9 @@ window.SIPAV = window.SIPAV || {};
       }
       ui.fecharModal(aberto.id);
     });
+
+    // Arrastar pela grade marca as torres do retângulo, no modo seleção
+    document.addEventListener('mousedown', iniciarLaco);
 
     // Clique fora fecha os menus suspensos
     document.addEventListener('click', function (ev) {
@@ -1953,6 +1956,111 @@ window.SIPAV = window.SIPAV || {};
     renderBarraSelecao();
   }
 
+  /* ------------------------------------------- Seleção por arrasto -------- */
+
+  /**
+   * Marcar torres arrastando um retângulo pela grade.
+   *
+   * Uma torre por clique é o que tem hoje, e programar uma frente inteira são
+   * trinta cliques — dá para pular uma sem perceber. O arrasto pega o trecho
+   * contínuo de uma vez, que é como a frente anda em campo.
+   *
+   * Só funciona no modo seleção. Fora dele, arrastar na grade não faz nada,
+   * como sempre.
+   */
+  var laco = null;   // { x0, y0, caixa, jaMarcadas, subtraindo }
+
+  function iniciarLaco(ev) {
+    if (!E.modoSelecao || ev.button !== 0) return;
+
+    // Começar em cima de um cartão é clique, não arrasto: senão não daria mais
+    // para marcar uma torre sozinha.
+    if (ev.target.closest && ev.target.closest('.cartao-torre')) return;
+
+    var grade = $('visaoGrade');
+    if (!grade || !grade.contains(ev.target)) return;
+
+    ev.preventDefault();
+
+    var caixa = document.createElement('div');
+    caixa.className = 'laco-selecao';
+    document.body.appendChild(caixa);
+
+    laco = {
+      x0: ev.pageX, y0: ev.pageY, caixa: caixa,
+      // Com Alt o arrasto desmarca em vez de marcar, e as que já estavam
+      // marcadas antes do arrasto continuam marcadas nos dois casos.
+      subtraindo: ev.altKey,
+      jaMarcadas: Object.keys(E.selecionadas).reduce(function (m, id) {
+        m[id] = true; return m;
+      }, {}),
+      mexeu: false
+    };
+
+    document.addEventListener('mousemove', moverLaco);
+    document.addEventListener('mouseup', soltarLaco);
+  }
+
+  function moverLaco(ev) {
+    if (!laco) return;
+
+    var x = Math.min(laco.x0, ev.pageX), y = Math.min(laco.y0, ev.pageY);
+    var l = Math.abs(ev.pageX - laco.x0), a = Math.abs(ev.pageY - laco.y0);
+
+    // Tremida de mão não é arrasto
+    if (!laco.mexeu && l < 4 && a < 4) return;
+    laco.mexeu = true;
+
+    laco.caixa.style.left = x + 'px';
+    laco.caixa.style.top = y + 'px';
+    laco.caixa.style.width = l + 'px';
+    laco.caixa.style.height = a + 'px';
+    laco.caixa.classList.toggle('laco-tirando', laco.subtraindo);
+
+    // Marca ao vivo: eu vejo o que vai pegar enquanto ainda dá para ajustar
+    var area = { x1: x, y1: y, x2: x + l, y2: y + a };
+    var mudou = false;
+
+    Array.prototype.forEach.call(
+      document.querySelectorAll('#visaoGrade .cartao-torre'), function (el) {
+        var id = el.getAttribute('data-torre');
+        if (!id) return;
+
+        var r = el.getBoundingClientRect();
+        var dentro = !(r.right + window.scrollX  < area.x1 ||
+                       r.left  + window.scrollX  > area.x2 ||
+                       r.bottom + window.scrollY < area.y1 ||
+                       r.top    + window.scrollY > area.y2);
+
+        var deve = laco.subtraindo
+          ? (laco.jaMarcadas[id] && !dentro)
+          : (laco.jaMarcadas[id] || dentro);
+
+        if (!!E.selecionadas[id] === deve) return;
+        if (deve) E.selecionadas[id] = true; else delete E.selecionadas[id];
+        el.classList.toggle('cartao-selecionado', deve);
+        mudou = true;
+      });
+
+    if (mudou) renderBarraSelecao();
+  }
+
+  function soltarLaco() {
+    if (!laco) return;
+
+    var mexeu = laco.mexeu;
+    if (laco.caixa.parentNode) laco.caixa.parentNode.removeChild(laco.caixa);
+    laco = null;
+
+    document.removeEventListener('mousemove', moverLaco);
+    document.removeEventListener('mouseup', soltarLaco);
+
+    if (mexeu) {
+      render.tudo();
+      renderBarraSelecao();
+    }
+  }
+
   function renderBarraSelecao() {
     var barra = $('barraSelecao');
     var n = Object.keys(E.selecionadas).length;
@@ -2941,18 +3049,14 @@ window.SIPAV = window.SIPAV || {};
   }
 
   /** As marcadas nos painéis, com a lista inteira à vista antes de confirmar. */
+  /** As marcadas nos painéis, com a lista inteira à vista antes de confirmar. */
   function apagarProgramacoesMarcadas() {
     var ids = Object.keys(E.progSelecionadas);
     if (!ids.length) { ui.avisar('Marque pelo menos uma programação.', 'alerta'); return; }
 
-    var alvo = E.programacoes.filter(function (p) {
+    var alvo = ordenarParaApagar(E.programacoes.filter(function (p) {
       return E.progSelecionadas[p.id];
-    }).sort(function (a, b) {
-      if (a.data !== b.data) return a.data < b.data ? -1 : 1;
-      var ia = a.torre ? a.torre.identificador : '';
-      var ib = b.torre ? b.torre.identificador : '';
-      return ia.localeCompare(ib, 'pt-BR');
-    });
+    }));
 
     if (!alvo.length) {
       // Marcada e depois some do período por um filtro: nada a fazer
@@ -2962,48 +3066,151 @@ window.SIPAV = window.SIPAV || {};
       return;
     }
 
+    abrirJanelaApagar(alvo, 'Apagar ' + alvo.length + ' programação(ões)');
+  }
+
+  /* ------------------------------------ Apagar das torres marcadas -------- */
+
+  /**
+   * Apaga a programação das torres marcadas na grade.
+   *
+   * Existia escondido dentro do "Editar em lote", como "remover marcadas". Quem
+   * quer apagar não abre uma janela chamada Editar para procurar — então virou
+   * botão próprio, ao lado dos outros.
+   */
+  function apagarProgramacoesSelecionadas() {
+    var ids = Object.keys(E.selecionadas);
+    if (!ids.length) { ui.avisar('Marque as torres na grade primeiro.', 'alerta'); return; }
+
+    var marcadas = {};
+    ids.forEach(function (id) { marcadas[id] = true; });
+
+    var alvo = ordenarParaApagar(E.programacoes.filter(function (p) {
+      return p.torre && marcadas[p.torre.id];
+    }));
+
+    if (!alvo.length) {
+      ui.avisar('As torres marcadas não têm programação no período exibido.', 'alerta', 6000);
+      return;
+    }
+
     var torres = {};
     alvo.forEach(function (p) { if (p.torre) torres[p.torre.id] = true; });
 
-    var corpo =
-      '<div class="space-y-3">' +
-        '<div class="rounded-lg border border-rose-300 bg-rose-50 p-3">' +
-          '<p class="text-sm font-semibold text-rose-800">' +
-            alvo.length + ' programação(ões) em ' + Object.keys(torres).length + ' torre(s)</p>' +
-          '<p class="text-xs text-rose-800 mt-1">' +
-            'Apagar não tem desfazer. O histórico guarda o registro de quem apagou ' +
-            'o quê, mas a programação some da grade.' +
-          '</p>' +
-        '</div>' +
-        '<div class="space-y-1 max-h-72 overflow-y-auto barra-fina">' +
-          alvo.map(function (p) {
-            var cor = p.atividade ? p.atividade.cor_fundo : '#94A3B8';
-            return '<div class="lote-linha">' +
-              '<span class="lote-id">' + esc(p.torre ? p.torre.identificador : '?') + '</span>' +
-              '<span class="lote-ativ" style="background:' + cor + ';color:' +
-                ui.corDoTexto(cor) + '">' + esc(p.atividade ? p.atividade.nome : '—') + '</span>' +
-              '<span class="lote-dia">' + esc(ui.dataCurta(p.data)) + '</span>' +
-              '<span class="text-xs" style="color:var(--texto-suave)">' +
-                esc(p.encarregado ? p.encarregado.nome : 'sem encarregado') +
-                (Number(p.percentual) < 100 ? ' · ' + formatarPercentual(p.percentual) : '') +
-              '</span>' +
-            '</div>';
-          }).join('') +
-        '</div>' +
-      '</div>';
+    abrirJanelaApagar(alvo,
+      'Apagar programação de ' + Object.keys(torres).length + ' torre(s)',
+      function () { if (E.modoSelecao) limparSelecao(); });
+  }
 
-    ui.modalGenerico({
-      titulo: 'Apagar ' + alvo.length + ' programação(ões)',
-      corpoHtml: corpo,
-      botoes: [
-        { rotulo: 'Cancelar', classe: 'btn-secundario' },
-        { rotulo: 'Apagar ' + alvo.length, classe: 'btn-perigo',
-          acao: function () { executarApagarMarcadas(alvo); } }
-      ]
+  /** Por data, e no mesmo dia por torre: é a ordem em que eu leio a semana. */
+  function ordenarParaApagar(lista) {
+    return lista.slice().sort(function (a, b) {
+      if (a.data !== b.data) return a.data < b.data ? -1 : 1;
+      var ia = a.torre ? a.torre.identificador : '';
+      var ib = b.torre ? b.torre.identificador : '';
+      return ia.localeCompare(ib, 'pt-BR');
     });
   }
 
-  function executarApagarMarcadas(alvo) {
+  /* ------------------------------------------- Janela de apagar ----------- */
+
+  /**
+   * A janela de apagar, uma só para os dois caminhos: as torres marcadas na
+   * grade e as programações marcadas nos painéis.
+   *
+   * Cada linha tem caixinha e vem marcada. Dá para desmarcar a que não era para
+   * ir junto sem sair, refazer a seleção e voltar — que era o único jeito antes.
+   */
+  var apagarPendente = [];
+
+  function abrirJanelaApagar(lista, titulo, aoTerminar) {
+    apagarPendente = lista.map(function (p) { return { p: p, marcado: true }; });
+    apagarDepois = aoTerminar || null;
+
+    ui.modalGenerico({
+      titulo: titulo,
+      corpoHtml:
+        '<div class="space-y-3">' +
+          '<div class="rounded-lg border border-rose-300 bg-rose-50 p-3">' +
+            '<p class="text-xs text-rose-800">' +
+              'Apagar não tem desfazer. O histórico guarda o registro de quem apagou ' +
+              'o quê, mas a programação some da grade. Desmarque o que não é para ir.' +
+            '</p>' +
+          '</div>' +
+          '<div class="flex flex-wrap items-center gap-2">' +
+            '<button class="btn-secundario" style="font-size:.6875rem;padding:.25rem .5rem" ' +
+                    'onclick="SIPAV.app.marcarTodasApagar(true)">Marcar todas</button>' +
+            '<button class="btn-secundario" style="font-size:.6875rem;padding:.25rem .5rem" ' +
+                    'onclick="SIPAV.app.marcarTodasApagar(false)">Desmarcar</button>' +
+            '<span id="apagarContagem" class="text-xs font-semibold" ' +
+                  'style="color:var(--acento)"></span>' +
+          '</div>' +
+          '<div id="apagarLista" class="space-y-1 max-h-72 overflow-y-auto barra-fina"></div>' +
+        '</div>',
+      botoes: [
+        { rotulo: 'Cancelar', classe: 'btn-secundario' },
+        { rotulo: 'Apagar', classe: 'btn-perigo', acao: function () {
+          var marcadas = apagarPendente.filter(function (x) { return x.marcado; })
+                                       .map(function (x) { return x.p; });
+          if (!marcadas.length) {
+            ui.avisar('Nenhuma marcada. Marque o que vai apagar ou cancele.', 'alerta');
+            return;
+          }
+          executarApagar(marcadas);
+        } }
+      ]
+    });
+
+    renderListaApagar();
+  }
+
+  var apagarDepois = null;
+
+  function renderListaApagar() {
+    var caixa = $('apagarLista');
+    if (!caixa) return;
+
+    var n = apagarPendente.filter(function (x) { return x.marcado; }).length;
+
+    $('apagarContagem').textContent = n + ' de ' + apagarPendente.length + ' marcada(s)';
+
+    var botao = Array.prototype.slice.call(
+      document.querySelectorAll('#genericoRodape button')
+    ).filter(function (b) { return /^Apagar/.test(b.textContent); })[0];
+    if (botao) {
+      botao.textContent = n ? 'Apagar ' + n : 'Apagar';
+      botao.disabled = !n;
+    }
+
+    caixa.innerHTML = apagarPendente.map(function (x, i) {
+      var p = x.p;
+      var cor = p.atividade ? p.atividade.cor_fundo : '#94A3B8';
+      return '<label class="lote-linha" style="cursor:pointer">' +
+        '<input type="checkbox" class="rounded" ' + (x.marcado ? 'checked ' : '') +
+               'onchange="SIPAV.app.alternarApagarLinha(' + i + ', this.checked)">' +
+        '<span class="lote-id">' + esc(p.torre ? p.torre.identificador : '?') + '</span>' +
+        '<span class="lote-ativ" style="background:' + cor + ';color:' +
+          ui.corDoTexto(cor) + '">' + esc(p.atividade ? p.atividade.nome : '—') + '</span>' +
+        '<span class="lote-dia">' + esc(ui.dataCurta(p.data)) + '</span>' +
+        '<span class="text-xs" style="color:var(--texto-suave)">' +
+          esc(p.encarregado ? p.encarregado.nome : 'sem encarregado') +
+          (Number(p.percentual) < 100 ? ' · ' + formatarPercentual(p.percentual) : '') +
+        '</span>' +
+      '</label>';
+    }).join('');
+  }
+
+  function alternarApagarLinha(i, marcado) {
+    if (apagarPendente[i]) apagarPendente[i].marcado = !!marcado;
+    renderListaApagar();
+  }
+
+  function marcarTodasApagar(valor) {
+    apagarPendente.forEach(function (x) { x.marcado = !!valor; });
+    renderListaApagar();
+  }
+
+  function executarApagar(alvo) {
     ui.processando('Apagando ' + alvo.length + ' programação(ões)…');
 
     // Apagar não entra no desfazer: a linha deixa de existir.
@@ -3024,106 +3231,9 @@ window.SIPAV = window.SIPAV || {};
       .then(function () {
         ui.pronto();
         ui.fecharModal('modalGenerico');
+        apagarPendente = [];
+        if (apagarDepois) apagarDepois();
         renderBarraSelecaoProg();
-        relatarEdicao(ok, falhou, 'apagada', 'Apagar programação');
-      })
-      .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro'); });
-  }
-
-  /* ------------------------------------ Apagar das torres marcadas -------- */
-
-  /**
-   * Apaga a programação das torres marcadas na grade.
-   *
-   * Existia escondido dentro do "Editar em lote", como "remover marcadas". Quem
-   * quer apagar não abre uma janela chamada Editar para procurar — então virou
-   * botão próprio, ao lado dos outros.
-   *
-   * Mostra tudo o que vai sumir antes de perguntar. Apagar é o único que não tem
-   * desfazer: a linha deixa de existir.
-   */
-  function apagarProgramacoesSelecionadas() {
-    var ids = Object.keys(E.selecionadas);
-    if (!ids.length) { ui.avisar('Marque as torres na grade primeiro.', 'alerta'); return; }
-
-    var marcadas = {};
-    ids.forEach(function (id) { marcadas[id] = true; });
-
-    var alvo = E.programacoes.filter(function (p) {
-      return p.torre && marcadas[p.torre.id];
-    }).sort(function (a, b) {
-      if (a.data !== b.data) return a.data < b.data ? -1 : 1;
-      return (a.torre.identificador || '').localeCompare(b.torre.identificador || '', 'pt-BR');
-    });
-
-    if (!alvo.length) {
-      ui.avisar('As torres marcadas não têm programação no período exibido.', 'alerta', 6000);
-      return;
-    }
-
-    var torres = {};
-    alvo.forEach(function (p) { torres[p.torre.id] = true; });
-
-    var corpo =
-      '<div class="space-y-3">' +
-        '<div class="rounded-lg border border-rose-300 bg-rose-50 p-3">' +
-          '<p class="text-sm font-semibold text-rose-800">' +
-            alvo.length + ' programação(ões) em ' + Object.keys(torres).length + ' torre(s)</p>' +
-          '<p class="text-xs text-rose-800 mt-1">' +
-            'Some do período exibido. Apagar não tem desfazer — o histórico guarda ' +
-            'o registro de quem apagou o quê, mas a programação some da grade.' +
-          '</p>' +
-        '</div>' +
-        '<div class="space-y-1 max-h-72 overflow-y-auto barra-fina">' +
-          alvo.map(function (p) {
-            var cor = p.atividade ? p.atividade.cor_fundo : '#94A3B8';
-            return '<div class="lote-linha">' +
-              '<span class="lote-id">' + esc(p.torre.identificador) + '</span>' +
-              '<span class="lote-ativ" style="background:' + cor + ';color:' +
-                ui.corDoTexto(cor) + '">' + esc(p.atividade ? p.atividade.nome : '—') + '</span>' +
-              '<span class="lote-dia">' + esc(ui.dataCurta(p.data)) + '</span>' +
-              '<span class="text-xs" style="color:var(--texto-suave)">' +
-                esc(p.encarregado ? p.encarregado.nome : 'sem encarregado') +
-                (Number(p.percentual) < 100 ? ' · ' + formatarPercentual(p.percentual) : '') +
-              '</span>' +
-            '</div>';
-          }).join('') +
-        '</div>' +
-      '</div>';
-
-    ui.modalGenerico({
-      titulo: 'Apagar programação de ' + Object.keys(torres).length + ' torre(s)',
-      corpoHtml: corpo,
-      botoes: [
-        { rotulo: 'Cancelar', classe: 'btn-secundario' },
-        { rotulo: 'Apagar ' + alvo.length, classe: 'btn-perigo',
-          acao: function () { executarApagarSelecionadas(alvo); } }
-      ]
-    });
-  }
-
-  function executarApagarSelecionadas(alvo) {
-    ui.processando('Apagando ' + alvo.length + ' programação(ões)…');
-
-    // Apagar não entra no desfazer: a linha deixa de existir. Zera para o relato
-    // não oferecer um Desfazer que veio de uma edição anterior.
-    edicaoDesfazer = [];
-
-    var ok = [], falhou = [];
-
-    alvo.reduce(function (antes, p) {
-      return antes.then(function () {
-        var rotulo = p.torre.identificador + ' · ' + (p.atividade ? p.atividade.nome : '');
-        return db.removerProgramacao(p.id)
-          .then(function () { ok.push(rotulo); })
-          .catch(function (e) { falhou.push({ alvo: rotulo, motivo: e.message }); });
-      });
-    }, Promise.resolve())
-      .then(recarregarProgramacoes)
-      .then(function () {
-        ui.pronto();
-        ui.fecharModal('modalGenerico');
-        if (E.modoSelecao) limparSelecao();
         relatarEdicao(ok, falhou, 'apagada', 'Apagar programação');
       })
       .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro'); });
@@ -3257,6 +3367,25 @@ window.SIPAV = window.SIPAV || {};
               '<input id="edPercentual" type="number" min="1" max="100" step="1" class="campo" ' +
                      'placeholder="Não alterar"></div>' +
           '</div>' +
+
+          // Trocar a atividade das marcadas. O caso é lançar a atividade errada
+          // em vinte torres: sem isto, só apagando as vinte e refazendo.
+          '<div>' +
+            '<label class="rotulo" style="font-size:.625rem">Atividade</label>' +
+            '<select id="edAtividade" class="campo">' +
+              '<option value="">Não alterar</option>' +
+              E.atividades.slice().sort(function (a, b) {
+                return (a.ordem_execucao || 0) - (b.ordem_execucao || 0);
+              }).map(function (a) {
+                return '<option value="' + a.id + '">' + esc(a.nome) + '</option>';
+              }).join('') +
+            '</select>' +
+            '<p class="text-xs mt-1" style="color:var(--texto-fraco)">' +
+              'A sequência é conferida uma a uma na hora de gravar: a torre que ' +
+              'não puder receber a atividade nova fica como está, e o relato diz ' +
+              'qual e por quê.' +
+            '</p>' +
+          '</div>' +
         '</div>' +
 
         '<div id="edPrevia" class="hidden rounded-lg border border-sky-300 bg-sky-50 p-3">' +
@@ -3273,6 +3402,16 @@ window.SIPAV = window.SIPAV || {};
         { rotulo: 'Remover marcadas', classe: 'btn-perigo', acao: removerEdicaoLote },
         { rotulo: 'Aplicar', classe: 'btn-primario', acao: aplicarEdicaoLote }
       ]
+    });
+
+    // A prévia acompanha qualquer campo: é ela que responde "o que isso vai
+    // fazer" antes de eu clicar em Aplicar.
+    ['edEncarregado', 'edPercentual', 'edAtividade', 'edDias', 'edDataFixa',
+     'edPularDomingo'].forEach(function (id) {
+      var campo = $(id);
+      if (!campo) return;
+      campo.addEventListener('change', atualizarPreviaEdicao);
+      campo.addEventListener('input', atualizarPreviaEdicao);
     });
 
     filtrarEdicao();
@@ -3361,9 +3500,10 @@ window.SIPAV = window.SIPAV || {};
     var marcadas = edicaoMarcadas();
     var encNovo = $('edEncarregado').value;
     var pctNovo = $('edPercentual').value;
+    var ativNova = $('edAtividade') ? $('edAtividade').value : '';
     var mudaData = !!$('edModoData').value;
 
-    if (!marcadas.length || (!encNovo && !pctNovo && !mudaData)) {
+    if (!marcadas.length || (!encNovo && !pctNovo && !ativNova && !mudaData)) {
       caixa.classList.add('hidden');
       return;
     }
@@ -3391,6 +3531,28 @@ window.SIPAV = window.SIPAV || {};
         esc(formatarPercentual(pctNovo)) + '</p>');
     }
 
+    if (ativNova) {
+      var a = E.atividades.find(function (x) { return x.id === ativNova; });
+      // Diz de onde sai, não só para onde vai: trocar a atividade de uma linha
+      // que já era ela mesma é o engano fácil aqui.
+      var origens = [], quantasMudam = 0;
+      marcadas.forEach(function (x) {
+        if (x.atividadeId === ativNova) return;
+        quantasMudam++;
+        if (origens.indexOf(x.atividadeNome) === -1) origens.push(x.atividadeNome);
+      });
+      var jaEram = marcadas.length - quantasMudam;
+
+      linhas.push('<p><strong>Atividade:</strong> ' +
+        (origens.length ? esc(origens.join(', ')) + ' → ' : 'passa para ') +
+        esc(a ? a.nome : '') +
+        (jaEram
+          ? ' <em>(' + jaEram + ' já ' + (jaEram === 1 ? 'era' : 'eram') + ', não mud' +
+            (jaEram === 1 ? 'a' : 'am') + ')</em>'
+          : '') +
+        '</p>');
+    }
+
     linhas.push('<p class="mt-1">Afeta <strong>' + marcadas.length +
       '</strong> programação(ões).</p>');
 
@@ -3405,9 +3567,10 @@ window.SIPAV = window.SIPAV || {};
     var encNovo = $('edEncarregado').value;
     var pctTexto = $('edPercentual').value;
     var modoData = $('edModoData').value;
+    var ativNova = $('edAtividade') ? $('edAtividade').value : '';
 
-    if (!encNovo && !pctTexto && !modoData) {
-      ui.avisar('Escolha o que mudar: data, encarregado ou percentual.', 'alerta');
+    if (!encNovo && !pctTexto && !modoData && !ativNova) {
+      ui.avisar('Escolha o que mudar: data, encarregado, percentual ou atividade.', 'alerta');
       return;
     }
 
@@ -3446,6 +3609,9 @@ window.SIPAV = window.SIPAV || {};
         if (nova) campos.data = nova;
         if (encNovo) campos.encarregado_id = encNovo === '__SEM__' ? null : encNovo;
         if (pctNovo) campos.percentual = pctNovo;
+        // A que já era a atividade nova fica de fora: mandar ao banco um update
+        // que não muda nada só gera linha de histórico à toa.
+        if (ativNova && x.atividadeId !== ativNova) campos.atividade_id = ativNova;
         if (!Object.keys(campos).length) return;
 
         return db.atualizarProgramacao(x.id, campos)
@@ -3456,7 +3622,8 @@ window.SIPAV = window.SIPAV || {};
               antes: {
                 data: x.data,
                 encarregado_id: x.encarregadoId || null,
-                percentual: x.percentual
+                percentual: x.percentual,
+                atividade_id: x.atividadeId
               }
             });
           })
@@ -5105,6 +5272,9 @@ window.SIPAV = window.SIPAV || {};
     marcarTodasProgramacoesVisiveis: marcarTodasProgramacoesVisiveis,
     apagarProgramacoesMarcadas: apagarProgramacoesMarcadas,
     apagarUmaProgramacao: apagarUmaProgramacao,
+    alternarApagarLinha: alternarApagarLinha,
+    marcarTodasApagar: marcarTodasApagar,
+    atualizarPreviaEdicao: atualizarPreviaEdicao,
     abrirCopiarDatas: abrirCopiarDatas,
     copiarDatasDe: copiarDatasDe,
     atualizarAtalhosPercentual: atualizarAtalhosPercentual,

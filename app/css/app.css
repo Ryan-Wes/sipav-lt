@@ -1029,3 +1029,18 @@ body.modo-selecao .cartao-torre:hover { transform: none; }
   box-shadow: inset 0 0 0 2px var(--superficie);
 }
 .chip-marcado { outline: 2px solid var(--acento); outline-offset: -1px; }
+
+/* Retângulo da seleção por arrasto. Fica por cima de tudo, mas não recebe
+   clique: senão ele mesmo viraria o alvo do mouseup. */
+.laco-selecao {
+  position: absolute; z-index: 55; pointer-events: none;
+  border: 1.5px dashed var(--acento);
+  background: rgba(249,115,22,.12);
+  border-radius: .25rem;
+}
+.laco-selecao.laco-tirando {
+  border-color: #E11D48; background: rgba(225,29,72,.12);
+}
+
+/* Arrastar sobre a grade não pode sair selecionando o texto dos cartões */
+body.modo-selecao #visaoGrade { user-select: none; }
