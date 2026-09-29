@@ -487,9 +487,66 @@ window.SIPAV = window.SIPAV || {};
       var datas = {};
       itens.forEach(function (p) { datas[p.data] = true; });
       var qtd = Object.keys(datas).length;
-      return blocoQuadrante(nome, qtd + (qtd === 1 ? ' dia programado' : ' dias programados'),
-        itens, { torre: true, data: true, atividade: true, encarregado: false });
+
+      // Dentro do encarregado, separado por semana: a de hoje é a SEMANAL e a
+      // seguinte é a QUINZENAL, que é como a gente chama e como vai para a ISA.
+      var porSemana = agrupar(itens.slice().sort(function (a, b) {
+        return a.data < b.data ? -1 : a.data > b.data ? 1 : 0;
+      }), function (p) { return ui.iso(ui.segundaDaSemana(ui.paraData(p.data))); });
+
+      var corpo = porSemana.ordem.map(function (segunda) {
+        return '<div class="faixa-semana">' +
+                 '<span class="faixa-semana-nome">' + esc(nomeDaSemana(segunda)) + '</span>' +
+                 '<span class="faixa-semana-datas">' +
+                   esc(ui.dataCurta(segunda)) + ' a ' +
+                   esc(ui.dataCurta(ui.iso(ui.somarDias(ui.paraData(segunda), 6)))) +
+                 '</span>' +
+               '</div>' +
+               '<div class="p-3 grid gap-2" ' +
+                    'style="grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr))">' +
+                 porSemana.mapa[segunda].map(function (p) {
+                   return chipProgramacao(p, { torre: true, data: true,
+                                               atividade: true, encarregado: false });
+                 }).join('') +
+               '</div>';
+      }).join('');
+
+      var t = totais(itens);
+
+      return '' +
+        '<section class="bloco-quadrante painel overflow-hidden">' +
+          '<header class="flex flex-wrap items-baseline justify-between gap-x-3 px-4 py-2.5 bg-slate-50 border-b border-slate-200">' +
+            '<div class="min-w-0">' +
+              '<h3 class="font-bold text-slate-800">' + esc(nome) + '</h3>' +
+              '<p class="text-xs text-slate-500">' +
+                qtd + (qtd === 1 ? ' dia programado' : ' dias programados') + '</p>' +
+            '</div>' +
+            '<span class="text-xs font-semibold text-slate-500 shrink-0">' +
+              t.torres + (t.torres === 1 ? ' torre' : ' torres') + ' · ' + ui.km(t.km) + ' km · ' +
+              itens.length + (itens.length === 1 ? ' atividade' : ' atividades') +
+            '</span>' +
+          '</header>' +
+          corpo +
+        '</section>';
     }).join('');
+  }
+
+  /**
+   * Como a obra chama a semana: a de hoje é a semanal, a seguinte é a
+   * quinzenal. É o vocabulário da reunião de sexta e o da planilha da ISA.
+   *
+   * O que cair fora dessas duas ganha a data, sem apelido — inventar "terceira
+   * semana" seria criar nome que ninguém usa.
+   */
+  function nomeDaSemana(segundaIso) {
+    var desta = ui.iso(ui.segundaDaSemana());
+    var proxima = ui.iso(ui.somarDias(ui.segundaDaSemana(), 7));
+
+    if (segundaIso === desta) return 'Semanal';
+    if (segundaIso === proxima) return 'Quinzenal';
+
+    var passada = segundaIso < desta;
+    return (passada ? 'Semana passada de ' : 'Semana de ') + ui.dataCurta(segundaIso);
   }
 
   function renderPorAtividade() {
@@ -536,11 +593,20 @@ window.SIPAV = window.SIPAV || {};
 
     // O período entra no resumo de propósito: sem isso, uma torre programada
     // fora do recorte some da grade e parece que o lançamento se perdeu.
+    //
+    // Numa tela estreita o período sai daqui — ele está escrito no filtro ao
+    // lado, e é o pedaço mais comprido. O resto cabe e a linha não quebra.
+    var periodo = esc(ui.rotuloPeriodo(E.periodo.de, E.periodo.ate));
+
     $('resumoEstatisticas').innerHTML =
       '<span style="opacity:.75">' + E.torres.length + ' torres · </span>' +
       '<strong>' + qtd + ' programadas</strong>' +
-      '<span style="opacity:.75"> · ' + ui.km(kmProgramado) + ' km · ' +
-        esc(ui.rotuloPeriodo(E.periodo.de, E.periodo.ate)) + '</span>';
+      '<span style="opacity:.75"> · ' + ui.km(kmProgramado) + ' km</span>' +
+      '<span class="resumo-periodo" style="opacity:.75"> · ' + periodo + '</span>';
+
+    $('resumoEstatisticas').title =
+      E.torres.length + ' torres · ' + qtd + ' programadas · ' +
+      ui.km(kmProgramado) + ' km · ' + ui.rotuloPeriodo(E.periodo.de, E.periodo.ate);
   }
 
   /* --------------------------------------------------------------- Tudo --- */

@@ -1107,12 +1107,6 @@ body.modo-selecao #visaoGrade { user-select: none; }
   font-size: .625rem; color: var(--texto-fraco);
 }
 
-/* Apertou: o resumo desce inteiro para a linha de baixo e os filtros ficam
-   numa linha só por mais tempo. Uma linha de filtros com o resumo embaixo se
-   lê melhor que cinco caixas picotadas em duas linhas. */
-@media (max-width: 960px) {
-  .linha-filtros .resumo { flex: 1 1 100%; order: 10; text-align: center; }
-}
 
 /* Repetir o último lançamento. Discreto: é atalho, não o caminho principal. */
 .btn-repetir {
@@ -1137,4 +1131,45 @@ body.modo-selecao #visaoGrade { user-select: none; }
   margin-left: auto; flex-shrink: 0;
   font-size: .5625rem; font-weight: 700; text-transform: uppercase;
   letter-spacing: .03em; color: var(--acento);
+}
+
+/* Faixa que separa semanal de quinzenal dentro do bloco do encarregado */
+.faixa-semana {
+  display: flex; align-items: baseline; gap: .5rem;
+  padding: .3125rem .875rem;
+  background: var(--superficie-2);
+  border-top: 1px solid var(--borda);
+}
+.faixa-semana:first-child { border-top: 0; }
+.faixa-semana-nome {
+  font-size: .625rem; font-weight: 800; text-transform: uppercase;
+  letter-spacing: .04em; color: var(--acento);
+}
+.faixa-semana-datas { font-size: .625rem; color: var(--texto-fraco); }
+
+/* O resumo cede espaço antes de qualquer um quebrar: ele encolhe, corta com
+   reticências e guarda o texto inteiro no title. Uma linha de filtros que
+   quebra empurra a grade para baixo, e a grade é o que se veio ver. */
+.linha-filtros .resumo {
+  flex: 0 1 auto; min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* Apertou de verdade: o período sai do resumo. Ele já está escrito na primeira
+   caixa de filtro, ali do lado, e é o pedaço mais comprido do texto. */
+@media (max-width: 1150px) {
+  .resumo-periodo { display: none; }
+}
+
+/* Uma linha, ponto. A quebra empurra a grade para baixo, e é a grade que se
+   veio ver — então os filtros encolhem até o limite antes de quebrar. Abaixo
+   de 700 a quebra volta: aí é celular, e espremer cinco caixas numa linha de
+   telefone não deixa nada legível. */
+.linha-filtros { flex-wrap: nowrap; }
+.linha-filtros > * { min-width: 0; }
+.linha-filtros .caixa-filtro:has(#filtroBusca) input { width: 100%; min-width: 0; }
+
+@media (max-width: 700px) {
+  .linha-filtros { flex-wrap: wrap; }
+  .linha-filtros .caixa-filtro:has(#filtroBusca) { flex: 1 1 100%; }
 }

@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v84 · 2026-09-29';
+  var VERSAO = 'v87 · 2026-09-29';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -690,12 +690,14 @@ window.SIPAV = window.SIPAV || {};
       ];
     }
 
+    // Os pés têm nome em campo: A, B, C e D. "3 pés" obriga a traduzir de
+    // cabeça; "pés A B C" é o que o encarregado fala.
     if (estrutura === 'AUTOPORTANTE') {
       return [
-        { pct: 25,  rotulo: '1 pé' },
-        { pct: 50,  rotulo: '2 pés' },
-        { pct: 75,  rotulo: '3 pés' },
-        { pct: 100, rotulo: '4 pés' }
+        { pct: 25,  rotulo: 'pé A' },
+        { pct: 50,  rotulo: 'pés A B' },
+        { pct: 75,  rotulo: 'pés A B C' },
+        { pct: 100, rotulo: 'pés A B C D' }
       ];
     }
 
