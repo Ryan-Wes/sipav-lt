@@ -963,3 +963,35 @@ body.modo-selecao .cartao-torre:hover { transform: none; }
 .lote-linha.lote-torre-nova { margin-top: .3125rem; padding-top: .375rem; }
 .lote-linha.lote-torre-nova + .lote-linha { margin-top: 0; }
 .lote-linha.lote-torre-nova:not(:first-child) { border-top: 1px solid var(--borda); }
+
+/* Lista das sequências que dá para repetir */
+.seq-item {
+  display: flex; align-items: center; gap: .625rem; width: 100%;
+  padding: .4375rem .5rem; border-radius: .375rem;
+  text-align: left; cursor: pointer;
+}
+.seq-item:hover { background: var(--superficie-2); }
+.seq-ativ {
+  flex-shrink: 0; max-width: 220px;
+  padding: .125rem .3125rem; border-radius: .25rem;
+  font-size: .625rem; font-weight: 700; line-height: 1.2;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.seq-resumo { font-size: .6875rem; color: var(--texto-suave); }
+
+/* Atalhos de percentual da escavação: o rótulo diz o que é, o número diz quanto.
+   Sem o rótulo, 60% não lembra a ninguém que são três estais. */
+.atalhos-pct { display: flex; flex-wrap: wrap; gap: .25rem; margin-top: .375rem; }
+.atalho-pct {
+  display: inline-flex; align-items: center; gap: .25rem;
+  padding: .1875rem .375rem; border-radius: .25rem;
+  border: 1px solid var(--borda); background: var(--superficie-2);
+  font-size: .625rem; font-weight: 600; color: var(--texto-suave);
+  cursor: pointer;
+}
+.atalho-pct:hover { border-color: var(--acento); color: var(--texto); }
+.atalho-pct b { font-weight: 700; color: var(--texto-fraco); }
+.atalho-pct-ativo {
+  border-color: var(--acento); background: var(--acento); color: #fff;
+}
+.atalho-pct-ativo b { color: #fff; opacity: .85; }

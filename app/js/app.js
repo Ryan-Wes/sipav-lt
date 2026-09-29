@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v75 · 2026-09-29';
+  var VERSAO = 'v77 · 2026-09-29';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -600,6 +600,7 @@ window.SIPAV = window.SIPAV || {};
     programacaoEmEdicao = null;
     atualizarModoFormulario();
     limparAvisos();
+    atualizarAtalhosPercentual();
     renderListaDoModal();
 
     ui.abrirModal('modalProgramacao');
@@ -646,6 +647,69 @@ window.SIPAV = window.SIPAV || {};
   function pedeCabo(atividadeId) {
     var a = E.atividades.find(function (x) { return x.id === atividadeId; });
     return !!a && ATIVIDADES_COM_CABO.indexOf(a.nome) !== -1;
+  }
+
+  /**
+   * Escavação não se faz de uma vez: a torre é escavada por parte, e cada parte
+   * vale uma fatia fixa do serviço.
+   *
+   * Autoportante tem quatro pés, 25% cada. Estaiada tem quatro estais mais o
+   * mastro central, 20% cada. Digitar 60 e depois lembrar se era três estais ou
+   * três pés é o tipo de conta que o sistema devia fazer.
+   */
+  function fatiasDaEscavacao(estrutura) {
+    if (estrutura === 'AUTOPORTANTE') {
+      return [
+        { pct: 25,  rotulo: '1 pé' },
+        { pct: 50,  rotulo: '2 pés' },
+        { pct: 75,  rotulo: '3 pés' },
+        { pct: 100, rotulo: '4 pés' }
+      ];
+    }
+    return [
+      { pct: 20,  rotulo: '1 estai' },
+      { pct: 40,  rotulo: '2 estais' },
+      { pct: 60,  rotulo: '3 estais' },
+      { pct: 80,  rotulo: '4 estais' },
+      { pct: 100, rotulo: '+ centro' }
+    ];
+  }
+
+  function ehEscavacao(atividadeId) {
+    var a = E.atividades.find(function (x) { return x.id === atividadeId; });
+    return !!a && normalizar(a.nome).indexOf('escavacao') === 0;
+  }
+
+  /**
+   * Só aparece em escavação, e só com uma atividade escolhida: com várias, o
+   * percentual é o mesmo para todas e o atalho diria respeito a uma só.
+   */
+  function atualizarAtalhosPercentual() {
+    var caixa = $('atalhosPercentual');
+    if (!caixa) return;
+
+    var mostra = torreAberta &&
+                 atividadesEscolhidas.length === 1 &&
+                 ehEscavacao(atividadesEscolhidas[0]);
+
+    caixa.classList.toggle('hidden', !mostra);
+    if (!mostra) { caixa.innerHTML = ''; return; }
+
+    var atual = Number($('campoPercentual').value);
+
+    caixa.innerHTML = fatiasDaEscavacao(torreAberta.estrutura).map(function (f) {
+      return '<button type="button" class="atalho-pct' +
+               (atual === f.pct ? ' atalho-pct-ativo' : '') + '" ' +
+               'onclick="SIPAV.app.usarFatiaPercentual(' + f.pct + ')">' +
+               esc(f.rotulo) + '<b>' + f.pct + '%</b>' +
+             '</button>';
+    }).join('');
+  }
+
+  function usarFatiaPercentual(pct) {
+    $('campoPercentual').value = pct;
+    mostrarSomaPercentual();
+    atualizarAtalhosPercentual();
   }
 
   /** Mostra ou esconde o seletor de cabo conforme a atividade escolhida. */
@@ -802,6 +866,7 @@ window.SIPAV = window.SIPAV || {};
   /** Trocar a atividade mexe no seletor de cabo e na checagem de precedência. */
   function mudarAtividade() {
     atualizarCampoCabo();
+    atualizarAtalhosPercentual();
 
     // Com várias escolhidas, a checagem de precedência ao vivo perde o sentido:
     // ela é por atividade, e cinco painéis empilhados seriam piores que nenhum.
@@ -1336,6 +1401,7 @@ window.SIPAV = window.SIPAV || {};
         $('campoPercentual').value = 100;
         preencherEncarregado('');
         atualizarCampoCabo();
+        atualizarAtalhosPercentual();
         programacaoEmEdicao = null;
         atualizarModoFormulario();
         limparAvisos();
@@ -1459,6 +1525,7 @@ window.SIPAV = window.SIPAV || {};
     $('campoObservacao').value  = p.observacao || '';
 
     atualizarCampoCabo();
+    atualizarAtalhosPercentual();
     $('campoCabo').value = p.cabo || '';
     $('campoPercentual').value = p.percentual == null ? 100 : p.percentual;
 
@@ -1481,6 +1548,7 @@ window.SIPAV = window.SIPAV || {};
     $('campoPercentual').value = 100;
     atualizarModoFormulario();
     atualizarCampoCabo();
+    atualizarAtalhosPercentual();
     verificarBloqueio();
   }
 
@@ -1940,7 +2008,7 @@ window.SIPAV = window.SIPAV || {};
    * Antes a data era da torre e a atividade carregava um "+N dias" em cima
    * dela. Ninguém entendia o campo, nem eu.
    */
-  var loteTorres = [];         // [{torreId, identificador}]
+  var loteTorres = [];         // [{torreId, identificador, data, encarregadoId}]
   var loteLinhas = [];         // [{torreId, identificador, atividadeId, data, encarregadoId, percentual, bloqueio}]
   var loteAtividades = [];     // ids
   var loteUltimoLote = [];     // ids das programações do último lote, para desfazer
@@ -1973,10 +2041,12 @@ window.SIPAV = window.SIPAV || {};
         var achada = antigas[t.torreId + '|' + aid];
         if (achada) { novas.push(achada); anterior = achada; return; }
 
+        // t.data e t.encarregadoId só vêm preenchidos quando a torre entrou por
+        // uma sequência já programada; pela grade a torre entra sem data.
         var nova = {
           torreId: t.torreId, identificador: t.identificador, atividadeId: aid,
-          data: anterior ? anterior.data : '',
-          encarregadoId: lotePadrao.encarregadoId,
+          data: anterior ? anterior.data : (t.data || ''),
+          encarregadoId: t.encarregadoId || lotePadrao.encarregadoId,
           percentual: lotePadrao.percentual,
           bloqueio: null
         };
@@ -1988,7 +2058,13 @@ window.SIPAV = window.SIPAV || {};
     loteLinhas = novas;
   }
 
-  function abrirProgramacaoEmLote(atividadeId, encarregadoId, percentual, cabo, torresIniciais) {
+  /**
+   * @param {object} [sequencia] datas e encarregados já prontos por torre, de
+   *   uma programação que já existe: { torreId: {data, encarregadoId} }. Vem do
+   *   "repetir sequência"; pela grade não vem nada e a torre entra sem data.
+   */
+  function abrirProgramacaoEmLote(atividadeId, encarregadoId, percentual, cabo,
+                                  torresIniciais, sequencia) {
     if (!E.trechoAtual) return;
 
     var torres = torresIniciais || [];
@@ -1997,12 +2073,18 @@ window.SIPAV = window.SIPAV || {};
       return;
     }
 
+    var herdado = sequencia || {};
+
     dataAtividade = {};
     lotePadrao = { encarregadoId: encarregadoId || '', percentual: percentual || 100 };
     loteAtividades = atividadeId ? [atividadeId] : [];
     loteLinhas = [];
     loteTorres = torres.map(function (t) {
-      return { torreId: t.torre_id, identificador: t.identificador };
+      var h = herdado[t.torre_id] || {};
+      return {
+        torreId: t.torre_id, identificador: t.identificador,
+        data: h.data || '', encarregadoId: h.encarregadoId || ''
+      };
     });
     sincronizarLinhasLote();
 
@@ -2124,6 +2206,128 @@ window.SIPAV = window.SIPAV || {};
   }
 
   var loteHerdado = null;
+
+  /* ------------------------------------------- Repetir uma sequência ------ */
+
+  /**
+   * Agrupa o que já está programado por atividade, para repetir a distribuição.
+   *
+   * Do Alessandro: quando tem escavação, aproveita a mesma sequência de torres
+   * por dia para instalar o pré-moldado. A sequência de uma semana leva tempo
+   * para ser montada — torre por torre, dia por dia — e remontá-la na mão para
+   * a atividade seguinte é onde o erro entra: uma torre fora do dia certo e a
+   * equipe viaja à toa.
+   *
+   * Olha só o período exibido: é o que está na tela, e repetir o que não se vê
+   * seria pior.
+   */
+  function sequenciasProgramadas() {
+    var porAtividade = {};
+
+    E.programacoes.forEach(function (p) {
+      if (!p.atividade || !p.torre || !p.data) return;
+
+      var g = porAtividade[p.atividade.id];
+      if (!g) {
+        g = porAtividade[p.atividade.id] = {
+          atividade: p.atividade, torres: {}, quantas: 0, repetidas: 0
+        };
+      }
+
+      var atual = g.torres[p.torre.id];
+      if (atual) {
+        // A mesma atividade lançada duas vezes na torre (percentual dividido em
+        // dias). A sequência é a entrada na torre, então vale a data mais cedo.
+        g.repetidas++;
+        if (p.data < atual.data) {
+          atual.data = p.data;
+          atual.encarregadoId = p.encarregado ? p.encarregado.id : '';
+        }
+        return;
+      }
+
+      g.torres[p.torre.id] = {
+        data: p.data,
+        encarregadoId: p.encarregado ? p.encarregado.id : ''
+      };
+      g.quantas++;
+    });
+
+    return Object.keys(porAtividade).map(function (id) {
+      var g = porAtividade[id];
+      var datas = Object.keys(g.torres).map(function (t) { return g.torres[t].data; }).sort();
+      g.de = datas[0];
+      g.ate = datas[datas.length - 1];
+      g.dias = datas.filter(function (d, i) { return datas.indexOf(d) === i; }).length;
+      return g;
+    }).sort(function (a, b) {
+      return (a.atividade.ordem_execucao || 0) - (b.atividade.ordem_execucao || 0);
+    });
+  }
+
+  function abrirRepetirSequencia() {
+    if (!E.trechoAtual) return;
+
+    var grupos = sequenciasProgramadas();
+
+    if (!grupos.length) {
+      ui.avisar('Nada programado no período exibido para repetir.', 'alerta', 5000);
+      return;
+    }
+
+    var corpo =
+      '<div class="space-y-3">' +
+        '<p class="text-xs" style="color:var(--texto-fraco)">' +
+          'Escolha a atividade que já tem a distribuição pronta. As torres e as ' +
+          'datas dela entram no lote, e aí você escolhe a atividade nova por cima. ' +
+          'O encarregado de cada torre vem junto; o percentual começa em 100.' +
+        '</p>' +
+        '<div class="space-y-1 max-h-72 overflow-y-auto barra-fina">' +
+          grupos.map(function (g) {
+            var cor = g.atividade.cor_fundo || '#94A3B8';
+            return '<button type="button" class="seq-item" ' +
+                     'onclick="SIPAV.app.usarSequencia(\'' + g.atividade.id + '\')">' +
+                     '<span class="seq-ativ" style="background:' + cor + ';color:' +
+                       ui.corDoTexto(cor) + '">' + esc(g.atividade.nome) + '</span>' +
+                     '<span class="seq-resumo">' +
+                       g.quantas + ' torre(s) · ' + g.dias + ' dia(s) · ' +
+                       esc(ui.dataCurta(g.de)) +
+                       (g.de === g.ate ? '' : ' a ' + esc(ui.dataCurta(g.ate))) +
+                     '</span>' +
+                   '</button>';
+          }).join('') +
+        '</div>' +
+        (grupos.some(function (g) { return g.repetidas; })
+          ? '<p class="text-xs" style="color:var(--texto-fraco)">' +
+              'Onde a mesma atividade foi lançada mais de uma vez na torre, vale a ' +
+              'data mais cedo — é quando a equipe entrou naquela torre.' +
+            '</p>'
+          : '') +
+      '</div>';
+
+    ui.modalGenerico({
+      titulo: 'Repetir uma sequência — ' + E.trechoAtual.nome,
+      corpoHtml: corpo,
+      botoes: [{ rotulo: 'Cancelar', classe: 'btn-secundario' }]
+    });
+  }
+
+  /** Abre o lote já com as torres e as datas daquela atividade. */
+  function usarSequencia(atividadeId) {
+    var g = sequenciasProgramadas().find(function (x) {
+      return x.atividade.id === atividadeId;
+    });
+    if (!g) { ui.avisar('Sequência não encontrada.', 'erro'); return; }
+
+    // Na ordem da grade, que é a ordem física da linha — não na ordem em que as
+    // programações voltaram do banco.
+    var torres = E.torres.filter(function (t) { return !!g.torres[t.torre_id]; });
+
+    ui.fecharModal('modalGenerico');
+    abrirProgramacaoEmLote(null, null, 100, null, torres, g.torres);
+    ui.avisar('Sequência de ' + g.atividade.nome + ' carregada. Escolha a atividade nova.',
+              'info', 6000);
+  }
 
   /* --------------------------------------------- Atividades do lote ------- */
 
@@ -4579,6 +4783,10 @@ window.SIPAV = window.SIPAV || {};
     mudarPercentualLote: mudarPercentualLote,
     aplicarPercentualLote: aplicarPercentualLote,
     alternarModoSelecao: alternarModoSelecao,
+    atualizarAtalhosPercentual: atualizarAtalhosPercentual,
+    usarFatiaPercentual: usarFatiaPercentual,
+    abrirRepetirSequencia: abrirRepetirSequencia,
+    usarSequencia: usarSequencia,
     limparSelecao: limparSelecao,
     selecionarTodasVisiveis: selecionarTodasVisiveis,
     programarSelecionadas: programarSelecionadas,

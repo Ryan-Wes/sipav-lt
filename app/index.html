@@ -41,7 +41,7 @@
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 
   <!-- ?v= força o navegador a buscar de novo quando o código muda. -->
-  <link rel="stylesheet" href="css/app.css?v=75">
+  <link rel="stylesheet" href="css/app.css?v=77">
 </head>
 <body class="h-full flex flex-col antialiased">
 
@@ -175,11 +175,22 @@
           </div>
         </div>
 
-        <button onclick="SIPAV.app.alternarModoSelecao()" class="btn-header"
-                id="btnModoSelecao" title="Marcar torres na grade para programar de uma vez">
-          <i data-lucide="layers" class="w-4 h-4" style="color:var(--acento)"></i>
-          <span class="rotulo-btn">Em lote</span>
-        </button>
+        <div class="menu-wrap">
+          <button onclick="SIPAV.app.alternarMenu('menuLote')" class="btn-header"
+                  id="btnModoSelecao" title="Programar várias torres de uma vez">
+            <i data-lucide="layers" class="w-4 h-4" style="color:var(--acento)"></i>
+            <span class="rotulo-btn">Em lote</span>
+            <i data-lucide="chevron-down" class="w-3 h-3 opacity-60"></i>
+          </button>
+          <div id="menuLote" class="menu hidden">
+            <button class="menu-item" onclick="SIPAV.app.fecharMenus();SIPAV.app.alternarModoSelecao()">
+              <i data-lucide="mouse-pointer-click" class="w-4 h-4"></i> Marcar torres na grade
+            </button>
+            <button class="menu-item" onclick="SIPAV.app.fecharMenus();SIPAV.app.abrirRepetirSequencia()">
+              <i data-lucide="copy" class="w-4 h-4"></i> Repetir uma sequência já programada
+            </button>
+          </div>
+        </div>
 
         <button onclick="SIPAV.app.abrirHistoricoDoTrecho()" class="btn-header" title="Quem mexeu no quê na obra inteira">
           <i data-lucide="history" class="w-4 h-4"></i>
@@ -424,9 +435,13 @@
             <label class="rotulo">Percentual da torre</label>
             <div class="flex items-center gap-2">
               <input id="campoPercentual" type="number" min="1" max="100" step="1" value="100"
-                     class="campo" oninput="SIPAV.app.mostrarSomaPercentual()">
+                     class="campo"
+                     oninput="SIPAV.app.mostrarSomaPercentual();SIPAV.app.atualizarAtalhosPercentual()">
               <span class="text-sm font-semibold shrink-0" style="color:var(--texto-fraco)">%</span>
             </div>
+            <!-- Atalhos de escavação: a torre é escavada por parte, e cada parte
+                 vale uma fatia fixa. Preenchidos pelo tipo da torre. -->
+            <div id="atalhosPercentual" class="atalhos-pct hidden"></div>
             <p id="somaPercentual" class="text-xs mt-1" style="color:var(--texto-fraco)"></p>
           </div>
           <div>
@@ -601,11 +616,11 @@
   </div>
 </div>
 
-<script src="js/config.js?v=75"></script>
-<script src="js/db.js?v=75"></script>
-<script src="js/ui.js?v=75"></script>
-<script src="js/render.js?v=75"></script>
-<script src="js/isa.js?v=75"></script>
-<script src="js/app.js?v=75"></script>
+<script src="js/config.js?v=77"></script>
+<script src="js/db.js?v=77"></script>
+<script src="js/ui.js?v=77"></script>
+<script src="js/render.js?v=77"></script>
+<script src="js/isa.js?v=77"></script>
+<script src="js/app.js?v=77"></script>
 </body>
 </html>
