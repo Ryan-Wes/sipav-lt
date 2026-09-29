@@ -52,7 +52,7 @@ Pontos em aberto na cadeia:
 2. **Retrabalho de consolidação** — cada um preenche a sua parte e depois alguém tem que compilar e "adequar com a quantidade certa de tracinhos".
 3. **Zero visibilidade do encadeamento** — hoje só dá pra saber se a escavação pode ser programada "caçando número" na planilha.
 4. **Sem trabalho simultâneo** — não tem base compartilhada; ninguém vê o que o outro programou.
-5. **Reuniões de programação exaustivas** — dia inteiro sentado com o supervisor montando a programação do zero. Wesley estima que com pré-programação em campo cairia pra 30min–1h.
+5. **Reuniões de programação exaustivas** — dia inteiro sentado com o supervisor montando a programação do zero. Estimo que com pré-programação em campo cairia pra 30min–1h.
 6. **Planilhas engessadas com VBA** — descritas como obsoletas e geradoras de bug.
 7. **Jornadas até tarde da noite** no time de planejamento por falta de suporte dos supervisores locais.
 
@@ -78,6 +78,6 @@ Pontos em aberto na cadeia:
 ## Compromissos assumidos na reunião
 
 - Desativar a rotina de "salvar em HTML" (sobrescreve código, gera corrupção) — **alinhado**
-- Wesley desenvolve o backend — **alinhado**
+- Eu desenvolvo o backend — **alinhado**
 - Teste/demo da ferramenta **na sexta** (25/09) ou na semana seguinte
 - Reunião semanal de alinhamento às **quintas-feiras**

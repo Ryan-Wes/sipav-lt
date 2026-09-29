@@ -1,10 +1,10 @@
 -- =============================================================================
 -- Conferência do histórico — 25/09/2026
 -- =============================================================================
--- Wesley: "não estou vendo registro do que a Hanna ou o Alessandro alteraram,
--- só vejo minhas alterações, e quando vou para outro trecho somem os registros".
+-- Sintoma: não apareciam os registros do que a Hanna ou o Alessandro alteraram,
+-- só as minhas, e ao trocar de trecho os registros sumiam.
 --
--- As duas frases descrevem a mesma causa. O botão Histórico do cabeçalho filtrava
+-- Os dois sintomas têm a mesma causa. O botão Histórico do cabeçalho filtrava
 -- pelo trecho aberto, e a equipe se divide por trecho — então cada um enxergava
 -- só o próprio trabalho. Corrigido no front: agora o padrão é a obra inteira,
 -- com filtro por pessoa e por trecho.

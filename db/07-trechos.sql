@@ -2,7 +2,7 @@
 -- Correção dos trechos — 23/09/2026
 -- =============================================================================
 -- O seed inicial foi montado a partir do que apareceu na transcrição da reunião
--- e saiu errado. Correção do Wesley:
+-- e saiu errado. Correção:
 --
 --   ERRADO                      CERTO
 --   Buritirama–Correntina  →    Barra - Correntina  +  Buritirama - Barra
@@ -57,7 +57,7 @@ on conflict (obra_id, nome) do nothing;
 --
 -- Se vocês programam ou medem produtividade por canteiro, ele precisa virar
 -- dimensão própria: tabela `canteiro` e uma coluna em `torre` apontando pra
--- ela — independente do trecho. Confirmar com o Wesley antes de modelar.
+-- ela — independente do trecho. Confirmar antes de modelar.
 -- =============================================================================
 
 select nome, ordem from trecho

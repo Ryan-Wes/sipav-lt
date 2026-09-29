@@ -1,7 +1,7 @@
 ﻿-- =============================================================================
 -- Pilotinho e piloto são cabos diferentes — 24/09/2026
 -- =============================================================================
--- Wesley: "piloto só é pro condutor e pilotinho que é pros para-raios, OPGW".
+-- Piloto só é pro condutor; pilotinho é pros para-raios e OPGW.
 --
 -- O SIPAV tinha uma atividade só, 'LANÇAMENTO DO PILOTO', servindo aos dois. A
 -- planilha da ISA sempre separou:

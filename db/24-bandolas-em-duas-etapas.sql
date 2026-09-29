@@ -1,8 +1,8 @@
 ﻿-- =============================================================================
 -- Bandola do para-raio/OPGW e bandola do condutor são etapas diferentes — 24/09/2026
 -- =============================================================================
--- Wesley: "são dois serviços, eles primeiro colocam bandola de para-raio, lançam
--- o cabo e só depois é que vai colocar bandola de condutor e lançar condutor".
+-- São dois serviços: primeiro colocam bandola de para-raio, lançam o cabo, e só
+-- depois é que vai colocar bandola de condutor e lançar condutor.
 --
 -- Mesmo padrão do pilotinho (ver 23). A planilha da ISA já separava:
 --
@@ -13,7 +13,7 @@
 -- A atividade que existe é a do para-raio/OPGW: é ela que carrega o campo 'cabo'.
 -- Ganha nome explícito e o condutor ganha a sua, que leva isolador junto.
 --
--- A frase do Wesley também corrige a 23: eu tinha pendurado o piloto do condutor
+-- Isso também corrige a 23: eu tinha pendurado o piloto do condutor
 -- direto no lançamento do para-raio/OPGW, porque na época não existia a bandola do
 -- condutor para ficar no meio. Agora fica.
 --

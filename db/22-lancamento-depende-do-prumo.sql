@@ -1,9 +1,9 @@
 ﻿-- =============================================================================
 -- Lançamento só depois da montagem terminada — 24/09/2026
 -- =============================================================================
--- Wesley: "não se faz lançamento sem terminar montagem".
+-- Não se faz lançamento sem terminar montagem.
 --
--- A frase é mais larga que a pergunta que eu fiz. Eu tinha perguntado só do
+-- Isso é mais largo que a pergunta que eu mesmo tinha feito, que era só do
 -- condutor, mas o OPGW e o para-raio também são lançamento, e até agora
 -- qualquer um deles liberava assim que a torre era içada.
 --

@@ -1,7 +1,7 @@
 -- =============================================================================
 -- Ajuste da cadeia de atividades — rodada 1
 -- =============================================================================
--- Origem: correções do Wesley em 23/09/2026, vindas do pessoal de campo.
+-- Origem: correções que levantei em 23/09/2026 com o pessoal de campo.
 --
 -- Este script é idempotente: pode rodar quantas vezes quiser. Ele reescreve
 -- por completo as dependências da obra SD.

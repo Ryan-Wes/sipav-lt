@@ -1,8 +1,8 @@
 -- =============================================================================
 -- Escavação em três sabores — 25/09/2026
 -- =============================================================================
--- Wesley: "escavação precisamos de outros tipos — escavação de estai, escavação
--- de MC, e uma escavação que vai ser só escavação".
+-- Precisamos de outros tipos de escavação: escavação de estai, escavação de MC,
+-- e uma que vai ser só escavação.
 --
 -- Mesma estrutura da instalação de pré-moldados (ver 21): há equipe que cava só
 -- os estais, equipe que cava só o mastro central, e equipe que faz as duas.
@@ -88,7 +88,7 @@ on conflict do nothing;
 --   b) apontar também a genérica quando as duas específicas terminarem;
 --   c) trocar a dependência do reaterro para a específica que couber ao tipo da
 --      torre, o que exige regra nova no bloqueio.
--- Decidir com o Wesley antes de mexer.
+-- Decidir antes de mexer.
 
 
 -- =============================================================================

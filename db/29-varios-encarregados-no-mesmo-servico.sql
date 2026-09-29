@@ -1,7 +1,7 @@
 -- =============================================================================
 -- Vários encarregados na mesma atividade, torre e dia — 25/09/2026
 -- =============================================================================
--- Wesley: "às vezes eles dividem a atividade naquele dia".
+-- Às vezes eles dividem a atividade naquele dia.
 --
 -- A tabela nasceu com `unique (torre_id, atividade_id, data)` e o comentário
 -- "mesma atividade, mesma torre, mesmo dia, duas vezes: não faz sentido". Fazia

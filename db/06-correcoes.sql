@@ -7,7 +7,7 @@
 
 
 -- -----------------------------------------------------------------------------
--- 23/09/2026 — "revisão giro e prumo é uma só e flambagem é outra"  (Wesley)
+-- 23/09/2026 — revisão, giro e prumo é uma só; flambagem é outra
 -- -----------------------------------------------------------------------------
 
 -- REVISÃO passa a se chamar pelo nome completo que o campo usa

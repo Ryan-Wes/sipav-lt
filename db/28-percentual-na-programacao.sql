@@ -1,10 +1,10 @@
 -- =============================================================================
 -- Percentual na programação — 25/09/2026
 -- =============================================================================
--- Wesley: "às vezes leva mais de um dia para executar aquela atividade naquela
--- mesma torre. Dá para lançar duas datas com a mesma atividade na mesma torre,
--- porém pode parecer que foi lançado errado se não tiver um percentual — nesse
--- caso, 50% pro dia 28 e 20% pro dia 29".
+-- Às vezes leva mais de um dia para executar aquela atividade naquela mesma
+-- torre. Dá para lançar duas datas com a mesma atividade na mesma torre, porém
+-- pode parecer que foi lançado errado se não tiver um percentual — nesse caso,
+-- 50% pro dia 28 e 20% pro dia 29.
 --
 -- A tabela `execucao` já nasceu com percentual; a `programacao` não. Sem ele,
 -- duas linhas da mesma atividade na mesma torre parecem duplicata, e não é

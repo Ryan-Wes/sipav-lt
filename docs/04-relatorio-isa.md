@@ -478,7 +478,7 @@ para separar.
 
 ### Itens do ISA que o SIPAV não programa
 
-Confirmado com o Wesley em 24/09: **topografia, sondagem, armação, canteiro e
+Confirmado em 24/09: **topografia, sondagem, armação, canteiro e
 comissionamento não entram no planejamento**. Continuam manuais e o exportador não
 encosta neles.
 
@@ -520,21 +520,21 @@ do backlog) e os itens em KM, que precisam de quantidade e não de contagem de t
 
 | # | Decisão | Quem / quando |
 |---|---|---|
-| DEC-1 | Topografia, sondagem, armação, canteiro e comissionamento não são planejados. Permanecem manuais | Wesley, 24/09 |
-| DEC-2 | `PREPARAÇÃO` é absorvida por `INSTALAÇÃO DE PRÉ-MOLDADOS` no SIPAV, que é o que a linha do ISA já junta. Migração é segura: nada depende de `PREPARAÇÃO` e as duas dependem de `ESCAVAÇÃO` | Wesley, 24/09 |
-| DEC-3 | ~~`REVISÃO / GIRO E PRUMO` vira três~~ — **revogada pelo A2**, ver DEC-7 | Wesley, 24/09 |
-| DEC-4 | Unidades: Corte Seletivo = `TORRE`, Seccionamento e Aterramento de Cercas = `KM`, Transporte de Estrutura = `TORRE` | Wesley, 24/09 |
-| DEC-5 | O exportador gerencia a visibilidade das linhas | Wesley, 24/09 |
+| DEC-1 | Topografia, sondagem, armação, canteiro e comissionamento não são planejados. Permanecem manuais | eu, 24/09 |
+| DEC-2 | `PREPARAÇÃO` é absorvida por `INSTALAÇÃO DE PRÉ-MOLDADOS` no SIPAV, que é o que a linha do ISA já junta. Migração é segura: nada depende de `PREPARAÇÃO` e as duas dependem de `ESCAVAÇÃO` | eu, 24/09 |
+| DEC-3 | ~~`REVISÃO / GIRO E PRUMO` vira três~~ — **revogada pelo A2**, ver DEC-7 | eu, 24/09 |
+| DEC-4 | Unidades: Corte Seletivo = `TORRE`, Seccionamento e Aterramento de Cercas = `KM`, Transporte de Estrutura = `TORRE` | eu, 24/09 |
+| DEC-5 | O exportador gerencia a visibilidade das linhas | eu, 24/09 |
 | DEC-6 | Perfuração de tubulão e perfuração em rocha são serviços diferentes. As duas já existem no SIPAV; faltam os itens `2.1.20` e `2.1.21` no catálogo da ISA | Alessandro, 24/09 (A1) |
 | DEC-7 | Cadeia de montagem corrigida: **revisão em solo vai junto com a pré-montagem** (só estaiada, decide se dá para içar com guindaste), içamento depois, **flambagem vai junto com a revisão**, e **giro e prumo sai sozinho depois**. No SIPAV: `FLAMBAGEM` é absorvida por `REVISÃO` e `GIRO E PRUMO` vira atividade própria | Alessandro, 24/09 (A2) |
 | DEC-8 | Grampeação e ancoragem são apontadas separadas, e `INSTALAÇÃO DE ACESSÓRIOS` se abre em espaçador, jumper e sinalização | Alessandro, 24/09 (A3) |
 | DEC-9 | Fabricação de pré-moldado sai do planejamento. O que se programa é a **instalação**, em três sabores — só mastro central, só viga L, ou os dois — porque as equipes se dividem assim | Alessandro, 24/09 (A4) |
 | DEC-10 | O para-raio/OPGW vira um campo na programação, `OPGW` ou `PARA_RAIO`, em vez de atividades duplicadas. É ele que decide se a linha vai para `4.1` ou `4.2` | Alessandro, 24/09 (A6) |
 | DEC-11 | A padronização das quatro planilhas será apresentada à fiscalização antes de valer | Alessandro, 24/09 (A5) |
-| DEC-12 | **Pilotinho e piloto são cabos diferentes.** O pilotinho puxa o para-raio/OPGW (`4.1.2` / `4.2.2`), o piloto puxa o condutor (`4.3.2`). O SIPAV tinha uma atividade só para os dois: ela vira `LANÇAMENTO DO PILOTINHO` e nasce `LANÇAMENTO DO PILOTO DO CONDUTOR`. 33 → 34 atividades. [`db/23`](../db/23-piloto-e-pilotinho.sql) | Wesley, 24/09 |
-| DEC-13 | `LANÇAMENTO DO PILOTINHO` exige `GIRO E PRUMO`. Não se lança cabo em torre não aprumada, e como é a primeira etapa em que se puxa cabo, o bloqueio transitivo cobre todo o resto da fase. Bandolas fica de fora porque é acessório na torre, não lançamento. [`db/22`](../db/22-lancamento-depende-do-prumo.sql) | Wesley, 24/09 |
-| DEC-15 | **Escavação em três sabores**, como os pré-moldados: `ESCAVAÇÃO - ESTAI`, `ESCAVAÇÃO - MC` e a genérica `ESCAVAÇÃO`, que faz as duas. A genérica mantém nome e id porque carrega a carga inicial inteira. 35 → 37 atividades. [`db/27`](../db/27-escavacao-em-tres.sql) | Wesley, 25/09 |
-| DEC-14 | **Bandola do para-raio/OPGW e bandola do condutor são dois serviços.** "Primeiro colocam bandola de para-raio, lançam o cabo, e só depois é que vai colocar bandola de condutor e lançar condutor." A que existe vira `INSTALAÇÃO DE BANDOLAS OPGW / PARA-RAIO` e nasce `INSTALAÇÃO DE BANDOLAS E ISOLADORES`. 34 → 35 atividades. [`db/24`](../db/24-bandolas-em-duas-etapas.sql) | Wesley, 24/09 |
+| DEC-12 | **Pilotinho e piloto são cabos diferentes.** O pilotinho puxa o para-raio/OPGW (`4.1.2` / `4.2.2`), o piloto puxa o condutor (`4.3.2`). O SIPAV tinha uma atividade só para os dois: ela vira `LANÇAMENTO DO PILOTINHO` e nasce `LANÇAMENTO DO PILOTO DO CONDUTOR`. 33 → 34 atividades. [`db/23`](../db/23-piloto-e-pilotinho.sql) | eu, 24/09 |
+| DEC-13 | `LANÇAMENTO DO PILOTINHO` exige `GIRO E PRUMO`. Não se lança cabo em torre não aprumada, e como é a primeira etapa em que se puxa cabo, o bloqueio transitivo cobre todo o resto da fase. Bandolas fica de fora porque é acessório na torre, não lançamento. [`db/22`](../db/22-lancamento-depende-do-prumo.sql) | eu, 24/09 |
+| DEC-15 | **Escavação em três sabores**, como os pré-moldados: `ESCAVAÇÃO - ESTAI`, `ESCAVAÇÃO - MC` e a genérica `ESCAVAÇÃO`, que faz as duas. A genérica mantém nome e id porque carrega a carga inicial inteira. 35 → 37 atividades. [`db/27`](../db/27-escavacao-em-tres.sql) | eu, 25/09 |
+| DEC-14 | **Bandola do para-raio/OPGW e bandola do condutor são dois serviços.** "Primeiro colocam bandola de para-raio, lançam o cabo, e só depois é que vai colocar bandola de condutor e lançar condutor." A que existe vira `INSTALAÇÃO DE BANDOLAS OPGW / PARA-RAIO` e nasce `INSTALAÇÃO DE BANDOLAS E ISOLADORES`. 34 → 35 atividades. [`db/24`](../db/24-bandolas-em-duas-etapas.sql) | eu, 24/09 |
 
 > **DEC-7 revoga a DEC-3 e corrige o `06-correcoes.sql`.** O que se junta à revisão é
 > a flambagem, não o giro e prumo. Saldo: a lista do SIPAV vai de 28 para 33

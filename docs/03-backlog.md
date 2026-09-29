@@ -99,7 +99,7 @@ Situação conferida em **23/09/2026**, item por item, contra o que está public
 
 ### D4 — escavação em partes e a liberação do reaterro
 
-Decisão adiada pelo Wesley em 25/09: *"deixa como está por enquanto, mas depois
+Decisão que adiei em 25/09: *"deixa como está por enquanto, mas depois
 volte nesse assunto"*.
 
 A [`db/27`](../db/27-escavacao-em-tres.sql) criou `ESCAVAÇÃO - ESTAI` e

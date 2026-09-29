@@ -1,7 +1,7 @@
 -- =============================================================================
 -- Canteiros da obra e em que trechos atuam — 23/09/2026
 -- =============================================================================
--- Fonte: Wesley, 23/09.
+-- Levantado em 23/09.
 --
 --   Barra - Correntina        → Igarité, Wanderley
 --   Buritirama - Barra        → Buritirama, Barra
@@ -83,7 +83,7 @@ on conflict do nothing;
 -- =============================================================================
 -- PENDENTE
 -- =============================================================================
--- Faixa de torres que cada canteiro atende dentro do trecho. O Wesley ainda vai
+-- Faixa de torres que cada canteiro atende dentro do trecho. Ainda vou
 -- descobrir. Quando vier, dá para atribuir canteiro automaticamente na
 -- importação em vez de digitar na terceira coluna.
 -- =============================================================================
