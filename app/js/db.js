@@ -236,7 +236,7 @@ window.SIPAV = window.SIPAV || {};
     return obra().then(function (o) {
       return cliente()
         .from('atividade')
-        .select('id, nome, ordem_execucao, cor_fundo, cor_texto, icone, obrigatoria, ativa')
+        .select('id, nome, ordem_execucao, cor_fundo, cor_texto, icone, obrigatoria, ativa, so_para_estrutura')
         .eq('obra_id', o.id)
         .eq('ativa', true)
         .order('ordem_execucao')   // ordem de execução, não alfabética (post-it 2)

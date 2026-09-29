@@ -16,6 +16,42 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 29/09/2026
 
+### Avisar ao escolher, não ao gravar — [WR]
+
+No lote, eu só descobria o que não ia entrar depois de clicar em Programar e
+ler o relatório do que falhou — perdia o lançamento inteiro e voltava para o
+começo. Agora a linha fica vermelha com o motivo enquanto eu ainda estou
+montando, meio segundo depois de mexer. O botão "Conferir sequência" continua,
+para forçar na hora.
+
+### Atividade que não existe na torre não aparece na lista — [WR]
+
+Autoportante não tem estai nem mastro central. A `db/33` barra na gravação, mas
+oferecer o serviço e recusar depois é desperdiçar o tempo de quem lança. Agora a
+lista de atividades da torre esconde o que não cabe naquele tipo.
+
+### A lista de busca fecha — [WR]
+
+Abrir a lista de atividades e desistir obrigava a escolher uma qualquer só para
+poder fechar, e depois tirá-la. Agora fecha no X, no Esc e clicando fora dela —
+inclusive dentro da própria janela.
+
+### Clicar na linha do editar em lote abre aquela programação — [WR]
+
+Vinte linhas na régua e uma fora dela: para ajustar essa uma, fechar o lote e ir
+caçar a torre na grade era caminho longo demais. O clique na linha abre a janela
+de sempre, com a programação já em edição.
+
+### Apontamento de execução entra no histórico — [WR]
+
+O histórico cobria a programação, que é plano; a execução, que é fato, ficava de
+fora. Desfazer um apontamento fazia a linha sumir como se nunca tivesse
+existido, e a medição da semana mudava sem ninguém saber por quê.
+
+A carga inicial não entra: é escrita em bloco na importação, e cinquenta torres
+virariam setecentas linhas de log que não dizem nada. `db/35`.
+
+
 ### A escavação repartida estava sem dependência nenhuma — [WR]
 
 `ESCAVAÇÃO - ESTAI` e `ESCAVAÇÃO - MC` não tinham um pré-requisito sequer no

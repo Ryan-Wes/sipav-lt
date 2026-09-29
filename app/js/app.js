@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v88 · 2026-09-29';
+  var VERSAO = 'v91 · 2026-09-29';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -104,6 +104,18 @@ window.SIPAV = window.SIPAV || {};
       if (!alvo || !document.contains(alvo)) return;
 
       if (!alvo.closest || !alvo.closest('.menu-wrap')) fecharMenus();
+
+      // O mesmo para as listas de busca. Sem isto, abrir a lista de atividades
+      // e desistir obrigava a escolher uma qualquer só para poder fechar, e
+      // depois tirá-la.
+      if (!alvo.closest || !alvo.closest('.combo')) fecharCombos();
+    });
+  }
+
+  /** Fecha as listas de busca que estiverem abertas. */
+  function fecharCombos() {
+    Array.prototype.forEach.call(document.querySelectorAll('.combo-lista'), function (c) {
+      c.classList.add('hidden');
     });
   }
 
@@ -572,11 +584,16 @@ window.SIPAV = window.SIPAV || {};
   /* MODAL DE PROGRAMAÇÃO                                                     */
   /* ======================================================================== */
 
-  function abrirTorre(torreId) {
+  /**
+   * @param {boolean} [forcar] abre mesmo no modo seleção. Usado por quem já
+   *   sabe que quer a janela — o clique na linha do editar em lote, por
+   *   exemplo, que sem isto só marcava a torre e não abria nada.
+   */
+  function abrirTorre(torreId, forcar) {
     // Fim de um arrasto, não um clique: o gesto já decidiu o que marcar
-    if (arrastou) return;
+    if (arrastou && !forcar) return;
     // Modo seleção: o clique no cartão escolhe em vez de abrir
-    if (E.modoSelecao) { alternarTorreSelecionada(torreId); return; }
+    if (E.modoSelecao && !forcar) { alternarTorreSelecionada(torreId); return; }
     torreAberta = E.torres.find(function (t) { return t.torre_id === torreId; });
     if (!torreAberta) return;
 
@@ -838,10 +855,26 @@ window.SIPAV = window.SIPAV || {};
       ? 'Adicionar outra atividade…' : 'Buscar atividade…';
   }
 
+  /**
+   * A atividade existe nesta torre?
+   *
+   * Autoportante não tem estai nem mastro central: oferecer ESCAVAÇÃO - ESTAI
+   * numa AUP é oferecer serviço que não existe. Melhor não aparecer na lista do
+   * que aparecer e ser recusada na gravação.
+   */
+  function cabeNaTorre(atividade, estrutura) {
+    if (!atividade || !atividade.so_para_estrutura) return true;
+    if (!estrutura) return true;   // torre sem tipo cadastrado: não escondo nada
+    return atividade.so_para_estrutura === estrutura;
+  }
+
   function filtrarAtividades() {
     var termo = normalizar(($('buscaAtividade').value || '').trim());
+    var estrutura = torreAberta ? torreAberta.estrutura : null;
+
     var lista = E.atividades.filter(function (a) {
       if (atividadesEscolhidas.indexOf(a.id) !== -1) return false;
+      if (!cabeNaTorre(a, estrutura)) return false;
       return !termo || normalizar(a.nome).indexOf(termo) !== -1;
     });
 
@@ -855,7 +888,9 @@ window.SIPAV = window.SIPAV || {};
       return 0;   // o resto mantém a ordem de execução que já vinha
     });
 
-    $('listaAtividades').innerHTML = lista.length
+    $('listaAtividades').innerHTML = cabecalhoCombo(
+      lista.length + (lista.length === 1 ? ' atividade' : ' atividades')) +
+      (lista.length
       ? lista.map(function (a) {
           var cor = a.cor_fundo || '#94A3B8';
           return '<button type="button" class="combo-item" ' +
@@ -867,9 +902,24 @@ window.SIPAV = window.SIPAV || {};
                  '</button>';
         }).join('')
       : '<p class="px-3 py-2 text-xs" style="color:var(--texto-fraco)">' +
-        (atividadesEscolhidas.length ? 'Todas já escolhidas' : 'Nenhuma atividade com esse nome') + '</p>';
+        (atividadesEscolhidas.length ? 'Todas já escolhidas' : 'Nenhuma atividade com esse nome') + '</p>');
 
     $('listaAtividades').classList.remove('hidden');
+  }
+
+  /**
+   * Barra de cima da lista de busca, com o X.
+   *
+   * A lista não tinha como fechar: quem abria e desistia precisava escolher uma
+   * qualquer e depois tirar. Agora fecha no X, no Esc e clicando fora dela —
+   * inclusive dentro da própria janela.
+   */
+  function cabecalhoCombo(rotulo) {
+    return '<div class="combo-topo">' +
+             '<span>' + esc(rotulo) + '</span>' +
+             '<button type="button" title="Fechar (Esc)" ' +
+                     'onmousedown="SIPAV.app.fecharCombos()">&times;</button>' +
+           '</div>';
   }
 
   function escolherAtividade(id) {
@@ -1097,6 +1147,7 @@ window.SIPAV = window.SIPAV || {};
     }
 
     $('listaEncarregados').innerHTML =
+      cabecalhoCombo(lista.length + (lista.length === 1 ? ' encarregado' : ' encarregados')) +
       '<button type="button" class="combo-item" onmousedown="SIPAV.app.escolherEncarregado(\'\')">' +
         '<span style="color:var(--texto-fraco)">— sem encarregado —</span>' +
       '</button>' +
@@ -1684,6 +1735,22 @@ window.SIPAV = window.SIPAV || {};
   /* ------------------------------------------------- Alterar e limpar ----- */
 
   /** Traz a programação para o formulário, que passa a alterar em vez de criar. */
+  /**
+   * Abre uma programação da lista do "editar em lote" na janela da torre.
+   *
+   * Vinte linhas na régua e uma fora dela: para ajustar essa uma, fechar o lote
+   * e ir caçar a torre na grade é caminho longo demais. Aqui o clique na linha
+   * abre a torre com a programação já em edição.
+   */
+  function editarDaEdicaoEmLote(id) {
+    var x = edicaoLote.find(function (y) { return y.id === id; });
+    if (!x) return;
+
+    ui.fecharModal('modalGenerico');
+    abrirTorre(x.torreId, true);
+    editarProgramacao(id);
+  }
+
   function editarProgramacao(id) {
     var p = E.programacoes.find(function (x) { return x.id === id; });
     if (!p) return;
@@ -2680,6 +2747,7 @@ window.SIPAV = window.SIPAV || {};
     sincronizarLinhasLote();
     loteLinhas.forEach(function (x) { x.bloqueio = null; });
     renderLoteEscolhidas();
+    conferirLoteAoVivo();
   }
 
   function filtrarAtividadesLote() {
@@ -2794,6 +2862,7 @@ window.SIPAV = window.SIPAV || {};
     });
 
     renderLoteEscolhidas();
+    conferirLoteAoVivo();
   }
 
   function aplicarEncarregadoLote() {
@@ -2829,7 +2898,7 @@ window.SIPAV = window.SIPAV || {};
 
   function mudarDataLote(i, valor) {
     var x = linhaLote(i);
-    if (x) { x.data = valor; x.bloqueio = null; renderLoteEscolhidas(); }
+    if (x) { x.data = valor; x.bloqueio = null; renderLoteEscolhidas(); conferirLoteAoVivo(); }
   }
 
   function mudarEncarregadoLote(i, valor) {
@@ -2979,11 +3048,7 @@ window.SIPAV = window.SIPAV || {};
 
     ui.processando('Conferindo a sequência…');
 
-    Promise.all(loteLinhas.map(function (x) {
-      return db.motivoBloqueio(x.torreId, x.atividadeId, x.data)
-        .catch(function () { return null; })
-        .then(function (motivo) { x.bloqueio = motivo || null; });
-    }))
+    conferirLinhasLote()
       .then(function () {
         ui.pronto();
         renderLoteEscolhidas();
@@ -2993,6 +3058,50 @@ window.SIPAV = window.SIPAV || {};
           : 'Sequência conferida: todos liberados.', travadas ? 'alerta' : 'sucesso', 5000);
       })
       .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro'); });
+  }
+
+  /** Pergunta o bloqueio de cada linha. Sem mexer na tela: quem chama decide. */
+  function conferirLinhasLote() {
+    var desta = ++versaoConferencia;
+
+    return Promise.all(loteLinhas.map(function (x) {
+      return db.motivoBloqueio(x.torreId, x.atividadeId, x.data)
+        .catch(function () { return null; })
+        .then(function (motivo) {
+          // Trocou de atividade no meio da consulta: a resposta velha não vale
+          if (desta !== versaoConferencia) return;
+          x.bloqueio = motivo || null;
+        });
+    }));
+  }
+
+  var versaoConferencia = 0;
+  var timerConferencia = null;
+
+  /**
+   * Confere sozinho, logo depois de eu mexer.
+   *
+   * Antes eu só descobria o que não ia entrar depois de clicar em Programar e
+   * ler o relatório do que falhou — perdia o lançamento inteiro e voltava para
+   * o começo. Agora a linha fica vermelha com o motivo enquanto eu ainda estou
+   * montando o lote.
+   *
+   * Espera meio segundo porque o ajuste vem em rajada: escolhi a atividade,
+   * mudei a data, apliquei o encarregado. Sem isso seriam três rodadas de
+   * consulta ao banco para cada mexida.
+   */
+  function conferirLoteAoVivo() {
+    clearTimeout(timerConferencia);
+
+    if (!loteAtividades.length || !loteLinhas.length) return;
+    if (loteLinhas.some(function (x) { return !x.data; })) return;
+
+    timerConferencia = setTimeout(function () {
+      conferirLinhasLote().then(function () {
+        // A janela pode ter sido fechada enquanto a consulta ia e voltava
+        if ($('loteEscolhidas')) renderLoteEscolhidas();
+      });
+    }, 500);
   }
 
   /**
@@ -3623,17 +3732,28 @@ window.SIPAV = window.SIPAV || {};
     $('edContagem').textContent = marcadas + ' de ' + lista.length + ' marcada(s)';
 
     $('edLista').innerHTML = lista.map(function (x) {
-      return '<label class="ed-linha">' +
+      // A caixinha marca para a edição em massa; o resto da linha abre aquela
+      // programação sozinha, na mesma janela de sempre. Uma fora da régua no
+      // meio de vinte não vale abrir um fluxo separado para ajustar.
+      return '<div class="ed-linha">' +
         '<input type="checkbox" class="rounded" ' + (x.marcado ? 'checked ' : '') +
+               'title="Marcar para a edição em lote" ' +
                'onchange="SIPAV.app.marcarEdicao(\'' + x.id + '\', this.checked)">' +
-        '<span class="lote-id">' + esc(x.torreNome) + '</span>' +
-        '<span class="chip-atividade" style="background:' + x.cor + ';color:' +
-          ui.corDoTexto(x.cor) + '">' + esc(x.atividadeNome) + '</span>' +
-        '<span class="ed-data">' + esc(ui.dataCurta(x.data)) + '</span>' +
-        '<span class="ed-enc">' + esc(x.encarregadoNome || '—') + '</span>' +
-        (x.percentual < 100 ? '<span class="chip-parcial">' + pct(x.percentual) + '</span>' : '') +
-      '</label>';
+        '<button type="button" class="ed-abrir" title="Abrir esta programação" ' +
+                'onclick="SIPAV.app.editarDaEdicaoEmLote(\'' + x.id + '\')">' +
+          '<span class="lote-id">' + esc(x.torreNome) + '</span>' +
+          '<span class="chip-atividade" style="background:' + x.cor + ';color:' +
+            ui.corDoTexto(x.cor) + '">' + esc(x.atividadeNome) + '</span>' +
+          '<span class="ed-data">' + esc(ui.dataCurta(x.data)) + '</span>' +
+          '<span class="ed-enc">' + esc(x.encarregadoNome || '—') + '</span>' +
+          (x.percentual < 100
+            ? '<span class="chip-parcial">' + formatarPercentual(x.percentual) + '</span>' : '') +
+          '<i data-lucide="pencil" class="ed-lapis"></i>' +
+        '</button>' +
+      '</div>';
     }).join('');
+
+    ui.icones();
 
     atualizarPreviaEdicao();
   }
@@ -5463,6 +5583,8 @@ window.SIPAV = window.SIPAV || {};
     mudarPercentualLote: mudarPercentualLote,
     aplicarPercentualLote: aplicarPercentualLote,
     alternarModoSelecao: alternarModoSelecao,
+    fecharCombos: fecharCombos,
+    editarDaEdicaoEmLote: editarDaEdicaoEmLote,
     apagarProgramacoesSelecionadas: apagarProgramacoesSelecionadas,
     repetirUltimoLancamento: repetirUltimoLancamento,
     alternarSelecaoProgramacoes: alternarSelecaoProgramacoes,
