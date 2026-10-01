@@ -312,24 +312,49 @@ window.SIPAV = window.SIPAV || {};
   /* PROGRAMAÇÃO                                                              */
   /* ======================================================================== */
 
-  var SELECT_PROGRAMACAO =
-    'id, data, situacao, observacao, override_motivo, cabo, percentual, criado_em,' +
-    'torre:torre_id!inner ( id, identificador, ordem, km, trecho_id, canteiro_id ),' +
-    'atividade:atividade_id ( id, nome, ordem_execucao, cor_fundo, cor_texto, icone ),' +
-    'encarregado:encarregado_id ( id, nome )';
+  /**
+   * A coluna partes (db/40) só entra no select quando existe. Pedir uma coluna
+   * que o banco ainda não tem derruba a consulta inteira, e a tela ficaria sem
+   * nenhuma programação por falta de um SQL. Na primeira carga, se o banco
+   * recusar, tenta sem ela e passa a não pedir mais.
+   */
+  var temPartes = true;
+
+  function selectProgramacao() {
+    return 'id, data, situacao, observacao, override_motivo, cabo, percentual, criado_em,' +
+      (temPartes ? ' partes,' : '') +
+      'torre:torre_id!inner ( id, identificador, ordem, km, trecho_id, canteiro_id ),' +
+      'atividade:atividade_id ( id, nome, ordem_execucao, cor_fundo, cor_texto, icone ),' +
+      'encarregado:encarregado_id ( id, nome )';
+  }
+
+  function faltaColunaPartes(erro) {
+    return !!erro && (erro.code === '42703' || /partes/i.test(erro.message || ''));
+  }
 
   /** Programações de um trecho, opcionalmente num intervalo de datas. */
   function programacoes(filtro) {
     filtro = filtro || {};
-    var q = cliente()
-      .from('programacao')
-      .select(SELECT_PROGRAMACAO)
-      .eq('torre.trecho_id', filtro.trechoId);
 
-    if (filtro.de)  q = q.gte('data', filtro.de);
-    if (filtro.ate) q = q.lte('data', filtro.ate);
+    function consultar() {
+      var q = cliente()
+        .from('programacao')
+        .select(selectProgramacao())
+        .eq('torre.trecho_id', filtro.trechoId);
 
-    return q.order('data').then(function (r) {
+      if (filtro.de)  q = q.gte('data', filtro.de);
+      if (filtro.ate) q = q.lte('data', filtro.ate);
+
+      return q.order('data');
+    }
+
+    return consultar().then(function (r) {
+      if (r.error && temPartes && faltaColunaPartes(r.error)) {
+        temPartes = false;
+        return consultar();
+      }
+      return r;
+    }).then(function (r) {
       return ok(r, 'Falha ao carregar programações');
     });
   }
@@ -379,10 +404,13 @@ window.SIPAV = window.SIPAV || {};
         linha.justificativa_retroativa = dados.justificativaRetroativa;
       }
 
+      // Mesmo cuidado com as partes da escavação (db/40): só vai quando há.
+      if (dados.partes && temPartes) linha.partes = dados.partes;
+
       return cliente()
         .from('programacao')
         .insert(linha)
-        .select(SELECT_PROGRAMACAO)
+        .select(selectProgramacao())
         .single()
         .then(function (r) { return ok(r, 'Falha ao programar'); });
     });
@@ -393,7 +421,7 @@ window.SIPAV = window.SIPAV || {};
       .from('programacao')
       .update(campos)
       .eq('id', id)
-      .select(SELECT_PROGRAMACAO)
+      .select(selectProgramacao())
       .single()
       .then(function (r) { return ok(r, 'Falha ao atualizar programação'); });
   }
@@ -1227,6 +1255,7 @@ window.SIPAV = window.SIPAV || {};
     salvarAtividade: salvarAtividade,
     movimentacoes: movimentacoes,
     salvarMovimentacao: salvarMovimentacao,
+    temPartes: function () { return temPartes; },
     removerMovimentacao: removerMovimentacao,
     execucoesDaTorre: execucoesDaTorre,
     desfazerApontamentos: desfazerApontamentos,

@@ -16,6 +16,30 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 01/10/2026
 
+### Escavação por parte: marcar quais pés, em qualquer ordem — [WR]
+
+Os atalhos eram "pé A", "pés A B", "pés A B C", "pés A B C D": só dava para
+programar em sequência. Na obra o pé A e o C saem antes do B. Troquei por botões
+A, B, C e D que se marcam em qualquer combinação, e o percentual sai da conta
+(cada parte vale a mesma fatia: 25% nos pés e nos estais, 20% na estaiada com o
+mastro central).
+
+- **As letras ficam gravadas** (`db/40`, coluna `programacao.partes`, ex.: `A,C`).
+  Só o percentual não dizia quais partes eram, e nada impedia programar o pé A
+  duas vezes e esquecer o D.
+- **Parte já programada aparece riscada** com a data, e não se marca de novo.
+  Para mudar, altera-se a programação que já a tem.
+- **Percentual digitado à mão** vale, e a marcação sai: ela não pode mentir sobre
+  o que o número cobre.
+- **No cartão:** "50% · A C" quando se sabe quais são.
+- **Sem a db/40** a tela funciona: grava só o percentual e avisa, no próprio
+  seletor, que as letras não ficam gravadas.
+
+**Não mudou:** a regra de bloqueio continua tratando escavação parcial como
+cumprida (R18/D4). Saber quais pés foram feitos não a torna mais rigorosa.
+
+**Fora do escopo:** editar em lote e programar vários pela seleção não carregam as
+letras. O mastro central sozinho (`ESCAVAÇÃO - MC`) segue sem partes.
 ### Movimentação: o dia sem atividade ganha um motivo — [WR]
 
 Tem dia em que não há atividade na torre porque o encarregado mudou de canteiro

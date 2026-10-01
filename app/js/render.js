@@ -1,4 +1,4 @@
-﻿/* =============================================================================
+/* =============================================================================
    SIPAV LT — Renderização das visões
    =============================================================================
    Lê SIPAV.estado e desenha. Não fala com o banco e não altera estado.
@@ -98,6 +98,17 @@ window.SIPAV = window.SIPAV || {};
     var v = Number(n);
     if (isNaN(v)) return '';
     return (Math.round(v * 100) / 100).toLocaleString('pt-BR') + '%';
+  }
+
+  /**
+   * "50%" ou, quando se sabe quais partes são, "50% · A C". As letras são as
+   * partes da escavação (pés ou estais) que a programação cobre; MC é o mastro
+   * central.
+   */
+  function rotuloParcial(p) {
+    var t = pct(p.percentual);
+    if (p.partes) t += ' · ' + String(p.partes).split(',').join(' ');
+    return t;
   }
 
   function colunasCss() {
@@ -204,7 +215,7 @@ window.SIPAV = window.SIPAV || {};
               // Só aparece quando o serviço foi repartido: 100% é o normal e
               // poluiria o cartão em toda linha
               (Number(p.percentual) < 100
-                ? '<span class="parcial">' + pct(p.percentual) + '</span>'
+                ? '<span class="parcial">' + rotuloParcial(p) + '</span>'
                 : '') +
               (p.encarregado
                 ? '<span class="encarregado">' + esc(p.encarregado.nome) + '</span>'
@@ -318,7 +329,7 @@ window.SIPAV = window.SIPAV || {};
       : '<span class="chip-encarregado">' + esc(p.encarregado.nome) + '</span>';
 
     var parcial = (Number(p.percentual) < 100
-      ? '<span class="chip-parcial">' + pct(p.percentual) + '</span>' : '') + marcaFeito(p);
+      ? '<span class="chip-parcial">' + rotuloParcial(p) + '</span>' : '') + marcaFeito(p);
 
     // Com "selecionar vários" ligado, o clique marca em vez de abrir a torre.
     // Desligado, tudo se comporta como sempre — quem não liga não vê diferença.

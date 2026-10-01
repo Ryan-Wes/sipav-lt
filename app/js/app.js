@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v99 · 2026-10-01';
+  var VERSAO = 'v100 · 2026-10-01';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -687,53 +687,42 @@ window.SIPAV = window.SIPAV || {};
   }
 
   /**
-   * Escavação não se faz de uma vez: a torre é escavada por parte, e cada parte
-   * vale uma fatia fixa do serviço.
+   * Escavação não se faz de uma vez: a torre é escavada por parte, e nem sempre na
+   * ordem. Pode sair o pé A e o C antes do B. Por isso o seletor marca as partes
+   * que se quer programar, em qualquer combinação, e o percentual sai da conta.
    *
    * Autoportante tem quatro pés. Estaiada tem quatro estais mais o mastro
    * central, cinco partes.
    *
-   * Os rótulos contam PARTES, não uma ordem. A primeira versão dizia "1 estai,
-   * 2 estais… + centro", como se o centro fosse sempre o último — e não é: dá
-   * para fazer só o centro antes e os estais depois. Quem escava na ordem que
-   * quiser continua achando o número certo.
+   * Os nomes são os de campo: A, B, C e D. "2 pés" obriga o encarregado a traduzir
+   * de cabeça; "pés A e C" é o que ele fala.
+   *
+   * Cada parte vale a mesma fatia do serviço. Se um dia o mastro central pesar
+   * mais que um estai, é aqui que isso vira peso por parte.
    */
-  function fatiasDaEscavacao(atividadeId, estrutura) {
+  function partesDaEscavacao(atividadeId, estrutura) {
     var a = E.atividades.find(function (x) { return x.id === atividadeId; });
     var nome = a ? normalizar(a.nome) : '';
 
     // O mastro central é uma coisa só: ou está feito ou não está.
-    if (nome.indexOf('- mc') !== -1 || nome.indexOf('mastro') !== -1) return [];
+    if (nome.indexOf('- mc') !== -1 || nome.indexOf('mastro') !== -1) return null;
+
+    var quatro = function (prefixo) {
+      return ['A', 'B', 'C', 'D'].map(function (l) {
+        return { cod: l, rotulo: prefixo + ' ' + l };
+      });
+    };
 
     // A escavação só dos estais são quatro, sem o centro no meio da conta.
-    if (nome.indexOf('estai') !== -1) {
-      return [
-        { pct: 25,  rotulo: '1 estai' },
-        { pct: 50,  rotulo: '2 estais' },
-        { pct: 75,  rotulo: '3 estais' },
-        { pct: 100, rotulo: '4 estais' }
-      ];
-    }
+    if (nome.indexOf('estai') !== -1) return { titulo: 'Estais', itens: quatro('estai') };
 
-    // Os pés têm nome em campo: A, B, C e D. "3 pés" obriga a traduzir de
-    // cabeça; "pés A B C" é o que o encarregado fala.
-    if (estrutura === 'AUTOPORTANTE') {
-      return [
-        { pct: 25,  rotulo: 'pé A' },
-        { pct: 50,  rotulo: 'pés A B' },
-        { pct: 75,  rotulo: 'pés A B C' },
-        { pct: 100, rotulo: 'pés A B C D' }
-      ];
-    }
+    if (estrutura === 'AUTOPORTANTE') return { titulo: 'Pés', itens: quatro('pé') };
 
-    // Estaiada pela escavação inteira: quatro estais e o centro, em qualquer ordem
-    return [
-      { pct: 20,  rotulo: '1 parte' },
-      { pct: 40,  rotulo: '2 partes' },
-      { pct: 60,  rotulo: '3 partes' },
-      { pct: 80,  rotulo: '4 partes' },
-      { pct: 100, rotulo: '5 partes' }
-    ];
+    // Estaiada pela escavação inteira: quatro estais e o centro
+    return {
+      titulo: 'Estais e centro',
+      itens: quatro('estai').concat([{ cod: 'MC', rotulo: 'centro' }])
+    };
   }
 
   function ehEscavacao(atividadeId) {
@@ -742,42 +731,107 @@ window.SIPAV = window.SIPAV || {};
   }
 
   /**
+   * As partes marcadas valem para uma torre e uma atividade. Trocar de torre ou de
+   * atividade descarta a marcação: letras de uma torre não são da outra.
+   */
+  var partesMarcadas = { chave: '', letras: [] };
+
+  function chaveDasPartes() {
+    return torreAberta && atividadesEscolhidas.length === 1
+      ? torreAberta.torre_id + '|' + atividadesEscolhidas[0] : '';
+  }
+
+  /** Letras já programadas em OUTRAS programações desta torre e atividade → data. */
+  function partesJaProgramadas() {
+    var mapa = {};
+    if (!torreAberta || atividadesEscolhidas.length !== 1) return mapa;
+
+    render.programacoesDaTorre(torreAberta.torre_id).forEach(function (p) {
+      if (!p.partes || !p.atividade || p.atividade.id !== atividadesEscolhidas[0]) return;
+      if (p.id === programacaoEmEdicao) return;
+      String(p.partes).split(',').forEach(function (l) { mapa[l] = p.data; });
+    });
+    return mapa;
+  }
+
+  /**
    * Só aparece em escavação, e só com uma atividade escolhida: com várias, o
-   * percentual é o mesmo para todas e o atalho diria respeito a uma só.
+   * percentual é o mesmo para todas e a marcação diria respeito a uma só.
    */
   function atualizarAtalhosPercentual() {
     var caixa = $('atalhosPercentual');
     if (!caixa) return;
 
-    var fatias = (torreAberta && atividadesEscolhidas.length === 1 &&
-                  ehEscavacao(atividadesEscolhidas[0]))
-      ? fatiasDaEscavacao(atividadesEscolhidas[0], torreAberta.estrutura)
-      : [];
+    var def = (torreAberta && atividadesEscolhidas.length === 1 &&
+               ehEscavacao(atividadesEscolhidas[0]))
+      ? partesDaEscavacao(atividadesEscolhidas[0], torreAberta.estrutura)
+      : null;
 
-    caixa.classList.toggle('hidden', !fatias.length);
-    if (!fatias.length) { caixa.innerHTML = ''; return; }
+    caixa.classList.toggle('hidden', !def);
+    if (!def) { caixa.innerHTML = ''; partesMarcadas = { chave: '', letras: [] }; return; }
 
+    var chave = chaveDasPartes();
+    if (partesMarcadas.chave !== chave) partesMarcadas = { chave: chave, letras: [] };
+
+    // Percentual digitado à mão que não bate com as letras: vale o que foi
+    // digitado, e a marcação sai para não mentir sobre o que ele cobre.
+    var fatia = 100 / def.itens.length;
     var atual = Number($('campoPercentual').value);
-    var estaiada = torreAberta.estrutura !== 'AUTOPORTANTE';
-    var a = E.atividades.find(function (x) { return x.id === atividadesEscolhidas[0]; });
-    var soEstais = a && normalizar(a.nome).indexOf('estai') !== -1;
+    if (partesMarcadas.letras.length &&
+        Math.abs(partesMarcadas.letras.length * fatia - atual) > 0.01) {
+      partesMarcadas.letras = [];
+    }
 
-    caixa.innerHTML = fatias.map(function (f) {
-      return '<button type="button" class="atalho-pct' +
-               (atual === f.pct ? ' atalho-pct-ativo' : '') + '" ' +
-               'onclick="SIPAV.app.usarFatiaPercentual(' + f.pct + ')">' +
-               esc(f.rotulo) + '<b>' + f.pct + '%</b>' +
-             '</button>';
-    }).join('') +
-      (estaiada && !soEstais
-        ? '<span class="atalho-nota">partes = 4 estais e o centro, em qualquer ordem</span>'
+    var jaFeitas = partesJaProgramadas();
+
+    caixa.innerHTML =
+      '<span class="atalho-nota" style="margin:0 .25rem 0 0">' + esc(def.titulo) + '</span>' +
+      def.itens.map(function (it) {
+        var data = jaFeitas[it.cod];
+        var ativo = partesMarcadas.letras.indexOf(it.cod) !== -1;
+        return '<button type="button" class="atalho-pct' + (ativo ? ' atalho-pct-ativo' : '') + '" ' +
+                 (data ? 'disabled title="Já programado para ' + ui.dataCurta(data) + '" ' : '') +
+                 'onclick="SIPAV.app.alternarParteEscavacao(\'' + it.cod + '\')">' +
+                 esc(it.rotulo) + (data ? '<b>' + ui.dataCurta(data) + '</b>' : '') +
+               '</button>';
+      }).join('') +
+      '<span class="atalho-nota">marque as partes, em qualquer ordem</span>' +
+      (!db.temPartes()
+        ? '<span class="atalho-nota" style="color:#F59E0B">falta aplicar a migração 40: ' +
+          'só o percentual fica gravado, não as letras</span>'
         : '');
   }
 
-  function usarFatiaPercentual(pct) {
-    $('campoPercentual').value = pct;
+  function alternarParteEscavacao(cod) {
+    if (!torreAberta || atividadesEscolhidas.length !== 1) return;
+    var def = partesDaEscavacao(atividadesEscolhidas[0], torreAberta.estrutura);
+    if (!def) return;
+
+    // O botão já vem desabilitado; isto cobre quem chegar aqui por outro caminho
+    if (partesJaProgramadas()[cod]) return;
+
+    var chave = chaveDasPartes();
+    if (partesMarcadas.chave !== chave) partesMarcadas = { chave: chave, letras: [] };
+
+    var i = partesMarcadas.letras.indexOf(cod);
+    if (i === -1) partesMarcadas.letras.push(cod); else partesMarcadas.letras.splice(i, 1);
+
+    // Sempre na ordem da tela, para "A,C" e não "C,A"
+    var ordem = def.itens.map(function (it) { return it.cod; });
+    partesMarcadas.letras.sort(function (x, y) { return ordem.indexOf(x) - ordem.indexOf(y); });
+
+    // Sem nenhuma marcada volta ao serviço inteiro, que é o padrão do formulário
+    var n = partesMarcadas.letras.length;
+    $('campoPercentual').value = n ? Math.round(n * 100 / def.itens.length * 100) / 100 : 100;
     mostrarSomaPercentual();
     atualizarAtalhosPercentual();
+  }
+
+  /** "A,C" para gravar, ou null quando nada foi marcado. */
+  function partesParaGravar() {
+    if (!db.temPartes()) return null;
+    if (partesMarcadas.chave !== chaveDasPartes() || !partesMarcadas.letras.length) return null;
+    return partesMarcadas.letras.join(',');
   }
 
   /** Mostra ou esconde o seletor de cabo conforme a atividade escolhida. */
@@ -1678,7 +1732,9 @@ window.SIPAV = window.SIPAV || {};
           // JSON, então uma justificativa que já existia não é apagada.
           justificativa_retroativa: exigeJustificativa ? justRetro : undefined,
           cabo:            pedeCabo(atividadesEscolhidas[0]) ? cabo : null,
-          percentual:      percentual
+          percentual:      percentual,
+          // undefined não entra no JSON: sem a db/40 a coluna nem é tocada
+          partes:          db.temPartes() ? partesParaGravar() : undefined
         })
       // Em ordem de data e, no mesmo dia, de ordem de execução: a cadeia precisa
       // da supressão gravada antes da escavação, senão o gatilho recusa a segunda
@@ -1704,7 +1760,8 @@ window.SIPAV = window.SIPAV || {};
               justificativaRetroativa:
                 dataDaAtividade(comuns.data, id) < ui.hoje() ? justRetro : null,
               cabo: pedeCabo(id) ? cabo : null,
-              percentual: percentual
+              percentual: percentual,
+              partes: atividadesEscolhidas.length === 1 ? partesParaGravar() : null
             })
               .then(function () { criadas.push(a ? a.nome : id); })
               .catch(function (e) { recusadas.push({ nome: a ? a.nome : id, motivo: e.message }); });
@@ -1896,9 +1953,13 @@ window.SIPAV = window.SIPAV || {};
     $('campoObservacao').value  = p.observacao || '';
 
     atualizarCampoCabo();
-    atualizarAtalhosPercentual();
     $('campoCabo').value = p.cabo || '';
     $('campoPercentual').value = p.percentual == null ? 100 : p.percentual;
+    partesMarcadas = {
+      chave: p.atividade ? torreAberta.torre_id + '|' + p.atividade.id : '',
+      letras: p.partes ? String(p.partes).split(',') : []
+    };
+    atualizarAtalhosPercentual();
 
     atualizarModoFormulario();
     verificarBloqueio();
@@ -6485,7 +6546,7 @@ window.SIPAV = window.SIPAV || {};
     abrirCopiarDatas: abrirCopiarDatas,
     copiarDatasDe: copiarDatasDe,
     atualizarAtalhosPercentual: atualizarAtalhosPercentual,
-    usarFatiaPercentual: usarFatiaPercentual,
+    alternarParteEscavacao: alternarParteEscavacao,
     limparSelecao: limparSelecao,
     selecionarTodasVisiveis: selecionarTodasVisiveis,
     programarSelecionadas: programarSelecionadas,

@@ -997,6 +997,12 @@ body.modo-selecao .cartao-torre:hover { transform: none; }
   border-color: var(--acento); background: var(--acento); color: #fff;
 }
 .atalho-pct-ativo b { color: #fff; opacity: .85; }
+/* Parte que já está programada em outro dia: aparece, mas não se marca de novo */
+.atalho-pct:disabled {
+  cursor: not-allowed; opacity: .55; text-decoration: line-through;
+}
+.atalho-pct:disabled:hover { border-color: var(--borda); color: var(--texto-suave); }
+.atalho-pct:disabled b { text-decoration: none; }
 
 /* Apagar fica na barra ao lado dos outros, mas não com a mesma cara: é o único
    que não tem desfazer. */
