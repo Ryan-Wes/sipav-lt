@@ -1,4 +1,4 @@
-﻿/* =============================================================================
+/* =============================================================================
    SIPAV LT — Estilos
    =============================================================================
    Dashboard escuro: fundo quase preto, superfícies em grafite, bordas finas de
@@ -1256,30 +1256,27 @@ body.modo-selecao #visaoGrade { user-select: none; }
 /* =========================================================================
    Movimentação: o dia sem atividade com motivo
    ========================================================================= */
-/* Faixa fina acima dos cartões. Tem que se ler como "o que aconteceu", e não
-   como mais uma atividade, então sem cor de estrutura e com borda tracejada. */
-.faixa-mov {
-  display: flex; flex-wrap: wrap; gap: .375rem;
-  margin: 0 0 .5rem;
-}
-.chip-mov {
-  display: inline-flex; align-items: center; gap: .375rem;
-  max-width: 100%;
-  padding: .25rem .5rem;
-  font-size: .75rem; line-height: 1.2;
-  color: var(--texto-suave);
+/* Cartão no mesmo molde da programação, com as setinhas no lugar da torre. A
+   borda tracejada e o fundo mais apagado o separam: é uma explicação do dia, não
+   serviço, e não pode ser confundido com torre. */
+.chip-mov-card {
   background: var(--superficie-2);
-  border: 1px dashed var(--borda-forte);
-  border-radius: .5rem;
+  border-style: dashed; border-color: var(--borda-forte);
+  cursor: default;
 }
-.chip-mov-editavel { cursor: pointer; }
-.chip-mov-editavel:hover { border-style: solid; color: var(--texto); }
-.chip-mov-quando { font-weight: 600; white-space: nowrap; color: var(--texto); }
-.chip-mov-texto { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.chip-mov .chip-dia {
-  margin-left: .1875rem;
-  font-size: .625rem; font-weight: 700;
-  text-transform: uppercase; letter-spacing: .02em;
-  color: var(--texto-fraco);
+.chip-mov-card.chip-mov-editavel { cursor: pointer; }
+.chip-mov-card.chip-mov-editavel:hover { border-style: solid; background: var(--superficie-3); }
+
+.chip-torre-mov {
+  display: inline-flex; align-items: center; justify-content: flex-start;
+  color: var(--texto-suave);
 }
-.chip-mov .chip-dia.fim-de-semana { color: #F59E0B; }
+
+/* O texto pode ser longo ("Muda de canteiro · Wanderley → Igarité"): quebra em vez
+   de cortar, como o nome da atividade no cartão ao lado */
+.chip-mov-texto {
+  min-width: 0; flex: 1;
+  font-size: .75rem; line-height: 1.25; color: var(--texto-suave);
+}
+
+.chip-mov-card .chip-dia { margin-left: .1875rem; }

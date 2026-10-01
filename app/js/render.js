@@ -369,6 +369,7 @@ window.SIPAV = window.SIPAV || {};
     // torre no mesmo dia são uma torre só — antes o cabeçalho dizia "9 torres"
     // onde havia 3, e somava o km três vezes.
     var t = totais(itens);
+    var movs = (op && op.movs) || [];
 
     // Dia só com movimentação: sem torre, sem atividade. Mostrar "0 torres · 0,00 km"
     // diria que a obra parou, quando o que há é uma explicação.
@@ -388,12 +389,13 @@ window.SIPAV = window.SIPAV || {};
           '</div>' +
           '<span class="text-xs font-semibold text-slate-500 shrink-0">' + resumo + '</span>' +
         '</header>' +
-        (itens.length
+        ((itens.length || movs.length)
           ? '<div class="p-3 grid gap-2" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr))">' +
-              itens.map(function (p) { return chipProgramacao(p, op); }).join('') +
+              emOrdemDeData(itens, movs).map(function (e) {
+                return e.m ? cartaoMovimentacao(e.m, true) : chipProgramacao(e.p, op);
+              }).join('') +
             '</div>'
           : '') +
-        ((op && op.faixa) || '') +
       '</section>';
   }
 
@@ -513,10 +515,15 @@ window.SIPAV = window.SIPAV || {};
     return 'Muda de canteiro · ' + rotaDeCanteiro(m);
   }
 
-  function chipMovimentacao(m, comQuem) {
-    var quando = ui.dataCurta(m.data) +
+  /**
+   * A movimentação como cartão da grade, no mesmo molde da programação: no lugar
+   * da torre vão as setinhas (ou o caminhão, ou o "proibido"), e ela entra na
+   * mesma ordem de data das torres, no dia em que aconteceu.
+   */
+  function cartaoMovimentacao(m, comQuem) {
+    var quando = '<span class="chip-data">' + esc(ui.dataCurta(m.data)) +
       '<b class="chip-dia' + (ui.fimDeSemana(m.data) ? ' fim-de-semana' : '') + '">' +
-      esc(ui.diaDaSemana(m.data).slice(0, 3)) + '</b>';
+      esc(ui.diaDaSemana(m.data).slice(0, 3)) + '</b></span>';
 
     // Em "por data" não há o nome do encarregado no título do bloco: entra aqui
     var texto = (comQuem && m.encarregado ? m.encarregado.nome + ' · ' : '') + textoDaMovimentacao(m);
@@ -525,22 +532,31 @@ window.SIPAV = window.SIPAV || {};
 
     var editavel = podeEditarMovimentacao();
 
-    return '<div class="chip-mov' + (editavel ? ' chip-mov-editavel' : '') + '" ' +
+    return '<div class="chip-prog chip-mov-card' + (editavel ? ' chip-mov-editavel' : '') + '" ' +
              (editavel ? 'onclick="SIPAV.app.abrirMovimentacao(\'' + m.id + '\')" ' : '') +
              'title="' + esc(dica) + '">' +
-             '<i data-lucide="' + (ICONE_MOVIMENTACAO[m.tipo] || 'ban') + '" class="w-3.5 h-3.5 shrink-0"></i>' +
-             '<span class="chip-mov-quando">' + quando + '</span>' +
+             '<span class="chip-torre chip-torre-mov">' +
+               '<i data-lucide="' + (ICONE_MOVIMENTACAO[m.tipo] || 'ban') + '" class="w-4 h-4"></i>' +
+             '</span>' +
+             quando +
              '<span class="chip-mov-texto">' + esc(texto) + '</span>' +
            '</div>';
   }
 
-  function faixaMovimentacoes(movs, comQuem) {
-    if (!movs || !movs.length) return '';
-    return '<div class="faixa-mov">' +
-             movs.map(function (m) { return chipMovimentacao(m, comQuem); }).join('') +
-           '</div>';
-  }
+  /**
+   * Programações e movimentações na ordem de data. No mesmo dia a movimentação
+   * vem primeiro: é de onde a pessoa saiu antes de chegar às torres.
+   */
+  function emOrdemDeData(progs, movs) {
+    var eventos = progs.map(function (p) { return { data: p.data, p: p }; })
+      .concat((movs || []).map(function (m) { return { data: diaDaMovimentacao(m), m: m }; }));
 
+    return eventos.map(function (e, i) { e.i = i; return e; }).sort(function (a, b) {
+      if (a.data !== b.data) return a.data < b.data ? -1 : 1;
+      if (!!a.m !== !!b.m) return a.m ? -1 : 1;
+      return a.i - b.i;
+    });
+  }
   function vazio(mensagem) {
     return '<div class="text-center py-16 text-slate-400">' +
              '<i data-lucide="calendar-x" class="w-10 h-10 mx-auto mb-2 text-slate-300"></i>' +
@@ -619,7 +635,7 @@ window.SIPAV = window.SIPAV || {};
             // em tres linhas e a grade perde o alinhamento.
             return blocoQuadrante(ui.dataLonga(data), null, progsPorDia.mapa[data] || [],
               { torre: true, data: false, atividade: true, encarregado: true, empilhado: true,
-                faixa: faixaMovimentacoes(movsPorDia.mapa[data], true) });
+                movs: movsPorDia.mapa[data] || [] });
           }).join('') +
         '</section>';
     }).join('');
@@ -711,9 +727,10 @@ window.SIPAV = window.SIPAV || {};
 
       // Dentro do encarregado, separado por semana: a de hoje é a SEMANAL e a
       // seguinte é a QUINZENAL, que é como a gente chama e como vai para a ISA.
-      var porSemana = agrupar(itens.slice().sort(function (a, b) {
-        return a.data < b.data ? -1 : a.data > b.data ? 1 : 0;
-      }), function (p) { return ui.iso(ui.segundaDaSemana(ui.paraData(p.data))); });
+      // A movimentação entra na mesma ordem, no dia em que aconteceu, e não numa
+      // faixa à parte embaixo: é um dia do encarregado como os outros.
+      var porSemana = agrupar(emOrdemDeData(itens, movsPorEnc.mapa[nome]),
+        function (e) { return ui.iso(ui.segundaDaSemana(ui.paraData(e.data))); });
 
       var corpo = porSemana.ordem.map(function (segunda) {
         return '<div class="faixa-semana">' +
@@ -725,9 +742,11 @@ window.SIPAV = window.SIPAV || {};
                '</div>' +
                '<div class="p-3 grid gap-2" ' +
                     'style="grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr))">' +
-                 porSemana.mapa[segunda].map(function (p) {
-                   return chipProgramacao(p, { torre: true, data: true,
-                                               atividade: true, encarregado: false });
+                 porSemana.mapa[segunda].map(function (e) {
+                   return e.m
+                     ? cartaoMovimentacao(e.m, false)
+                     : chipProgramacao(e.p, { torre: true, data: true,
+                                              atividade: true, encarregado: false });
                  }).join('') +
                '</div>';
       }).join('');
@@ -751,14 +770,13 @@ window.SIPAV = window.SIPAV || {};
             '</span>' +
           '</header>' +
           corpo +
-          faixaMovimentacoes(movsPorEnc.mapa[nome], false) +
         '</section>';
     }).join('') +
 
     // Máquinas e o que não é de ninguém: movimentação sem encarregado
     (movsSemEnc.length
       ? blocoQuadrante('Máquinas e outros', 'sem encarregado', [],
-          { faixa: faixaMovimentacoes(movsSemEnc, false) })
+          { movs: movsSemEnc })
       : '');
   }
 

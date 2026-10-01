@@ -77,6 +77,11 @@ Decisões:
   isto", e a movimentação viraria ruído.
 - **Torre da máquina.** Só as torres do trecho aberto. Máquina que muda de torre
   para outro trecho se registra como mudança de canteiro.
+- **Aparece como cartão, na ordem de data.** Primeiro era uma faixa embaixo do
+  encarregado. Virou cartão no mesmo molde da torre, com as setinhas no lugar do
+  número, dentro da semana e no dia em que aconteceu; no mesmo dia vem antes das
+  torres. Vale para o Por Encarregado e para o Por Data. Borda tracejada, para não
+  se confundir com serviço.
 **Em aberto.** Programar um encarregado num dia em que ele está em movimentação
 não é impedido, só avisado na hora de registrar a movimentação. O contrário
 (programar depois) ainda passa calado.
