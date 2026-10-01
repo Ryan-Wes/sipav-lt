@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v105 · 2026-10-01';
+  var VERSAO = 'v106 · 2026-10-01';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -5623,7 +5623,8 @@ window.SIPAV = window.SIPAV || {};
    *
    * O deslocamento de máquina é só isso, um registro no dia. Na planilha de
    * programação escrevia-se "mudança de máquina" e mais nada, e é esse o nível de
-   * detalhe: sem qual máquina, sem de onde nem para onde.
+   * detalhe: sem qual máquina, sem de onde nem para onde. Pode ter o encarregado,
+   * para o registro ficar ligado a ele naquela semana.
    *
    * Não é programação: não tem torre nem atividade de execução, e não passa por
    * precedência, aderência nem relatório da ISA.
@@ -5735,13 +5736,12 @@ window.SIPAV = window.SIPAV || {};
 
   /**
    * O que a janela pede muda com o tipo. Mudança de trecho pede encarregado e os
-   * dois canteiros; "outro" pede o motivo; o deslocamento de máquina não pede nada
-   * além do dia.
+   * dois canteiros; "outro" pede o motivo; o deslocamento de máquina pede só o dia,
+   * e o encarregado se quiserem ligar o registro a ele.
    */
   function mudarTipoMovimentacao() {
     var tipo = $('movTipo').value;
 
-    $('movBlocoEnc').classList.toggle('hidden', tipo === 'MUDANCA_MAQUINA');
     $('movBlocoCanteiros').classList.toggle('hidden', tipo !== 'MUDANCA_TRECHO');
 
     $('movRotuloEnc').textContent = tipo === 'MUDANCA_TRECHO'
@@ -5768,7 +5768,7 @@ window.SIPAV = window.SIPAV || {};
     var tipo = $('movTipo').value;
     var data = $('movData').value;
     var obs = $('movObs').value.trim();
-    var nomeEnc = tipo === 'MUDANCA_MAQUINA' ? '' : $('movEncarregado').value.trim();
+    var nomeEnc = $('movEncarregado').value.trim();
 
     function recusar(texto, campo) {
       ui.avisar(texto, 'alerta', 6000);
@@ -5801,7 +5801,9 @@ window.SIPAV = window.SIPAV || {};
     // Choque com a programação: quem muda de canteiro (ou está sem atividade) num
     // dia em que tem torre programada. Pode ser legítimo — sai depois do serviço —
     // mas tem que ser deliberado, e não descoberto na sexta.
-    var choque = enc
+    // Deslocamento de máquina não entra: ele só liga o registro ao encarregado, e
+    // a máquina mudar de lugar não impede ninguém de trabalhar.
+    var choque = (enc && tipo !== 'MUDANCA_MAQUINA')
       ? E.programacoes.filter(function (p) {
           return p.encarregado && p.encarregado.id === enc.id && p.data === data;
         })

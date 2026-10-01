@@ -54,7 +54,9 @@ Criei a tabela `movimentacao` (`db/39`), com três tipos, que a obra chama assim
 - **Deslocamento de máquina:** só o registro no dia. Na planilha de programação
   escrevia-se "mudança de máquina" e mais nada, e é esse o nível de detalhe: sem
   qual máquina, sem de onde nem para onde. Tem observação opcional, para quem
-  quiser dizer.
+  quiser dizer, e encarregado opcional: com ele, o registro fica ligado a ele
+  naquela semana e aparece no bloco dele. Não gera aviso de choque com a
+  programação, porque máquina mudando de lugar não impede ninguém de trabalhar.
 - **Outro motivo:** dia sem atividade com o motivo escrito.
 
 Decisões:
