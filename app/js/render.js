@@ -603,13 +603,17 @@ window.SIPAV = window.SIPAV || {};
    * da torre vão as setinhas (ou o caminhão, ou o "proibido"), e ela entra na
    * mesma ordem de data das torres, no dia em que aconteceu.
    */
-  function cartaoMovimentacao(m, comQuem) {
+  function cartaoMovimentacao(m, comQuem, doEncarregado) {
     var quando = '<span class="chip-data">' + esc(ui.dataCurta(m.data)) +
       '<b class="chip-dia' + (ui.fimDeSemana(m.data) ? ' fim-de-semana' : '') + '">' +
       esc(ui.diaDaSemana(m.data).slice(0, 3)) + '</b></span>';
 
     // Em "por data" não há o nome do encarregado no título do bloco: entra aqui
-    var texto = (comQuem && m.encarregado ? m.encarregado.nome + ' · ' : '') + textoDaMovimentacao(m);
+    var texto = (comQuem && m.encarregado ? nomesDosEncarregados(m) + ' · ' : '') + textoDaMovimentacao(m);
+
+    // No bloco de um dos dois, o outro: "com Jorge Luis"
+    var parceiro = !comQuem && doEncarregado ? textoDoParceiro(m, doEncarregado) : '';
+    if (parceiro) texto += ' · ' + parceiro;
     var dica = textoDaMovimentacao(m) +
       (m.tipo === 'MUDANCA_TRECHO' && m.observacao ? ' — ' + m.observacao : '');
 
@@ -742,8 +746,8 @@ window.SIPAV = window.SIPAV || {};
     // Movimentação por encarregado. Quem passou o período inteiro em outro trecho
     // não tem atividade nenhuma aqui — e é justamente o que sumiria do painel sem
     // explicação. Ele também ganha bloco, só com a movimentação.
-    var movsPorEnc = agrupar(movs.filter(function (m) { return m.encarregado; }),
-                             function (m) { return m.encarregado.nome; });
+    var movsPorEnc = agruparPorEncarregado(movs.filter(function (m) { return m.encarregado; }),
+                                           'Sem encarregado');
     var movsSemEnc = movs.filter(function (m) { return !m.encarregado; });
     var extras = movsPorEnc.ordem.filter(function (n) { return !g.mapa[n]; })
       .sort(function (a, b) { return a.localeCompare(b, 'pt-BR'); });
@@ -824,7 +828,7 @@ window.SIPAV = window.SIPAV || {};
                     'style="grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr))">' +
                  porSemana.mapa[segunda].map(function (e) {
                    return e.m
-                     ? cartaoMovimentacao(e.m, false)
+                     ? cartaoMovimentacao(e.m, false, nome)
                      : chipProgramacao(e.p, { torre: true, data: true,
                                               atividade: true, encarregado: false,
                                               doEncarregado: nome });

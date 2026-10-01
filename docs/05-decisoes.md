@@ -114,6 +114,10 @@ Decisões:
   tela pergunta antes. Não bloqueia: ele pode sair depois do serviço.
 - **Filtro some com ela.** Filtrar por atividade, canteiro ou torre é pedir "só
   isto", e a movimentação viraria ruído.
+- **Dois encarregados.** Qualquer tipo de movimentação aceita um segundo
+  encarregado (mudam de canteiro juntos, ou acompanham o mesmo deslocamento). O
+  registro aparece no bloco dos dois, e o outro vem como "com Fulano". A coluna
+  encarregado_2_id está no próprio `db/39`, porque a tabela ainda é nova.
 - **Aparece como cartão, na ordem de data.** Primeiro era uma faixa embaixo do
   encarregado. Virou cartão no mesmo molde da torre, com as setinhas no lugar do
   número, dentro da semana e no dia em que aconteceu; no mesmo dia vem antes das

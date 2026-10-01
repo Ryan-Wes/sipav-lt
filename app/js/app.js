@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v110 · 2026-10-01';
+  var VERSAO = 'v111 · 2026-10-01';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -5941,7 +5941,20 @@ window.SIPAV = window.SIPAV || {};
                  'placeholder="Digite para buscar…">' +
           '<datalist id="movListaEnc">' +
             E.encarregados.map(function (e) { return '<option value="' + esc(e.nome) + '">'; }).join('') +
-          '</datalist></div>' +
+          '</datalist>' +
+
+          // Dois que fazem juntos: mudam de canteiro juntos, ou acompanham o mesmo
+          // deslocamento. Escondido até pedirem.
+          '<button type="button" id="movBtnEnc2" class="btn-repetir mt-1.5" ' +
+                  'onclick="SIPAV.app.mostrarEncarregado2Mov()">+ Dois encarregados juntos</button>' +
+          '<div id="movBlocoEnc2" class="hidden mt-2">' +
+            '<label class="rotulo">Segundo encarregado ' +
+              '<button type="button" class="link-tirar" onclick="SIPAV.app.tirarEncarregado2Mov()">tirar</button>' +
+            '</label>' +
+            '<input id="movEncarregado2" class="campo" list="movListaEnc" autocomplete="off" ' +
+                   'placeholder="Digite para buscar…">' +
+          '</div>' +
+        '</div>' +
 
         '<div id="movBlocoCanteiros" class="grid grid-cols-2 gap-3">' +
           '<div><label class="rotulo">Do canteiro</label>' +
@@ -5979,6 +5992,8 @@ window.SIPAV = window.SIPAV || {};
     $('movTipo').value = m ? m.tipo : 'MUDANCA_TRECHO';
     $('movData').value = m ? m.data : (E.periodo && E.periodo.de && E.periodo.de > ui.hoje() ? E.periodo.de : ui.hoje());
     $('movEncarregado').value = m && m.encarregado ? m.encarregado.nome : '';
+    $('movEncarregado2').value = m && m.encarregado2 ? m.encarregado2.nome : '';
+    if (m && m.encarregado2) mostrarEncarregado2Mov();
     $('movObs').value = m ? (m.observacao || '') : '';
 
     mudarTipoMovimentacao();
@@ -6004,6 +6019,17 @@ window.SIPAV = window.SIPAV || {};
     $('movObs').placeholder = tipo === 'OUTRO'
       ? 'Ex.: chuva, falta de material, feriado local'
       : tipo === 'MUDANCA_MAQUINA' ? 'Ex.: escavadeira PC200' : 'Ex.: sai depois do almoço';
+  }
+
+  function mostrarEncarregado2Mov() {
+    $('movBlocoEnc2').classList.remove('hidden');
+    $('movBtnEnc2').classList.add('hidden');
+  }
+
+  function tirarEncarregado2Mov() {
+    $('movEncarregado2').value = '';
+    $('movBlocoEnc2').classList.add('hidden');
+    $('movBtnEnc2').classList.remove('hidden');
   }
 
   function mostrarDiasDaMovimentacao() {
@@ -6036,6 +6062,16 @@ window.SIPAV = window.SIPAV || {};
       if (!enc) return recusar('Não achei o encarregado "' + nomeEnc + '". Escolha um da lista.', 'movEncarregado');
     }
 
+    // O segundo, igual ao primeiro: tem que ser alguém da lista, e outra pessoa
+    var nomeEnc2 = $('movEncarregado2').value.trim();
+    var enc2 = null;
+    if (nomeEnc2) {
+      enc2 = E.encarregados.find(function (e) { return normalizar(e.nome) === normalizar(nomeEnc2); });
+      if (!enc2) return recusar('Não achei o encarregado "' + nomeEnc2 + '". Escolha um da lista.', 'movEncarregado2');
+      if (!enc) return recusar('Escolha primeiro o encarregado, depois o segundo.', 'movEncarregado');
+      if (enc2.id === enc.id) return recusar('O segundo encarregado é o mesmo do primeiro.', 'movEncarregado2');
+    }
+
     if (tipo === 'MUDANCA_TRECHO' && !enc) return recusar('Escolha o encarregado que muda de canteiro.', 'movEncarregado');
     if (tipo === 'OUTRO' && !obs) return recusar('Diga o motivo: é ele que explica o dia vazio.', 'movObs');
 
@@ -6054,9 +6090,12 @@ window.SIPAV = window.SIPAV || {};
     // mas tem que ser deliberado, e não descoberto na sexta.
     // Deslocamento de máquina não entra: ele só liga o registro ao encarregado, e
     // a máquina mudar de lugar não impede ninguém de trabalhar.
-    var choque = (enc && tipo !== 'MUDANCA_MAQUINA')
+    var envolvidos = [enc, enc2].filter(Boolean);
+    var choque = (envolvidos.length && tipo !== 'MUDANCA_MAQUINA')
       ? E.programacoes.filter(function (p) {
-          return p.data === data && render.encarregadosDe(p).some(function (e) { return e.id === enc.id; });
+          return p.data === data && render.encarregadosDe(p).some(function (e) {
+            return envolvidos.some(function (x) { return x.id === e.id; });
+          });
         })
       : [];
 
@@ -6065,6 +6104,7 @@ window.SIPAV = window.SIPAV || {};
       tipo: tipo,
       data: data,
       encarregadoId: enc ? enc.id : null,
+      encarregado2Id: enc2 ? enc2.id : null,
       trechoId: E.trechoAtual.id,
       canteiroOrigemId: canteiroOrigem,
       canteiroDestinoId: canteiroDestino,
@@ -6084,7 +6124,8 @@ window.SIPAV = window.SIPAV || {};
 
     var seguir = choque.length
       ? ui.confirmar('Já tem atividade nesse dia',
-          enc.nome + ' tem ' + choque.length + ' atividade(s) programada(s) em ' +
+          envolvidos.map(function (x) { return x.nome; }).join(' e ') + ' tem ' + choque.length +
+          ' atividade(s) programada(s) em ' +
           ui.dataCurta(data) + ' (' + choque.slice(0, 3).map(function (p) {
             return p.torre ? p.torre.identificador : '?';
           }).join(', ') + (choque.length > 3 ? '…' : '') + '). ' +
@@ -6799,6 +6840,8 @@ window.SIPAV = window.SIPAV || {};
     liberarRestricao: liberarRestricao,
     abrirCorrigirEstagio: abrirCorrigirEstagio,
     abrirMovimentacao: abrirMovimentacao,
+    mostrarEncarregado2Mov: mostrarEncarregado2Mov,
+    tirarEncarregado2Mov: tirarEncarregado2Mov,
     mudarTipoMovimentacao: mudarTipoMovimentacao,
     mostrarDiasDaMovimentacao: mostrarDiasDaMovimentacao,
     abrirHistoricoDaTorre: abrirHistoricoDaTorre,

@@ -897,21 +897,37 @@ window.SIPAV = window.SIPAV || {};
    * Sem a tabela devolve vazio em vez de erro: ela é nova, e a tela inteira não
    * pode ficar sem programação só porque o SQL ainda não foi colado.
    */
+  // O segundo encarregado da movimentação (db/39 reaplicada) segue a regra das
+  // outras colunas novas: só é pedido enquanto o banco o tem. A mensagem de erro
+  // de uma coluna que falta cita "movimentacao", então sem este teste ela seria
+  // tomada por "tabela inexistente" e a lista de movimentações sumiria calada.
+  var temEncarregado2Mov = true;
+
   function movimentacoes() {
     return obra().then(function (o) {
-      return cliente()
-        .from('movimentacao')
-        .select('id, tipo, data, trecho_id, encarregado_id, observacao, ' +
-                'canteiro_origem_id, canteiro_destino_id, ' +
-                'encarregado:encarregado_id ( id, nome ), ' +
-                'canteiro_origem:canteiro_origem_id ( id, nome ), ' +
-                'canteiro_destino:canteiro_destino_id ( id, nome )')
-        .eq('obra_id', o.id)
-        .order('data')
-        .then(function (r) {
-          if (semTabelaMovimentacao(r.error)) return [];
-          return ok(r, 'Falha ao carregar movimentações');
-        });
+      function consultar() {
+        return cliente()
+          .from('movimentacao')
+          .select('id, tipo, data, trecho_id, encarregado_id, observacao, ' +
+                  'canteiro_origem_id, canteiro_destino_id, ' +
+                  (temEncarregado2Mov ? 'encarregado2:encarregado_2_id ( id, nome ), ' : '') +
+                  'encarregado:encarregado_id ( id, nome ), ' +
+                  'canteiro_origem:canteiro_origem_id ( id, nome ), ' +
+                  'canteiro_destino:canteiro_destino_id ( id, nome )')
+          .eq('obra_id', o.id)
+          .order('data');
+      }
+
+      return consultar().then(function (r) {
+        if (r.error && temEncarregado2Mov && /encarregado_2/i.test(r.error.message || '')) {
+          temEncarregado2Mov = false;
+          return consultar();
+        }
+        return r;
+      }).then(function (r) {
+        if (semTabelaMovimentacao(r.error)) return [];
+        return ok(r, 'Falha ao carregar movimentações');
+      });
     });
   }
 
@@ -940,6 +956,9 @@ window.SIPAV = window.SIPAV || {};
           canteiro_destino_id: d.canteiroDestinoId || null,
           observacao:          d.observacao || null
         };
+
+        // Só vai quando o banco tem a coluna
+        if (temEncarregado2Mov) linha.encarregado_2_id = d.encarregado2Id || null;
 
         if (d.id) {
           return cliente().from('movimentacao').update(linha).eq('id', d.id)

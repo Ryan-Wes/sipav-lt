@@ -107,6 +107,25 @@ create table if not exists movimentacao (
 -- canteiro ou torre no deslocamento. Num banco novo isto não faz nada.
 alter table movimentacao drop constraint if exists movimentacao_maquina_ok;
 
+-- Segundo encarregado, para quando dois fazem a mesma coisa juntos (mudam de
+-- canteiro juntos, ou acompanham o mesmo deslocamento de máquina). Opcional,
+-- exige o primeiro e não pode ser a mesma pessoa. Fica aqui e não numa migração
+-- à parte porque a tabela ainda é nova.
+alter table movimentacao
+  add column if not exists encarregado_2_id uuid references encarregado(id) on delete set null;
+
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'movimentacao_encarregado_2_ok') then
+    alter table movimentacao
+      add constraint movimentacao_encarregado_2_ok
+      check (
+        encarregado_2_id is null
+        or (encarregado_id is not null and encarregado_2_id <> encarregado_id)
+      );
+  end if;
+end $$;
+
 comment on table movimentacao is
   'Dia sem atividade na torre: encarregado mudando de canteiro, deslocamento de máquina, ou outro motivo. '
   'Vale um dia só. Não é programação e não entra em precedência nem em aderência.';
@@ -168,11 +187,13 @@ on conflict (numero) do nothing;
 select m.tipo,
        to_char(m.data, 'DD/MM/YYYY') as data,
        e.nome                        as encarregado,
+       e2.nome                       as segundo_encarregado,
        co.nome                       as do_canteiro,
        cd.nome                       as para_canteiro,
        m.observacao
 from movimentacao m
 left join encarregado e on e.id = m.encarregado_id
+left join encarregado e2 on e2.id = m.encarregado_2_id
 left join canteiro co  on co.id  = m.canteiro_origem_id
 left join canteiro cd  on cd.id  = m.canteiro_destino_id
 order by m.data desc
