@@ -389,7 +389,10 @@ window.SIPAV = window.SIPAV || {};
           '</div>' +
           '<span class="text-xs font-semibold text-slate-500 shrink-0">' + resumo + '</span>' +
         '</header>' +
-        ((itens.length || movs.length)
+        (op && op.porEncarregado && itens.length
+          ? linhasPorEncarregado(itens, op)
+          : '') +
+        (!(op && op.porEncarregado && itens.length) && (itens.length || movs.length)
           ? '<div class="p-3 grid gap-2" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr))">' +
               emOrdemDeData(itens, movs).map(function (e) {
                 return e.m ? cartaoMovimentacao(e.m, true) : chipProgramacao(e.p, op);
@@ -397,6 +400,38 @@ window.SIPAV = window.SIPAV || {};
             '</div>'
           : '') +
       '</section>';
+  }
+
+  /**
+   * Uma linha por encarregado, uma embaixo da outra, com o nome à esquerda e os
+   * cartões dele em ordem de data — o desenho da planilha da ISA, onde cada
+   * encarregado ocupa uma linha dentro do item. Quem não tem encarregado fica por
+   * último.
+   */
+  function linhasPorEncarregado(itens, op) {
+    var g = agrupar(itens.slice().sort(function (a, b) {
+      return a.data < b.data ? -1 : a.data > b.data ? 1 : 0;
+    }), function (p) { return p.encarregado ? p.encarregado.nome : ''; });
+
+    var nomes = g.ordem.slice().sort(function (a, b) {
+      if (!a) return 1;
+      if (!b) return -1;
+      return a.localeCompare(b, 'pt-BR');
+    });
+
+    return nomes.map(function (nome) {
+      var lista = g.mapa[nome];
+      var t = totais(lista);
+      return '<div class="linha-enc">' +
+               '<div class="linha-enc-nome">' + esc(nome || 'Sem encarregado') +
+                 '<span>' + t.torres + (t.torres === 1 ? ' torre' : ' torres') + '</span>' +
+               '</div>' +
+               '<div class="linha-enc-cartoes grid gap-2" ' +
+                    'style="grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr))">' +
+                 lista.map(function (p) { return chipProgramacao(p, op); }).join('') +
+               '</div>' +
+             '</div>';
+    }).join('');
   }
 
   /** Agrupa programações por uma chave, preservando ordem de inserção. */
@@ -817,7 +852,7 @@ window.SIPAV = window.SIPAV || {};
     cont.innerHTML = g.ordem.map(function (nome) {
       // A atividade já está no título do bloco; o espaço vai para o encarregado
       return blocoQuadrante(nome, null, g.mapa[nome],
-        { torre: true, data: true, atividade: false, encarregado: true });
+        { torre: true, data: true, atividade: false, encarregado: false, porEncarregado: true });
     }).join('') +
 
     // A movimentação também é algo que aconteceu numa data, então tem o seu lugar

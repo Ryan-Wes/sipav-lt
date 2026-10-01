@@ -1288,3 +1288,26 @@ body.modo-selecao #visaoGrade { user-select: none; }
 }
 
 .chip-mov-card .chip-dia { margin-left: .1875rem; }
+/* Por atividade: um encarregado por linha, nome à esquerda e os cartões dele em
+   ordem de data. É o desenho da planilha da ISA. */
+.linha-enc {
+  display: flex; gap: .75rem; align-items: flex-start;
+  padding: .75rem;
+  border-top: 1px solid var(--borda);
+}
+.linha-enc:first-of-type { border-top: 0; }
+.linha-enc-nome {
+  flex: 0 0 9.5rem; padding-top: .375rem;
+  font-weight: 700; font-size: .8125rem; color: var(--texto); line-height: 1.25;
+}
+.linha-enc-nome span {
+  display: block; margin-top: .125rem;
+  font-size: .6875rem; font-weight: 600; color: var(--texto-fraco);
+}
+.linha-enc-cartoes { flex: 1; min-width: 0; }
+@media (max-width: 640px) {
+  .linha-enc { flex-direction: column; gap: .25rem; }
+  .linha-enc-nome { flex-basis: auto; padding-top: 0; }
+  .linha-enc-nome span { display: inline; margin-left: .375rem; }
+  .linha-enc-cartoes { width: 100%; }
+}
