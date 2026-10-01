@@ -49,6 +49,8 @@ Situação conferida em **23/09/2026**, item por item, contra o que está public
 | **R19** | **Movimentação: encarregado/máquina mudando de canteiro ou torre, ou outro motivo** | [WR] 01/10 | ✅ `db/39` + janela + os dois painéis. Não bloqueia programar encarregado em dia de movimentação |
 | **R20** | **Escavação por parte: marcar A, B, C, D em qualquer ordem** | [WR] 01/10 | ✅ `db/40` — letras gravadas em `programacao.partes`; parte já programada não se repete |
 | **R21** | **Relatório da ISA nas quatro planilhas oficiais de 28/09** | [WR] 01/10 | ✅ OPGW direito/esquerdo (`db/41`), recuperação de acesso e praça de lançamento no de-para. Faltam as linhas de tubulão e de avifauna/placas nas planilhas (P8, P9) |
+| **R22** | **Dois encarregados na mesma atividade** | [WR] 01/10 | ✅ ``db/42`` — uma programação, dois nomes; total da ISA conta uma vez |
+| **R23** | **Lote: repetir o último** (com data, observação e percentual) | [WR] 01/10 | ✅ lote ganhou observação e segundo encarregado |
 
 ## Relatórios e saídas
 

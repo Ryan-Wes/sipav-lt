@@ -326,16 +326,22 @@ window.SIPAV = window.SIPAV || {};
    */
   var temPartes = true;
 
+  // O segundo encarregado (db/42) segue a mesma regra: só é pedido enquanto o
+  // banco o tem.
+  var temEncarregado2 = true;
+
   function selectProgramacao() {
     return 'id, data, situacao, observacao, override_motivo, cabo, percentual, criado_em,' +
       (temPartes ? ' partes,' : '') +
       'torre:torre_id!inner ( id, identificador, ordem, km, trecho_id, canteiro_id ),' +
       'atividade:atividade_id ( id, nome, ordem_execucao, cor_fundo, cor_texto, icone ),' +
+      (temEncarregado2 ? 'encarregado2:encarregado_2_id ( id, nome ),' : '') +
       'encarregado:encarregado_id ( id, nome )';
   }
 
-  function faltaColunaPartes(erro) {
-    return !!erro && (erro.code === '42703' || /partes/i.test(erro.message || ''));
+  /** O erro é de uma coluna que o banco ainda não tem? */
+  function faltaColuna(erro, nome) {
+    return !!erro && new RegExp(nome, 'i').test(erro.message || '');
   }
 
   /** Programações de um trecho, opcionalmente num intervalo de datas. */
@@ -354,13 +360,25 @@ window.SIPAV = window.SIPAV || {};
       return q.order('data');
     }
 
-    return consultar().then(function (r) {
-      if (r.error && temPartes && faltaColunaPartes(r.error)) {
-        temPartes = false;
-        return consultar();
-      }
-      return r;
-    }).then(function (r) {
+    // Cada coluna nova que o banco ainda não tem derruba a consulta uma vez; tira
+    // a culpada do select e tenta de novo, até acertar.
+    function tentar(restantes) {
+      return consultar().then(function (r) {
+        if (r.error && restantes > 0) {
+          if (temPartes && faltaColuna(r.error, 'partes')) {
+            temPartes = false;
+            return tentar(restantes - 1);
+          }
+          if (temEncarregado2 && faltaColuna(r.error, 'encarregado_2')) {
+            temEncarregado2 = false;
+            return tentar(restantes - 1);
+          }
+        }
+        return r;
+      });
+    }
+
+    return tentar(3).then(function (r) {
       return ok(r, 'Falha ao carregar programações');
     });
   }
@@ -412,6 +430,9 @@ window.SIPAV = window.SIPAV || {};
 
       // Mesmo cuidado com as partes da escavação (db/40): só vai quando há.
       if (dados.partes && temPartes) linha.partes = dados.partes;
+
+      // E com o segundo encarregado (db/42).
+      if (dados.encarregado2Id && temEncarregado2) linha.encarregado_2_id = dados.encarregado2Id;
 
       return cliente()
         .from('programacao')
@@ -481,8 +502,11 @@ window.SIPAV = window.SIPAV || {};
     var q = cliente()
       .from('programacao')
       .select('id, torre:torre_id ( identificador ), atividade:atividade_id ( nome )')
-      .eq('encarregado_id', encarregadoId)
       .eq('data', data);
+    // Quem é o segundo encarregado de uma programação também está ocupado nela
+    q = temEncarregado2
+      ? q.or('encarregado_id.eq.' + encarregadoId + ',encarregado_2_id.eq.' + encarregadoId)
+      : q.eq('encarregado_id', encarregadoId);
     if (ignorarTorreId) q = q.neq('torre_id', ignorarTorreId);
     return q.then(function (r) { return ok(r, 'Falha ao verificar conflitos'); });
   }
@@ -1256,6 +1280,7 @@ window.SIPAV = window.SIPAV || {};
     movimentacoes: movimentacoes,
     salvarMovimentacao: salvarMovimentacao,
     temPartes: function () { return temPartes; },
+    temEncarregado2: function () { return temEncarregado2; },
     removerMovimentacao: removerMovimentacao,
     execucoesDaTorre: execucoesDaTorre,
     desfazerApontamentos: desfazerApontamentos,

@@ -1311,3 +1311,10 @@ body.modo-selecao #visaoGrade { user-select: none; }
   .linha-enc-nome span { display: inline; margin-left: .375rem; }
   .linha-enc-cartoes { width: 100%; }
 }
+/* Segundo encarregado: o "tirar" fica discreto ao lado do rótulo */
+.link-tirar {
+  margin-left: .5rem; padding: 0; border: 0; background: none; cursor: pointer;
+  font-size: .6875rem; font-weight: 600; color: var(--texto-fraco); text-decoration: underline;
+}
+.link-tirar:hover { color: #E11D48; }
+.chip-parceiro { font-style: italic; }

@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v109 · 2026-10-01';
+  var VERSAO = 'v110 · 2026-10-01';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -1241,7 +1241,7 @@ window.SIPAV = window.SIPAV || {};
     if (!ids.length) { ui.avisar('A atividade do último lançamento não existe mais.', 'alerta'); return; }
 
     preencherAtividades(ids);
-    preencherEncarregado(ultimoLancamento.encarregadoId || '');
+    preencherEncarregado(ultimoLancamento.encarregadoId || '', ultimoLancamento.encarregado2Id || '');
 
     if (ultimoLancamento.percentual) $('campoPercentual').value = ultimoLancamento.percentual;
     if (ultimoLancamento.cabo) $('campoCabo').value = ultimoLancamento.cabo;
@@ -1370,11 +1370,51 @@ window.SIPAV = window.SIPAV || {};
   }
 
   /** Repõe o combo a partir do id, ao abrir a torre ou ao editar. */
-  function preencherEncarregado(id) {
+  function preencherEncarregado(id, id2) {
     var e = id && E.encarregados.find(function (x) { return x.id === id; });
     $('campoEncarregado').value = e ? e.id : '';
     $('buscaEncarregado').value = e ? e.nome : '';
     $('listaEncarregados').classList.add('hidden');
+    preencherEncarregado2(e ? id2 : '');
+  }
+
+  /**
+   * O segundo encarregado, para a atividade que dois fazem juntos. É um <select>
+   * simples: aparece só quando pedido, e quase sempre é o mesmo par de nomes.
+   * Quem chama sem o segundo (a torre nova, o lançamento limpo) o esconde.
+   */
+  function preencherEncarregado2(id) {
+    var sel = $('campoEncarregado2');
+    if (!sel) return;
+
+    sel.innerHTML = '<option value="">— escolha —</option>' +
+      E.encarregados.map(function (e) {
+        return '<option value="' + e.id + '">' + esc(e.nome) + '</option>';
+      }).join('');
+
+    var existe = id && E.encarregados.some(function (x) { return x.id === id; });
+    sel.value = existe ? id : '';
+    $('blocoEncarregado2').classList.toggle('hidden', !existe);
+    $('btnEncarregado2').classList.toggle('hidden', !!existe);
+  }
+
+  function mostrarEncarregado2() {
+    if (!$('campoEncarregado').value) {
+      ui.avisar('Escolha primeiro o encarregado.', 'alerta');
+      $('buscaEncarregado').focus();
+      return;
+    }
+    preencherEncarregado2($('campoEncarregado2').value);
+    $('blocoEncarregado2').classList.remove('hidden');
+    $('btnEncarregado2').classList.add('hidden');
+    $('campoEncarregado2').focus();
+  }
+
+  function tirarEncarregado2() {
+    $('campoEncarregado2').value = '';
+    $('blocoEncarregado2').classList.add('hidden');
+    $('btnEncarregado2').classList.remove('hidden');
+    verificarConflito();
   }
 
   /* -------------------------------------------------------- Percentual ---- */
@@ -1473,7 +1513,7 @@ window.SIPAV = window.SIPAV || {};
             '</p>' +
             '<p class="text-xs text-slate-500">' +
               ui.dataLonga(p.data) +
-              (p.encarregado ? ' · ' + esc(p.encarregado.nome) : '') +
+              (p.encarregado ? ' · ' + esc(render.nomesDosEncarregados(p)) : '') +
               (p.observacao ? ' · ' + esc(p.observacao) : '') +
             '</p>' +
             (ex
@@ -1622,7 +1662,7 @@ window.SIPAV = window.SIPAV || {};
         conflitos.push({
           atividade: a ? a.nome : '',
           data: quando,
-          quem: (p.encarregado ? p.encarregado.nome : 'sem encarregado') +
+          quem: (p.encarregado ? render.nomesDosEncarregados(p) : 'sem encarregado') +
                 ' (' + formatarPercentual(p.percentual) + ')'
         });
       });
@@ -1702,19 +1742,27 @@ window.SIPAV = window.SIPAV || {};
   }
 
   function verificarConflito() {
-    var encarregadoId = $('campoEncarregado').value;
     var data = $('campoData').value;
-    if (!encarregadoId || !data || !torreAberta) { ui.esconder('avisoConflito'); return; }
+    var ids = [$('campoEncarregado').value, $('campoEncarregado2') ? $('campoEncarregado2').value : '']
+      .filter(function (id, i, todos) { return id && todos.indexOf(id) === i; });
+    if (!ids.length || !data || !torreAberta) { ui.esconder('avisoConflito'); return; }
 
-    db.conflitosDoEncarregado(encarregadoId, data, torreAberta.torre_id)
-      .then(function (lista) {
-        if (!lista.length) { ui.esconder('avisoConflito'); return; }
-        var torres = lista.map(function (c) { return c.torre ? c.torre.identificador : '?'; });
-        var enc = E.encarregados.find(function (x) { return x.id === encarregadoId; });
-        var nome = enc ? enc.nome : 'o encarregado';
-        $('textoConflito').textContent =
-          nome + ' já está programado em ' + ui.dataCurta(data) + ' na(s) torre(s) ' +
-          torres.join(', ') + '. Confira se a equipe dá conta.';
+    // Os dois encarregados, cada um com o seu conflito
+    Promise.all(ids.map(function (id) {
+      return db.conflitosDoEncarregado(id, data, torreAberta.torre_id).then(function (lista) {
+        var enc = E.encarregados.find(function (x) { return x.id === id; });
+        return { nome: enc ? enc.nome : 'o encarregado', lista: lista };
+      });
+    }))
+      .then(function (resultados) {
+        var com = resultados.filter(function (r) { return r.lista.length; });
+        if (!com.length) { ui.esconder('avisoConflito'); return; }
+
+        $('textoConflito').textContent = com.map(function (r) {
+          var torres = r.lista.map(function (c) { return c.torre ? c.torre.identificador : '?'; });
+          return r.nome + ' já está programado em ' + ui.dataCurta(data) + ' na(s) torre(s) ' +
+                 torres.join(', ') + '.';
+        }).join(' ') + ' Confira se a equipe dá conta.';
         ui.mostrar('avisoConflito');
         ui.icones();
       })
@@ -1776,6 +1824,19 @@ window.SIPAV = window.SIPAV || {};
       return;
     }
 
+    // O segundo encarregado só faz sentido com o primeiro, e não pode ser a mesma pessoa
+    var segundo = $('campoEncarregado2').value;
+    if (segundo && !$('campoEncarregado').value) {
+      ui.avisar('Escolha primeiro o encarregado, depois o segundo.', 'alerta');
+      $('buscaEncarregado').focus();
+      return;
+    }
+    if (segundo && segundo === $('campoEncarregado').value) {
+      ui.avisar('O segundo encarregado é o mesmo do primeiro.', 'alerta');
+      $('campoEncarregado2').focus();
+      return;
+    }
+
     // Sem o cabo o relatório da ISA não sabe se a linha é da seção 4.1 ou da
     // 4.2. Melhor cobrar agora do que descobrir na hora de exportar.
     var cabo = $('campoCabo').value || null;
@@ -1809,6 +1870,7 @@ window.SIPAV = window.SIPAV || {};
     var editando = programacaoEmEdicao;
     var comuns = {
       encarregadoId: $('campoEncarregado').value || null,
+      encarregado2Id: $('campoEncarregado2').value || null,
       data: $('campoData').value,
       observacao: $('campoObservacao').value.trim() || null,
       percentual: percentual,
@@ -1826,6 +1888,8 @@ window.SIPAV = window.SIPAV || {};
       ? db.atualizarProgramacao(editando, {
           atividade_id:    atividadesEscolhidas[0],
           encarregado_id:  comuns.encarregadoId,
+          // undefined não entra no JSON: sem a db/42 a coluna nem é tocada
+          encarregado_2_id: db.temEncarregado2() ? comuns.encarregado2Id : undefined,
           data:            comuns.data,
           observacao:      comuns.observacao,
           override_motivo: comuns.overrideMotivo,
@@ -1852,6 +1916,7 @@ window.SIPAV = window.SIPAV || {};
               torreId: torreAberta.torre_id,
               atividadeId: id,
               encarregadoId: comuns.encarregadoId,
+              encarregado2Id: comuns.encarregado2Id,
               data: dataDaAtividade(comuns.data, id),
               observacao: comuns.observacao,
               situacao: E.perfil.papel === 'SUPERVISOR' ? 'SOLICITADA' : 'APROVADA',
@@ -1883,9 +1948,12 @@ window.SIPAV = window.SIPAV || {};
           guardarUltimoLancamento({
             atividades: atividadesEscolhidas.slice(),
             encarregadoId: comuns.encarregadoId,
+            encarregado2Id: comuns.encarregado2Id,
             data: comuns.data,
             percentual: percentual,
-            cabo: cabo
+            cabo: cabo,
+            observacao: comuns.observacao,
+            modoData: 'mesma'
           });
         }
 
@@ -1971,7 +2039,7 @@ window.SIPAV = window.SIPAV || {};
         '<p class="text-sm text-slate-600">' +
           '<strong>' + esc(p.atividade ? p.atividade.nome : '—') + '</strong> na torre ' +
           '<strong>' + esc(p.torre.identificador) + '</strong>' +
-          (p.encarregado ? ', com ' + esc(p.encarregado.nome) : '') + '.' +
+          (p.encarregado ? ', com ' + esc(render.nomesDosEncarregados(p)) : '') + '.' +
         '</p>' +
         '<div class="grid grid-cols-2 gap-3">' +
           '<div><label class="rotulo">Executado em</label>' +
@@ -2050,7 +2118,8 @@ window.SIPAV = window.SIPAV || {};
     preencherAtividades(p.atividade ? [p.atividade.id] : []);
     $('campoData').value        = p.data;
     mostrarDiaDaSemana();
-    preencherEncarregado(p.encarregado ? p.encarregado.id : '');
+    preencherEncarregado(p.encarregado ? p.encarregado.id : '',
+                         p.encarregado2 ? p.encarregado2.id : '');
     $('campoObservacao').value  = p.observacao || '';
 
     atualizarCampoCabo();
@@ -2902,6 +2971,9 @@ window.SIPAV = window.SIPAV || {};
           '</strong> torres marcadas. Cada atividade vira uma linha ali embaixo, com data, encarregado e percentual próprios.' +
         '</p>' +
 
+        // O último lançamento, para não refazer o mesmo formulário a cada lote
+        '<div id="blocoUltimoLote" class="hidden"></div>' +
+
         '<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">' +
           '<div class="sm:col-span-2">' +
             '<label class="rotulo">Atividade</label>' +
@@ -2958,6 +3030,21 @@ window.SIPAV = window.SIPAV || {};
             '</select>' +
           '</div>' +
 
+          '<div class="sm:col-span-2">' +
+            '<label class="rotulo">Segundo encarregado ' +
+              '<span style="font-weight:400">(se dois fazem juntos)</span></label>' +
+            '<select id="loteEncarregado2" class="campo">' +
+              '<option value="">— nenhum —</option>' + opcoesEnc +
+            '</select>' +
+          '</div>' +
+
+          '<div class="sm:col-span-2">' +
+            '<label class="rotulo">Observação ' +
+              '<span style="font-weight:400">(opcional, vale para todas)</span></label>' +
+            '<input id="loteObservacao" class="campo" autocomplete="off" ' +
+                   'placeholder="Ex.: equipe reduzida">' +
+          '</div>' +
+
           '<div id="loteBlocoCabo" class="hidden sm:col-span-2">' +
             '<label class="rotulo">Cabo</label>' +
             '<select id="loteCabo" class="campo">' + htmlOpcoesDeCabo(cabo) + '</select>' +
@@ -3002,9 +3089,75 @@ window.SIPAV = window.SIPAV || {};
       ]
     });
 
+    loteModoData = 'mesma';
     renderChipsAtividadeLote();
     mudarDataBaseLote();
     renderLoteEscolhidas();
+    renderUltimoNoLote();
+  }
+
+  /**
+   * "Repetir o último" dentro do lote.
+   *
+   * Traz o que o último lançamento tinha: as atividades, o encarregado (e o
+   * segundo), o percentual, o cabo, a observação e a data. A data vem junto aqui,
+   * diferente do cartão da torre: no lote a mesma data costuma valer para a
+   * quinzena inteira, e é ela que dava trabalho refazer. Preenche, não grava:
+   * dá para ajustar tudo antes de programar.
+   */
+  var loteModoData = 'mesma';   // como a última data foi espalhada: 'mesma' ou 'umPorDia'
+
+  function renderUltimoNoLote() {
+    var caixa = $('blocoUltimoLote');
+    if (!caixa) return;
+
+    var r = resumoUltimoLancamento();
+    if (!r) { caixa.classList.add('hidden'); caixa.innerHTML = ''; return; }
+
+    caixa.innerHTML =
+      '<button type="button" class="btn-repetir" onclick="SIPAV.app.repetirUltimoNoLote()">' +
+        '<i data-lucide="corner-up-left" class="w-3 h-3"></i>' +
+        '<span class="repetir-rotulo">Repetir o último</span>' +
+        '<span class="repetir-o-que">' + esc(r.nomes.join(' · ')) +
+          (r.encarregado ? ' · ' + esc(r.encarregado) : '') +
+          (ultimoLancamento.data ? ' · ' + esc(ui.dataCurta(ultimoLancamento.data)) : '') +
+        '</span>' +
+      '</button>';
+    caixa.classList.remove('hidden');
+    ui.icones();
+  }
+
+  function repetirUltimoNoLote() {
+    var u = ultimoLancamento;
+    if (!u) return;
+
+    var ids = u.atividades.filter(function (id) {
+      return E.atividades.some(function (a) { return a.id === id; });
+    });
+    if (!ids.length) { ui.avisar('A atividade do último lançamento não existe mais.', 'alerta'); return; }
+
+    loteAtividades = ids.slice();
+    lotePadrao = { encarregadoId: u.encarregadoId || '', percentual: u.percentual || 100 };
+
+    $('loteEncarregado').value = lotePadrao.encarregadoId;
+    $('loteEncarregado2').value = u.encarregado2Id || '';
+    $('lotePercentual').value = lotePadrao.percentual;
+    $('loteObservacao').value = u.observacao || '';
+
+    // Linhas novas, com o padrão novo: as que já estavam ali têm o encarregado e
+    // o percentual de antes
+    loteLinhas = [];
+    renderChipsAtividadeLote();
+
+    if (u.cabo && $('loteCabo') && opcoesDeCabo().some(function (o) { return o.valor === u.cabo; })) {
+      $('loteCabo').value = u.cabo;
+    }
+
+    if (u.data) {
+      $('loteBase').value = u.data;
+      mudarDataBaseLote();
+      distribuirLote(u.modoData === 'umPorDia');
+    }
   }
 
   /** Abre o lote herdando tudo de uma programação que já existe. */
@@ -3287,6 +3440,8 @@ window.SIPAV = window.SIPAV || {};
     var base = $('loteBase').value;
     if (!base) { ui.avisar('Informe a data.', 'alerta'); return; }
 
+    loteModoData = sequencial ? 'umPorDia' : 'mesma';
+
     var dia = base;
 
     loteTorres.forEach(function (t, i) {
@@ -3563,6 +3718,7 @@ window.SIPAV = window.SIPAV || {};
     }
 
     var cabo = $('loteCabo') ? ($('loteCabo').value || null) : null;
+    var baseDoLote = $('loteBase') ? $('loteBase').value : '';
     if (loteAtividades.some(pedeCabo) && !cabo) {
       ui.avisar('Escolha o cabo: ' + textoDasOpcoesDeCabo() + '.', 'alerta');
       $('loteCabo').focus();
@@ -3582,6 +3738,22 @@ window.SIPAV = window.SIPAV || {};
     }
 
     var situacao = E.perfil.papel === 'SUPERVISOR' ? 'SOLICITADA' : 'APROVADA';
+
+    // O segundo encarregado vale para todas as linhas, e precisa de um primeiro
+    // diferente dele em cada uma
+    var observacao = $('loteObservacao').value.trim() || null;
+    var segundo = $('loteEncarregado2').value || '';
+    if (segundo) {
+      var semPrimeiro = loteLinhas.filter(function (x) { return !x.encarregadoId; });
+      var igual = loteLinhas.filter(function (x) { return x.encarregadoId === segundo; });
+      if (semPrimeiro.length || igual.length) {
+        ui.avisar(semPrimeiro.length
+          ? semPrimeiro.length + ' lançamento(s) sem o primeiro encarregado. O segundo precisa de um primeiro.'
+          : igual.length + ' lançamento(s) têm o mesmo encarregado nos dois campos.',
+          'alerta', 6000);
+        return;
+      }
+    }
 
     // Em ordem de data e, no mesmo dia, de ordem de execução: o gatilho pede o
     // pré-requisito já gravado. Com as duas na mesma data, quem chega primeiro
@@ -3603,6 +3775,8 @@ window.SIPAV = window.SIPAV || {};
           torreId: t.torreId,
           atividadeId: t.atividadeId,
           encarregadoId: t.encarregadoId || null,
+          encarregado2Id: segundo || null,
+          observacao: observacao,
           data: t.data,
           percentual: t.percentual || 100,
           cabo: pedeCabo(t.atividadeId) ? cabo : null,
@@ -3619,6 +3793,22 @@ window.SIPAV = window.SIPAV || {};
         ui.pronto();
         ui.fecharModal('modalGenerico');
         loteUltimoLote = ids;
+
+        // Guarda o que acabou de entrar para o próximo "repetir o último". Só se
+        // algo entrou: lote que foi todo recusado não é um lançamento a repetir.
+        if (ok.length) {
+          guardarUltimoLancamento({
+            atividades: loteAtividades.slice(),
+            encarregadoId: lotePadrao.encarregadoId,
+            encarregado2Id: segundo,
+            percentual: lotePadrao.percentual,
+            cabo: cabo,
+            observacao: observacao,
+            data: baseDoLote,
+            modoData: loteModoData
+          });
+        }
+
         if (E.modoSelecao) limparSelecao();
         relatarLote(ok, falhou);
       })
@@ -3778,7 +3968,7 @@ window.SIPAV = window.SIPAV || {};
     var descricao = (p.atividade ? p.atividade.nome : 'programação') +
       ' da torre ' + (p.torre ? p.torre.identificador : '?') +
       ' em ' + ui.dataCurta(p.data) +
-      (p.encarregado ? ', com ' + p.encarregado.nome : '');
+      (p.encarregado ? ', com ' + render.nomesDosEncarregados(p) : '');
 
     ui.confirmar('Apagar programação',
       'Apaga ' + descricao + '. Não tem desfazer — o histórico guarda quem ' +
@@ -3944,7 +4134,7 @@ window.SIPAV = window.SIPAV || {};
           ui.corDoTexto(cor) + '">' + esc(p.atividade ? p.atividade.nome : '—') + '</span>' +
         '<span class="lote-dia">' + esc(ui.dataCurta(p.data)) + '</span>' +
         '<span class="text-xs" style="color:var(--texto-suave)">' +
-          esc(p.encarregado ? p.encarregado.nome : 'sem encarregado') +
+          esc(p.encarregado ? render.nomesDosEncarregados(p) : 'sem encarregado') +
           ' · ' + formatarPercentual(p.percentual) +
         '</span>' +
       '</label>';
@@ -4029,7 +4219,7 @@ window.SIPAV = window.SIPAV || {};
           cor: p.atividade ? p.atividade.cor_fundo : '#94A3B8',
           data: p.data,
           encarregadoId: p.encarregado ? p.encarregado.id : '',
-          encarregadoNome: p.encarregado ? p.encarregado.nome : '',
+          encarregadoNome: p.encarregado ? render.nomesDosEncarregados(p) : '',
           percentual: Number(p.percentual) || 100,
           marcado: true
         };
@@ -5866,7 +6056,7 @@ window.SIPAV = window.SIPAV || {};
     // a máquina mudar de lugar não impede ninguém de trabalhar.
     var choque = (enc && tipo !== 'MUDANCA_MAQUINA')
       ? E.programacoes.filter(function (p) {
-          return p.encarregado && p.encarregado.id === enc.id && p.data === data;
+          return p.data === data && render.encarregadosDe(p).some(function (e) { return e.id === enc.id; });
         })
       : [];
 
@@ -6512,7 +6702,7 @@ window.SIPAV = window.SIPAV || {};
       }
       texto += '• ' + (p.torre ? p.torre.identificador : '?') + ' — ' +
                (p.atividade ? p.atividade.nome : '') +
-               (p.encarregado ? ' (' + p.encarregado.nome + ')' : '') + '\n';
+               (p.encarregado ? ' (' + render.nomesDosEncarregados(p) + ')' : '') + '\n';
     });
 
     window.open('https://wa.me/?text=' + encodeURIComponent(texto), '_blank');
@@ -6585,6 +6775,7 @@ window.SIPAV = window.SIPAV || {};
     editarDaEdicaoEmLote: editarDaEdicaoEmLote,
     apagarProgramacoesSelecionadas: apagarProgramacoesSelecionadas,
     repetirUltimoLancamento: repetirUltimoLancamento,
+    repetirUltimoNoLote: repetirUltimoNoLote,
     alternarSelecaoProgramacoes: alternarSelecaoProgramacoes,
     alternarProgramacaoMarcada: alternarProgramacaoMarcada,
     limparSelecaoProgramacoes: limparSelecaoProgramacoes,
@@ -6598,6 +6789,8 @@ window.SIPAV = window.SIPAV || {};
     copiarDatasDe: copiarDatasDe,
     atualizarAtalhosPercentual: atualizarAtalhosPercentual,
     alternarParteEscavacao: alternarParteEscavacao,
+    mostrarEncarregado2: mostrarEncarregado2,
+    tirarEncarregado2: tirarEncarregado2,
     atualizarNotasDaRevisao: atualizarNotasDaRevisao,
     alternarNotaDaRevisao: alternarNotaDaRevisao,
     limparSelecao: limparSelecao,

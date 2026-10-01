@@ -1,13 +1,13 @@
 -- =============================================================================
 -- PARA COLAR NO SQL EDITOR DO SUPABASE — atualizado em 01/10/2026
 -- =============================================================================
--- Pendente: a 39-movimentacao.sql, a 40-partes-da-escavacao.sql e a 41-opgw-direito-esquerdo.sql (e a 38, se ainda não entrou).
+-- Pendente: a 39-movimentacao.sql, a 40-partes-da-escavacao.sql, a 41-opgw-direito-esquerdo.sql e a 42-segundo-encarregado.sql (e a 38, se ainda não entrou).
 --
 -- Confere antes o que já entrou. A 36, a 37 e a 38 também precisam estar aplicadas:
 --
 --   select numero, arquivo from migracao order by numero;
 --
--- Se a última for 35, rode a 36, a 37 e a 38 primeiro (estão em db/). A 39, a 40 e a 41 não
+-- Se a última for 35, rode a 36, a 37 e a 38 primeiro (estão em db/). A 39, a 40, a 41 e a 42 não
 -- dependem delas.
 --
 -- A 41 é a única que o relatório da ISA exige: sem ela, Buritirama–Barra e

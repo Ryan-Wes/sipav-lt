@@ -451,18 +451,26 @@ window.SIPAV = window.SIPAV || {};
 
       var semana = p.data < isoS2 ? 'prog1' : 'prog2';
       var dia = Math.round((ui.paraData(p.data) - ui.paraData(semana === 'prog1' ? isoS1 : isoS2)) / 86400000);
-      var enc = p.encarregado ? p.encarregado.nome : '—';
+      // Dois encarregados na mesma atividade: a torre aparece na linha dos dois,
+      // como a planilha sempre mostrou, mas é UM serviço — a cópia do segundo
+      // fica marcada e não entra no total, senão o item dobraria.
+      var encs = [p.encarregado, p.encarregado2].filter(function (e) { return !!e; })
+        .map(function (e) { return e.nome; });
+      if (!encs.length) encs = ['—'];
 
       itens.forEach(function (item) {
         dados[item] = dados[item] || {};
         dados[item][semana] = dados[item][semana] || {};
-        dados[item][semana][enc] = dados[item][semana][enc] || {};
-        var caixa = dados[item][semana][enc];
-        caixa[dia] = caixa[dia] || [];
-        caixa[dia].push({
-          torre: p.torre ? p.torre.identificador : '?',
-          percentual: Number(p.percentual) || 100,
-          notas: notasDaRevisao(p)
+        encs.forEach(function (enc, i) {
+          dados[item][semana][enc] = dados[item][semana][enc] || {};
+          var caixa = dados[item][semana][enc];
+          caixa[dia] = caixa[dia] || [];
+          caixa[dia].push({
+            torre: p.torre ? p.torre.identificador : '?',
+            percentual: Number(p.percentual) || 100,
+            notas: notasDaRevisao(p),
+            copia: i > 0
+          });
         });
       });
     });
@@ -534,7 +542,7 @@ window.SIPAV = window.SIPAV || {};
         var itens = porEncarregado[e][dia];
         if (!itens || !itens.length) return '-';
         return itens.map(function (x) {
-          total += x.percentual / 100;
+          if (!x.copia) total += x.percentual / 100;
           // Entre parênteses, depois da torre: o percentual, se a torre foi
           // repartida (senão a célula diz que a torre inteira foi feita naquele
           // dia), e a retirada de flambagem ou de pendências, se a revisão teve.

@@ -41,7 +41,7 @@
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 
   <!-- ?v= força o navegador a buscar de novo quando o código muda. -->
-  <link rel="stylesheet" href="css/app.css?v=109">
+  <link rel="stylesheet" href="css/app.css?v=110">
 </head>
 <body class="h-full flex flex-col antialiased">
 
@@ -468,6 +468,21 @@
               <input type="hidden" id="campoEncarregado">
               <div id="listaEncarregados" class="combo-lista hidden"></div>
             </div>
+
+            <!-- Atividade que dois encarregados fazem juntos: uma programação só,
+                 com os dois nomes. O segundo fica escondido até alguém pedir. -->
+            <button type="button" id="btnEncarregado2" class="btn-repetir mt-1.5"
+                    onclick="SIPAV.app.mostrarEncarregado2()">
+              + Dois encarregados juntos
+            </button>
+            <div id="blocoEncarregado2" class="hidden mt-2">
+              <label class="rotulo">
+                Segundo encarregado
+                <button type="button" class="link-tirar" onclick="SIPAV.app.tirarEncarregado2()">tirar</button>
+              </label>
+              <select id="campoEncarregado2" class="campo"
+                      onchange="SIPAV.app.verificarConflito()"></select>
+            </div>
           </div>
           <div>
             <label class="rotulo">Observação (opcional)</label>
@@ -667,11 +682,11 @@
   </div>
 </div>
 
-<script src="js/config.js?v=109"></script>
-<script src="js/db.js?v=109"></script>
-<script src="js/ui.js?v=109"></script>
-<script src="js/render.js?v=109"></script>
-<script src="js/isa.js?v=109"></script>
-<script src="js/app.js?v=109"></script>
+<script src="js/config.js?v=110"></script>
+<script src="js/db.js?v=110"></script>
+<script src="js/ui.js?v=110"></script>
+<script src="js/render.js?v=110"></script>
+<script src="js/isa.js?v=110"></script>
+<script src="js/app.js?v=110"></script>
 </body>
 </html>

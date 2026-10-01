@@ -40,6 +40,44 @@ cumprida (R18/D4). Saber quais pés foram feitos não a torna mais rigorosa.
 
 **Fora do escopo:** editar em lote e programar vários pela seleção não carregam as
 letras. O mastro central sozinho (`ESCAVAÇÃO - MC`) segue sem partes.
+### Dois encarregados na mesma atividade — [WR]
+
+Tem atividade que dois encarregados fazem juntos. O único jeito era lançar duas
+programações, uma para cada, e as duas valiam 100%: a torre somava 200%, o total
+do relatório da ISA dobrava e a meta contava duas vezes um serviço só.
+
+A programação agora pode ter um **segundo encarregado** (`db/42`,
+`programacao.encarregado_2_id`). É uma programação só, com um percentual só.
+
+- **Na tela.** Embaixo do encarregado, "+ Dois encarregados juntos" abre o
+  segundo, um seletor simples. Ele exige o primeiro e não pode ser a mesma pessoa
+  (a tela avisa e o banco também recusa).
+- **Nos painéis.** A programação aparece no bloco dos dois. Dentro do bloco de um,
+  o cartão diz "com Jorge Luis". Por Data mostra "Mario + Jorge".
+- **Planilha da ISA.** A torre sai na linha dos dois encarregados, como a planilha
+  sempre mostrou, mas conta **uma vez só** no total do item.
+- **Aviso de conflito.** Vale para os dois: quem é segundo numa programação também
+  está ocupado nela.
+- **Sem a db/42** a tela funciona como antes e não pede a coluna.
+
+**Fora do escopo:** o histórico de alterações mostra só o primeiro encarregado, e
+o editar em lote não mexe no segundo.
+
+### Lote: repetir o último — [WR]
+
+O lote ganhou "Repetir o último", que traz o que o último lançamento tinha:
+atividades, encarregado (e o segundo), percentual, cabo, observação e a **data**.
+Diferente do cartão da torre, onde a data fica de fora de propósito: no lote a mesma
+data costuma valer para a quinzena inteira, e refazê-la era o trabalho. A data é
+espalhada do mesmo jeito que da última vez ("mesma data em todas" ou "uma torre por
+dia"). Preenche, não grava.
+
+Para isso o lote ganhou dois campos, que valem para todas as linhas: **segundo
+encarregado** e **observação** (antes não havia observação no lote). Tanto o lote
+quanto o cartão da torre guardam o último lançamento; o "repetir" do cartão
+continua sem trazer a data nem a observação.
+
+
 ### Movimentação: o dia sem atividade ganha um motivo — [WR]
 
 Tem dia em que não há atividade na torre porque o encarregado mudou de canteiro

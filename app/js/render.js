@@ -217,7 +217,7 @@ window.SIPAV = window.SIPAV || {};
               '<span class="parcial' + (Number(p.percentual) >= 100 ? ' cheio' : '') + '">' +
                 rotuloParcial(p) + '</span>' +
               (p.encarregado
-                ? '<span class="encarregado">' + esc(p.encarregado.nome) + '</span>'
+                ? '<span class="encarregado">' + esc(nomesDosEncarregados(p)) + '</span>'
                 : '') +
             '</span>' +
             (conflito[p.id]
@@ -324,8 +324,16 @@ window.SIPAV = window.SIPAV || {};
         '<b class="chip-dia' + (ui.fimDeSemana(p.data) ? ' fim-de-semana' : '') + '">' +
           esc(ui.diaDaSemana(p.data).slice(0, 3)) + '</b></span>';
 
-    var enc = (op.encarregado === false || !p.encarregado) ? ''
-      : '<span class="chip-encarregado">' + esc(p.encarregado.nome) + '</span>';
+    // Com o nome no cabeçalho do bloco (`encarregado: false`), só o parceiro
+    // aparece: "com Jorge Luis". Sem cabeçalho, os dois nomes: "Mario + Jorge".
+    var enc;
+    if (op.encarregado === false) {
+      var parceiro = op.doEncarregado ? textoDoParceiro(p, op.doEncarregado) : '';
+      enc = parceiro ? '<span class="chip-encarregado chip-parceiro">' + esc(parceiro) + '</span>' : '';
+    } else {
+      enc = encarregadosDe(p).length
+        ? '<span class="chip-encarregado">' + esc(nomesDosEncarregados(p)) + '</span>' : '';
+    }
 
     var parcial = '<span class="chip-parcial' + (Number(p.percentual) >= 100 ? ' cheio' : '') + '">' +
       rotuloParcial(p) + '</span>' + marcaFeito(p);
@@ -409,17 +417,11 @@ window.SIPAV = window.SIPAV || {};
    * último.
    */
   function linhasPorEncarregado(itens, op) {
-    var g = agrupar(itens.slice().sort(function (a, b) {
+    var g = agruparPorEncarregado(itens.slice().sort(function (a, b) {
       return a.data < b.data ? -1 : a.data > b.data ? 1 : 0;
-    }), function (p) { return p.encarregado ? p.encarregado.nome : ''; });
+    }), '');
 
-    var nomes = g.ordem.slice().sort(function (a, b) {
-      if (!a) return 1;
-      if (!b) return -1;
-      return a.localeCompare(b, 'pt-BR');
-    });
-
-    return nomes.map(function (nome) {
+    return g.ordem.map(function (nome) {
       var lista = g.mapa[nome];
       var t = totais(lista);
       return '<div class="linha-enc">' +
@@ -428,10 +430,55 @@ window.SIPAV = window.SIPAV || {};
                '</div>' +
                '<div class="linha-enc-cartoes grid gap-2" ' +
                     'style="grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr))">' +
-                 lista.map(function (p) { return chipProgramacao(p, op); }).join('') +
+                 lista.map(function (p) {
+                   return chipProgramacao(p, Object.assign({}, op, { doEncarregado: nome }));
+                 }).join('') +
                '</div>' +
              '</div>';
     }).join('');
+  }
+
+  /**
+   * Os encarregados de uma programação: o primeiro e, quando dois fazem juntos, o
+   * segundo. Sempre uma lista, vazia se não há ninguém.
+   */
+  function encarregadosDe(p) {
+    return [p.encarregado, p.encarregado2].filter(function (e) { return !!e; });
+  }
+
+  /** "Mario Henrique + Jorge Luis" */
+  function nomesDosEncarregados(p) {
+    return encarregadosDe(p).map(function (e) { return e.nome; }).join(' + ');
+  }
+
+  /**
+   * Agrupa por encarregado. Uma programação feita por dois entra nos dois grupos:
+   * é trabalho dos dois, e cada um tem que vê-la no seu bloco. Quem não tem
+   * encarregado vai para `semNome`, sempre por último.
+   */
+  function agruparPorEncarregado(lista, semNome) {
+    var mapa = {}, ordem = [];
+    lista.forEach(function (p) {
+      var nomes = encarregadosDe(p).map(function (e) { return e.nome; });
+      if (!nomes.length) nomes = [semNome];
+      nomes.forEach(function (n) {
+        if (!mapa[n]) { mapa[n] = []; ordem.push(n); }
+        mapa[n].push(p);
+      });
+    });
+    ordem.sort(function (a, b) {
+      if (a === semNome) return 1;
+      if (b === semNome) return -1;
+      return a.localeCompare(b, 'pt-BR');
+    });
+    return { mapa: mapa, ordem: ordem };
+  }
+
+  /** "com Jorge Luis": o parceiro, dentro do bloco de um encarregado. */
+  function textoDoParceiro(p, nomeDoBloco) {
+    var outros = encarregadosDe(p).filter(function (e) { return e.nome !== nomeDoBloco; })
+      .map(function (e) { return e.nome; });
+    return outros.length ? 'com ' + outros.join(' + ') : '';
   }
 
   /** Agrupa programações por uma chave, preservando ordem de inserção. */
@@ -687,13 +734,10 @@ window.SIPAV = window.SIPAV || {};
     }
 
     var ordenada = lista.slice().sort(function (a, b) {
-      var na = a.encarregado ? a.encarregado.nome : 'zzz';
-      var nb = b.encarregado ? b.encarregado.nome : 'zzz';
-      if (na !== nb) return na < nb ? -1 : 1;
-      return a.data < b.data ? -1 : 1;
+      return a.data < b.data ? -1 : a.data > b.data ? 1 : 0;
     });
 
-    var g = agrupar(ordenada, function (p) { return p.encarregado ? p.encarregado.nome : 'Sem encarregado'; });
+    var g = agruparPorEncarregado(ordenada, 'Sem encarregado');
 
     // Movimentação por encarregado. Quem passou o período inteiro em outro trecho
     // não tem atividade nenhuma aqui — e é justamente o que sumiria do painel sem
@@ -782,7 +826,8 @@ window.SIPAV = window.SIPAV || {};
                    return e.m
                      ? cartaoMovimentacao(e.m, false)
                      : chipProgramacao(e.p, { torre: true, data: true,
-                                              atividade: true, encarregado: false });
+                                              atividade: true, encarregado: false,
+                                              doEncarregado: nome });
                  }).join('') +
                '</div>';
       }).join('');
@@ -927,6 +972,8 @@ window.SIPAV = window.SIPAV || {};
 
   window.SIPAV.render = {
     tudo: tudo,
+    encarregadosDe: encarregadosDe,
+    nomesDosEncarregados: nomesDosEncarregados,
     programacoesDaTorre: programacoesDaTorre,
     programacoesVisiveis: programacoesVisiveis,
     execucaoDa: execucaoDa,
