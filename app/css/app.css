@@ -558,9 +558,11 @@ select option, select optgroup {
   font-size: .625rem; font-weight: 700; line-height: 1;
 }
 
-/* margin-top auto empurra a lista para o pé: o cartão cresce para baixo */
+/* A lista fica logo abaixo do estágio. Com margin-top auto ela ia para o pé do
+   cartão, e na linha em que um cartão tem três programações os que têm uma
+   ficavam com ela colada embaixo, longe do estágio a que se refere. */
 .lista-prog {
-  width: 100%; margin-top: auto; padding-top: .5rem;
+  width: 100%; margin-top: .5rem; padding-top: .5rem;
   border-top: 1px dashed var(--borda-forte);
   display: flex; flex-direction: column; gap: .25rem;
 }
