@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v108 · 2026-10-01';
+  var VERSAO = 'v109 · 2026-10-01';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -714,6 +714,64 @@ window.SIPAV = window.SIPAV || {};
     return a ? Number(a.ordem_execucao) || 0 : 0;
   }
 
+  /**
+   * A revisão tem duas variações que a ISA quer ver ao lado da torre: retirada de
+   * flambagem e retirada de pendências. Sem nenhuma das duas, é revisão apenas.
+   *
+   * Entram como texto na observação, para o relatório ler de lá e escrever entre
+   * parênteses depois da torre. Escolher uma tira a outra; escolher de novo tira a
+   * própria. O que mais estiver escrito na observação fica como está.
+   */
+  var NOTAS_DA_REVISAO = ['Retirada de flambagem', 'Retirada de pendências'];
+
+  function ehRevisao(atividadeId) {
+    var a = E.atividades.find(function (x) { return x.id === atividadeId; });
+    return !!a && normalizar(a.nome) === 'revisao';
+  }
+
+  /** O texto da nota, sem caixa nem acento, está na observação? */
+  function temNotaNaObservacao(texto, nota) {
+    return normalizar(texto).indexOf(normalizar(nota)) !== -1;
+  }
+
+  /** Tira a nota do texto, seja qual for a caixa ou o acento com que foi escrita. */
+  function tirarNotaDaObservacao(texto, nota) {
+    var padrao = nota.replace(/[^\x00-\x7F]/g, '.');          // "ê" casa com "ê" ou "e"
+    return texto.replace(new RegExp(padrao, 'gi'), '')
+      .replace(/\s*·\s*·\s*/g, ' · ').replace(/^\s*·\s*|\s*·\s*$/g, '').trim();
+  }
+
+  function atualizarNotasDaRevisao() {
+    var caixa = $('notasRevisao');
+    if (!caixa) return;
+
+    var mostrar = atividadesEscolhidas.length === 1 && ehRevisao(atividadesEscolhidas[0]);
+    caixa.classList.toggle('hidden', !mostrar);
+    if (!mostrar) { caixa.innerHTML = ''; return; }
+
+    var texto = $('campoObservacao').value;
+    caixa.innerHTML = NOTAS_DA_REVISAO.map(function (nota, i) {
+      var ativa = temNotaNaObservacao(texto, nota);
+      return '<button type="button" class="atalho-pct' + (ativa ? ' atalho-pct-ativo' : '') + '" ' +
+               'onclick="SIPAV.app.alternarNotaDaRevisao(' + i + ')">' + esc(nota) + '</button>';
+    }).join('') +
+      '<span class="atalho-nota">sem marcar nenhuma, é só revisão</span>';
+  }
+
+  function alternarNotaDaRevisao(i) {
+    var nota = NOTAS_DA_REVISAO[i];
+    var campo = $('campoObservacao');
+    var texto = campo.value;
+    var tinha = temNotaNaObservacao(texto, nota);
+
+    // São excludentes: sai a que estava e, se não era a clicada, entra a nova
+    NOTAS_DA_REVISAO.forEach(function (n) { texto = tirarNotaDaObservacao(texto, n); });
+    if (!tinha) texto = nota + (texto ? ' · ' + texto : '');
+
+    campo.value = texto;
+    atualizarNotasDaRevisao();
+  }
+
   function pedeCabo(atividadeId) {
     var a = E.atividades.find(function (x) { return x.id === atividadeId; });
     return !!a && ATIVIDADES_COM_CABO.indexOf(a.nome) !== -1;
@@ -879,6 +937,10 @@ window.SIPAV = window.SIPAV || {};
     var atual = sel.value;
     sel.innerHTML = htmlOpcoesDeCabo();
     sel.value = precisa && opcoesDeCabo().some(function (o) { return o.valor === atual; }) ? atual : '';
+
+    // Mesmo gatilho: toda vez que a atividade escolhida muda, ou a programação é
+    // carregada para edição, os botões da revisão têm que acompanhar
+    atualizarNotasDaRevisao();
   }
 
   /* -------------------------------------------------------- Atividades ---- */
@@ -6536,6 +6598,8 @@ window.SIPAV = window.SIPAV || {};
     copiarDatasDe: copiarDatasDe,
     atualizarAtalhosPercentual: atualizarAtalhosPercentual,
     alternarParteEscavacao: alternarParteEscavacao,
+    atualizarNotasDaRevisao: atualizarNotasDaRevisao,
+    alternarNotaDaRevisao: alternarNotaDaRevisao,
     limparSelecao: limparSelecao,
     selecionarTodasVisiveis: selecionarTodasVisiveis,
     programarSelecionadas: programarSelecionadas,

@@ -270,6 +270,22 @@ window.SIPAV = window.SIPAV || {};
       });
     });
   }
+  /**
+   * O que a revisão tem de especial para a ISA: retirada de flambagem ou de
+   * pendências, escrita na observação. Sem nenhuma das duas é revisão apenas e não
+   * leva nada. Só a REVISÃO é lida: observação livre de outra atividade não é
+   * serviço para ir ao lado da torre.
+   */
+  function notasDaRevisao(prog) {
+    if (!prog.atividade || norm(prog.atividade.nome) !== 'revisao') return [];
+
+    var obs = norm(prog.observacao);
+    var notas = [];
+    if (obs.indexOf('retirada de flambagem') !== -1) notas.push('RETIRADA DE FLAMBAGEM');
+    if (obs.indexOf('retirada de pendencia') !== -1) notas.push('RETIRADA DE PENDÊNCIAS');
+    return notas;
+  }
+
   function regraDe(nome) {
     return DE_PARA_NORM[norm(nome)] || null;
   }
@@ -445,7 +461,8 @@ window.SIPAV = window.SIPAV || {};
         caixa[dia] = caixa[dia] || [];
         caixa[dia].push({
           torre: p.torre ? p.torre.identificador : '?',
-          percentual: Number(p.percentual) || 100
+          percentual: Number(p.percentual) || 100,
+          notas: notasDaRevisao(p)
         });
       });
     });
@@ -518,9 +535,13 @@ window.SIPAV = window.SIPAV || {};
         if (!itens || !itens.length) return '-';
         return itens.map(function (x) {
           total += x.percentual / 100;
-          // Torre repartida leva o percentual junto, senão a célula diz que a
-          // torre inteira foi feita naquele dia
-          return x.torre + (x.percentual < 100 ? ' (' + pct(x.percentual) + ')' : '');
+          // Entre parênteses, depois da torre: o percentual, se a torre foi
+          // repartida (senão a célula diz que a torre inteira foi feita naquele
+          // dia), e a retirada de flambagem ou de pendências, se a revisão teve.
+          var entre = [];
+          if (x.percentual < 100) entre.push(pct(x.percentual));
+          (x.notas || []).forEach(function (n) { entre.push(n); });
+          return x.torre + (entre.length ? ' (' + entre.join(' · ') + ')' : '');
         }).join(', ');
       }));
     }
