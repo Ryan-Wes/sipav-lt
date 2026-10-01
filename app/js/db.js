@@ -763,29 +763,89 @@ window.SIPAV = window.SIPAV || {};
   /* APONTAMENTO DO EXECUTADO                                                 */
   /* ======================================================================== */
 
-  /** Execuções apontadas em campo no trecho e período. Sem a carga da planilha. */
+  var COLUNAS_EXECUCAO =
+    'id, programacao_id, torre_id, atividade_id, encarregado_id, ' +
+    'data_execucao, percentual, observacao, ';
+
+  /**
+   * Execuções apontadas em campo no trecho e período. Sem a carga da planilha.
+   *
+   * As fotos da programação (data_programada e a original) vêm da db/38. Se ela
+   * ainda não foi aplicada, a consulta com elas falha com "coluna não existe" e
+   * a tela inteira ficaria sem apontamentos. Tento com as colunas novas e, só
+   * nesse erro, refaço sem elas: a ordem entre subir o site e rodar o SQL não
+   * pode derrubar quem está trabalhando.
+   */
   function execucoes(filtro) {
     filtro = filtro || {};
-    var q = cliente()
+
+    function consulta(colunas) {
+      var q = cliente()
+        .from('execucao')
+        .select(colunas + 'torre:torre_id!inner ( trecho_id )')
+        .eq('carga_inicial', false)
+        .eq('torre.trecho_id', filtro.trechoId);
+
+      if (filtro.de)  q = q.gte('data_execucao', filtro.de);
+      if (filtro.ate) q = q.lte('data_execucao', filtro.ate);
+      return q;
+    }
+
+    return consulta(COLUNAS_EXECUCAO + 'data_programada, data_programada_original, ')
+      .then(function (r) {
+        if (r.error && (r.error.code === '42703' || /data_programada/.test(r.error.message || ''))) {
+          return consulta(COLUNAS_EXECUCAO);
+        }
+        return r;
+      })
+      .then(function (r) { return ok(r, 'Falha ao carregar apontamentos'); });
+  }
+
+  /**
+   * Tudo o que foi apontado em campo numa torre, de qualquer data.
+   *
+   * Serve à correção de estágio: para voltar a torre a um estágio anterior é
+   * preciso saber o que foi apontado acima dele. E tem que ser de qualquer data
+   * — a lista da tela é recortada por período e deixaria apontamentos de fora.
+   */
+  function execucoesDaTorre(torreId) {
+    return cliente()
       .from('execucao')
-      .select('id, programacao_id, torre_id, atividade_id, encarregado_id, ' +
-              'data_execucao, percentual, observacao, ' +
-              'torre:torre_id!inner ( trecho_id )')
+      .select('id, atividade_id, data_execucao, percentual, programacao_id, ' +
+              'atividade:atividade_id ( nome, ordem_execucao )')
+      .eq('torre_id', torreId)
       .eq('carga_inicial', false)
-      .eq('torre.trecho_id', filtro.trechoId);
+      .then(function (r) { return ok(r, 'Falha ao carregar o que foi apontado nesta torre'); });
+  }
 
-    if (filtro.de)  q = q.gte('data_execucao', filtro.de);
-    if (filtro.ate) q = q.lte('data_execucao', filtro.ate);
-
-    return q.then(function (r) { return ok(r, 'Falha ao carregar apontamentos'); });
+  /** Desfaz vários apontamentos de uma vez, pelo id da execução. */
+  function desfazerApontamentos(ids) {
+    if (!ids || !ids.length) return Promise.resolve(true);
+    return cliente()
+      .from('execucao')
+      .delete()
+      .in('id', ids)
+      .eq('carga_inicial', false)
+      .then(function (r) {
+        if (r.error) throw traduzErro(r.error, 'Falha ao desfazer apontamentos');
+        return true;
+      });
   }
 
   /**
    * Aponta uma programação como executada.
    * @param {object} p a programação, já com torre, atividade e encarregado
    * @param {string} dataExecucao dia em que aconteceu; por padrão o programado
+   * @param {string} observacao
+   * @param {number} percentual quanto da atividade saiu; por padrão o programado
+   *
+   * O percentual não é mais sempre 100: um estai de cinco partes é 20%, e
+   * apontar a primeira como 100 fazia a torre constar como escavada inteira.
+   *
+   * A data programada NÃO vai daqui. Quem guarda a foto dela é o banco, no
+   * apontamento: se viesse da tela, dependeria de a tela lembrar de mandar.
    */
-  function apontarExecucao(p, dataExecucao, observacao) {
+  function apontarExecucao(p, dataExecucao, observacao, percentual) {
     return auth.usuario().then(function (u) {
       return cliente()
         .from('execucao')
@@ -795,7 +855,7 @@ window.SIPAV = window.SIPAV || {};
           encarregado_id: p.encarregado ? p.encarregado.id : null,
           programacao_id: p.id,
           data_execucao:  dataExecucao || p.data,
-          percentual:     100,
+          percentual:     percentual || Number(p.percentual) || 100,
           carga_inicial:  false,
           observacao:     observacao || null,
           registrado_por: u ? u.id : null
@@ -1049,6 +1109,8 @@ window.SIPAV = window.SIPAV || {};
     salvarEncarregado: salvarEncarregado,
     desativarEncarregado: desativarEncarregado,
     salvarAtividade: salvarAtividade,
+    execucoesDaTorre: execucoesDaTorre,
+    desfazerApontamentos: desfazerApontamentos,
     atividadeRemovidaPorNome: atividadeRemovidaPorNome,
     liberarNomeDeRemovida: liberarNomeDeRemovida,
     desativarAtividade: desativarAtividade,

@@ -1238,3 +1238,9 @@ body.modo-selecao #visaoGrade { user-select: none; }
   transition: transform .1s;
 }
 .atv-cor-usada:hover { transform: scale(1.2); box-shadow: 0 0 0 2px var(--acento); }
+
+/* ✓ da programação que já saiu. Verde discreto: é confirmação, não alerta. */
+.marca-feito {
+  margin-left: .25rem; flex-shrink: 0;
+  font-size: .6875rem; font-weight: 800; color: #10B981;
+}

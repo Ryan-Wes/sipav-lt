@@ -16,6 +16,65 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 01/10/2026
 
+### Voltar o estágio para "nada executado" de verdade — [WR]
+
+A opção existia no seletor, mas só apagava a carga da planilha. Numa torre com
+apontamento de campo, escolher "nada executado" **não fazia o estágio voltar**, o
+histórico gravava "corrigiu o estágio para nada executado" e a tela dizia "Estágio
+atualizado". Quem corrigia achava que tinha funcionado, e o registro dizia a mesma
+coisa. Era uma mentira dupla.
+
+**Agora:** a janela lista o que foi apontado em campo e ficaria acima do estágio
+escolhido, e só desfaz com confirmação explícita. Sem confirmar, recusa e diz por
+quê. Depois de salvar, confere o estágio que ficou e avisa se não é o pedido. O que
+foi desfeito entra no histórico de execução (`db/35`), com quem e quando.
+
+Só impede voltar o apontamento **completo** (soma de 100%): é ele que segura o
+estágio. Execução parcial acima do escolhido não impede e fica como está — a janela
+avisa que ela continua lá.
+
+### Programado × feito fica gravado, e não se perde — [WR]
+
+Ao apontar, o banco guarda duas fotos na execução: a data programada naquele
+momento e a **original**, lida do histórico. A view `aderencia` já comparava
+programado com executado, mas lia a programação ao vivo — adiar a semana por causa
+da chuva reescrevia o compromisso, e um item que escorregou três dias aparecia
+"no prazo". Apagar a programação fazia a execução constar como "sem programar".
+
+A original é a que conta para meta: adiar a semana inteira não pode esconder o
+atraso. A tela mostra os dois: "Executado em 07/10 · programado para 05/10 (2 dias
+de atraso) · originalmente 03/10". `db/38`.
+
+A foto é tirada pelo banco, não pela tela — se viesse da tela, dependeria de a tela
+lembrar de mandar. O que ainda **não existe** é um painel de metas; os dados estão
+todos na view, falta decidir como mostrar.
+
+### A programação já feita sai do cartão e vira o estágio — [WR]
+
+Apontar uma programação completa a tira da lista do cartão: o estágio no topo já diz
+a mesma coisa, e a informação aparecia duas vezes. O selo e o destaque do cartão
+passam a contar só o que ainda é plano.
+
+Nos painéis (por data, encarregado, atividade) ela **continua**, com um ✓: são a lista
+de acompanhamento da semana, e sumir com ela apagaria o que foi planejado.
+
+### O estágio só avança com a atividade completa — [WR]
+
+Efeito colateral do item anterior que eu não quis deixar passar: o estágio era a
+atividade mais avançada com *qualquer* execução, e o apontamento gravava sempre 100%.
+Com o serviço repartido, apontar a primeira parte de uma escavação (20%, um estai)
+faria a torre constar como escavada inteira — e, escondendo a linha do cartão, o
+engano ficaria invisível.
+
+**Agora:** o estágio só avança quando a soma dos apontamentos chega a 100%; o apontamento
+grava o percentual que saiu (padrão: o programado, editável). A programação **parcial**
+apontada continua no cartão, com ✓, para o progresso não ficar sem lugar.
+
+**Limite que fica, para decidir:** a regra de bloqueio (`motivo_bloqueio_programacao`)
+ainda trata qualquer execução ou programação como pré-requisito cumprido, mesmo
+parcial. Ou seja, 20% de escavação já libera o reaterro. Não mexi: é regra de obra, e
+é o D4 de volta. Está no backlog.
+
 ### A linha EXEC. do relatório da ISA não é do SIPAV, por enquanto — [WR]
 
 O exportador preenche só PROG. 1 e PROG. 2, e a linha `EXEC.` ficava de fora porque

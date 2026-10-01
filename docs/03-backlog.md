@@ -43,6 +43,9 @@ Situação conferida em **23/09/2026**, item por item, contra o que está public
 | **R13** | **Atividade só no tipo de torre em que existe** | [WR] 29/09 | ✅ `db/33` — estai e mastro central só em estaiada |
 | **R14** | **Carga inicial não repete execução** | [WR] 29/09 | ✅ `db/34` — índice único; apontamento de campo continua podendo repetir |
 | **R15** | **Data no passado pede justificativa própria** | [WR] 30/09 | ✅ `db/36` — não desliga a precedência; só vale quando a data é escolhida |
+| **R16** | **Estágio só avança com a atividade completa** | [WR] 01/10 | ✅ `db/38` — soma dos apontamentos em 100%; apontamento grava o percentual que saiu |
+| **R17** | **Programado × feito gravado no apontamento** | [WR] 01/10 | ✅ `db/38` — foto da data programada e da original; falta o painel de metas |
+| **R18** | Regra de bloqueio respeitar percentual (20% de escavação não libera reaterro) | [WR] 01/10 | ❌ hoje qualquer execução ou programação, mesmo parcial, cumpre o pré-requisito. É o D4 de volta |
 
 ## Relatórios e saídas
 

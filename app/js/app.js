@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v94 · 2026-10-01';
+  var VERSAO = 'v96 · 2026-10-01';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -1249,6 +1249,35 @@ window.SIPAV = window.SIPAV || {};
     return (Math.round(v * 100) / 100).toLocaleString('pt-BR') + '%';
   }
 
+  /**
+   * "Executado em 07/10 · programado para 05/10 (2 dias de atraso)".
+   *
+   * Lê a foto que o banco guardou no apontamento, e não a data de hoje da
+   * programação: se ela foi adiada depois, é a original que diz se a meta bateu.
+   * Quando a foto ainda não existe (antes da db/38), cai na data viva.
+   */
+  function textoDoExecutado(ex, p) {
+    var prog = ex.data_programada || p.data;
+    var orig = ex.data_programada_original || prog;
+    var dias = Math.round((ui.paraData(ex.data_execucao) - ui.paraData(prog)) / 86400000);
+
+    var t = 'Executado em ' + ui.dataCurta(ex.data_execucao);
+
+    if (dias === 0) {
+      t += ' · no prazo';
+    } else {
+      var n = Math.abs(dias);
+      t += ' · programado para ' + ui.dataCurta(prog) + ' (' + n +
+           (n === 1 ? ' dia' : ' dias') + (dias > 0 ? ' de atraso)' : ' adiantado)');
+    }
+
+    // Adiaram a programação antes de executar: a meta original era outra
+    if (orig !== prog) t += ' · originalmente ' + ui.dataCurta(orig);
+
+    if (Number(ex.percentual) < 100) t += ' · ' + formatarPercentual(ex.percentual);
+    return t;
+  }
+
   function renderListaDoModal() {
     if (!torreAberta) return;
     var progs = render.programacoesDaTorre(torreAberta.torre_id)
@@ -1287,8 +1316,7 @@ window.SIPAV = window.SIPAV || {};
             (ex
               ? '<p class="text-xs text-emerald-700 font-medium mt-0.5 flex items-center gap-1">' +
                   '<i data-lucide="check-circle" class="w-3 h-3"></i> ' +
-                  'Executado em ' + ui.dataCurta(ex.data_execucao) +
-                  (ex.data_execucao !== p.data ? ' (programado para ' + ui.dataCurta(p.data) + ')' : '') +
+                  esc(textoDoExecutado(ex, p)) +
                 '</p>'
               : '') +
             (p.override_motivo
@@ -1779,13 +1807,22 @@ window.SIPAV = window.SIPAV || {};
           '<strong>' + esc(p.torre.identificador) + '</strong>' +
           (p.encarregado ? ', com ' + esc(p.encarregado.nome) : '') + '.' +
         '</p>' +
-        '<div><label class="rotulo">Executado em</label>' +
-          '<input id="dataExecucao" type="date" class="campo" value="' + p.data + '"></div>' +
+        '<div class="grid grid-cols-2 gap-3">' +
+          '<div><label class="rotulo">Executado em</label>' +
+            '<input id="dataExecucao" type="date" class="campo" value="' + p.data + '"></div>' +
+          // Quanto saiu. O padrão é o programado: um estai de cinco partes é 20%.
+          // Apontar como 100 faria a torre constar como escavada inteira.
+          '<div><label class="rotulo">Quanto saiu (%)</label>' +
+            '<input id="pctExecucao" type="number" min="1" max="100" step="1" class="campo" ' +
+                   'value="' + (Number(p.percentual) || 100) + '"></div>' +
+        '</div>' +
         '<div><label class="rotulo">Observação <span class="text-slate-400 font-normal">(opcional)</span></label>' +
           '<input id="obsExecucao" class="campo" placeholder="Ex.: concluído com equipe reduzida"></div>' +
         '<p class="text-xs text-slate-400">' +
           'Programado para ' + ui.dataLonga(p.data) + '. Se saiu em outro dia, corrija a ' +
-          'data — é dela que sai a aderência da programação.' +
+          'data. Fica gravado que foi programado para este dia e feito no outro — é disso ' +
+          'que sai o controle de metas, e continua valendo mesmo que a programação seja ' +
+          'adiada ou apagada depois.' +
         '</p>' +
       '</div>';
 
@@ -1797,10 +1834,16 @@ window.SIPAV = window.SIPAV || {};
         { rotulo: 'Confirmar execução', classe: 'btn-primario', acao: function () {
             var data = $('dataExecucao').value;
             var obs  = $('obsExecucao').value.trim() || null;
+            var pctEx = Number($('pctExecucao').value);
             if (!data) { ui.avisar('Informe a data de execução.', 'alerta'); return; }
+            if (!(pctEx > 0 && pctEx <= 100)) {
+              ui.avisar('O quanto saiu tem que ficar entre 1 e 100.', 'alerta');
+              $('pctExecucao').focus();
+              return;
+            }
 
             ui.processando('Apontando…');
-            db.apontarExecucao(p, data, obs)
+            db.apontarExecucao(p, data, obs, pctEx)
               .then(recarregarProgramacoes)
               .then(function () {
                 ui.pronto();
@@ -1815,7 +1858,6 @@ window.SIPAV = window.SIPAV || {};
 
   /* ------------------------------------------------- Alterar e limpar ----- */
 
-  /** Traz a programação para o formulário, que passa a alterar em vez de criar. */
   /**
    * Abre uma programação da lista do "editar em lote" na janela da torre.
    *
@@ -1832,6 +1874,7 @@ window.SIPAV = window.SIPAV || {};
     editarProgramacao(id);
   }
 
+  /** Traz a programação para o formulário, que passa a alterar em vez de criar. */
   function editarProgramacao(id) {
     var p = E.programacoes.find(function (x) { return x.id === id; });
     if (!p) return;
@@ -1959,12 +2002,32 @@ window.SIPAV = window.SIPAV || {};
   /**
    * O estágio não é um campo: ele é derivado do histórico de execuções. Corrigir
    * significa reescrever as execuções inferidas desta torre — as que vieram da
-   * planilha. Apontamento feito de verdade em campo nunca é tocado aqui.
+   * planilha.
+   *
+   * O apontamento feito em campo é outra coisa, e só sai daqui com confirmação.
+   * Antes ele nunca era tocado, e o resultado era uma mentira dupla: escolher
+   * "nada executado" numa torre com apontamento não fazia o estágio voltar, o
+   * histórico gravava "corrigiu para nada executado" e a tela dizia "Estágio
+   * atualizado". Quem corrigia achava que tinha funcionado.
    */
+  var apontadoNaTorre = [];   // o que foi apontado em campo na torre aberta
+
   function abrirCorrigirEstagio() {
     if (!torreAberta) return;
     var torre = torreAberta;
 
+    ui.processando('Conferindo o que foi apontado…');
+
+    db.execucoesDaTorre(torre.torre_id)
+      .then(function (lista) {
+        ui.pronto();
+        apontadoNaTorre = lista;
+        montarCorrigirEstagio(torre);
+      })
+      .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro', 6000); });
+  }
+
+  function montarCorrigirEstagio(torre) {
     var corpo =
       '<div class="space-y-3">' +
         '<p class="text-sm text-slate-600">' +
@@ -1972,7 +2035,8 @@ window.SIPAV = window.SIPAV || {};
           '<strong>' + esc(torre.ultima_atividade || 'nada executado') + '</strong>.' +
         '</p>' +
         '<div><label class="rotulo">Última atividade executada</label>' +
-          '<select id="estagioNovo" class="campo">' +
+          '<select id="estagioNovo" class="campo" ' +
+                  'onchange="SIPAV.app.mostrarConflitosDoEstagio()">' +
             '<option value="">— nada executado —</option>' +
             E.atividades.map(function (a) {
               return '<option value="' + a.id + '"' +
@@ -1980,6 +2044,23 @@ window.SIPAV = window.SIPAV || {};
                      esc(a.nome) + '</option>';
             }).join('') +
           '</select></div>' +
+
+        // Preenchido por mostrarConflitosDoEstagio: o que foi apontado em campo
+        // e ficaria acima do estágio escolhido
+        '<div id="estagioConflitos" class="hidden rounded-lg border border-amber-300 bg-amber-50 p-3">' +
+          '<p class="text-sm font-semibold text-amber-900">Há execução apontada em campo acima disso</p>' +
+          '<ul id="estagioConflitosLista" class="text-xs text-amber-800 mt-1 space-y-0.5"></ul>' +
+          '<label class="flex items-start gap-2 text-sm text-amber-900 mt-2 cursor-pointer">' +
+            '<input type="checkbox" id="estagioDesfazer" class="rounded border-amber-400 mt-0.5">' +
+            '<span>Desfazer esses apontamentos. As programações voltam a constar como ' +
+            'pendentes, e o histórico guarda quem desfez.</span>' +
+          '</label>' +
+        '</div>' +
+
+        // Execução parcial acima do estágio não segura a torre ali, então não
+        // impede voltar. Mas fica no banco, e quem corrige precisa saber disso.
+        '<p id="estagioParciais" class="hidden text-xs text-slate-500"></p>' +
+
         '<p class="text-xs text-slate-500">' +
           'Marca essa atividade e todas as <strong>obrigatórias anteriores</strong> como ' +
           'executadas. As condicionais ficam de fora, porque não há como saber se esta ' +
@@ -2000,6 +2081,68 @@ window.SIPAV = window.SIPAV || {};
         { rotulo: 'Salvar estágio', classe: 'btn-primario', acao: salvarEstagio }
       ]
     });
+
+    mostrarConflitosDoEstagio();
+  }
+
+  /**
+   * O que foi apontado em campo e ficaria ACIMA do estágio escolhido.
+   *
+   * Só conta a atividade que já está completa (soma dos percentuais em 100):
+   * é ela que define o estágio. Um estai de cinco partes com 20% apontados não
+   * está segurando a torre naquele estágio, então não impede voltar.
+   */
+  function gruposApontadosAcima(atividadeEscolhidaId) {
+    var alvo = atividadeEscolhidaId
+      ? E.atividades.find(function (a) { return a.id === atividadeEscolhidaId; })
+      : null;
+    var ordemAlvo = alvo ? alvo.ordem_execucao : 0;
+
+    var porAtividade = {};
+    apontadoNaTorre.forEach(function (x) {
+      var g = porAtividade[x.atividade_id] = porAtividade[x.atividade_id] ||
+        { nome: x.atividade ? x.atividade.nome : '—',
+          ordem: x.atividade ? x.atividade.ordem_execucao : 0,
+          soma: 0, linhas: [] };
+      g.soma += Number(x.percentual) || 0;
+      g.linhas.push(x);
+    });
+
+    return Object.keys(porAtividade)
+      .map(function (id) { return porAtividade[id]; })
+      .filter(function (g) { return g.ordem > ordemAlvo; })
+      .sort(function (a, b) { return a.ordem - b.ordem; });
+  }
+
+  /** As completas: são elas que seguram o estágio, então só elas impedem voltar. */
+  function conflitosDoEstagio(atividadeEscolhidaId) {
+    return gruposApontadosAcima(atividadeEscolhidaId)
+      .filter(function (g) { return g.soma >= 100; });
+  }
+
+  function mostrarConflitosDoEstagio() {
+    var caixa = $('estagioConflitos');
+    if (!caixa) return;
+
+    var escolhida = $('estagioNovo').value;
+    var conflitos = conflitosDoEstagio(escolhida);
+    var parciais = gruposApontadosAcima(escolhida).filter(function (g) { return g.soma < 100; });
+
+    caixa.classList.toggle('hidden', !conflitos.length);
+    $('estagioDesfazer').checked = false;
+
+    $('estagioConflitosLista').innerHTML = conflitos.map(function (g) {
+      var datas = g.linhas.map(function (x) { return ui.dataCurta(x.data_execucao); }).join(', ');
+      return '<li><strong>' + esc(g.nome) + '</strong> — apontada em ' + esc(datas) + '</li>';
+    }).join('');
+
+    var nota = $('estagioParciais');
+    nota.classList.toggle('hidden', !parciais.length);
+    nota.textContent = parciais.length
+      ? 'Também há execução parcial de ' + parciais.map(function (g) {
+          return g.nome + ' (' + g.soma + '%)';
+        }).join(', ') + '. Ela não muda o estágio e fica como está.'
+      : '';
   }
 
   function salvarEstagio() {
@@ -2020,11 +2163,32 @@ window.SIPAV = window.SIPAV || {};
       }
     }
 
+    // O que foi apontado acima do estágio escolhido. Sem desfazer, o estágio não
+    // volta — então não finjo que voltou: peço a confirmação ou recuso.
+    var conflitos = conflitosDoEstagio(id);
+    var desfazer = conflitos.length && $('estagioDesfazer').checked;
+
+    if (conflitos.length && !desfazer) {
+      ui.avisar('Há execução apontada em campo acima de ' + (nova || 'nada executado') +
+                '. Marque "Desfazer esses apontamentos", ou escolha um estágio mais avançado.',
+                'alerta', 7000);
+      $('estagioDesfazer').focus();
+      return;
+    }
+
+    // Todas as linhas daquelas atividades, inclusive as parciais: o que sobraria
+    // seria um pedaço de uma atividade que a pessoa acabou de dizer que não houve.
+    var idsParaDesfazer = [];
+    conflitos.forEach(function (g) {
+      g.linhas.forEach(function (x) { idsParaDesfazer.push(x.id); });
+    });
+
     var anterior = torre.ultima_atividade || null;
 
     ui.processando('Atualizando estágio…');
 
-    db.limparCargaInicial([torre.torre_id])
+    (desfazer ? db.desfazerApontamentos(idsParaDesfazer) : Promise.resolve(true))
+      .then(function () { return db.limparCargaInicial([torre.torre_id]); })
       .then(function () {
         return db.registrarCargaInicial(registros, 'Estágio corrigido manualmente');
       })
@@ -2040,7 +2204,18 @@ window.SIPAV = window.SIPAV || {};
         var atualizada = E.torres.find(function (t) { return t.torre_id === torre.torre_id; });
         if (atualizada) abrirTorre(atualizada.torre_id);
 
-        ui.avisar('Estágio atualizado.', 'sucesso');
+        // Confere o resultado em vez de confiar nele. Dizer "atualizado" sem
+        // olhar foi exatamente o erro de antes.
+        var ficou = atualizada ? (atualizada.ultima_atividade || null) : null;
+        if (atualizada && ficou !== nova) {
+          ui.avisar('O estágio ficou em ' + (ficou || 'nada executado') + ', não em ' +
+                    (nova || 'nada executado') + '. Confira o que está apontado nesta torre.',
+                    'alerta', 9000);
+        } else {
+          ui.avisar(desfazer
+            ? 'Estágio atualizado. ' + idsParaDesfazer.length + ' apontamento(s) desfeito(s).'
+            : 'Estágio atualizado.', 'sucesso');
+        }
       })
       .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro', 6000); });
   }
@@ -5965,6 +6140,7 @@ window.SIPAV = window.SIPAV || {};
     desfazerUltimoLote: desfazerUltimoLote,
 
     abrirEdicaoEmLote: abrirEdicaoEmLote,
+    mostrarConflitosDoEstagio: mostrarConflitosDoEstagio,
     filtrarEdicao: filtrarEdicao,
     marcarEdicao: marcarEdicao,
     marcarTodasEdicao: marcarTodasEdicao,

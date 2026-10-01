@@ -42,6 +42,44 @@ window.SIPAV = window.SIPAV || {};
     return E.execucoes.find(function (x) { return x.programacao_id === programacaoId; }) || null;
   }
 
+  /** Quanto desta atividade, nesta torre, já saiu em campo (soma dos apontamentos). */
+  function percentualExecutado(torreId, atividadeId) {
+    return E.execucoes.reduce(function (soma, x) {
+      return x.torre_id === torreId && x.atividade_id === atividadeId
+        ? soma + (Number(x.percentual) || 0) : soma;
+    }, 0);
+  }
+
+  /**
+   * ✓ na programação que já saiu, com a data real no tooltip.
+   *
+   * Nos painéis a programação continua na lista — é o acompanhamento da semana, e
+   * sumir com ela apagaria o que foi planejado. Mas antes ela aparecia igual à
+   * pendente, e dava para achar que faltava fazer o que já tinha saído.
+   */
+  function marcaFeito(p) {
+    var ex = execucaoDa(p.id);
+    if (!ex) return '';
+    var quando = ex.data_execucao !== p.data ? ' em ' + ui.dataCurta(ex.data_execucao) : '';
+    return '<span class="marca-feito" title="Executada' + quando + '">✓</span>';
+  }
+
+  /**
+   * A programação já virou estágio da torre?
+   *
+   * Executada E a atividade completa (a soma dos apontamentos chegou a 100%):
+   * nesse caso o estágio no topo do cartão já diz isso, e a linha programada
+   * dizia a mesma coisa de novo — a informação aparecia duas vezes.
+   *
+   * Executada pela metade não conta. Um estai de cinco partes com 20% apontados
+   * não é estágio nenhum ainda, e se a linha sumisse o progresso ficaria sem
+   * lugar no cartão.
+   */
+  function refletidaNoEstagio(p) {
+    if (!execucaoDa(p.id) || !p.torre || !p.atividade) return false;
+    return percentualExecutado(p.torre.id, p.atividade.id) >= 100;
+  }
+
   function torresFiltradas() {
     var busca = (E.busca || '').trim().toLowerCase();
     return E.torres.filter(function (t) {
@@ -106,8 +144,15 @@ window.SIPAV = window.SIPAV || {};
   /* --------------------------------------------------- Cartão de torre --- */
 
   function cartaoTorre(torre) {
-    // A view torre_situacao expõe a chave como torre_id, não id
-    var progs = programacoesDaTorre(torre.torre_id);
+    // A view torre_situacao expõe a chave como torre_id, não id.
+    //
+    // Só o que ainda é plano: a programação cuja atividade já foi concluída em
+    // campo virou o estágio da torre, que está no topo do cartão. Mostrar as duas
+    // coisas era informação em dobro. O selo e o destaque do cartão contam daqui,
+    // então também deixam de contar o que já saiu.
+    var progs = programacoesDaTorre(torre.torre_id).filter(function (p) {
+      return !refletidaNoEstagio(p);
+    });
     var restrito = torre.tem_restricao;
 
     var classes = ['cartao-torre'];
@@ -155,6 +200,7 @@ window.SIPAV = window.SIPAV || {};
                   esc(ui.diaDaSemana(p.data).slice(0, 3)) + '</b>' +
               '</span> ' +
               esc(p.atividade ? p.atividade.nome : '—') +
+              marcaFeito(p) +
               // Só aparece quando o serviço foi repartido: 100% é o normal e
               // poluiria o cartão em toda linha
               (Number(p.percentual) < 100
@@ -271,8 +317,8 @@ window.SIPAV = window.SIPAV || {};
     var enc = (op.encarregado === false || !p.encarregado) ? ''
       : '<span class="chip-encarregado">' + esc(p.encarregado.nome) + '</span>';
 
-    var parcial = Number(p.percentual) < 100
-      ? '<span class="chip-parcial">' + pct(p.percentual) + '</span>' : '';
+    var parcial = (Number(p.percentual) < 100
+      ? '<span class="chip-parcial">' + pct(p.percentual) + '</span>' : '') + marcaFeito(p);
 
     // Com "selecionar vários" ligado, o clique marca em vez de abrir a torre.
     // Desligado, tudo se comporta como sempre — quem não liga não vê diferença.
