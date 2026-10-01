@@ -64,8 +64,8 @@ Decisões:
 - **Um dia só.** Primeiro aceitei "até"; tirei. A mudança fica registrada naquele
   dia, e se se repete no outro, registra-se de novo.
 - **Aparece onde o canteiro atende.** O canteiro serve mais de um trecho, então a
-  linha aparece no trecho onde foi registrada, no dos canteiros envolvidos e no
-  das torres envolvidas. Em quem sai, "vai para X"; em quem recebe, "vem de X".
+  linha aparece no trecho onde foi registrada e no dos canteiros envolvidos. Em
+  quem sai, "vai para X"; em quem recebe, "vem de X".
 - **"Outro" exige o motivo.** Dia sem atividade sem motivo é o vazio que isto
   existe para tirar. O banco também recusa.
 - **Quem registra.** Só administração e planejamento. O supervisor já tem o
