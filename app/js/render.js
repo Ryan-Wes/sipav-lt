@@ -379,6 +379,7 @@ window.SIPAV = window.SIPAV || {};
           ? ' · ' + itens.length + (itens.length === 1 ? ' atividade' : ' atividades')
           : '')
       : 'sem atividade nas torres';
+    if (op && op.resumo) resumo = op.resumo;
 
     return '' +
       '<section class="bloco-quadrante painel overflow-hidden">' +
@@ -432,6 +433,13 @@ window.SIPAV = window.SIPAV || {};
   var ICONE_MOVIMENTACAO = {
     MUDANCA_TRECHO: 'arrow-right-left', MUDANCA_MAQUINA: 'truck', OUTRO: 'ban'
   };
+
+  /** Os tipos, com o nome que a obra usa, na ordem em que aparecem. */
+  var TIPOS_DE_MOVIMENTACAO = [
+    { tipo: 'MUDANCA_TRECHO',  titulo: 'Mudança de trecho (encarregado)' },
+    { tipo: 'MUDANCA_MAQUINA', titulo: 'Deslocamento de máquina' },
+    { tipo: 'OUTRO',           titulo: 'Outro motivo (dia sem atividade)' }
+  ];
 
   function podeEditarMovimentacao() {
     return !!E.perfil && (E.perfil.papel === 'ADMIN' || E.perfil.papel === 'PLANEJAMENTO');
@@ -794,8 +802,9 @@ window.SIPAV = window.SIPAV || {};
 
   function renderPorAtividade() {
     var lista = programacoesVisiveis();
+    var movs = movimentacoesVisiveis();
     var cont = $('visaoAtividades');
-    if (!lista.length) { cont.innerHTML = vazio('Nenhuma atividade programada neste trecho'); return; }
+    if (!lista.length && !movs.length) { cont.innerHTML = vazio('Nenhuma atividade programada neste trecho'); return; }
 
     // Ordem de execução, não alfabética (post-it 2)
     var ordenada = lista.slice().sort(function (a, b) {
@@ -810,6 +819,15 @@ window.SIPAV = window.SIPAV || {};
       // A atividade já está no título do bloco; o espaço vai para o encarregado
       return blocoQuadrante(nome, null, g.mapa[nome],
         { torre: true, data: true, atividade: false, encarregado: true });
+    }).join('') +
+
+    // A movimentação também é algo que aconteceu numa data, então tem o seu lugar
+    // aqui: um grupo por tipo, depois das atividades, em ordem de data
+    TIPOS_DE_MOVIMENTACAO.map(function (tipo) {
+      var doTipo = movs.filter(function (m) { return m.tipo === tipo.tipo; });
+      if (!doTipo.length) return '';
+      return blocoQuadrante(tipo.titulo, null, [],
+        { movs: doTipo, resumo: doTipo.length + (doTipo.length === 1 ? ' registro' : ' registros') });
     }).join('');
   }
 
