@@ -14,6 +14,26 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ---
 
+## 01/10/2026
+
+### A linha EXEC. do relatório da ISA não é do SIPAV, por enquanto — [WR]
+
+O exportador preenche só PROG. 1 e PROG. 2, e a linha `EXEC.` ficava de fora porque
+dependia do apontamento de campo. O apontamento existe agora, com histórico, então o
+impedimento técnico caiu. Mesmo assim, a decisão é **não preencher pelo SIPAV**: a
+linha segue em branco e à mão, e talvez entre no futuro. Nada muda no código — ele já
+não encosta nela.
+
+### Padronizar as atividades do relatório com a seção técnica — [WR]
+
+Concordo e é o que a DEC-11 já pedia. Chegou uma lista preliminar do analista da seção
+técnica, que a engenheira de Planejamento vai conferir antes de eu trazê-la. **Não
+mudo catálogo, de-para nem atividade em cima de uma lista que ainda não foi conferida**
+— a planilha da ISA já me enganou sete vezes. Os pontos a levar à conferência estão
+em [04-relatorio-isa](04-relatorio-isa.md), item P7.
+
+---
+
 ## 30/09/2026
 
 ### Data no passado pede justificativa, e a justificativa tem campo — [WR]

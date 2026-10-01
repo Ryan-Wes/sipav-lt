@@ -503,16 +503,21 @@ exportador tem que escrever dentro do arquivo existente em vez de gerar um novo.
 3. Confere que as datas das linhas 11 e 12 batem com o período escolhido; se não
    baterem, avisa antes de escrever.
 4. Para cada item mapeado, escreve **só** `PROG. 1` e `PROG. 2`:
-   coluna J com os encarregados separados por ` / `, colunas K–P com as torres do dia
-   na mesma ordem dos encarregados, coluna Q com `DSR`, coluna R com a contagem.
+   coluna J com os encarregados empilhados, um por linha dentro da célula (quebra de
+   linha — não " / ", que era saída do meu script de extração e não da planilha),
+   colunas K–P com as torres do dia na mesma ordem dos encarregados, coluna Q com
+   `DSR`, coluna R com a soma dos percentuais.
 5. **Reexibe a linha que preencheu** e oculta as que ficaram sem programação no
    período — é o que hoje se faz à mão.
 6. Não encosta na linha `EXEC.`, nem nas colunas S–V, nem no cabeçalho, nem no
    rodapé, nem no bloco auxiliar.
 7. Devolve um arquivo novo para baixar — o original nunca é sobrescrito.
 
-Fora de escopo por ora: a linha `EXEC.` (depende do apontamento de campo, item **F5**
-do backlog) e os itens em KM, que precisam de quantidade e não de contagem de torre.
+Fora de escopo: a linha `EXEC.` — **decisão de 01/10/2026: não será preenchida pelo
+SIPAV por enquanto**, talvez no futuro. Continua em branco e à mão. O apontamento de
+execução existe e tem histórico, então o impedimento técnico caiu; o que ficou foi a
+decisão de não fazer. Também fora: os itens em KM, que precisam de quantidade e não de
+contagem de torre.
 
 ---
 
@@ -549,3 +554,4 @@ do backlog) e os itens em KM, que precisam de quantidade e não de contagem de t
 | P4 | O sinalizador de estais é instalado na torre e poderia sair bem antes do condutor, mas o Alessandro listou sinalização por último. A dependência ficou em `GRAMPEAÇÃO DOS CONDUTORES` até alguém corrigir | Nada. Só a regra de bloqueio |
 | P5 | ~~`LANÇAMENTO CONDUTOR 100%` deveria depender de `GIRO E PRUMO`?~~ — resolvido pela DEC-13 | — |
 | P6 | ~~Bandolas do para-raio/OPGW e do condutor são duas etapas?~~ — resolvido pela DEC-14 | — |
+| P7 | **Lista preliminar da seção técnica** (`CRONOGRAMA LISTA DE TAREFAS - ELECNOR_CAF-BRR.xlsx`, 30/09). É o RDO da LT Campo Formoso II – Barra II-C1, com previstos por item. Está em conferência com a engenheira de Planejamento; **nada no catálogo muda até ela voltar conferida**. Divergências já vistas contra as decisões desta página, a levar à conferência: Corte Seletivo em KM e Seccionamento de Cercas em TORRE (DEC-4 diz o contrário); 4.1/4.2 como OPGW esquerdo/direito (DEC-10 supõe para-raio/OPGW); fundação sem linhas separadas de mastro central (DEC-9/15); código `3.2.3` repetido; linhas ocultas com código repetido e percentual quebrado | A padronização (DEC-11) |
