@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v111 · 2026-10-01';
+  var VERSAO = 'v112 · 2026-10-01';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -3066,6 +3066,20 @@ window.SIPAV = window.SIPAV || {};
           '</div>' +
         '</div>' +
 
+        // Linhas fora da sequência: em vez de só recusar, deixa programar com o
+        // motivo. Fica fora da lista que se redesenha, pelo mesmo motivo do campo
+        // acima: o que eu escrevi não pode sumir quando mexo numa data.
+        '<div id="loteAvisoSequencia" class="hidden rounded-lg border border-rose-300 bg-rose-50 p-3">' +
+          '<div class="flex gap-2">' +
+            '<i data-lucide="alert-triangle" class="w-4 h-4 text-rose-600 shrink-0 mt-0.5"></i>' +
+            '<div class="flex-1">' +
+              '<p id="loteTextoSequencia" class="text-sm text-rose-800"></p>' +
+              '<input id="loteJustSequencia" class="campo mt-2" autocomplete="off" ' +
+                     'placeholder="Por que programar fora da sequência? (fica registrado)">' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+
         '<div class="pt-3" style="border-top:1px solid var(--borda)">' +
           '<div class="flex flex-wrap items-center justify-between gap-2 mb-2">' +
             '<label class="rotulo" style="margin-bottom:0">O que vai ser programado</label>' +
@@ -3612,16 +3626,34 @@ window.SIPAV = window.SIPAV || {};
             ? '<p class="lote-motivo">' + esc(x.bloqueio) + '</p>'
             : '') +
         '</div>';
-      }).join('') + '</div>' +
-      (travadas
-        ? '<p class="text-xs mt-2 text-rose-500 font-semibold">' + travadas +
-          ' lançamento(s) fora da sequência. Tire da lista ou programe um a um, ' +
-          'pelo cartão, com a justificativa.</p>'
-        : '');
+      }).join('') + '</div>';
 
     Array.prototype.forEach.call(caixa.querySelectorAll('.lote-enc'), function (sel, i) {
       sel.value = loteLinhas[i] ? (loteLinhas[i].encarregadoId || '') : '';
     });
+
+    atualizarAvisoSequenciaLote(travadas);
+  }
+
+  /**
+   * A caixa do motivo para as linhas fora da sequência. Aparece quando alguma
+   * linha está travada e some quando não há mais nenhuma.
+   *
+   * Programar assim ignora a precedência SÓ dessas linhas, e o motivo fica
+   * gravado em cada uma, como no cartão da torre ("programar mesmo assim").
+   */
+  function atualizarAvisoSequenciaLote(travadas) {
+    var caixa = $('loteAvisoSequencia');
+    if (!caixa) return;
+
+    caixa.classList.toggle('hidden', !travadas);
+    if (!travadas) return;
+
+    $('loteTextoSequencia').textContent =
+      travadas + (travadas === 1 ? ' lançamento está fora da sequência' : ' lançamentos estão fora da sequência') +
+      ' (veja o motivo em vermelho na linha). Escreva por que e programe mesmo assim: ' +
+      'só essas linhas ignoram a sequência. Ou tire-as da lista.';
+    ui.icones();
   }
 
   /**
@@ -3717,6 +3749,20 @@ window.SIPAV = window.SIPAV || {};
       return;
     }
 
+    // Confere a sequência agora, e não confia no que a tela já tinha: a conferência
+    // ao vivo espera meio segundo e pode estar velha. Quem decide se pede o motivo
+    // é o que o banco diz neste instante.
+    ui.processando('Conferindo a sequência…');
+    conferirLinhasLote()
+      .then(function () {
+        ui.pronto();
+        if ($('loteEscolhidas')) renderLoteEscolhidas();
+        gravarLoteConferido();
+      })
+      .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro'); });
+  }
+
+  function gravarLoteConferido() {
     var cabo = $('loteCabo') ? ($('loteCabo').value || null) : null;
     var baseDoLote = $('loteBase') ? $('loteBase').value : '';
     if (loteAtividades.some(pedeCabo) && !cabo) {
@@ -3734,6 +3780,17 @@ window.SIPAV = window.SIPAV || {};
       ui.avisar(linhasNoPassado.length + ' lançamento(s) estão no passado. ' +
                 'Diga o motivo antes de programar.', 'alerta', 6000);
       $('loteJustificativa').focus();
+      return;
+    }
+
+    // Fora da sequência: programa mesmo assim, com o motivo. Sem o motivo não
+    // grava — o motivo é o que fica no histórico para explicar a exceção.
+    var justSequencia = $('loteJustSequencia') ? $('loteJustSequencia').value.trim() : '';
+    var foraDaSequencia = loteLinhas.filter(function (x) { return x.bloqueio; });
+    if (foraDaSequencia.length && !justSequencia) {
+      ui.avisar(foraDaSequencia.length + ' lançamento(s) fora da sequência. ' +
+                'Escreva o motivo para programá-los mesmo assim, ou tire-os da lista.', 'alerta', 7000);
+      $('loteJustSequencia').focus();
       return;
     }
 
@@ -3782,6 +3839,8 @@ window.SIPAV = window.SIPAV || {};
           cabo: pedeCabo(t.atividadeId) ? cabo : null,
           // Só nas linhas cuja data passou; as futuras seguem sem
           justificativaRetroativa: t.data < ui.hoje() ? justRetro : null,
+          // Só as linhas travadas ignoram a sequência; as outras seguem a regra
+          overrideMotivo: t.bloqueio ? justSequencia : null,
           situacao: situacao
         })
           .then(function (nova) { ok.push(rotulo); if (nova && nova.id) ids.push(nova.id); })
@@ -3883,8 +3942,7 @@ window.SIPAV = window.SIPAV || {};
             '</div>' +
             '<p class="text-xs text-rose-700 mt-2">' +
               'Quase sempre é precedência. O botão <strong>Conferir sequência</strong> mostra ' +
-              'isso antes de gravar. Para forçar, programe uma a uma pelo cartão da torre, ' +
-              'com a justificativa.' +
+              'isso antes de gravar, e a caixa de motivo libera as que estão fora da sequência.' +
             '</p>' +
           '</div>' +
         '</div>',

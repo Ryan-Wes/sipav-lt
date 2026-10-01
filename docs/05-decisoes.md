@@ -40,6 +40,20 @@ cumprida (R18/D4). Saber quais pés foram feitos não a torna mais rigorosa.
 
 **Fora do escopo:** editar em lote e programar vários pela seleção não carregam as
 letras. O mastro central sozinho (`ESCAVAÇÃO - MC`) segue sem partes.
+### Lote: programar fora da sequência, com o motivo — [WR]
+
+O lote só mostrava a linha em vermelho e mandava tirá-la ou programar "um a um, pelo
+cartão". Agora, com linha fora da sequência, aparece uma caixa para o motivo, e
+programar libera **só essas linhas**: elas gravam com o motivo (é o mesmo
+`override_motivo` do "programar mesmo assim" do cartão, e aparece como
+"programada fora da sequência"). As outras seguem a regra.
+
+- **Sem o motivo não grava.** Ele é o que explica a exceção no histórico.
+- **Confere na hora.** Ao clicar em Programar a sequência é conferida de novo, em vez de
+  confiar na conferência ao vivo, que espera meio segundo e pode estar velha.
+- **A data no passado continua sendo outra coisa.** Tem a própria justificativa, e as
+  duas podem valer na mesma linha.
+
 ### Dois encarregados na mesma atividade — [WR]
 
 Tem atividade que dois encarregados fazem juntos. O único jeito era lançar duas
