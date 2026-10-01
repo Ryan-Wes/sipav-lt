@@ -1,4 +1,4 @@
-﻿/* =============================================================================
+/* =============================================================================
    SIPAV LT — Orquestração
    =============================================================================
    Fluxo de autenticação, carga de dados, tempo real e ações do usuário.
@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v96 · 2026-10-01';
+  var VERSAO = 'v97 · 2026-10-01';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -209,6 +209,10 @@ window.SIPAV = window.SIPAV || {};
         $('nomeUsuario').textContent = perfil.nome;
         $('papelUsuario').textContent = ROTULO_PAPEL[perfil.papel] || perfil.papel;
 
+        // Só quem pode registrar vê o botão: o banco recusaria o resto, e um botão
+        // que sempre dá "sem permissão" é pior que botão nenhum.
+        $('btnMovimentacao').classList.toggle('hidden', !podeRegistrarMovimentacao());
+
         return Promise.all([
           db.obra(), db.trechos(), db.atividades(), db.encarregados(), db.canteiros(),
           db.dependencias()
@@ -274,11 +278,13 @@ window.SIPAV = window.SIPAV || {};
     return Promise.all([
       db.torres(E.trechoAtual.id),
       db.programacoes(filtroProgramacao()),
-      db.execucoes(filtroExecucao())
+      db.execucoes(filtroExecucao()),
+      db.movimentacoes(E.trechoAtual.id)
     ]).then(function (r) {
       E.torres = r[0];
       E.programacoes = r[1];
       E.execucoes = r[2];
+      E.movimentacoes = r[3];
       preencherFiltroCanteiro();
       render.tudo();
     });
@@ -288,11 +294,13 @@ window.SIPAV = window.SIPAV || {};
     return Promise.all([
       db.torres(E.trechoAtual.id),
       db.programacoes(filtroProgramacao()),
-      db.execucoes(filtroExecucao())
+      db.execucoes(filtroExecucao()),
+      db.movimentacoes(E.trechoAtual.id)
     ]).then(function (r) {
       E.torres = r[0];
       E.programacoes = r[1];
       E.execucoes = r[2];
+      E.movimentacoes = r[3];
       render.tudo();
       if (torreAberta) renderListaDoModal();
     });
@@ -5502,6 +5510,267 @@ window.SIPAV = window.SIPAV || {};
       .then(function () { return db.registrarCargaInicial(registros); });
   }
 
+  /* ======================================================================== */
+  /* MOVIMENTAÇÃO — o dia sem atividade na torre                              */
+  /* ======================================================================== */
+
+  /**
+   * Encarregado que muda de trecho, máquina que vai para outro trecho, ou um dia
+   * sem atividade por outro motivo.
+   *
+   * Existe para o dia vazio não ser um mistério. Nos painéis, um dia sem nada
+   * pode ser mudança, chuva, falta de material ou programação que ninguém lançou,
+   * e vazio não diz qual.
+   *
+   * Não é programação: não tem torre nem atividade, e não passa por precedência,
+   * aderência nem relatório da ISA.
+   */
+  function podeRegistrarMovimentacao() {
+    return !!E.perfil && (E.perfil.papel === 'ADMIN' || E.perfil.papel === 'PLANEJAMENTO');
+  }
+
+  function abrirMovimentacao(id) {
+    if (!E.trechoAtual) return;
+
+    if (!podeRegistrarMovimentacao()) {
+      ui.avisar('Só administração e planejamento registram movimentação.', 'alerta');
+      return;
+    }
+
+    var m = id ? (E.movimentacoes || []).find(function (x) { return x.id === id; }) : null;
+    if (id && !m) return;
+
+    var opcoesTrecho = function (selecionado, comVazio) {
+      return (comVazio ? '<option value="">— escolha o trecho —</option>' : '') +
+        E.trechos.map(function (t) {
+          return '<option value="' + t.id + '"' + (t.id === selecionado ? ' selected' : '') + '>' +
+                 esc(t.nome) + '</option>';
+        }).join('');
+    };
+
+    // Os nomes de máquina já usados, para a grafia não divergir ("PC200",
+    // "pc 200", "Escavadeira PC200"). Não há cadastro de máquinas: decidir o modelo
+    // antes de saber como elas são identificadas seria chutar.
+    var maquinas = [];
+    (E.movimentacoes || []).forEach(function (x) {
+      if (x.maquina && maquinas.indexOf(x.maquina) === -1) maquinas.push(x.maquina);
+    });
+
+    var corpo =
+      '<div class="space-y-3">' +
+        '<p class="text-xs" style="color:var(--texto-fraco)">' +
+          'Um dia sem atividade na torre, e o motivo. Não é programação: não conta como ' +
+          'torre nem como atividade. Aparece nos painéis Por Encarregado e Por Data, ' +
+          'para o dia não ficar vazio sem explicação.' +
+        '</p>' +
+
+        '<div><label class="rotulo">O que aconteceu</label>' +
+          '<select id="movTipo" class="campo" onchange="SIPAV.app.mudarTipoMovimentacao()">' +
+            '<option value="MUDANCA_TRECHO">Encarregado muda de trecho</option>' +
+            '<option value="MUDANCA_MAQUINA">Máquina muda de trecho</option>' +
+            '<option value="OUTRO">Outro motivo (dia sem atividade)</option>' +
+          '</select></div>' +
+
+        '<div class="grid grid-cols-2 gap-3">' +
+          '<div><label class="rotulo">Dia</label>' +
+            '<input id="movData" type="date" class="campo" ' +
+                   'onchange="SIPAV.app.mostrarDiasDaMovimentacao()"></div>' +
+          '<div><label class="rotulo">Até <span style="font-weight:400">(se durar mais de um dia)</span></label>' +
+            '<input id="movDataFim" type="date" class="campo" ' +
+                   'onchange="SIPAV.app.mostrarDiasDaMovimentacao()"></div>' +
+        '</div>' +
+        // A obra se guia pelo dia da semana, e uma data crua manda olhar o calendário
+        '<p id="movDias" class="dia-semana"></p>' +
+
+        '<div id="movBlocoEnc"><label class="rotulo" id="movRotuloEnc">Encarregado</label>' +
+          '<input id="movEncarregado" class="campo" list="movListaEnc" autocomplete="off" ' +
+                 'placeholder="Digite para buscar…">' +
+          '<datalist id="movListaEnc">' +
+            E.encarregados.map(function (e) { return '<option value="' + esc(e.nome) + '">'; }).join('') +
+          '</datalist></div>' +
+
+        '<div id="movBlocoMaq" class="hidden"><label class="rotulo">Máquina</label>' +
+          '<input id="movMaquina" class="campo" list="movListaMaq" autocomplete="off" ' +
+                 'placeholder="Ex.: Escavadeira PC200">' +
+          '<datalist id="movListaMaq">' +
+            maquinas.map(function (n) { return '<option value="' + esc(n) + '">'; }).join('') +
+          '</datalist></div>' +
+
+        '<div class="grid grid-cols-2 gap-3">' +
+          '<div><label class="rotulo" id="movRotuloOrigem">De</label>' +
+            '<select id="movOrigem" class="campo">' +
+              opcoesTrecho(m ? m.trecho_origem_id : E.trechoAtual.id, false) +
+            '</select></div>' +
+          '<div id="movBlocoDestino"><label class="rotulo">Para</label>' +
+            '<select id="movDestino" class="campo">' +
+              opcoesTrecho(m ? m.trecho_destino_id : '', true) +
+            '</select></div>' +
+        '</div>' +
+
+        '<div><label class="rotulo" id="movRotuloObs">Observação ' +
+            '<span style="font-weight:400">(opcional)</span></label>' +
+          '<input id="movObs" class="campo" autocomplete="off" ' +
+                 'placeholder="Ex.: sai depois do almoço"></div>' +
+      '</div>';
+
+    var botoes = [{ rotulo: 'Cancelar', classe: 'btn-secundario' }];
+    if (m) {
+      botoes.push({ rotulo: 'Remover', classe: 'btn-perigo', acao: function () {
+        removerMovimentacao(m);
+      } });
+    }
+    botoes.push({ rotulo: m ? 'Salvar' : 'Registrar', classe: 'btn-primario', acao: function () {
+      salvarMovimentacao(id);
+    } });
+
+    ui.modalGenerico({
+      titulo: m ? 'Alterar movimentação' : 'Registrar movimentação',
+      corpoHtml: corpo,
+      botoes: botoes
+    });
+
+    // Preenche depois de montar: valores com aspas ou acento passam pelo DOM, não
+    // pela string do HTML
+    $('movTipo').value = m ? m.tipo : 'MUDANCA_TRECHO';
+    $('movData').value = m ? m.data : (E.periodo && E.periodo.de && E.periodo.de > ui.hoje() ? E.periodo.de : ui.hoje());
+    $('movDataFim').value = m && m.data_fim ? m.data_fim : '';
+    $('movEncarregado').value = m && m.encarregado ? m.encarregado.nome : '';
+    $('movMaquina').value = m ? (m.maquina || '') : '';
+    $('movObs').value = m ? (m.observacao || '') : '';
+
+    mudarTipoMovimentacao();
+    mostrarDiasDaMovimentacao();
+  }
+
+  /** O que a janela pede muda com o tipo: máquina pede máquina, "outro" pede motivo. */
+  function mudarTipoMovimentacao() {
+    var tipo = $('movTipo').value;
+
+    $('movBlocoMaq').classList.toggle('hidden', tipo !== 'MUDANCA_MAQUINA');
+    $('movBlocoDestino').classList.toggle('hidden', tipo === 'OUTRO');
+
+    $('movRotuloEnc').textContent = tipo === 'MUDANCA_TRECHO'
+      ? 'Encarregado' : 'Encarregado (opcional)';
+    $('movRotuloOrigem').textContent = tipo === 'OUTRO' ? 'No trecho' : 'De';
+    $('movRotuloObs').innerHTML = tipo === 'OUTRO'
+      ? 'Motivo'
+      : 'Observação <span style="font-weight:400">(opcional)</span>';
+
+    $('movObs').placeholder = tipo === 'OUTRO'
+      ? 'Ex.: chuva, falta de material, feriado local'
+      : 'Ex.: sai depois do almoço';
+  }
+
+  function mostrarDiasDaMovimentacao() {
+    var de = $('movData').value, ate = $('movDataFim').value;
+    var campo = $('movDias');
+    if (!de) { campo.textContent = ''; return; }
+
+    campo.textContent = ui.diaDaSemana(de) +
+      (ate && ate !== de ? ' até ' + ui.diaDaSemana(ate) : '');
+    campo.className = 'dia-semana' + (ui.fimDeSemana(de) ? ' fim-de-semana' : '');
+  }
+
+  function salvarMovimentacao(id) {
+    var tipo = $('movTipo').value;
+    var data = $('movData').value;
+    var fim  = $('movDataFim').value;
+    var origem  = $('movOrigem').value;
+    var destino = tipo === 'OUTRO' ? '' : $('movDestino').value;
+    var obs = $('movObs').value.trim();
+    var nomeEnc = $('movEncarregado').value.trim();
+    var maquina = tipo === 'MUDANCA_MAQUINA' ? $('movMaquina').value.trim() : '';
+
+    function recusar(texto, campo) {
+      ui.avisar(texto, 'alerta', 6000);
+      if (campo && $(campo)) $(campo).focus();
+    }
+
+    if (!data) return recusar('Informe o dia.', 'movData');
+    if (fim && fim < data) return recusar('O "até" não pode ser antes do dia.', 'movDataFim');
+
+    // O encarregado vem de uma lista com busca. Nome digitado que não bate com
+    // ninguém não pode virar movimentação "sem encarregado" calada.
+    var enc = null;
+    if (nomeEnc) {
+      enc = E.encarregados.find(function (e) { return normalizar(e.nome) === normalizar(nomeEnc); });
+      if (!enc) return recusar('Não achei o encarregado "' + nomeEnc + '". Escolha um da lista.', 'movEncarregado');
+    }
+
+    if (tipo === 'MUDANCA_TRECHO' && !enc) return recusar('Escolha o encarregado que muda de trecho.', 'movEncarregado');
+    if (tipo === 'MUDANCA_MAQUINA' && !maquina) return recusar('Diga qual máquina.', 'movMaquina');
+    if (tipo === 'OUTRO' && !obs) return recusar('Diga o motivo: é ele que explica o dia vazio.', 'movObs');
+
+    if (tipo !== 'OUTRO') {
+      if (!destino) return recusar('Escolha para qual trecho.', 'movDestino');
+      if (destino === origem) return recusar('O destino é o mesmo trecho de origem.', 'movDestino');
+    }
+
+    // Choque com a programação: quem muda de trecho (ou está sem atividade) num
+    // dia em que tem torre programada aqui. Pode ser legítimo — sai depois do
+    // serviço — mas tem que ser deliberado, e não descoberto na sexta.
+    var ate = fim || data;
+    var choque = (enc && tipo !== 'MUDANCA_MAQUINA')
+      ? E.programacoes.filter(function (p) {
+          return p.encarregado && p.encarregado.id === enc.id && p.data >= data && p.data <= ate;
+        })
+      : [];
+
+    var dados = {
+      id: id,
+      tipo: tipo,
+      data: data,
+      dataFim: fim && fim !== data ? fim : null,
+      encarregadoId: enc ? enc.id : null,
+      maquina: maquina,
+      trechoOrigemId: origem,
+      trechoDestinoId: destino,
+      observacao: obs
+    };
+
+    function gravar() {
+      ui.processando('Registrando…');
+      return db.salvarMovimentacao(dados)
+        .then(recarregarProgramacoes)
+        .then(function () {
+          ui.pronto();
+          ui.fecharModal('modalGenerico');
+          ui.avisar(id ? 'Movimentação atualizada.' : 'Movimentação registrada.', 'sucesso');
+        });
+    }
+
+    var seguir = choque.length
+      ? ui.confirmar('Já tem atividade nesse dia',
+          enc.nome + ' tem ' + choque.length + ' atividade(s) programada(s) neste trecho entre ' +
+          ui.dataCurta(data) + (ate !== data ? ' e ' + ui.dataCurta(ate) : '') +
+          ' (' + choque.slice(0, 3).map(function (p) {
+            return (p.torre ? p.torre.identificador : '?') + ' · ' + ui.dataCurta(p.data);
+          }).join(', ') + (choque.length > 3 ? '…' : '') + '). ' +
+          'Registrar a movimentação mesmo assim?', 'Registrar mesmo assim')
+      : Promise.resolve(true);
+
+    seguir
+      .then(function (sim) { return sim ? gravar() : null; })
+      .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro', 7000); });
+  }
+
+  function removerMovimentacao(m) {
+    ui.confirmar('Remover a movimentação',
+      'Apaga este registro. O dia volta a aparecer sem explicação nos painéis.', 'Remover')
+      .then(function (sim) {
+        if (!sim) return;
+        ui.processando('Removendo…');
+        return db.removerMovimentacao(m.id)
+          .then(recarregarProgramacoes)
+          .then(function () {
+            ui.pronto();
+            ui.fecharModal('modalGenerico');
+            ui.avisar('Movimentação removida.', 'sucesso');
+          });
+      })
+      .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro'); });
+  }
+
   /**
    * Compara nomes ignorando caixa E acento: na planilha vem "IGARITE", no
    * cadastro está "Igarité". Sem isso o sistema criaria um canteiro duplicado.
@@ -6173,6 +6442,9 @@ window.SIPAV = window.SIPAV || {};
     programarSelecionadas: programarSelecionadas,
     liberarRestricao: liberarRestricao,
     abrirCorrigirEstagio: abrirCorrigirEstagio,
+    abrirMovimentacao: abrirMovimentacao,
+    mudarTipoMovimentacao: mudarTipoMovimentacao,
+    mostrarDiasDaMovimentacao: mostrarDiasDaMovimentacao,
     abrirHistoricoDaTorre: abrirHistoricoDaTorre,
     abrirHistoricoDoTrecho: abrirHistoricoDoTrecho,
     filtrarHistorico: filtrarHistorico,

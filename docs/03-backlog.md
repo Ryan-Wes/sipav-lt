@@ -46,6 +46,7 @@ Situação conferida em **23/09/2026**, item por item, contra o que está public
 | **R16** | **Estágio só avança com a atividade completa** | [WR] 01/10 | ✅ `db/38` — soma dos apontamentos em 100%; apontamento grava o percentual que saiu |
 | **R17** | **Programado × feito gravado no apontamento** | [WR] 01/10 | ✅ `db/38` — foto da data programada e da original; falta o painel de metas |
 | **R18** | Regra de bloqueio respeitar percentual (20% de escavação não libera reaterro) | [WR] 01/10 | ❌ hoje qualquer execução ou programação, mesmo parcial, cumpre o pré-requisito. É o D4 de volta |
+| **R19** | **Movimentação: dia sem atividade com motivo** | [WR] 01/10 | 🟡 `db/39` + tela escritos; falta testar no navegador. Não bloqueia programar encarregado em dia de movimentação |
 
 ## Relatórios e saídas
 

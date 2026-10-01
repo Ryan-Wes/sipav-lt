@@ -1,15 +1,15 @@
 -- =============================================================================
 -- PARA COLAR NO SQL EDITOR DO SUPABASE — atualizado em 01/10/2026
 -- =============================================================================
--- Pendente: a 38-programado-e-executado.sql.
+-- Pendente: a 39-movimentacao.sql (e a 38, se ainda não entrou).
 --
--- Confere antes o que já entrou. A 36 e a 37 também precisam estar aplicadas:
+-- Confere antes o que já entrou. A 36, a 37 e a 38 também precisam estar aplicadas:
 --
 --   select numero, arquivo from migracao order by numero;
 --
--- Se a última for 35, rode a 36 e a 37 primeiro (estão no histórico da conversa
--- e em db/). A 38 não depende delas, mas as três faltam.
+-- Se a última for 35, rode a 36, a 37 e a 38 primeiro (estão em db/). A 39 não
+-- depende delas.
 --
--- A tela já funciona antes da 38: ela só passa a mostrar a data original e a
--- tratar a atividade parcial como parcial quando a 38 estiver no banco.
+-- A tela já funciona antes da 39: sem a tabela, a movimentação simplesmente não
+-- aparece, e o botão de registrar avisa que falta aplicar a migração.
 -- =============================================================================

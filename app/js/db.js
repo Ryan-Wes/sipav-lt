@@ -1,4 +1,4 @@
-﻿/* =============================================================================
+/* =============================================================================
    SIPAV LT — Camada de dados
    =============================================================================
    Tudo que fala com o Supabase mora aqui. O resto da aplicação nunca chama o
@@ -818,6 +818,89 @@ window.SIPAV = window.SIPAV || {};
       .then(function (r) { return ok(r, 'Falha ao carregar o que foi apontado nesta torre'); });
   }
 
+  /* ======================================================================== */
+  /* MOVIMENTAÇÃO — o dia sem atividade na torre                              */
+  /* ======================================================================== */
+
+  /** A tabela ainda não existe (db/39 por aplicar)? */
+  function semTabelaMovimentacao(erro) {
+    return !!erro && (erro.code === '42P01' || erro.code === 'PGRST205' ||
+                      /movimentacao/i.test(erro.message || ''));
+  }
+
+  /**
+   * Movimentações em que o trecho é a origem OU o destino.
+   *
+   * Sem a tabela devolve vazio em vez de erro: ela é nova, e a tela inteira não
+   * pode ficar sem programação só porque o SQL ainda não foi colado.
+   *
+   * O recorte de período fica na tela, não aqui: são poucas dezenas de registros,
+   * e combinar dois "or" no filtro do PostgREST é o tipo de coisa que funciona
+   * até a versão em que não funciona.
+   */
+  function movimentacoes(trechoId) {
+    return cliente()
+      .from('movimentacao')
+      .select('id, tipo, data, data_fim, encarregado_id, maquina, ' +
+              'trecho_origem_id, trecho_destino_id, observacao, ' +
+              'encarregado:encarregado_id ( id, nome )')
+      .or('trecho_origem_id.eq.' + trechoId + ',trecho_destino_id.eq.' + trechoId)
+      .order('data')
+      .then(function (r) {
+        if (semTabelaMovimentacao(r.error)) return [];
+        return ok(r, 'Falha ao carregar movimentações');
+      });
+  }
+
+  /**
+   * @param {object} d {id?, tipo, data, dataFim, encarregadoId, maquina,
+   *                    trechoOrigemId, trechoDestinoId, observacao}
+   */
+  function salvarMovimentacao(d) {
+    // Sem a tabela o erro cru do banco não diz o que fazer
+    function conferir(r, contexto) {
+      if (semTabelaMovimentacao(r.error)) {
+        throw new Error('A tabela de movimentação ainda não existe no banco. ' +
+                        'Falta aplicar a migração 39 (db/39-movimentacao.sql).');
+      }
+      return ok(r, contexto);
+    }
+
+    return obra().then(function (o) {
+      return auth.usuario().then(function (u) {
+        var linha = {
+          tipo:              d.tipo,
+          data:              d.data,
+          data_fim:          d.dataFim || null,
+          encarregado_id:    d.encarregadoId || null,
+          maquina:           d.maquina || null,
+          trecho_origem_id:  d.trechoOrigemId,
+          trecho_destino_id: d.trechoDestinoId || null,
+          observacao:        d.observacao || null
+        };
+
+        if (d.id) {
+          return cliente().from('movimentacao').update(linha).eq('id', d.id)
+            .select('id').single()
+            .then(function (r) { return conferir(r, 'Falha ao salvar a movimentação'); });
+        }
+
+        linha.obra_id = o.id;
+        linha.criado_por = u ? u.id : null;
+        return cliente().from('movimentacao').insert(linha).select('id').single()
+          .then(function (r) { return conferir(r, 'Falha ao registrar a movimentação'); });
+      });
+    });
+  }
+
+  function removerMovimentacao(id) {
+    return cliente().from('movimentacao').delete().eq('id', id)
+      .then(function (r) {
+        if (r.error) throw traduzErro(r.error, 'Falha ao remover a movimentação');
+        return true;
+      });
+  }
+
   /** Desfaz vários apontamentos de uma vez, pelo id da execução. */
   function desfazerApontamentos(ids) {
     if (!ids || !ids.length) return Promise.resolve(true);
@@ -978,13 +1061,35 @@ window.SIPAV = window.SIPAV || {};
             });
           })
       .subscribe();
+
+    // A movimentação escuta num canal SEPARADO. Se a tabela ainda não existir,
+    // ou não estiver na publicação, o canal dela falha — e se estivesse no mesmo,
+    // levaria junto o tempo real da programação, que é o que importa.
+    canalMovimentacao = cliente()
+      .channel('sipav-movimentacao')
+      .on('postgres_changes',
+          { event: '*', schema: 'public', table: 'movimentacao' },
+          function (payload) {
+            cb({
+              evento: payload.eventType,
+              registro: payload.new && Object.keys(payload.new).length ? payload.new : payload.old
+            });
+          })
+      .subscribe();
+
     return pararDeEscutar;
   }
+
+  var canalMovimentacao = null;
 
   function pararDeEscutar() {
     if (canalProgramacao) {
       cliente().removeChannel(canalProgramacao);
       canalProgramacao = null;
+    }
+    if (canalMovimentacao) {
+      cliente().removeChannel(canalMovimentacao);
+      canalMovimentacao = null;
     }
   }
 
@@ -1109,6 +1214,9 @@ window.SIPAV = window.SIPAV || {};
     salvarEncarregado: salvarEncarregado,
     desativarEncarregado: desativarEncarregado,
     salvarAtividade: salvarAtividade,
+    movimentacoes: movimentacoes,
+    salvarMovimentacao: salvarMovimentacao,
+    removerMovimentacao: removerMovimentacao,
     execucoesDaTorre: execucoesDaTorre,
     desfazerApontamentos: desfazerApontamentos,
     atividadeRemovidaPorNome: atividadeRemovidaPorNome,

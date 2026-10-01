@@ -16,6 +16,38 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 01/10/2026
 
+### Movimentação: o dia sem atividade ganha um motivo — [WR]
+
+Tem dia em que não há atividade na torre porque o encarregado mudou de trecho
+ou a máquina foi levada para outro. Nos painéis esse dia ficava vazio, e vazio
+não diz o que houve: mudança, chuva, falta de material ou programação que
+ninguém lançou.
+
+Criei a tabela `movimentacao` (`db/39`), com três tipos: encarregado muda de
+trecho, máquina muda de trecho, e "outro" com o motivo escrito. Decisões:
+
+- **Não é programação.** Não tem torre nem atividade, e não entra em
+  precedência, aderência nem no relatório da ISA.
+- **Aparece nos dois trechos.** Em quem sai, "vai para X"; em quem recebe,
+  "vem de X".
+- **Vários dias.** Aceita "até"; é desenhada só no primeiro dia, porque repetida
+  em cada dia viraria barulho.
+- **Máquina em texto livre.** Não há cadastro de máquinas, e criar um agora seria
+  decidir o modelo sem saber como elas se identificam (placa, prefixo, modelo). A
+  tela sugere os nomes já usados.
+- **"Outro" exige o motivo.** Dia sem atividade sem motivo é o vazio que isto
+  existe para tirar. O banco também recusa.
+- **Quem registra.** Só administração e planejamento. O supervisor já tem o
+  caminho da programação solicitada.
+- **Choque com programação.** Se o encarregado tem torre programada no dia, a
+  tela pergunta antes. Não bloqueia: ele pode sair depois do serviço.
+- **Filtro some com ela.** Filtrar por atividade, canteiro ou torre é pedir "só
+  isto", e a movimentação viraria ruído.
+
+**Em aberto.** Programar um encarregado num dia em que ele está em movimentação
+não é impedido, só avisado na hora de registrar a movimentação. O contrário
+(programar depois) ainda passa calado.
+
 ### Voltar o estágio para "nada executado" de verdade — [WR]
 
 A opção existia no seletor, mas só apagava a carga da planilha. Numa torre com

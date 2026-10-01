@@ -1244,3 +1244,34 @@ body.modo-selecao #visaoGrade { user-select: none; }
   margin-left: .25rem; flex-shrink: 0;
   font-size: .6875rem; font-weight: 800; color: #10B981;
 }
+
+/* =========================================================================
+   Movimentação: o dia sem atividade com motivo
+   ========================================================================= */
+/* Faixa fina acima dos cartões. Tem que se ler como "o que aconteceu", e não
+   como mais uma atividade, então sem cor de estrutura e com borda tracejada. */
+.faixa-mov {
+  display: flex; flex-wrap: wrap; gap: .375rem;
+  margin: 0 0 .5rem;
+}
+.chip-mov {
+  display: inline-flex; align-items: center; gap: .375rem;
+  max-width: 100%;
+  padding: .25rem .5rem;
+  font-size: .75rem; line-height: 1.2;
+  color: var(--texto-suave);
+  background: var(--superficie-2);
+  border: 1px dashed var(--borda-forte);
+  border-radius: .5rem;
+}
+.chip-mov-editavel { cursor: pointer; }
+.chip-mov-editavel:hover { border-style: solid; color: var(--texto); }
+.chip-mov-quando { font-weight: 600; white-space: nowrap; color: var(--texto); }
+.chip-mov-texto { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chip-mov .chip-dia {
+  margin-left: .1875rem;
+  font-size: .625rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .02em;
+  color: var(--texto-fraco);
+}
+.chip-mov .chip-dia.fim-de-semana { color: #F59E0B; }

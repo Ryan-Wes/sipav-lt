@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
     perfil: null, obra: null,
     trechos: [], trechoAtual: null,
     torres: [], atividades: [], dependencias: [], encarregados: [], canteiros: [],
-    programacoes: [], execucoes: [],
+    programacoes: [], execucoes: [], movimentacoes: [],
     aba: 'grade', colunas: 'auto', filtroAtividade: '', filtroCanteiro: '', busca: '',
     // Recorte de datas da programação. de/ate nulos = todo o período.
     periodo: { modo: 'duas', de: null, ate: null },
@@ -358,6 +358,16 @@ window.SIPAV = window.SIPAV || {};
     // torre no mesmo dia são uma torre só — antes o cabeçalho dizia "9 torres"
     // onde havia 3, e somava o km três vezes.
     var t = totais(itens);
+
+    // Dia só com movimentação: sem torre, sem atividade. Mostrar "0 torres · 0,00 km"
+    // diria que a obra parou, quando o que há é uma explicação.
+    var resumo = itens.length
+      ? t.torres + (t.torres === 1 ? ' torre' : ' torres') + ' · ' + ui.km(t.km) + ' km' +
+        (itens.length !== t.torres
+          ? ' · ' + itens.length + (itens.length === 1 ? ' atividade' : ' atividades')
+          : '')
+      : 'sem atividade nas torres';
+
     return '' +
       '<section class="bloco-quadrante painel overflow-hidden">' +
         '<header class="flex flex-wrap items-baseline justify-between gap-x-3 px-4 py-2.5 bg-slate-50 border-b border-slate-200">' +
@@ -365,16 +375,14 @@ window.SIPAV = window.SIPAV || {};
             '<h3 class="font-bold text-slate-800">' + esc(titulo) + '</h3>' +
             (subtitulo ? '<p class="text-xs text-slate-500">' + esc(subtitulo) + '</p>' : '') +
           '</div>' +
-          '<span class="text-xs font-semibold text-slate-500 shrink-0">' +
-            t.torres + (t.torres === 1 ? ' torre' : ' torres') + ' · ' + ui.km(t.km) + ' km' +
-            (itens.length !== t.torres
-              ? ' · ' + itens.length + (itens.length === 1 ? ' atividade' : ' atividades')
-              : '') +
-          '</span>' +
+          '<span class="text-xs font-semibold text-slate-500 shrink-0">' + resumo + '</span>' +
         '</header>' +
-        '<div class="p-3 grid gap-2" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr))">' +
-          itens.map(function (p) { return chipProgramacao(p, op); }).join('') +
-        '</div>' +
+        (itens.length
+          ? '<div class="p-3 grid gap-2" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr))">' +
+              itens.map(function (p) { return chipProgramacao(p, op); }).join('') +
+            '</div>'
+          : '') +
+        ((op && op.faixa) || '') +
       '</section>';
   }
 
@@ -397,6 +405,98 @@ window.SIPAV = window.SIPAV || {};
       if (busca && (!p.torre || p.torre.identificador.toLowerCase().indexOf(busca) === -1)) return false;
       return true;
     });
+  }
+
+  /* ---------------------------------------------------- Movimentação ------ */
+
+  /**
+   * Mudança de trecho de encarregado, deslocamento de máquina, dia sem atividade.
+   *
+   * Não é programação: não tem torre nem atividade. Existe para um dia vazio nos
+   * painéis não ser um mistério — pode ser mudança, chuva, falta de material, ou
+   * programação que ninguém lançou, e vazio não diz qual.
+   */
+  var ICONE_MOVIMENTACAO = {
+    MUDANCA_TRECHO: 'arrow-right-left', MUDANCA_MAQUINA: 'truck', OUTRO: 'ban'
+  };
+
+  function podeEditarMovimentacao() {
+    return !!E.perfil && (E.perfil.papel === 'ADMIN' || E.perfil.papel === 'PLANEJAMENTO');
+  }
+
+  /**
+   * Filtrar por atividade, canteiro ou torre é pedir "só isto". Movimentação não
+   * é nenhuma dessas coisas e apareceria como ruído no meio do que se procura.
+   */
+  function movimentacoesVisiveis() {
+    if (E.filtroAtividade || E.filtroCanteiro || (E.busca || '').trim()) return [];
+
+    var de = E.periodo.de, ate = E.periodo.ate;
+    return (E.movimentacoes || []).filter(function (m) {
+      if (ate && m.data > ate) return false;
+      if (de && (m.data_fim || m.data) < de) return false;
+      return true;
+    });
+  }
+
+  /**
+   * O dia em que ela é desenhada. Uma movimentação de vários dias aparece só no
+   * primeiro — repetida em cada dia viraria barulho — e, se começou antes do
+   * período exibido, no primeiro dia dele.
+   */
+  function diaDaMovimentacao(m) {
+    return E.periodo.de && m.data < E.periodo.de ? E.periodo.de : m.data;
+  }
+
+  function nomeDoTrecho(id) {
+    var t = (E.trechos || []).find(function (x) { return x.id === id; });
+    return t ? t.nome : '—';
+  }
+
+  /** "vai para Campo Formoso", "vem de Barra" — conforme o trecho em que estou. */
+  function textoDaMovimentacao(m) {
+    if (m.tipo === 'OUTRO') return m.observacao || 'Sem atividade';
+
+    var atual = E.trechoAtual ? E.trechoAtual.id : null;
+    var rota = m.trecho_origem_id === atual
+      ? 'vai para ' + nomeDoTrecho(m.trecho_destino_id)
+      : m.trecho_destino_id === atual
+        ? 'vem de ' + nomeDoTrecho(m.trecho_origem_id)
+        : nomeDoTrecho(m.trecho_origem_id) + ' → ' + nomeDoTrecho(m.trecho_destino_id);
+
+    return (m.tipo === 'MUDANCA_MAQUINA' ? (m.maquina || 'Máquina') : 'Muda de trecho') +
+           ' · ' + rota;
+  }
+
+  function chipMovimentacao(m, comQuem) {
+    var dia = function (iso) {
+      return ui.dataCurta(iso) + '<b class="chip-dia' + (ui.fimDeSemana(iso) ? ' fim-de-semana' : '') + '">' +
+             esc(ui.diaDaSemana(iso).slice(0, 3)) + '</b>';
+    };
+    var quando = dia(m.data) +
+      (m.data_fim && m.data_fim !== m.data ? ' → ' + dia(m.data_fim) : '');
+
+    // Em "por data" não há o nome do encarregado no título do bloco: entra aqui
+    var texto = (comQuem && m.encarregado ? m.encarregado.nome + ' · ' : '') + textoDaMovimentacao(m);
+    var dica = textoDaMovimentacao(m) +
+      (m.tipo !== 'OUTRO' && m.observacao ? ' — ' + m.observacao : '');
+
+    var editavel = podeEditarMovimentacao();
+
+    return '<div class="chip-mov' + (editavel ? ' chip-mov-editavel' : '') + '" ' +
+             (editavel ? 'onclick="SIPAV.app.abrirMovimentacao(\'' + m.id + '\')" ' : '') +
+             'title="' + esc(dica) + '">' +
+             '<i data-lucide="' + (ICONE_MOVIMENTACAO[m.tipo] || 'ban') + '" class="w-3.5 h-3.5 shrink-0"></i>' +
+             '<span class="chip-mov-quando">' + quando + '</span>' +
+             '<span class="chip-mov-texto">' + esc(texto) + '</span>' +
+           '</div>';
+  }
+
+  function faixaMovimentacoes(movs, comQuem) {
+    if (!movs || !movs.length) return '';
+    return '<div class="faixa-mov">' +
+             movs.map(function (m) { return chipMovimentacao(m, comQuem); }).join('') +
+           '</div>';
   }
 
   function vazio(mensagem) {
@@ -426,18 +526,35 @@ window.SIPAV = window.SIPAV || {};
     var lista = programacoesVisiveis().slice().sort(function (a, b) {
       return a.data < b.data ? -1 : a.data > b.data ? 1 : 0;
     });
+    var movs = movimentacoesVisiveis();
     var cont = $('visaoDatas');
-    if (!lista.length) { cont.innerHTML = vazio('Nenhuma atividade programada neste trecho'); return; }
+    if (!lista.length && !movs.length) {
+      cont.innerHTML = vazio('Nenhuma atividade programada neste trecho');
+      return;
+    }
 
-    var porSemana = agrupar(lista, function (p) {
-      return ui.iso(ui.segundaDaSemana(ui.paraData(p.data)));
-    });
+    // Semana → o que há nela. A movimentação entra junto: um dia em que só há
+    // mudança de trecho ou de máquina também é um dia, e tem que aparecer.
+    var semanas = {}, ordemSemanas = [];
+    function daSemana(iso) {
+      var seg = ui.iso(ui.segundaDaSemana(ui.paraData(iso)));
+      if (!semanas[seg]) { semanas[seg] = { progs: [], movs: [] }; ordemSemanas.push(seg); }
+      return semanas[seg];
+    }
+    lista.forEach(function (p) { daSemana(p.data).progs.push(p); });
+    movs.forEach(function (m) { daSemana(diaDaMovimentacao(m)).movs.push(m); });
+    ordemSemanas.sort();
 
-    cont.innerHTML = porSemana.ordem.map(function (segunda) {
-      var daSemana = porSemana.mapa[segunda];
-      var t = totais(daSemana);
+    cont.innerHTML = ordemSemanas.map(function (segunda) {
+      var s = semanas[segunda];
+      var t = totais(s.progs);
       var domingo = ui.iso(ui.somarDias(ui.paraData(segunda), 6));
-      var porDia = agrupar(daSemana, function (p) { return p.data; });
+      var progsPorDia = agrupar(s.progs, function (p) { return p.data; });
+      var movsPorDia = agrupar(s.movs, diaDaMovimentacao);
+
+      var dias = Object.keys(progsPorDia.mapa).concat(
+        Object.keys(movsPorDia.mapa).filter(function (d) { return !progsPorDia.mapa[d]; })
+      ).sort();
 
       return '' +
         '<section class="space-y-3">' +
@@ -447,17 +564,20 @@ window.SIPAV = window.SIPAV || {};
               'Semana de ' + ui.dataCurta(segunda) + ' a ' + ui.dataCurta(domingo) +
             '</h2>' +
             '<span class="text-xs font-semibold text-slate-500">' +
-              t.torres + (t.torres === 1 ? ' torre' : ' torres') + ' · ' +
-              ui.km(t.km) + ' km · ' +
-              daSemana.length + (daSemana.length === 1 ? ' atividade' : ' atividades') +
+              (s.progs.length
+                ? t.torres + (t.torres === 1 ? ' torre' : ' torres') + ' · ' +
+                  ui.km(t.km) + ' km · ' +
+                  s.progs.length + (s.progs.length === 1 ? ' atividade' : ' atividades')
+                : 'sem atividade nas torres') +
             '</span>' +
           '</header>' +
-          porDia.ordem.map(function (data) {
+          dias.map(function (data) {
             // A data esta no titulo do bloco, entao sai do chip. O encarregado
             // desce para a segunda linha: lado a lado, o nome da atividade quebra
             // em tres linhas e a grade perde o alinhamento.
-            return blocoQuadrante(ui.dataLonga(data), null, porDia.mapa[data],
-              { torre: true, data: false, atividade: true, encarregado: true, empilhado: true });
+            return blocoQuadrante(ui.dataLonga(data), null, progsPorDia.mapa[data] || [],
+              { torre: true, data: false, atividade: true, encarregado: true, empilhado: true,
+                faixa: faixaMovimentacoes(movsPorDia.mapa[data], true) });
           }).join('') +
         '</section>';
     }).join('');
@@ -465,8 +585,12 @@ window.SIPAV = window.SIPAV || {};
 
   function renderPorEncarregado() {
     var lista = programacoesVisiveis();
+    var movs = movimentacoesVisiveis();
     var cont = $('visaoEncarregados');
-    if (!lista.length) { cont.innerHTML = vazio('Nenhuma atividade programada neste trecho'); return; }
+    if (!lista.length && !movs.length) {
+      cont.innerHTML = vazio('Nenhuma atividade programada neste trecho');
+      return;
+    }
 
     var ordenada = lista.slice().sort(function (a, b) {
       var na = a.encarregado ? a.encarregado.nome : 'zzz';
@@ -476,6 +600,15 @@ window.SIPAV = window.SIPAV || {};
     });
 
     var g = agrupar(ordenada, function (p) { return p.encarregado ? p.encarregado.nome : 'Sem encarregado'; });
+
+    // Movimentação por encarregado. Quem passou o período inteiro em outro trecho
+    // não tem atividade nenhuma aqui — e é justamente o que sumiria do painel sem
+    // explicação. Ele também ganha bloco, só com a movimentação.
+    var movsPorEnc = agrupar(movs.filter(function (m) { return m.encarregado; }),
+                             function (m) { return m.encarregado.nome; });
+    var movsSemEnc = movs.filter(function (m) { return !m.encarregado; });
+    var extras = movsPorEnc.ordem.filter(function (n) { return !g.mapa[n]; })
+      .sort(function (a, b) { return a.localeCompare(b, 'pt-BR'); });
 
     // Consolidado no topo: é o número que a fiscalização e a coordenação pedem,
     // e que antes só dava para somar olhando bloco a bloco.
@@ -528,8 +661,8 @@ window.SIPAV = window.SIPAV || {};
         '</p>' +
       '</section>';
 
-    cont.innerHTML = tabela + g.ordem.map(function (nome) {
-      var itens = g.mapa[nome];
+    cont.innerHTML = (lista.length ? tabela : '') + g.ordem.concat(extras).map(function (nome) {
+      var itens = g.mapa[nome] || [];
       var datas = {};
       itens.forEach(function (p) { datas[p.data] = true; });
       var qtd = Object.keys(datas).length;
@@ -565,16 +698,26 @@ window.SIPAV = window.SIPAV || {};
             '<div class="min-w-0">' +
               '<h3 class="font-bold text-slate-800">' + esc(nome) + '</h3>' +
               '<p class="text-xs text-slate-500">' +
-                qtd + (qtd === 1 ? ' dia programado' : ' dias programados') + '</p>' +
+                (qtd ? qtd + (qtd === 1 ? ' dia programado' : ' dias programados')
+                     : 'nenhum dia programado') + '</p>' +
             '</div>' +
             '<span class="text-xs font-semibold text-slate-500 shrink-0">' +
-              t.torres + (t.torres === 1 ? ' torre' : ' torres') + ' · ' + ui.km(t.km) + ' km · ' +
-              itens.length + (itens.length === 1 ? ' atividade' : ' atividades') +
+              (itens.length
+                ? t.torres + (t.torres === 1 ? ' torre' : ' torres') + ' · ' + ui.km(t.km) + ' km · ' +
+                  itens.length + (itens.length === 1 ? ' atividade' : ' atividades')
+                : 'sem atividade nas torres') +
             '</span>' +
           '</header>' +
           corpo +
+          faixaMovimentacoes(movsPorEnc.mapa[nome], false) +
         '</section>';
-    }).join('');
+    }).join('') +
+
+    // Máquinas e o que não é de ninguém: movimentação sem encarregado
+    (movsSemEnc.length
+      ? blocoQuadrante('Máquinas e outros', 'sem encarregado', [],
+          { faixa: faixaMovimentacoes(movsSemEnc, false) })
+      : '');
   }
 
   /**
