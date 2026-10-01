@@ -48,6 +48,7 @@ Situação conferida em **23/09/2026**, item por item, contra o que está public
 | **R18** | Regra de bloqueio respeitar percentual (20% de escavação não libera reaterro) | [WR] 01/10 | ❌ hoje qualquer execução ou programação, mesmo parcial, cumpre o pré-requisito. É o D4 de volta |
 | **R19** | **Movimentação: encarregado/máquina mudando de canteiro ou torre, ou outro motivo** | [WR] 01/10 | ✅ `db/39` + janela + os dois painéis. Não bloqueia programar encarregado em dia de movimentação |
 | **R20** | **Escavação por parte: marcar A, B, C, D em qualquer ordem** | [WR] 01/10 | ✅ `db/40` — letras gravadas em `programacao.partes`; parte já programada não se repete |
+| **R21** | **Relatório da ISA nas quatro planilhas oficiais de 28/09** | [WR] 01/10 | ✅ OPGW direito/esquerdo (`db/41`), recuperação de acesso e praça de lançamento no de-para. Faltam as linhas de tubulão e de avifauna/placas nas planilhas (P8, P9) |
 
 ## Relatórios e saídas
 

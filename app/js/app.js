@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v100 · 2026-10-01';
+  var VERSAO = 'v101 · 2026-10-01';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -665,9 +665,42 @@ window.SIPAV = window.SIPAV || {};
     'ANCORAGEM OPGW / PARA-RAIO'
   ];
 
-  /** 'PARA_RAIO' é o valor do enum; na tela ele aparece como o campo fala. */
+  /** O valor do enum, como o campo fala. */
   function rotuloCabo(cabo) {
-    return cabo === 'PARA_RAIO' ? 'PARA-RAIO' : cabo;
+    if (cabo === 'PARA_RAIO') return 'PARA-RAIO';
+    if (cabo === 'OPGW_DIREITO') return 'OPGW DIR.';
+    if (cabo === 'OPGW_ESQUERDO') return 'OPGW ESQ.';
+    return cabo;
+  }
+
+  /**
+   * Os cabos que o trecho aberto tem. Nem todos têm a mesma configuração: Barra –
+   * Correntina e Campo Formoso – Barra têm para-raio e OPGW; Buritirama – Barra e
+   * Juazeiro – Campo Formoso têm dois OPGW, um de cada lado, e nenhum para-raio.
+   * Oferecer "para-raio" onde ele não existe é convidar ao erro.
+   */
+  function opcoesDeCabo() {
+    var doisLados = !!E.trechoAtual && E.trechoAtual.cabo_modelo === 'OPGW_DOIS_LADOS';
+    return doisLados
+      ? [{ valor: 'OPGW_DIREITO',  rotulo: 'OPGW direito' },
+         { valor: 'OPGW_ESQUERDO', rotulo: 'OPGW esquerdo' }]
+      : [{ valor: 'OPGW',      rotulo: 'OPGW' },
+         { valor: 'PARA_RAIO', rotulo: 'Para-raio 3/8 / Dotterel' }];
+  }
+
+  function htmlOpcoesDeCabo(selecionado) {
+    return '<option value="">Escolha o cabo…</option>' +
+      opcoesDeCabo().map(function (o) {
+        return '<option value="' + o.valor + '"' + (o.valor === selecionado ? ' selected' : '') + '>' +
+               esc(o.rotulo) + '</option>';
+      }).join('');
+  }
+
+  /** "OPGW ou para-raio" / "OPGW direito ou esquerdo", para as mensagens. */
+  function textoDasOpcoesDeCabo() {
+    return opcoesDeCabo().map(function (o) {
+      return o.rotulo.replace(' 3/8 / Dotterel', '').toLowerCase().replace('opgw', 'OPGW');
+    }).join(' ou ');
   }
 
   /**
@@ -838,7 +871,14 @@ window.SIPAV = window.SIPAV || {};
   function atualizarCampoCabo() {
     var precisa = atividadesEscolhidas.some(pedeCabo);
     $('blocoCabo').classList.toggle('hidden', !precisa);
-    if (!precisa) $('campoCabo').value = '';
+
+    // As opções dependem do trecho. O valor escolhido só sobrevive se ainda for
+    // uma delas: um "OPGW" antigo num trecho de dois lados volta vazio, e o
+    // formulário cobra o lado.
+    var sel = $('campoCabo');
+    var atual = sel.value;
+    sel.innerHTML = htmlOpcoesDeCabo();
+    sel.value = precisa && opcoesDeCabo().some(function (o) { return o.valor === atual; }) ? atual : '';
   }
 
   /* -------------------------------------------------------- Atividades ---- */
@@ -1680,7 +1720,7 @@ window.SIPAV = window.SIPAV || {};
     var cabo = $('campoCabo').value || null;
     var faltaCabo = atividadesEscolhidas.filter(function (id) { return pedeCabo(id); });
     if (faltaCabo.length && !cabo) {
-      ui.avisar('Escolha o cabo: OPGW ou para-raio.', 'alerta');
+      ui.avisar('Escolha o cabo: ' + textoDasOpcoesDeCabo() + '.', 'alerta');
       $('campoCabo').focus();
       return;
     }
@@ -2859,12 +2899,7 @@ window.SIPAV = window.SIPAV || {};
 
           '<div id="loteBlocoCabo" class="hidden sm:col-span-2">' +
             '<label class="rotulo">Cabo</label>' +
-            '<select id="loteCabo" class="campo">' +
-              '<option value="">Escolha o cabo…</option>' +
-              '<option value="OPGW"' + (cabo === 'OPGW' ? ' selected' : '') + '>OPGW</option>' +
-              '<option value="PARA_RAIO"' + (cabo === 'PARA_RAIO' ? ' selected' : '') +
-                '>Para-raio 3/8 · Dotterel</option>' +
-            '</select>' +
+            '<select id="loteCabo" class="campo">' + htmlOpcoesDeCabo(cabo) + '</select>' +
           '</div>' +
         '</div>' +
 
@@ -3468,7 +3503,7 @@ window.SIPAV = window.SIPAV || {};
 
     var cabo = $('loteCabo') ? ($('loteCabo').value || null) : null;
     if (loteAtividades.some(pedeCabo) && !cabo) {
-      ui.avisar('Escolha o cabo: OPGW ou para-raio.', 'alerta');
+      ui.avisar('Escolha o cabo: ' + textoDasOpcoesDeCabo() + '.', 'alerta');
       $('loteCabo').focus();
       return;
     }

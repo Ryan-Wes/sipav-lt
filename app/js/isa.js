@@ -46,16 +46,18 @@ window.SIPAV = window.SIPAV || {};
   /**
    * Catálogo dos itens que o SIPAV programa. O `item` é o código do catálogo
    * unificado; os `nomes` são todas as grafias encontradas nas quatro planilhas
-   * de 21/09, porque elas divergiram e a padronização ainda vai ser apresentada
+   * de 21/09 e as oficiais de 28/09, porque elas divergiram e a padronização ainda vai ser apresentada
    * à fiscalização. A localização é feita pelo NOME, não pelo código — os
    * códigos se repetem e saem de ordem em três dos quatro arquivos.
    */
   var CATALOGO = {
     // ---- Preliminares
     '1.2.3':  ['construcao de acesso', 'construcao estrada de acesso'],
+    '1.2.5':  ['recuperacao de acesso'],
     '1.3.1':  ['limpeza area de torre', 'limpeza de area de torre'],
     '1.3.2':  ['limpeza da faixa', 'limpeza vao entre estruturas'],
     '1.3.3':  ['corte seletivo'],
+    '1.3.5':  ['supressao de praca de lancamento', 'supressao praca de lancamento'],
 
     // ---- Fundação
     '2.1.4':  ['escavacao fundacao estai pe', 'escavacao fundacao'],
@@ -95,7 +97,8 @@ window.SIPAV = window.SIPAV || {};
     '3.1.4':  ['revisao final estaiadas'],
     '3.1.5':  ['giro e prumo'],
     '3.2.1':  ['pre montagem de torre autoportante'],
-    '3.2.2':  ['montagem de torres autoportante guindaste',
+    '3.2.2':  ['montagem de torres autoportante guindaste ou manual',
+               'montagem de torres autoportante guindaste',
                'montagem mecanizada de torre autoportante'],
     '3.2.3':  ['revisao de torres autoportante', 'revisao de torre autoportante'],
 
@@ -130,19 +133,39 @@ window.SIPAV = window.SIPAV || {};
   };
 
   /**
+   * As seis linhas de lançamento do cabo-guarda, nas quatro formas em que a
+   * planilha as tem:
+   *
+   *   pr    — para-raio convencional, seção 4.1
+   *   opgw  — OPGW único, seção 4.2
+   *   opgwD / opgwE — OPGW direito e esquerdo. Buritirama–Barra e
+   *           Juazeiro–Campo Formoso têm os dois e nenhum para-raio: duas seções
+   *           com as mesmas linhas, que só se distinguem pelo título.
+   *
+   * Os códigos com D e E são só chaves internas. Nas planilhas as duas seções
+   * repetem a numeração 4.2.x, então o código não identifica o lado.
+   */
+  function cabo(n) {
+    return { pr: ['4.1.' + n], opgw: ['4.2.' + n],
+             opgwD: ['4.2D.' + n], opgwE: ['4.2E.' + n] };
+  }
+
+  /**
    * Atividade do SIPAV → itens da ISA.
    *
    *   itens     — vale para qualquer torre
    *   est / aup — depende do tipo da estrutura. Estaiada tem mastro central e
    *               estais, então a fundação dela conta nas duas linhas;
    *               autoportante só nos pés.
-   *   opgw / pr — depende do campo `cabo` da programação.
+   *   pr / opgw / opgwD / opgwE — depende do campo `cabo` da programação.
    */
   var DE_PARA = {
     'ABERTURA DE ACESSO':                       { itens: ['1.2.3'] },
+    'RECUPERAÇÃO DE ACESSO':                    { itens: ['1.2.5'] },
     'SUPRESSÃO DE ÁREA DE TORRE':               { itens: ['1.3.1'] },
     'SUPRESSÃO DA FAIXA':                       { itens: ['1.3.2'] },
     'CORTE SELETIVO':                           { itens: ['1.3.3'] },
+    'SUPRESSÃO DE PRAÇA DE LANÇAMENTO':         { itens: ['1.3.5'] },
 
     // Numa autoportante o mastro central não existe, então a escavação completa
     // dela é só a dos pés
@@ -168,12 +191,12 @@ window.SIPAV = window.SIPAV || {};
     'REVISÃO':                                  { est: ['3.1.4'], aup: ['3.2.3'] },
     'GIRO E PRUMO':                             { itens: ['3.1.5'] },
 
-    'INSTALAÇÃO DE BANDOLAS OPGW / PARA-RAIO':  { opgw: ['4.2.1'], pr: ['4.1.1'] },
-    'LANÇAMENTO DO PILOTINHO':                  { opgw: ['4.2.2'], pr: ['4.1.2'] },
-    'LANÇAMENTO DO CABO OPGW/PR':               { opgw: ['4.2.3'], pr: ['4.1.3'] },
-    'NIVELAMENTO OPGW / PARA-RAIO':             { opgw: ['4.2.4'], pr: ['4.1.4'] },
-    'GRAMPEAÇÃO OPGW / PARA-RAIO':              { opgw: ['4.2.5'], pr: ['4.1.5'] },
-    'ANCORAGEM OPGW / PARA-RAIO':               { opgw: ['4.2.6'], pr: ['4.1.6'] },
+    'INSTALAÇÃO DE BANDOLAS OPGW / PARA-RAIO':  cabo(1),
+    'LANÇAMENTO DO PILOTINHO':                  cabo(2),
+    'LANÇAMENTO DO CABO OPGW/PR':               cabo(3),
+    'NIVELAMENTO OPGW / PARA-RAIO':             cabo(4),
+    'GRAMPEAÇÃO OPGW / PARA-RAIO':              cabo(5),
+    'ANCORAGEM OPGW / PARA-RAIO':               cabo(6),
 
     'INSTALAÇÃO DE BANDOLAS E ISOLADORES':      { itens: ['4.3.1'] },
     'LANÇAMENTO DO PILOTO DO CONDUTOR':         { itens: ['4.3.2'] },
@@ -223,13 +246,35 @@ window.SIPAV = window.SIPAV || {};
       .toLowerCase();
   }
 
-  /** Qual item da ISA esta programação alimenta, dado o tipo da torre. */
-  function itensDe(prog, estrutura) {
-    var regra = DE_PARA[prog.atividade ? prog.atividade.nome : ''];
+  /**
+   * A regra de uma atividade, pelo nome sem caixa e sem acento. O nome vem do
+   * cadastro, onde qualquer um pode digitar "Recuperação de acesso" ou
+   * "RECUPERACAO DE ACESSO"; exigir a grafia exata mandaria para o relato
+   * "atividade que não vai para o relatório" uma que vai.
+   */
+  var DE_PARA_NORM = {};
+  Object.keys(DE_PARA).forEach(function (nome) { DE_PARA_NORM[norm(nome)] = DE_PARA[nome]; });
+
+  function regraDe(nome) {
+    return DE_PARA_NORM[norm(nome)] || null;
+  }
+
+  /**
+   * Qual item da ISA esta programação alimenta, dado o tipo da torre.
+   *
+   * `doisLados` diz que a planilha tem OPGW direito e esquerdo em vez de
+   * para-raio e OPGW. Nela um "OPGW" sem lado não tem onde cair: devolve vazio
+   * e a programação vai para o relato, em vez de ir calada para o lado errado.
+   */
+  function itensDe(prog, estrutura, doisLados) {
+    var regra = regraDe(prog.atividade ? prog.atividade.nome : '');
     if (!regra) return [];
 
     if (regra.itens) return regra.itens;
     if (regra.opgw || regra.pr) {
+      if (prog.cabo === 'OPGW_DIREITO') return doisLados ? (regra.opgwD || []) : [];
+      if (prog.cabo === 'OPGW_ESQUERDO') return doisLados ? (regra.opgwE || []) : [];
+      if (doisLados) return [];
       if (prog.cabo === 'OPGW') return regra.opgw || [];
       if (prog.cabo === 'PARA_RAIO') return regra.pr || [];
       return [];                              // sem cabo escolhido: entra no relato
@@ -257,12 +302,28 @@ window.SIPAV = window.SIPAV || {};
     var tortos = [];
     var ultima = ws.rowCount;
 
+    // Título da seção em que a linha está ("4.2  LANÇAMENTO DE CABO - PARA-RAIO
+    // OPGW ESQUERDO"). Só importa para o OPGW: em Buritirama–Barra e Juazeiro–
+    // Campo Formoso as duas seções têm as mesmas linhas, com os mesmos nomes e a
+    // mesma numeração, e o título é a única coisa que as separa.
+    var secao = '';
+
     for (var r = 13; r <= ultima; r++) {
       var nome = norm(valor(ws.getCell(r, COL.ATIVIDADE)));
       if (!nome) continue;
 
+      var tarefa = norm(valor(ws.getCell(r, COL.TAREFA)));
+      var codigo = String(valor(ws.getCell(r, COL.ITEM)) || '').trim();
+      if (!tarefa && /^\d+\.\d+$/.test(codigo)) { secao = nome; continue; }
+
       var item = porNome[nome];
       if (!item) continue;
+
+      // OPGW com lado: a seção diz qual. 4.2.3 vira 4.2D.3 ou 4.2E.3.
+      if (/^4\.2\.\d+$/.test(item)) {
+        if (secao.indexOf('direito') !== -1)  item = item.replace('4.2.', '4.2D.');
+        else if (secao.indexOf('esquerdo') !== -1) item = item.replace('4.2.', '4.2E.');
+      }
 
       // Só a linha do EXEC. serve de âncora. Sem isto, a linha de SEÇÃO
       // "4.2  LANÇAMENTO DE CABO -  OPGW" casaria com o item
@@ -285,7 +346,10 @@ window.SIPAV = window.SIPAV || {};
       achados[item] = { linhaItem: r, prog1: r + 1, prog2: r + 2 };
     }
 
-    return { achados: achados, duplicados: duplicados, tortos: tortos };
+    // Planilha com OPGW dos dois lados, sem para-raio convencional
+    var doisLados = Object.keys(achados).some(function (i) { return /^4\.2[DE]\./.test(i); });
+
+    return { achados: achados, duplicados: duplicados, tortos: tortos, doisLados: doisLados };
   }
 
   /** Confere se a planilha é da quinzena escolhida. */
@@ -322,7 +386,7 @@ window.SIPAV = window.SIPAV || {};
    * célula, um por linha, e cada célula do dia repete o empilhamento na mesma
    * ordem.
    */
-  function agrupar(progs, torresPorId, segundaS1) {
+  function agrupar(progs, torresPorId, segundaS1, doisLados) {
     var isoS1 = ui.iso(segundaS1);
     var isoS2 = ui.iso(ui.somarDias(segundaS1, 7));
     var isoFim = ui.iso(ui.somarDias(segundaS1, 13));
@@ -338,11 +402,19 @@ window.SIPAV = window.SIPAV || {};
       var torre = torresPorId[p.torre ? p.torre.id : ''] || {};
       var nomeAtiv = p.atividade ? p.atividade.nome : '—';
 
-      if (!DE_PARA[nomeAtiv]) { semDePara[nomeAtiv] = (semDePara[nomeAtiv] || 0) + 1; return; }
+      if (!regraDe(nomeAtiv)) { semDePara[nomeAtiv] = (semDePara[nomeAtiv] || 0) + 1; return; }
 
-      var itens = itensDe(p, torre.estrutura);
+      var itens = itensDe(p, torre.estrutura, doisLados);
       if (!itens.length) {
-        semCabo.push((p.torre ? p.torre.identificador : '?') + ' · ' + nomeAtiv);
+        // Planilha de OPGW direito/esquerdo e programação com "OPGW" ou
+        // "para-raio" sem lado: diz o que falta, em vez de "sem cabo"
+        var motivo = '';
+        if (doisLados && (p.cabo === 'OPGW' || p.cabo === 'PARA_RAIO')) {
+          motivo = ' (falta escolher OPGW direito ou esquerdo)';
+        } else if (!doisLados && (p.cabo === 'OPGW_DIREITO' || p.cabo === 'OPGW_ESQUERDO')) {
+          motivo = ' (esta planilha não tem OPGW direito e esquerdo)';
+        }
+        semCabo.push((p.torre ? p.torre.identificador : '?') + ' · ' + nomeAtiv + motivo);
         return;
       }
 
@@ -489,7 +561,7 @@ window.SIPAV = window.SIPAV || {};
           segundaS1.getFullYear(), segundaS1.getMonth(), segundaS1.getDate()
         ));
         var mapa = mapearLinhas(ws);
-        var g = agrupar(progs, torresPorId, segundaS1);
+        var g = agrupar(progs, torresPorId, segundaS1, mapa.doisLados);
 
         var escritas = 0, torresEscritas = 0, limpas = 0;
         var naoAchados = [];

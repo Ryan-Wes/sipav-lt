@@ -214,12 +214,18 @@ window.SIPAV = window.SIPAV || {};
 
   function trechos() {
     return obra().then(function (o) {
-      return cliente()
-        .from('trecho')
-        .select('id, nome, ordem')
-        .eq('obra_id', o.id)
-        .order('ordem')
-        .then(function (r) { return ok(r, 'Falha ao carregar trechos'); });
+      // A coluna cabo_modelo (db/41) só entra se existir. Pedir coluna que o
+      // banco ainda não tem derrubaria a lista de trechos, e com ela o app todo.
+      function consultar(colunas) {
+        return cliente().from('trecho').select(colunas).eq('obra_id', o.id).order('ordem');
+      }
+
+      return consultar('id, nome, ordem, cabo_modelo').then(function (r) {
+        if (r.error && /cabo_modelo/i.test(r.error.message || '')) {
+          return consultar('id, nome, ordem');
+        }
+        return r;
+      }).then(function (r) { return ok(r, 'Falha ao carregar trechos'); });
     });
   }
 
