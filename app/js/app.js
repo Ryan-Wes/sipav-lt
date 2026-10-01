@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v93 · 2026-10-01';
+  var VERSAO = 'v94 · 2026-10-01';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -4968,11 +4968,35 @@ window.SIPAV = window.SIPAV || {};
     // Remover só desativa, e o nome continua ocupado no banco. Criar de novo com
     // o mesmo nome aparecia como "já existe" sem nenhuma atividade à vista, e a
     // saída era inventar um nome parecido. Agora pergunto se quero a de volta.
-    var procura = id ? Promise.resolve(null) : db.atividadeRemovidaPorNome(nome);
+    //
+    // Renomear para o nome de uma removida cai no mesmo buraco, do outro lado:
+    // a pessoa que inventou o nome parecido quer, depois, o nome certo de volta.
+    var atual = id ? E.atividades.find(function (x) { return x.id === id; }) : null;
+    var renomeando = !!atual && atual.nome !== nome;
+    var procura = (!id || renomeando) ? db.atividadeRemovidaPorNome(nome) : Promise.resolve(null);
 
     procura
       .then(function (removida) {
         if (!removida) return dados;
+
+        // Renomeando uma ativa: não há o que recuperar, o nome só precisa ser
+        // liberado. A removida vira "NOME (removida data)" e segue existindo.
+        if (id) {
+          return ui.confirmar('Uma atividade removida está com esse nome',
+            '“' + removida.nome + '” foi removida, mas o nome continua ocupado por ela. ' +
+            'Posso renomeá-la para “' + removida.nome + ' (removida …)” e deixar o nome ' +
+            'para esta? Nada se perde: a programação antiga continua apontando para ela.',
+            'Liberar o nome')
+            .then(function (sim) {
+              if (!sim) {
+                ui.avisar('Escolha outro nome para esta atividade.', 'alerta', 6000);
+                return null;
+              }
+              return db.liberarNomeDeRemovida(removida.id, removida.nome).then(function () {
+                return dados;
+              });
+            });
+        }
 
         return ui.confirmar('Já existe uma atividade removida com esse nome',
           '“' + removida.nome + '” foi removida antes e o nome continua dela. ' +

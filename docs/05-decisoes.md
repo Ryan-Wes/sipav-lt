@@ -63,6 +63,10 @@ recusa) e que nenhuma dependência virou: não deixa uma atividade ficar **antes
 algo de que ela depende. Só recusa o que a troca nova estraga — dependência torta
 que já existia não trava toda reordenação. `db/37`.
 
+**Ordem de deploy:** a tela só manda `justificativa_retroativa` quando a data é do
+passado. Mandar a coluna sempre, mesmo vazia, derrubaria toda gravação enquanto a
+`db/36` não estivesse aplicada — e foi o que a primeira versão fazia.
+
 **Efeito que vale saber:** a posição decide o que é "anterior" na importação de
 estágio. Uma atividade obrigatória movida para o começo passa a ser marcada como
 executada em toda torre importada com estágio depois dela. Se ela não acontece em
@@ -75,6 +79,11 @@ Remover só desativa, e o nome continua ocupado no banco. Criar de novo aparecia
 Agora pergunto se quero a de volta, com o nome original e o histórico. A ordem
 também falhava por outro lado: era calculada só com as ativas, e uma removida podia
 ocupar o número.
+
+O mesmo buraco do outro lado: quem inventou um nome parecido para escapar quer,
+depois, o nome certo de volta, e a removida ainda o ocupa. Renomear a ativa para esse
+nome pergunta se pode renomear a removida para "NOME (removida data)" — ela continua
+existindo, a programação antiga continua apontando para ela.
 
 ### Atividade removida não bloqueia mais — [WR]
 

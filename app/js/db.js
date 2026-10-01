@@ -355,22 +355,33 @@ window.SIPAV = window.SIPAV || {};
    */
   function criarProgramacao(dados) {
     return auth.usuario().then(function (u) {
+      var linha = {
+        torre_id:        dados.torreId,
+        atividade_id:    dados.atividadeId,
+        encarregado_id:  dados.encarregadoId || null,
+        data:            dados.data,
+        observacao:      dados.observacao || null,
+        situacao:        dados.situacao || 'APROVADA',
+        override_motivo: dados.overrideMotivo || null,
+        cabo:            dados.cabo || null,
+        percentual:      dados.percentual || 100,
+        criado_por:      u ? u.id : null
+      };
+
+      // Só libera a data; não desliga a precedência como o override faz.
+      //
+      // E só entra na linha quando existe. Mandar a coluna sempre, mesmo com
+      // null, fazia a gravação inteira falhar com "coluna não existe" enquanto a
+      // db/36 não estivesse aplicada — e nenhuma programação entraria, nem para
+      // o futuro. Assim a ordem em que eu subo o site e rodo o SQL não importa
+      // para quem programa para datas normais.
+      if (dados.justificativaRetroativa) {
+        linha.justificativa_retroativa = dados.justificativaRetroativa;
+      }
+
       return cliente()
         .from('programacao')
-        .insert({
-          torre_id:        dados.torreId,
-          atividade_id:    dados.atividadeId,
-          encarregado_id:  dados.encarregadoId || null,
-          data:            dados.data,
-          observacao:      dados.observacao || null,
-          situacao:        dados.situacao || 'APROVADA',
-          override_motivo: dados.overrideMotivo || null,
-          // Só libera a data. Não desliga a precedência como o override faz.
-          justificativa_retroativa: dados.justificativaRetroativa || null,
-          cabo:            dados.cabo || null,
-          percentual:      dados.percentual || 100,
-          criado_por:      u ? u.id : null
-        })
+        .insert(linha)
         .select(SELECT_PROGRAMACAO)
         .single()
         .then(function (r) { return ok(r, 'Falha ao programar'); });
@@ -624,6 +635,25 @@ window.SIPAV = window.SIPAV || {};
           .then(function (r) { return ok(r, 'Falha ao adicionar atividade'); });
       });
     });
+  }
+
+  /**
+   * Devolve o nome a quem quer usá-lo, renomeando a removida que o ocupa.
+   *
+   * A removida continua existindo — programação antiga ainda aponta para ela —
+   * e passa a se chamar "NOME (removida 2026-10-01)", o que é verdade e também
+   * a deixa fora do caminho. Só é chamada depois de a pessoa confirmar.
+   */
+  function liberarNomeDeRemovida(removidaId, nomeAtual) {
+    var sufixo = ' (removida ' + new Date().toISOString().slice(0, 10) + ')';
+    return cliente()
+      .from('atividade')
+      .update({ nome: nomeAtual + sufixo })
+      .eq('id', removidaId)
+      .then(function (r) {
+        if (r.error) throw traduzErro(r.error, 'Falha ao liberar o nome');
+        return true;
+      });
   }
 
   /** Uma atividade removida com este nome, se houver. Ignora caixa e acento. */
@@ -1020,6 +1050,7 @@ window.SIPAV = window.SIPAV || {};
     desativarEncarregado: desativarEncarregado,
     salvarAtividade: salvarAtividade,
     atividadeRemovidaPorNome: atividadeRemovidaPorNome,
+    liberarNomeDeRemovida: liberarNomeDeRemovida,
     desativarAtividade: desativarAtividade,
     salvarDependencias: salvarDependencias,
     reordenarAtividades: reordenarAtividades,

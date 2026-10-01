@@ -21,9 +21,11 @@
 -- resultado da ÚLTIMA consulta — aqui é a lista das atividades em ordem, que
 -- tem que sair de 10 em 10 sem repetir número.
 --
--- ATENÇÃO: sem a 36 a tela passa a mandar a justificativa e o banco responde
--- que a coluna não existe, então NENHUMA programação para o passado entra.
--- Sem a 37, arrastar atividade dá erro de função inexistente. Rode as duas.
+-- A ordem entre subir o site e rodar o SQL não derruba nada: a tela só manda a
+-- justificativa quando a data é do passado, então programar para datas normais
+-- segue funcionando antes da 36. O que não funciona antes dela é programar para o
+-- passado (o banco não tem onde guardar o motivo). Antes da 37, arrastar atividade
+-- dá erro de função inexistente.
 -- =============================================================================
 
 
