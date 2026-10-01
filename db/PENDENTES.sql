@@ -8,7 +8,7 @@
 --   select numero, arquivo from migracao order by numero;
 --
 -- Se a última for 35, rode a 36, a 37 e a 38 primeiro (estão em db/). A 39 e a 40 não
--- depende delas.
+-- dependem delas.
 --
 -- A tela já funciona antes da 39: sem a tabela, a movimentação simplesmente não
 -- aparece, e o botão de registrar avisa que falta aplicar a migração.
