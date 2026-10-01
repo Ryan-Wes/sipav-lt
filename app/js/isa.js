@@ -255,6 +255,21 @@ window.SIPAV = window.SIPAV || {};
   var DE_PARA_NORM = {};
   Object.keys(DE_PARA).forEach(function (nome) { DE_PARA_NORM[norm(nome)] = DE_PARA[nome]; });
 
+  /** "4.2D.3" → "4.2.3 OPGW direito": o código interno não diz nada a quem lê o relato. */
+  function rotuloDoItem(item) {
+    var m = /^4\.2([DE])\.(\d+)$/.exec(item);
+    return m ? '4.2.' + m[2] + (m[1] === 'D' ? ' OPGW direito' : ' OPGW esquerdo') : item;
+  }
+
+  /** Atividades do SIPAV que alimentam um item da ISA. */
+  function atividadesDoItem(item) {
+    return Object.keys(DE_PARA).filter(function (nome) {
+      var r = DE_PARA[nome];
+      return ['itens', 'est', 'aup', 'opgw', 'pr', 'opgwD', 'opgwE'].some(function (k) {
+        return (r[k] || []).indexOf(item) !== -1;
+      });
+    });
+  }
   function regraDe(nome) {
     return DE_PARA_NORM[norm(nome)] || null;
   }
@@ -623,6 +638,11 @@ window.SIPAV = window.SIPAV || {};
               linhasLimpas: limpas,
               apagados: apagados,
               itensNaoAchados: naoAchados,
+              // O mesmo, para ler: cada item com o nome da atividade do SIPAV
+              // que o alimenta
+              naoExistem: naoAchados.map(function (item) {
+                return { item: item, rotulo: rotuloDoItem(item), atividades: atividadesDoItem(item) };
+              }),
               duplicados: mapa.duplicados,
               tortos: mapa.tortos,
               semCabo: g.semCabo,

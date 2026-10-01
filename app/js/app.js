@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v101 · 2026-10-01';
+  var VERSAO = 'v102 · 2026-10-01';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -6377,20 +6377,30 @@ window.SIPAV = window.SIPAV || {};
 
     if (r.semCabo.length) {
       partes.push(bloco('border-rose-200 bg-rose-50 text-rose-800',
-        r.semCabo.length + ' programação(ões) de lançamento sem cabo escolhido',
-        'Não dá para saber se vão na seção do para-raio ou do OPGW, então ficaram de fora: ' +
+        r.semCabo.length + ' programação(ões) de lançamento sem o cabo certo',
+        'Não dá para saber em que seção do cabo elas vão, então ficaram de fora: ' +
         '<strong>' + esc(r.semCabo.slice(0, 8).join(' · ')) + '</strong>' +
         (r.semCabo.length > 8 ? ' e mais ' + (r.semCabo.length - 8) : '') + '.'));
     }
 
-    if (r.itensNaoAchados.length) {
+    if (r.naoExistem && r.naoExistem.length) {
+      // Agrupa pela atividade do SIPAV: "PERFURAÇÃO DE TUBULÃO (2.1.20, 2.1.21)"
+      // diz mais do que uma lista de códigos soltos
+      var porAtividade = {}, ordemAtividades = [];
+      r.naoExistem.forEach(function (x) {
+        var nomes = x.atividades.length ? x.atividades : ['—'];
+        nomes.forEach(function (n) {
+          if (!porAtividade[n]) { porAtividade[n] = []; ordemAtividades.push(n); }
+          porAtividade[n].push(x.rotulo);
+        });
+      });
+
       partes.push(bloco('border-rose-200 bg-rose-50 text-rose-800',
-        r.itensNaoAchados.length + ' item(ns) sem linha nesta planilha',
-        'Tem programação no SIPAV para eles mas esta planilha não tem a linha correspondente: ' +
-        '<strong>' + esc(r.itensNaoAchados.join(', ')) + '</strong>. ' +
-        'Acontece quando o trecho ainda não chegou naquela fase — a planilha de Barra–Correntina, ' +
-        'por exemplo, para na seção 4.2 e não tem a 4.3 do condutor. Também é o caso da perfuração ' +
-        'de tubulão, que ainda vai ser criada com a fiscalização.'));
+        r.naoExistem.length + ' item(ns) que não existem nesta planilha',
+        'Tem programação no SIPAV, mas a planilha não tem a linha desse item, então não escrevi: ' +
+        '<strong>' + esc(ordemAtividades.map(function (n) {
+          return n + ' (' + porAtividade[n].join(', ') + ')';
+        }).join(' · ')) + '</strong>.'));
     }
 
     var semDePara = Object.keys(r.semDePara);
