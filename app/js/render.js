@@ -212,11 +212,10 @@ window.SIPAV = window.SIPAV || {};
               '</span> ' +
               esc(p.atividade ? p.atividade.nome : '—') +
               marcaFeito(p) +
-              // Só aparece quando o serviço foi repartido: 100% é o normal e
-              // poluiria o cartão em toda linha
-              (Number(p.percentual) < 100
-                ? '<span class="parcial">' + rotuloParcial(p) + '</span>'
-                : '') +
+              // Sempre aparece. O 100% vem apagado, para a parte repartida seguir
+              // chamando mais atenção que o serviço inteiro
+              '<span class="parcial' + (Number(p.percentual) >= 100 ? ' cheio' : '') + '">' +
+                rotuloParcial(p) + '</span>' +
               (p.encarregado
                 ? '<span class="encarregado">' + esc(p.encarregado.nome) + '</span>'
                 : '') +
@@ -328,8 +327,8 @@ window.SIPAV = window.SIPAV || {};
     var enc = (op.encarregado === false || !p.encarregado) ? ''
       : '<span class="chip-encarregado">' + esc(p.encarregado.nome) + '</span>';
 
-    var parcial = (Number(p.percentual) < 100
-      ? '<span class="chip-parcial">' + rotuloParcial(p) + '</span>' : '') + marcaFeito(p);
+    var parcial = '<span class="chip-parcial' + (Number(p.percentual) >= 100 ? ' cheio' : '') + '">' +
+      rotuloParcial(p) + '</span>' + marcaFeito(p);
 
     // Com "selecionar vários" ligado, o clique marca em vez de abrir a torre.
     // Desligado, tudo se comporta como sempre — quem não liga não vê diferença.

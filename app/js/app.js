@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v106 · 2026-10-01';
+  var VERSAO = 'v107 · 2026-10-01';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -1376,7 +1376,7 @@ window.SIPAV = window.SIPAV || {};
     // Adiaram a programação antes de executar: a meta original era outra
     if (orig !== prog) t += ' · originalmente ' + ui.dataCurta(orig);
 
-    if (Number(ex.percentual) < 100) t += ' · ' + formatarPercentual(ex.percentual);
+    t += ' · ' + formatarPercentual(ex.percentual);
     return t;
   }
 
@@ -1406,9 +1406,8 @@ window.SIPAV = window.SIPAV || {};
             '<p class="text-sm font-semibold text-slate-800 truncate">' +
               esc(p.atividade ? p.atividade.nome : '—') +
               (p.cabo ? ' <span class="selo-cabo">' + esc(rotuloCabo(p.cabo)) + '</span>' : '') +
-              (Number(p.percentual) < 100
-                ? ' <span class="selo-parcial">' + formatarPercentual(p.percentual) + '</span>'
-                : '') +
+              ' <span class="selo-parcial' + (Number(p.percentual) >= 100 ? ' cheio' : '') + '">' +
+                formatarPercentual(p.percentual) + '</span>' +
             '</p>' +
             '<p class="text-xs text-slate-500">' +
               ui.dataLonga(p.data) +
@@ -1562,7 +1561,7 @@ window.SIPAV = window.SIPAV || {};
           atividade: a ? a.nome : '',
           data: quando,
           quem: (p.encarregado ? p.encarregado.nome : 'sem encarregado') +
-                (Number(p.percentual) < 100 ? ' (' + formatarPercentual(p.percentual) + ')' : '')
+                ' (' + formatarPercentual(p.percentual) + ')'
         });
       });
     });
@@ -3884,7 +3883,7 @@ window.SIPAV = window.SIPAV || {};
         '<span class="lote-dia">' + esc(ui.dataCurta(p.data)) + '</span>' +
         '<span class="text-xs" style="color:var(--texto-suave)">' +
           esc(p.encarregado ? p.encarregado.nome : 'sem encarregado') +
-          (Number(p.percentual) < 100 ? ' · ' + formatarPercentual(p.percentual) : '') +
+          ' · ' + formatarPercentual(p.percentual) +
         '</span>' +
       '</label>';
     }).join('');
@@ -4144,8 +4143,8 @@ window.SIPAV = window.SIPAV || {};
             ui.corDoTexto(x.cor) + '">' + esc(x.atividadeNome) + '</span>' +
           '<span class="ed-data">' + esc(ui.dataCurta(x.data)) + '</span>' +
           '<span class="ed-enc">' + esc(x.encarregadoNome || '—') + '</span>' +
-          (x.percentual < 100
-            ? '<span class="chip-parcial">' + formatarPercentual(x.percentual) + '</span>' : '') +
+          '<span class="chip-parcial' + (x.percentual >= 100 ? ' cheio' : '') + '">' +
+            formatarPercentual(x.percentual) + '</span>' +
           '<i data-lucide="pencil" class="ed-lapis"></i>' +
         '</button>' +
       '</div>';

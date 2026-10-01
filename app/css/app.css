@@ -306,7 +306,15 @@ body::before {
   color: var(--texto);
 }
 
-/* Serviço repartido em mais de um dia. Só aparece quando é menos de 100%. */
+/* O percentual aparece em toda programação. Abaixo de 100% (serviço repartido) vem
+   em laranja; o 100% (`cheio`) vem apagado, para o parcial seguir se destacando. */
+.item-prog .parcial.cheio, .chip-parcial.cheio { color: var(--texto-fraco); }
+.selo-parcial.cheio {
+  color: var(--texto-fraco);
+  background: var(--superficie-2);
+  border-color: var(--borda);
+}
+
 .item-prog .parcial {
   margin-left: .25rem;
   font-size: .5625rem; font-weight: 700;
