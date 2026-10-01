@@ -829,32 +829,41 @@ window.SIPAV = window.SIPAV || {};
   }
 
   /**
-   * Movimentações em que o trecho é a origem OU o destino.
+   * Todas as movimentações da obra.
+   *
+   * Não filtra por trecho aqui: o canteiro atende mais de um trecho e a máquina
+   * pode mudar de torre, então "pertence a este trecho" depende de dados que a
+   * tela já tem (canteiro_trecho, torres) e o banco não. São poucas dezenas de
+   * registros; o recorte de trecho e de período fica na tela.
    *
    * Sem a tabela devolve vazio em vez de erro: ela é nova, e a tela inteira não
    * pode ficar sem programação só porque o SQL ainda não foi colado.
-   *
-   * O recorte de período fica na tela, não aqui: são poucas dezenas de registros,
-   * e combinar dois "or" no filtro do PostgREST é o tipo de coisa que funciona
-   * até a versão em que não funciona.
    */
-  function movimentacoes(trechoId) {
-    return cliente()
-      .from('movimentacao')
-      .select('id, tipo, data, data_fim, encarregado_id, maquina, ' +
-              'trecho_origem_id, trecho_destino_id, observacao, ' +
-              'encarregado:encarregado_id ( id, nome )')
-      .or('trecho_origem_id.eq.' + trechoId + ',trecho_destino_id.eq.' + trechoId)
-      .order('data')
-      .then(function (r) {
-        if (semTabelaMovimentacao(r.error)) return [];
-        return ok(r, 'Falha ao carregar movimentações');
-      });
+  function movimentacoes() {
+    return obra().then(function (o) {
+      return cliente()
+        .from('movimentacao')
+        .select('id, tipo, data, trecho_id, encarregado_id, maquina, observacao, ' +
+                'canteiro_origem_id, canteiro_destino_id, torre_origem_id, torre_destino_id, ' +
+                'encarregado:encarregado_id ( id, nome ), ' +
+                'canteiro_origem:canteiro_origem_id ( id, nome ), ' +
+                'canteiro_destino:canteiro_destino_id ( id, nome ), ' +
+                'torre_origem:torre_origem_id ( id, identificador, trecho_id ), ' +
+                'torre_destino:torre_destino_id ( id, identificador, trecho_id )')
+        .eq('obra_id', o.id)
+        .order('data')
+        .then(function (r) {
+          if (semTabelaMovimentacao(r.error)) return [];
+          return ok(r, 'Falha ao carregar movimentações');
+        });
+    });
   }
 
   /**
-   * @param {object} d {id?, tipo, data, dataFim, encarregadoId, maquina,
-   *                    trechoOrigemId, trechoDestinoId, observacao}
+   * @param {object} d {id?, tipo, data, encarregadoId, maquina, trechoId,
+   *                    canteiroOrigemId, canteiroDestinoId,
+   *                    torreOrigemId, torreDestinoId, observacao}
+   * trechoId só vale na criação: é o trecho em que a movimentação foi registrada.
    */
   function salvarMovimentacao(d) {
     // Sem a tabela o erro cru do banco não diz o que fazer
@@ -871,12 +880,13 @@ window.SIPAV = window.SIPAV || {};
         var linha = {
           tipo:              d.tipo,
           data:              d.data,
-          data_fim:          d.dataFim || null,
-          encarregado_id:    d.encarregadoId || null,
-          maquina:           d.maquina || null,
-          trecho_origem_id:  d.trechoOrigemId,
-          trecho_destino_id: d.trechoDestinoId || null,
-          observacao:        d.observacao || null
+          encarregado_id:     d.encarregadoId || null,
+          maquina:            d.maquina || null,
+          canteiro_origem_id:  d.canteiroOrigemId || null,
+          canteiro_destino_id: d.canteiroDestinoId || null,
+          torre_origem_id:     d.torreOrigemId || null,
+          torre_destino_id:    d.torreDestinoId || null,
+          observacao:         d.observacao || null
         };
 
         if (d.id) {
@@ -886,6 +896,7 @@ window.SIPAV = window.SIPAV || {};
         }
 
         linha.obra_id = o.id;
+        linha.trecho_id = d.trechoId;
         linha.criado_por = u ? u.id : null;
         return cliente().from('movimentacao').insert(linha).select('id').single()
           .then(function (r) { return conferir(r, 'Falha ao registrar a movimentação'); });

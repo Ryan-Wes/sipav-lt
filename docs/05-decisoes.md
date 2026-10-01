@@ -18,20 +18,28 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ### Movimentação: o dia sem atividade ganha um motivo — [WR]
 
-Tem dia em que não há atividade na torre porque o encarregado mudou de trecho
-ou a máquina foi levada para outro. Nos painéis esse dia ficava vazio, e vazio
-não diz o que houve: mudança, chuva, falta de material ou programação que
-ninguém lançou.
+Tem dia em que não há atividade na torre porque o encarregado mudou de canteiro
+ou a máquina foi levada para outro canteiro ou para outra torre. Nos painéis
+esse dia ficava vazio, e vazio não diz o que houve: mudança, chuva, falta de
+material ou programação que ninguém lançou.
 
-Criei a tabela `movimentacao` (`db/39`), com três tipos: encarregado muda de
-trecho, máquina muda de trecho, e "outro" com o motivo escrito. Decisões:
+Criei a tabela `movimentacao` (`db/39`), com três tipos, que a obra chama assim:
 
-- **Não é programação.** Não tem torre nem atividade, e não entra em
+- **Mudança de trecho (encarregado):** vai de um canteiro para outro. É o canteiro
+  que muda, não o trecho. O nome ficou porque é como a obra fala.
+- **Mudança de trecho (máquina):** muda de canteiro, ou só de torre dentro do
+  mesmo canteiro. Uma coisa ou a outra, nunca as duas.
+- **Outro motivo:** dia sem atividade com o motivo escrito.
+
+Decisões:
+
+- **Não é programação.** Não tem atividade de execução, e não entra em
   precedência, aderência nem no relatório da ISA.
-- **Aparece nos dois trechos.** Em quem sai, "vai para X"; em quem recebe,
-  "vem de X".
-- **Vários dias.** Aceita "até"; é desenhada só no primeiro dia, porque repetida
-  em cada dia viraria barulho.
+- **Um dia só.** Primeiro aceitei "até"; tirei. A mudança fica registrada naquele
+  dia, e se se repete no outro, registra-se de novo.
+- **Aparece onde o canteiro atende.** O canteiro serve mais de um trecho, então a
+  linha aparece no trecho onde foi registrada, no dos canteiros envolvidos e no
+  das torres envolvidas. Em quem sai, "vai para X"; em quem recebe, "vem de X".
 - **Máquina em texto livre.** Não há cadastro de máquinas, e criar um agora seria
   decidir o modelo sem saber como elas se identificam (placa, prefixo, modelo). A
   tela sugere os nomes já usados.
@@ -43,7 +51,8 @@ trecho, máquina muda de trecho, e "outro" com o motivo escrito. Decisões:
   tela pergunta antes. Não bloqueia: ele pode sair depois do serviço.
 - **Filtro some com ela.** Filtrar por atividade, canteiro ou torre é pedir "só
   isto", e a movimentação viraria ruído.
-
+- **Torre da máquina.** Só as torres do trecho aberto. Máquina que muda de torre
+  para outro trecho se registra como mudança de canteiro.
 **Em aberto.** Programar um encarregado num dia em que ele está em movimentação
 não é impedido, só avisado na hora de registrar a movimentação. O contrário
 (programar depois) ainda passa calado.

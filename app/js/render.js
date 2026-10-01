@@ -434,47 +434,78 @@ window.SIPAV = window.SIPAV || {};
     var de = E.periodo.de, ate = E.periodo.ate;
     return (E.movimentacoes || []).filter(function (m) {
       if (ate && m.data > ate) return false;
-      if (de && (m.data_fim || m.data) < de) return false;
-      return true;
+      if (de && m.data < de) return false;
+      return movimentacaoDoTrecho(m);
     });
   }
 
+  /** O canteiro atende o trecho que está na tela? (um canteiro serve vários) */
+  function canteiroServeOTrecho(id) {
+    var atual = E.trechoAtual ? E.trechoAtual.id : null;
+    var c = (E.canteiros || []).find(function (x) { return x.id === id; });
+    return !!c && (c.trechos || []).indexOf(atual) !== -1;
+  }
+
   /**
-   * O dia em que ela é desenhada. Uma movimentação de vários dias aparece só no
-   * primeiro — repetida em cada dia viraria barulho — e, se começou antes do
-   * período exibido, no primeiro dia dele.
+   * Uma movimentação pertence a este trecho se foi registrada nele, se um dos
+   * canteiros dela atende o trecho, ou se uma das torres é daqui. Assim quem sai
+   * de um canteiro e quem chega no outro veem a mesma linha.
    */
+  function movimentacaoDoTrecho(m) {
+    var atual = E.trechoAtual ? E.trechoAtual.id : null;
+    if (m.trecho_id === atual) return true;
+    if (m.canteiro_origem_id && canteiroServeOTrecho(m.canteiro_origem_id)) return true;
+    if (m.canteiro_destino_id && canteiroServeOTrecho(m.canteiro_destino_id)) return true;
+    return [m.torre_origem, m.torre_destino].some(function (t) {
+      return t && t.trecho_id === atual;
+    });
+  }
+
+  /** O dia em que ela é desenhada. É sempre um dia só. */
   function diaDaMovimentacao(m) {
-    return E.periodo.de && m.data < E.periodo.de ? E.periodo.de : m.data;
+    return m.data;
   }
 
-  function nomeDoTrecho(id) {
-    var t = (E.trechos || []).find(function (x) { return x.id === id; });
-    return t ? t.nome : '—';
+  function nomeDoCanteiro(m, lado) {
+    var c = m['canteiro_' + lado];
+    if (c) return c.nome;
+    var id = m['canteiro_' + lado + '_id'];
+    var x = (E.canteiros || []).find(function (k) { return k.id === id; });
+    return x ? x.nome : '—';
   }
 
-  /** "vai para Campo Formoso", "vem de Barra" — conforme o trecho em que estou. */
+  /** "vai para Barra", "vem de Igarité" — conforme o canteiro que atende este trecho. */
+  function rotaDeCanteiro(m) {
+    if (m.canteiro_origem_id && canteiroServeOTrecho(m.canteiro_origem_id) &&
+        !(m.canteiro_destino_id && canteiroServeOTrecho(m.canteiro_destino_id))) {
+      return 'vai para ' + nomeDoCanteiro(m, 'destino');
+    }
+    if (m.canteiro_destino_id && canteiroServeOTrecho(m.canteiro_destino_id) &&
+        !(m.canteiro_origem_id && canteiroServeOTrecho(m.canteiro_origem_id))) {
+      return 'vem de ' + nomeDoCanteiro(m, 'origem');
+    }
+    return nomeDoCanteiro(m, 'origem') + ' → ' + nomeDoCanteiro(m, 'destino');
+  }
+
   function textoDaMovimentacao(m) {
     if (m.tipo === 'OUTRO') return m.observacao || 'Sem atividade';
 
-    var atual = E.trechoAtual ? E.trechoAtual.id : null;
-    var rota = m.trecho_origem_id === atual
-      ? 'vai para ' + nomeDoTrecho(m.trecho_destino_id)
-      : m.trecho_destino_id === atual
-        ? 'vem de ' + nomeDoTrecho(m.trecho_origem_id)
-        : nomeDoTrecho(m.trecho_origem_id) + ' → ' + nomeDoTrecho(m.trecho_destino_id);
+    if (m.tipo === 'MUDANCA_MAQUINA') {
+      var quem = m.maquina || 'Máquina';
+      if (m.torre_origem_id || m.torre_destino_id) {
+        var t = function (x) { return x ? x.identificador : '—'; };
+        return quem + ' · torre ' + t(m.torre_origem) + ' → ' + t(m.torre_destino);
+      }
+      return quem + ' · ' + rotaDeCanteiro(m);
+    }
 
-    return (m.tipo === 'MUDANCA_MAQUINA' ? (m.maquina || 'Máquina') : 'Muda de trecho') +
-           ' · ' + rota;
+    return 'Muda de canteiro · ' + rotaDeCanteiro(m);
   }
 
   function chipMovimentacao(m, comQuem) {
-    var dia = function (iso) {
-      return ui.dataCurta(iso) + '<b class="chip-dia' + (ui.fimDeSemana(iso) ? ' fim-de-semana' : '') + '">' +
-             esc(ui.diaDaSemana(iso).slice(0, 3)) + '</b>';
-    };
-    var quando = dia(m.data) +
-      (m.data_fim && m.data_fim !== m.data ? ' → ' + dia(m.data_fim) : '');
+    var quando = ui.dataCurta(m.data) +
+      '<b class="chip-dia' + (ui.fimDeSemana(m.data) ? ' fim-de-semana' : '') + '">' +
+      esc(ui.diaDaSemana(m.data).slice(0, 3)) + '</b>';
 
     // Em "por data" não há o nome do encarregado no título do bloco: entra aqui
     var texto = (comQuem && m.encarregado ? m.encarregado.nome + ' · ' : '') + textoDaMovimentacao(m);
