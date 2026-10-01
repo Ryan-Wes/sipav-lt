@@ -42,6 +42,7 @@ Situação conferida em **23/09/2026**, item por item, contra o que está public
 | **R12** | **Sequência invertida: não programar antes de quem depende** | [WR] 29/09 | ✅ `db/31` |
 | **R13** | **Atividade só no tipo de torre em que existe** | [WR] 29/09 | ✅ `db/33` — estai e mastro central só em estaiada |
 | **R14** | **Carga inicial não repete execução** | [WR] 29/09 | ✅ `db/34` — índice único; apontamento de campo continua podendo repetir |
+| **R15** | **Data no passado pede justificativa própria** | [WR] 30/09 | ✅ `db/36` — não desliga a precedência; só vale quando a data é escolhida |
 
 ## Relatórios e saídas
 

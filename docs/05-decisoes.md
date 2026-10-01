@@ -14,6 +14,84 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ---
 
+## 30/09/2026
+
+### Data no passado pede justificativa, e a justificativa tem campo — [WR]
+
+O banco recusava programar para uma data que já passou, com a mensagem "Informe
+uma justificativa". Nenhuma tela tinha onde informar. O lote até avisava que data
+passada era "aviso, não bloqueio" — e o banco bloqueava. Eu tinha escrito um aviso
+que prometia o que a regra não deixava.
+
+A janela individual tinha a mesma armadilha: o campo de justificativa só aparecia
+dentro do aviso de "fora da sequência", e data no passado não dispara esse aviso,
+porque a consulta de precedência não conhece a regra de data.
+
+**Por que coluna própria e não o campo que já existia:** o `override_motivo` desliga
+a conferência de precedência junto. Quem justificasse uma data no passado ficaria,
+sem saber, com a sequência sem fiscal. `justificativa_retroativa` libera só a data.
+
+A exigência só vale quando a data está sendo **escolhida**: no insert, ou quando
+muda no update. Corrigir o encarregado de uma programação da semana passada não é
+escolher data no passado, e antes era recusado igual.
+
+**Agora:** o campo aparece assim que a data é escolhida, nos quatro caminhos — janela
+da torre (adicionar e editar), lote e editar em lote. Fica no histórico. `db/36`.
+
+### O desfazer do editar em lote parou de mentir — [WR]
+
+Engolia qualquer erro e dizia "N programação(ões) devolvida(s)" mesmo quando nenhuma
+tinha voltado. Agora conta e diz: "2 de 3 voltaram. 1 não pôde: …". Quando a volta é
+para uma data do passado, a justificativa registrada é o próprio desfazer.
+
+### Arrastar para reordenar as atividades — [WR]
+
+Atividade nova entrava no fim da lista, e a lista é a ordem em que elas aparecem ao
+lançar. Uma "recuperação de acesso" que devia ficar junto das supressões ficava lá
+embaixo e atrapalhava cada lançamento.
+
+O campo "ordem de execução" saiu do formulário: digitar o número era o que gerava
+"essa ordem já é de outra atividade". A posição agora só muda arrastando, e a
+atividade nova entra no fim.
+
+O `reordenarAtividades` que já existia no código nunca foi chamado, e não
+funcionaria: fazia um update por requisição, cada um numa transação, e a unique de
+ordem não ajuda entre transações. Virou uma função no banco, tudo ou nada.
+
+O banco confere que a lista está completa (se alguém mexeu enquanto eu arrastava,
+recusa) e que nenhuma dependência virou: não deixa uma atividade ficar **antes** de
+algo de que ela depende. Só recusa o que a troca nova estraga — dependência torta
+que já existia não trava toda reordenação. `db/37`.
+
+**Efeito que vale saber:** a posição decide o que é "anterior" na importação de
+estágio. Uma atividade obrigatória movida para o começo passa a ser marcada como
+executada em toda torre importada com estágio depois dela. Se ela não acontece em
+toda torre, marcar como condicional.
+
+### Recriar atividade removida — [WR]
+
+Remover só desativa, e o nome continua ocupado no banco. Criar de novo aparecia como
+"já existe" sem nenhuma atividade à vista, e a saída era inventar um nome parecido.
+Agora pergunto se quero a de volta, com o nome original e o histórico. A ordem
+também falhava por outro lado: era calculada só com as ativas, e uma removida podia
+ocupar o número.
+
+### Atividade removida não bloqueia mais — [WR]
+
+A tela de remover prometia "dependentes deixarão de exigi-la". Não era verdade: a
+regra de bloqueio continuava cobrando a atividade removida, e torre nenhuma
+conseguiria cumprir algo que nem aparece na lista. Achei lendo a remoção, não
+vindo de ninguém. A regra passa a ignorar a removida, mas continua atravessando ela
+para chegar nos pré-requisitos dela. `db/37`.
+
+### Editar a cor funcionava — [WR]
+
+Testei de ponta a ponta e a cor vai ao banco e aparece em tudo. O que existia era
+um quadradinho de 34px que parecia enfeite. Ficou maior, com texto explicando, e com
+as cores que a obra já usa para escolher num clique.
+
+---
+
 ## 29/09/2026
 
 ### Avisar ao escolher, não ao gravar — [WR]

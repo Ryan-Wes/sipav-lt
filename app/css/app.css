@@ -1197,3 +1197,44 @@ body.modo-selecao #visaoGrade { user-select: none; }
 }
 .ed-abrir:hover .ed-lapis { opacity: 1; color: var(--acento); }
 @media (hover: none) { .ed-lapis { opacity: .5; } }
+
+/* =========================================================================
+   Lista de atividades: arrastar para mudar a posição
+   ========================================================================= */
+.atv-grip {
+  display: inline-flex; align-items: center; flex-shrink: 0;
+  padding: .125rem; margin-left: -.25rem;
+  color: var(--texto-fraco); cursor: grab; border-radius: .25rem;
+  touch-action: none;
+}
+.atv-grip:hover { color: var(--acento); background: var(--superficie-2); }
+.atv-grip:active { cursor: grabbing; }
+
+.atv-linha { position: relative; transition: opacity .12s; }
+.atv-linha.atv-arrastando { opacity: .35; }
+
+/* A linha de inserção: um risco na cor de destaque onde a atividade vai cair.
+   Pseudo-elemento, para não empurrar a lista e fazer o alvo pular sob o mouse. */
+.atv-linha.atv-alvo-cima::before,
+.atv-linha.atv-alvo-baixo::after {
+  content: ''; position: absolute; left: 0; right: 0; height: 3px;
+  background: var(--acento); border-radius: 2px; pointer-events: none;
+}
+.atv-linha.atv-alvo-cima::before  { top: -4px; }
+.atv-linha.atv-alvo-baixo::after  { bottom: -4px; }
+
+/* Seletor de cor do formulário: antes era um quadradinho de 34px que parecia
+   enfeite, e ninguém achava que dava para clicar. */
+.atv-seletor-cor {
+  width: 3rem; height: 2.5rem; flex-shrink: 0; padding: 2px;
+  border: 1px solid var(--borda-forte); border-radius: .5rem;
+  background: transparent; cursor: pointer;
+}
+.atv-seletor-cor:hover { border-color: var(--acento); }
+
+.atv-cor-usada {
+  width: 1.375rem; height: 1.375rem; border-radius: 9999px; cursor: pointer;
+  border: 2px solid var(--superficie); box-shadow: 0 0 0 1px var(--borda-forte);
+  transition: transform .1s;
+}
+.atv-cor-usada:hover { transform: scale(1.2); box-shadow: 0 0 0 2px var(--acento); }

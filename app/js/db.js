@@ -50,10 +50,11 @@ window.SIPAV = window.SIPAV || {};
         return new SipavErro('Essa atividade já está programada para esta torre nesta data.', erro);
       }
       if (/ordem_execucao/.test(msg)) {
-        // Pode ser de uma atividade desativada, que não aparece nas listas
+        // A posição na lista é calculada pelo sistema, então isto só acontece se
+        // duas pessoas mexerem na lista ao mesmo tempo.
         return new SipavErro(
-          'Já existe uma atividade nessa ordem de execução — possivelmente uma que foi ' +
-          'removida e continua ocupando o número. Escolha outro.', erro);
+          'A lista de atividades mudou enquanto você mexia nela. ' +
+          'Feche a lista, abra de novo e refaça.', erro);
       }
       if (msg.indexOf('atividade') !== -1) {
         return new SipavErro('Já existe uma atividade com esse nome.', erro);
@@ -364,6 +365,8 @@ window.SIPAV = window.SIPAV || {};
           observacao:      dados.observacao || null,
           situacao:        dados.situacao || 'APROVADA',
           override_motivo: dados.overrideMotivo || null,
+          // Só libera a data. Não desliga a precedência como o override faz.
+          justificativa_retroativa: dados.justificativaRetroativa || null,
           cabo:            dados.cabo || null,
           percentual:      dados.percentual || 100,
           criado_por:      u ? u.id : null
@@ -564,22 +567,81 @@ window.SIPAV = window.SIPAV || {};
       });
   }
 
+  /**
+   * A próxima ordem livre da obra, contando TAMBÉM as atividades removidas.
+   *
+   * A unique de ordem vale para elas: uma removida ocupando o número que a tela
+   * calculou só com as ativas fazia a criação falhar com um erro de chave
+   * duplicada que ninguém sabia de onde vinha.
+   */
+  function proximaOrdemLivre(obraId) {
+    return cliente()
+      .from('atividade')
+      .select('ordem_execucao')
+      .eq('obra_id', obraId)
+      .order('ordem_execucao', { ascending: false })
+      .limit(1)
+      .then(function (r) {
+        var linhas = ok(r, 'Falha ao calcular a ordem');
+        return (linhas.length ? linhas[0].ordem_execucao : 0) + 10;
+      });
+  }
+
+  /**
+   * Cria, atualiza ou recupera uma atividade.
+   *
+   * A ordem não vem da tela: atividade nova (e a recuperada) vai para o fim da
+   * lista, e quem muda a posição é o arrastar, que passa por reordenar_atividades.
+   * Deixar a pessoa digitar o número era o que gerava "essa ordem já é de outra".
+   */
   function salvarAtividade(dados) {
     return obra().then(function (o) {
       var campos = {
         nome: dados.nome,
-        ordem_execucao: dados.ordemExecucao,
         cor_fundo: dados.corFundo,
         icone: dados.icone,
         obrigatoria: !!dados.obrigatoria
       };
-      if (dados.id) {
+
+      // Recuperar uma removida: volta a valer, e vai para o fim como qualquer nova
+      if (dados.recuperar) campos.ativa = true;
+
+      if (dados.id && !dados.recuperar) {
         return cliente().from('atividade').update(campos).eq('id', dados.id).select().single()
           .then(function (r) { return ok(r, 'Falha ao salvar atividade'); });
       }
-      campos.obra_id = o.id;
-      return cliente().from('atividade').insert(campos).select().single()
-        .then(function (r) { return ok(r, 'Falha ao adicionar atividade'); });
+
+      return proximaOrdemLivre(o.id).then(function (ordem) {
+        campos.ordem_execucao = ordem;
+
+        if (dados.id) {   // recuperar
+          return cliente().from('atividade').update(campos).eq('id', dados.id).select().single()
+            .then(function (r) { return ok(r, 'Falha ao recuperar atividade'); });
+        }
+
+        campos.obra_id = o.id;
+        return cliente().from('atividade').insert(campos).select().single()
+          .then(function (r) { return ok(r, 'Falha ao adicionar atividade'); });
+      });
+    });
+  }
+
+  /** Uma atividade removida com este nome, se houver. Ignora caixa e acento. */
+  function atividadeRemovidaPorNome(nome) {
+    return obra().then(function (o) {
+      return cliente()
+        .from('atividade')
+        .select('id, nome')
+        .eq('obra_id', o.id)
+        .eq('ativa', false)
+        .then(function (r) {
+          var norma = function (t) {
+            return String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
+              .toLowerCase().trim();
+          };
+          var linhas = ok(r, 'Falha ao procurar atividade removida');
+          return linhas.find(function (a) { return norma(a.nome) === norma(nome); }) || null;
+        });
     });
   }
 
@@ -618,16 +680,20 @@ window.SIPAV = window.SIPAV || {};
       });
   }
 
-  function reordenarAtividades(pares) {
-    // pares: [{id, ordem_execucao}] — a unique é deferrable, então o lote passa
-    return Promise.all(pares.map(function (p) {
-      return cliente().from('atividade')
-        .update({ ordem_execucao: p.ordem_execucao }).eq('id', p.id);
-    })).then(function (rs) {
-      var erro = rs.find(function (r) { return r.error; });
-      if (erro) throw traduzErro(erro.error, 'Falha ao reordenar atividades');
-      return true;
-    });
+  /**
+   * @param {string[]} ids as atividades ativas da obra, na ordem nova
+   *
+   * Uma função no banco, e não um update por atividade: cada update seria a sua
+   * própria transação e bateria na unique de ordem. Aqui é tudo ou nada, e o
+   * banco confere que a lista está completa e que nenhuma dependência virou.
+   */
+  function reordenarAtividades(ids) {
+    return cliente()
+      .rpc('reordenar_atividades', { p_ids: ids })
+      .then(function (r) {
+        if (r.error) throw traduzErro(r.error, 'Falha ao reordenar atividades');
+        return true;
+      });
   }
 
   /**
@@ -953,6 +1019,7 @@ window.SIPAV = window.SIPAV || {};
     salvarEncarregado: salvarEncarregado,
     desativarEncarregado: desativarEncarregado,
     salvarAtividade: salvarAtividade,
+    atividadeRemovidaPorNome: atividadeRemovidaPorNome,
     desativarAtividade: desativarAtividade,
     salvarDependencias: salvarDependencias,
     reordenarAtividades: reordenarAtividades,

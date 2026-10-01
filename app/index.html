@@ -41,7 +41,7 @@
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 
   <!-- ?v= força o navegador a buscar de novo quando o código muda. -->
-  <link rel="stylesheet" href="css/app.css?v=92">
+  <link rel="stylesheet" href="css/app.css?v=93">
 </head>
 <body class="h-full flex flex-col antialiased">
 
@@ -496,6 +496,24 @@
           </div>
         </div>
 
+        <!-- Data que já passou. O banco recusa sem justificativa, e antes não
+             havia onde escrevê-la: o campo do "programar mesmo assim" só
+             aparecia junto do aviso de fora da sequência. Esta é separada de
+             propósito — ela libera a data e NÃO desliga a conferência de
+             precedência, como o "programar mesmo assim" desliga. -->
+        <div id="avisoRetroativo" class="hidden mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3">
+          <div class="flex gap-2">
+            <i data-lucide="history" class="w-4 h-4 text-amber-600 shrink-0 mt-0.5"></i>
+            <div class="flex-1">
+              <p class="text-sm font-semibold text-amber-900">Data que já passou</p>
+              <p id="textoRetroativo" class="text-sm text-amber-800 mt-0.5"></p>
+              <input id="campoJustificativaRetro" class="campo mt-2"
+                     placeholder="Por que está programando para o passado? (fica registrado)"
+                     autocomplete="off">
+            </div>
+          </div>
+        </div>
+
         <!-- Duas equipes dividindo a mesma torre no mesmo dia é legítimo, mas
              lançar em cima sem perceber também acontece. Avisa e deixa seguir. -->
         <div id="avisoMesmoServico" class="hidden mt-3 rounded-lg border border-sky-300 bg-sky-50 p-3">
@@ -637,11 +655,11 @@
   </div>
 </div>
 
-<script src="js/config.js?v=92"></script>
-<script src="js/db.js?v=92"></script>
-<script src="js/ui.js?v=92"></script>
-<script src="js/render.js?v=92"></script>
-<script src="js/isa.js?v=92"></script>
-<script src="js/app.js?v=92"></script>
+<script src="js/config.js?v=93"></script>
+<script src="js/db.js?v=93"></script>
+<script src="js/ui.js?v=93"></script>
+<script src="js/render.js?v=93"></script>
+<script src="js/isa.js?v=93"></script>
+<script src="js/app.js?v=93"></script>
 </body>
 </html>

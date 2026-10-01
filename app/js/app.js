@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v92 · 2026-09-29';
+  var VERSAO = 'v93 · 2026-10-01';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -973,6 +973,8 @@ window.SIPAV = window.SIPAV || {};
   function mudarAtividade() {
     atualizarCampoCabo();
     atualizarAtalhosPercentual();
+    // Passa por aqui ao escolher, tirar ou mudar a data de uma atividade
+    atualizarAvisoRetroativo();
 
     // Com várias escolhidas, a checagem de precedência ao vivo perde o sentido:
     // ela é por atividade, e cinco painéis empilhados seriam piores que nenhum.
@@ -1108,6 +1110,7 @@ window.SIPAV = window.SIPAV || {};
   function mudarData() {
     mostrarDiaDaSemana();
     renderChipsAtividade();
+    atualizarAvisoRetroativo();
     verificarBloqueio();
     verificarConflito();
     verificarMesmoServico();
@@ -1321,6 +1324,62 @@ window.SIPAV = window.SIPAV || {};
         '</div>';
     }).join('');
 
+    ui.icones();
+  }
+
+  /* ------------------------------------------------ Data que já passou ------ */
+
+  /**
+   * O banco recusa data no passado sem justificativa, e antes nenhuma tela tinha
+   * onde escrevê-la: o lote até dizia que era "aviso, não bloqueio", e o banco
+   * bloqueava. Aqui o campo aparece assim que a data é escolhida, não depois de
+   * o servidor recusar.
+   */
+  function datasNoPassado(datas) {
+    var hoje = ui.hoje();
+    return datas.filter(function (d) { return d && d < hoje; });
+  }
+
+  /**
+   * As datas desta gravação que precisam de justificativa.
+   *
+   * Editando, só conta se a data MUDOU: corrigir o encarregado de uma
+   * programação que já era da semana passada não é escolher uma data no passado.
+   * O banco aplica a mesma regra, e a tela tem que concordar com ele.
+   */
+  function datasQueExigemJustificativa() {
+    var base = $('campoData').value;
+    if (!base) return [];
+
+    if (programacaoEmEdicao) {
+      var atual = E.programacoes.find(function (x) { return x.id === programacaoEmEdicao; });
+      if (atual && atual.data === base) return [];
+      return datasNoPassado([base]);
+    }
+
+    return datasNoPassado(atividadesEscolhidas.length
+      ? atividadesEscolhidas.map(function (id) { return dataDaAtividade(base, id); })
+      : [base]);
+  }
+
+  function atualizarAvisoRetroativo() {
+    var caixa = $('avisoRetroativo');
+    if (!caixa) return;
+
+    var passadas = datasQueExigemJustificativa();
+
+    if (!passadas.length) {
+      caixa.classList.add('hidden');
+      $('campoJustificativaRetro').value = '';
+      return;
+    }
+
+    var maisAntiga = passadas.slice().sort()[0];
+    $('textoRetroativo').textContent = passadas.length === 1
+      ? ui.dataCurta(maisAntiga) + ' (' + ui.diaDaSemana(maisAntiga) + ') já passou.'
+      : passadas.length + ' datas já passaram, a mais antiga é ' + ui.dataCurta(maisAntiga) + '.';
+
+    caixa.classList.remove('hidden');
     ui.icones();
   }
 
@@ -1545,6 +1604,17 @@ window.SIPAV = window.SIPAV || {};
       return;
     }
 
+    // Data que já passou pede justificativa própria. Não é a do "programar mesmo
+    // assim": aquela desliga a conferência de sequência, esta só libera a data.
+    var justRetro = $('campoJustificativaRetro').value.trim();
+    var exigeJustificativa = datasQueExigemJustificativa().length > 0;
+
+    if (exigeJustificativa && !justRetro) {
+      ui.avisar('Informe por que está programando para uma data que já passou.', 'alerta', 6000);
+      $('campoJustificativaRetro').focus();
+      return;
+    }
+
     var editando = programacaoEmEdicao;
     var comuns = {
       encarregadoId: $('campoEncarregado').value || null,
@@ -1568,6 +1638,9 @@ window.SIPAV = window.SIPAV || {};
           data:            comuns.data,
           observacao:      comuns.observacao,
           override_motivo: comuns.overrideMotivo,
+          // Só vai quando a data mudou para o passado. undefined não entra no
+          // JSON, então uma justificativa que já existia não é apagada.
+          justificativa_retroativa: exigeJustificativa ? justRetro : undefined,
           cabo:            pedeCabo(atividadesEscolhidas[0]) ? cabo : null,
           percentual:      percentual
         })
@@ -1590,6 +1663,10 @@ window.SIPAV = window.SIPAV || {};
               observacao: comuns.observacao,
               situacao: E.perfil.papel === 'SUPERVISOR' ? 'SOLICITADA' : 'APROVADA',
               overrideMotivo: comuns.overrideMotivo,
+              // Só as atividades cuja PRÓPRIA data passou: com datas por
+              // atividade, uma pode estar no passado e a outra não.
+              justificativaRetroativa:
+                dataDaAtividade(comuns.data, id) < ui.hoje() ? justRetro : null,
               cabo: pedeCabo(id) ? cabo : null,
               percentual: percentual
             })
@@ -1622,6 +1699,10 @@ window.SIPAV = window.SIPAV || {};
         $('campoObservacao').value = '';
         $('campoCabo').value = '';
         $('campoPercentual').value = 100;
+        // A data continua no formulário. Se ainda for do passado a caixa
+        // reaparece — mas vazia: a justificativa de uma torre não vale para a
+        // próxima.
+        $('campoJustificativaRetro').value = '';
         preencherEncarregado('');
         atualizarCampoCabo();
         atualizarAtalhosPercentual();
@@ -1785,6 +1866,7 @@ window.SIPAV = window.SIPAV || {};
     $('campoObservacao').value = '';
     $('campoCabo').value = '';
     $('campoPercentual').value = 100;
+    $('campoJustificativaRetro').value = '';
     atualizarModoFormulario();
     atualizarCampoCabo();
     atualizarAtalhosPercentual();
@@ -1799,6 +1881,8 @@ window.SIPAV = window.SIPAV || {};
     // Passa por aqui toda vez que o formulário troca de modo, que é exatamente
     // quando o botão de repetir precisa aparecer ou sumir.
     renderUltimoLancamento();
+    // E quando a exigência de justificativa muda: editar a mesma data não pede
+    atualizarAvisoRetroativo();
     ui.icones();
   }
 
@@ -2540,10 +2624,18 @@ window.SIPAV = window.SIPAV || {};
           '</div>' +
         '</div>' +
 
+        // Um campo só para o lote inteiro: o motivo de programar para o passado
+        // costuma ser o mesmo para todas ("lançamento atrasado da semana 39").
+        // Fica fora da lista que se redesenha, então o que eu escrevi não some
+        // quando eu mexo numa data.
         '<div id="loteAvisoData" class="hidden rounded-lg border border-amber-300 bg-amber-50 p-3">' +
           '<div class="flex gap-2">' +
-            '<i data-lucide="calendar-clock" class="w-4 h-4 text-amber-600 shrink-0 mt-0.5"></i>' +
-            '<p id="loteTextoData" class="text-sm text-amber-800"></p>' +
+            '<i data-lucide="history" class="w-4 h-4 text-amber-600 shrink-0 mt-0.5"></i>' +
+            '<div class="flex-1">' +
+              '<p id="loteTextoData" class="text-sm text-amber-800"></p>' +
+              '<input id="loteJustificativa" class="campo mt-2" autocomplete="off" ' +
+                     'placeholder="Por que está programando para o passado? (fica registrado)">' +
+            '</div>' +
           '</div>' +
         '</div>' +
 
@@ -2801,23 +2893,29 @@ window.SIPAV = window.SIPAV || {};
   /* ----------------------------------------------- Preencher em massa ----- */
 
   /**
-   * Data no passado passa liso e ninguém percebe até a fiscalização perguntar.
-   * Aviso, não bloqueio: reprogramar semana que já passou é legítimo quando se
-   * está arrumando o registro.
+   * Data no passado é legítima quando se está arrumando o registro, mas o banco
+   * exige dizer por quê — é a primeira coisa que a fiscalização pergunta.
+   *
+   * Isto aqui já foi um aviso que dizia "tudo bem, confira antes de gravar", e
+   * o banco recusava do mesmo jeito, sem nenhum campo para explicar. O aviso
+   * prometia o que a regra não deixava. Agora o campo está aqui, na hora.
    */
   function avisarDataPassada(datas) {
-    var hoje = ui.hoje();
-    var passadas = datas.filter(function (d) { return d && d < hoje; });
+    var passadas = datasNoPassado(datas);
     var caixa = $('loteAvisoData');
     if (!caixa) return;
 
-    if (!passadas.length) { caixa.classList.add('hidden'); return; }
+    if (!passadas.length) {
+      caixa.classList.add('hidden');
+      $('loteJustificativa').value = '';
+      return;
+    }
 
-    var maisAntiga = passadas.sort()[0];
+    var maisAntiga = passadas.slice().sort()[0];
     $('loteTextoData').textContent =
-      passadas.length + (passadas.length === 1 ? ' data está' : ' datas estão') +
-      ' no passado, a partir de ' + ui.dataCurta(maisAntiga) +
-      '. Se for para corrigir registro, tudo bem; se não, confira antes de gravar.';
+      passadas.length + (passadas.length === 1 ? ' data já passou' : ' datas já passaram') +
+      ', a mais antiga é ' + ui.dataCurta(maisAntiga) + ' (' + ui.diaDaSemana(maisAntiga) +
+      '). Diga o motivo — vale para todas as que estão no passado.';
     caixa.classList.remove('hidden');
     ui.icones();
   }
@@ -3131,6 +3229,18 @@ window.SIPAV = window.SIPAV || {};
       return;
     }
 
+    // Data que já passou: o banco recusa sem justificativa. Cobro aqui, antes de
+    // gravar, e não deixo o servidor recusar uma a uma depois de eu ter clicado.
+    var justRetro = $('loteJustificativa').value.trim();
+    var linhasNoPassado = loteLinhas.filter(function (x) { return x.data < ui.hoje(); });
+
+    if (linhasNoPassado.length && !justRetro) {
+      ui.avisar(linhasNoPassado.length + ' lançamento(s) estão no passado. ' +
+                'Diga o motivo antes de programar.', 'alerta', 6000);
+      $('loteJustificativa').focus();
+      return;
+    }
+
     var situacao = E.perfil.papel === 'SUPERVISOR' ? 'SOLICITADA' : 'APROVADA';
 
     // Em ordem de data e, no mesmo dia, de ordem de execução: o gatilho pede o
@@ -3156,6 +3266,8 @@ window.SIPAV = window.SIPAV || {};
           data: t.data,
           percentual: t.percentual || 100,
           cabo: pedeCabo(t.atividadeId) ? cabo : null,
+          // Só nas linhas cuja data passou; as futuras seguem sem
+          justificativaRetroativa: t.data < ui.hoje() ? justRetro : null,
           situacao: situacao
         })
           .then(function (nova) { ok.push(rotulo); if (nova && nova.id) ids.push(nova.id); })
@@ -3654,6 +3766,13 @@ window.SIPAV = window.SIPAV || {};
               '</div>' +
               '<input id="edDataFixa" type="date" class="campo hidden" style="width:150px">' +
             '</div>' +
+            // Só aparece quando a nova data cai no passado. O banco recusa sem
+            // justificativa, e adiar uma semana que já começou é justamente o
+            // caso em que isso acontece.
+            '<div id="edBlocoJustificativa" class="hidden mt-2">' +
+              '<input id="edJustificativa" class="campo" autocomplete="off" ' +
+                     'placeholder="Por que a nova data já passou? (fica registrado)">' +
+            '</div>' +
           '</div>' +
 
           '<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">' +
@@ -3803,11 +3922,35 @@ window.SIPAV = window.SIPAV || {};
   }
 
   /** Mostra antes → depois antes de gravar qualquer coisa. */
+  /**
+   * As linhas cuja NOVA data cai no passado. Só conta quando a data muda: trocar
+   * o encarregado de uma programação que já era da semana passada não é escolher
+   * uma data no passado, e o banco também não pede.
+   */
+  function linhasQueViramPassado(marcadas) {
+    var hoje = ui.hoje();
+    return marcadas.filter(function (x) {
+      var nova = novaDataEdicao(x);
+      return nova && nova !== x.data && nova < hoje;
+    });
+  }
+
+  function atualizarJustificativaEdicao(marcadas) {
+    var bloco = $('edBlocoJustificativa');
+    if (!bloco) return;
+
+    var n = linhasQueViramPassado(marcadas).length;
+    bloco.classList.toggle('hidden', !n);
+    if (!n) $('edJustificativa').value = '';
+  }
+
   function atualizarPreviaEdicao() {
     var caixa = $('edPrevia');
     if (!caixa) return;
 
     var marcadas = edicaoMarcadas();
+    atualizarJustificativaEdicao(marcadas);
+
     var encNovo = $('edEncarregado').value;
     var pctNovo = $('edPercentual').value;
     var ativNova = $('edAtividade') ? $('edAtividade').value : '';
@@ -3899,6 +4042,16 @@ window.SIPAV = window.SIPAV || {};
       return;
     }
 
+    var justRetro = $('edJustificativa').value.trim();
+    var viramPassado = linhasQueViramPassado(marcadas).length;
+
+    if (viramPassado && !justRetro) {
+      ui.avisar(viramPassado + ' programação(ões) iriam para uma data que já passou. ' +
+                'Diga o motivo antes de aplicar.', 'alerta', 6000);
+      $('edJustificativa').focus();
+      return;
+    }
+
     ui.processando('Alterando ' + marcadas.length + ' programação(ões)…');
 
     var ok = [], falhou = [];
@@ -3922,6 +4075,8 @@ window.SIPAV = window.SIPAV || {};
         // A que já era a atividade nova fica de fora: mandar ao banco um update
         // que não muda nada só gera linha de histórico à toa.
         if (ativNova && x.atividadeId !== ativNova) campos.atividade_id = ativNova;
+        // Só nas linhas cuja data realmente vai para o passado
+        if (nova && nova !== x.data && nova < ui.hoje()) campos.justificativa_retroativa = justRetro;
         if (!Object.keys(campos).length) return;
 
         return db.atualizarProgramacao(x.id, campos)
@@ -3929,6 +4084,7 @@ window.SIPAV = window.SIPAV || {};
             ok.push(x.torreNome + ' · ' + x.atividadeNome);
             edicaoDesfazer.push({
               id: x.id,
+              mudouData: !!campos.data,
               antes: {
                 data: x.data,
                 encarregado_id: x.encarregadoId || null,
@@ -3996,9 +4152,24 @@ window.SIPAV = window.SIPAV || {};
       .then(function (sim) {
         if (!sim) return;
         ui.processando('Desfazendo…');
+
+        var voltaram = 0, naoVoltaram = [];
+
         return edicaoDesfazer.reduce(function (antes, x) {
           return antes.then(function () {
-            return db.atualizarProgramacao(x.id, x.antes).catch(function () {});
+            var volta = {};
+            Object.keys(x.antes).forEach(function (k) { volta[k] = x.antes[k]; });
+
+            // Voltar para uma data que já passou também é escolher uma data no
+            // passado, e o banco pede o motivo. O motivo aqui é o próprio
+            // desfazer — fica escrito assim no histórico, sem inventar outro.
+            if (x.mudouData && x.antes.data < ui.hoje()) {
+              volta.justificativa_retroativa = 'Desfazer alteração em lote';
+            }
+
+            return db.atualizarProgramacao(x.id, volta)
+              .then(function () { voltaram++; })
+              .catch(function (e) { naoVoltaram.push(e.message); });
           });
         }, Promise.resolve())
           .then(recarregarProgramacoes)
@@ -4006,7 +4177,17 @@ window.SIPAV = window.SIPAV || {};
             edicaoDesfazer = [];
             ui.pronto();
             ui.fecharModal('modalGenerico');
-            ui.avisar(quantas + ' programação(ões) devolvida(s).', 'sucesso');
+
+            // Antes tudo era engolido e a mensagem dizia "devolvida(s)" mesmo
+            // quando nenhuma tinha voltado. Um desfazer que mente é pior que um
+            // que falha.
+            if (naoVoltaram.length) {
+              ui.avisar(voltaram + ' de ' + quantas + ' voltaram. ' + naoVoltaram.length +
+                        (naoVoltaram.length === 1 ? ' não pôde: ' : ' não puderam: ') +
+                        naoVoltaram[0], 'alerta', 9000);
+            } else {
+              ui.avisar(quantas + ' programação(ões) devolvida(s).', 'sucesso');
+            }
           });
       })
       .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro'); });
@@ -4425,11 +4606,52 @@ window.SIPAV = window.SIPAV || {};
   function abrirAtividades() {
     var podeEditar = E.perfil && (E.perfil.papel === 'ADMIN' || E.perfil.papel === 'PLANEJAMENTO');
 
-    var linhas = E.atividades.map(function (a) {
+    var corpo =
+      '<div class="space-y-3">' +
+        '<p class="text-xs text-slate-500">' +
+          'A ordem abaixo é a ordem de execução da obra. É ela que alimenta as regras ' +
+          'de bloqueio, a cor das torres na grade e a ordenação dos campos.' +
+          (podeEditar
+            ? ' <strong>Arraste pela alça</strong> para mudar a posição de uma atividade.'
+            : '') +
+        '</p>' +
+        '<div id="listaAtividadesOrdem" class="space-y-1.5"></div>' +
+      '</div>';
+
+    ui.modalGenerico({
+      titulo: 'Atividades e ordem de execução',
+      corpoHtml: corpo,
+      botoes: podeEditar
+        ? [ { rotulo: 'Fechar', classe: 'btn-secundario' },
+            { rotulo: 'Nova atividade', classe: 'btn-primario',
+              acao: function () { editarAtividade(null); } } ]
+        : [ { rotulo: 'Fechar', classe: 'btn-secundario' } ]
+    });
+
+    renderListaAtividades();
+    if (podeEditar) ligarArrastoAtividades();
+  }
+
+  /**
+   * Só a lista, sem refazer a janela: arrastar várias vezes seguidas não pode
+   * jogar a rolagem de volta para o topo a cada soltada.
+   */
+  function renderListaAtividades() {
+    var lista = $('listaAtividadesOrdem');
+    if (!lista) return;
+
+    var podeEditar = E.perfil && (E.perfil.papel === 'ADMIN' || E.perfil.papel === 'PLANEJAMENTO');
+
+    lista.innerHTML = E.atividades.map(function (a, i) {
       var deps = requeridasDe(a.id);
       return '' +
-        '<div class="flex items-center gap-3 rounded-lg border border-slate-200 px-3 py-2">' +
-          '<span class="text-xs font-bold text-slate-400 w-8 shrink-0">' + a.ordem_execucao + '</span>' +
+        '<div class="atv-linha flex items-center gap-3 rounded-lg border border-slate-200 px-3 py-2" ' +
+             'data-id="' + a.id + '">' +
+          (podeEditar
+            ? '<span class="atv-grip" draggable="true" title="Arraste para mudar a posição">' +
+                '<i data-lucide="grip-vertical" class="w-4 h-4"></i></span>'
+            : '') +
+          '<span class="text-xs font-bold text-slate-400 w-6 shrink-0 text-right">' + (i + 1) + '</span>' +
           '<span class="w-6 h-6 rounded shrink-0 flex items-center justify-center" ' +
                 'style="background:' + a.cor_fundo + '">' +
             '<i data-lucide="' + esc(a.icone) + '" class="w-3.5 h-3.5" ' +
@@ -4453,24 +4675,113 @@ window.SIPAV = window.SIPAV || {};
         '</div>';
     }).join('');
 
-    var corpo =
-      '<div class="space-y-3">' +
-        '<p class="text-xs text-slate-500">' +
-          'A ordem abaixo é a ordem de execução da obra. É ela que alimenta as regras ' +
-          'de bloqueio, a cor das torres na grade e a ordenação dos campos.' +
-        '</p>' +
-        '<div class="space-y-1.5">' + linhas + '</div>' +
-      '</div>';
+    ui.icones();
+  }
 
-    ui.modalGenerico({
-      titulo: 'Atividades e ordem de execução',
-      corpoHtml: corpo,
-      botoes: podeEditar
-        ? [ { rotulo: 'Fechar', classe: 'btn-secundario' },
-            { rotulo: 'Nova atividade', classe: 'btn-primario',
-              acao: function () { editarAtividade(null); } } ]
-        : [ { rotulo: 'Fechar', classe: 'btn-secundario' } ]
+  /* ------------------------------------------ Arrastar para reordenar ----- */
+
+  var atividadeArrastada = null;
+
+  /**
+   * Só a alça arrasta. A linha inteira arrastável fazia qualquer clique torto
+   * no nome virar um arrasto, e o botão de editar disputava o gesto com ele.
+   *
+   * Os ouvintes ficam na lista, não em cada linha: a lista é refeita a cada
+   * soltada, e ligar linha por linha perderia tudo a cada refazer.
+   */
+  function ligarArrastoAtividades() {
+    var lista = $('listaAtividadesOrdem');
+    if (!lista) return;
+
+    function limparMarcas() {
+      Array.prototype.forEach.call(lista.querySelectorAll('.atv-alvo-cima, .atv-alvo-baixo'),
+        function (l) { l.classList.remove('atv-alvo-cima', 'atv-alvo-baixo'); });
+    }
+
+    lista.addEventListener('dragstart', function (ev) {
+      var alca = ev.target.closest && ev.target.closest('.atv-grip');
+      if (!alca) return;
+
+      var linha = alca.closest('.atv-linha');
+      atividadeArrastada = linha.getAttribute('data-id');
+      linha.classList.add('atv-arrastando');
+
+      ev.dataTransfer.effectAllowed = 'move';
+      ev.dataTransfer.setData('text/plain', atividadeArrastada);   // o Firefox só arrasta se houver dado
+      ev.dataTransfer.setDragImage(linha, 16, 16);
     });
+
+    lista.addEventListener('dragover', function (ev) {
+      if (!atividadeArrastada) return;
+      ev.preventDefault();
+
+      limparMarcas();
+      var linha = ev.target.closest && ev.target.closest('.atv-linha');
+      if (!linha || linha.getAttribute('data-id') === atividadeArrastada) return;
+
+      var r = linha.getBoundingClientRect();
+      linha.classList.add(ev.clientY < r.top + r.height / 2 ? 'atv-alvo-cima' : 'atv-alvo-baixo');
+    });
+
+    lista.addEventListener('drop', function (ev) {
+      if (!atividadeArrastada) return;
+      ev.preventDefault();
+
+      var alvo = ev.target.closest && ev.target.closest('.atv-linha');
+      var movida = atividadeArrastada;
+      var acima = alvo ? ev.clientY < alvo.getBoundingClientRect().top +
+                                       alvo.getBoundingClientRect().height / 2 : false;
+      var alvoId = alvo ? alvo.getAttribute('data-id') : null;
+
+      encerrarArrasto(lista);
+      if (!alvoId || alvoId === movida) return;
+
+      var antes = E.atividades.map(function (a) { return a.id; });
+      var ids = antes.slice();
+      ids.splice(ids.indexOf(movida), 1);
+
+      var pos = ids.indexOf(alvoId);
+      ids.splice(acima ? pos : pos + 1, 0, movida);
+
+      if (ids.join() === antes.join()) return;   // soltou onde já estava
+      moverAtividade(ids, movida);
+    });
+
+    lista.addEventListener('dragend', function () { encerrarArrasto(lista); });
+  }
+
+  function encerrarArrasto(lista) {
+    atividadeArrastada = null;
+    Array.prototype.forEach.call(
+      lista.querySelectorAll('.atv-arrastando, .atv-alvo-cima, .atv-alvo-baixo'),
+      function (l) { l.classList.remove('atv-arrastando', 'atv-alvo-cima', 'atv-alvo-baixo'); });
+  }
+
+  /**
+   * A conferência é do banco: ele sabe se a lista está completa e se alguma
+   * dependência virou de cabeça para baixo. Se recusar, a lista volta como estava
+   * e a mensagem diz qual par estragaria.
+   */
+  function moverAtividade(ids, movidaId) {
+    ui.processando('Mudando a posição…');
+
+    db.reordenarAtividades(ids)
+      .then(recarregarCatalogoAtividades)
+      .then(function () {
+        ui.pronto();
+        renderListaAtividades();
+
+        var pos = ids.indexOf(movidaId);
+        var nome = nomeAtividade(movidaId);
+        ui.avisar(pos === 0
+          ? nome + ' agora é a primeira.'
+          : nome + ' agora vem depois de ' + nomeAtividade(ids[pos - 1]) + '.', 'sucesso', 4500);
+      })
+      .catch(function (e) {
+        ui.pronto();
+        renderListaAtividades();   // desfaz o que a tela sugeria
+        ui.avisar(e.message, 'erro', 9000);
+      });
   }
 
   /** Formulário de uma atividade. id nulo = nova. */
@@ -4478,41 +4789,53 @@ window.SIPAV = window.SIPAV || {};
     var a = id ? E.atividades.find(function (x) { return x.id === id; }) : null;
     var deps = id ? requeridasDe(id) : [];
 
-    var proximaOrdem = E.atividades.length
-      ? Math.max.apply(null, E.atividades.map(function (x) { return x.ordem_execucao; })) + 10
-      : 10;
-
     var cor   = a ? a.cor_fundo : '#94A3B8';
     var icone = a ? a.icone : 'circle-dashed';
 
     // Só atividades anteriores podem ser pré-requisito: impede ciclo por
-    // construção, e é como a obra funciona de verdade.
-    var ordemDesta = a ? a.ordem_execucao : proximaOrdem;
+    // construção, e é como a obra funciona de verdade. Nova entra no fim, então
+    // todas são anteriores; ao arrastar, o banco confere que isso se mantém.
+    var ordemDesta = a ? a.ordem_execucao : Infinity;
     var candidatas = E.atividades.filter(function (x) {
       return x.id !== id && x.ordem_execucao < ordemDesta;
     });
 
+    // As cores que a obra já usa, para escolher com um clique. Uma atividade
+    // nova costuma ficar na família de quem ela acompanha, e acertar o tom
+    // parecido no seletor, no olho, nunca dá o mesmo.
+    var usadas = [];
+    E.atividades.forEach(function (x) {
+      var c = String(x.cor_fundo || '').toLowerCase();
+      var item = usadas.find(function (u) { return u.cor === c; });
+      if (item) item.nomes.push(x.nome); else usadas.push({ cor: c, nomes: [x.nome] });
+    });
+
     var corpo =
       '<div class="space-y-4">' +
-        '<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">' +
-          '<div class="sm:col-span-2">' +
-            '<label class="rotulo">Nome</label>' +
-            '<input id="atvNome" class="campo" value="' + esc(a ? a.nome : '') + '" ' +
-                   'placeholder="Ex.: CONCRETAGEM / TUBULÃO"></div>' +
-          '<div><label class="rotulo">Ordem de execução</label>' +
-            '<input id="atvOrdem" type="number" step="5" class="campo" ' +
-                   'value="' + (a ? a.ordem_execucao : proximaOrdem) + '"></div>' +
+        '<div>' +
+          '<label class="rotulo">Nome</label>' +
+          '<input id="atvNome" class="campo" value="' + esc(a ? a.nome : '') + '" ' +
+                 'placeholder="Ex.: CONCRETAGEM / TUBULÃO">' +
+          '<p class="text-xs text-slate-400 mt-1">' +
+            (a
+              ? 'A posição na lista muda arrastando, na lista de atividades.'
+              : 'Entra no fim da lista. Depois arraste para o lugar certo.') +
+          '</p>' +
         '</div>' +
 
         '<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">' +
           '<div><label class="rotulo">Cor na grade</label>' +
             '<div class="flex items-center gap-2">' +
+              // Maior que antes: era um quadradinho de 34px que parecia enfeite
               '<input id="atvCor" type="color" value="' + cor + '" ' +
+                     'title="Clique para escolher a cor" ' +
                      'onchange="SIPAV.app.sincronizarCor(this.value)" ' +
-                     'class="w-10 h-9 rounded border border-slate-300 bg-transparent cursor-pointer">' +
+                     'class="atv-seletor-cor">' +
               '<input id="atvCorTexto" class="campo font-mono text-xs" value="' + cor + '" ' +
                      'onchange="SIPAV.app.sincronizarCor(this.value, true)">' +
-            '</div></div>' +
+            '</div>' +
+            '<p class="text-xs text-slate-400 mt-1">Clique no quadrado para escolher, ou digite o código.</p>' +
+          '</div>' +
           '<div><label class="rotulo">Ícone</label>' +
             '<div class="flex items-center gap-2">' +
               '<span id="atvIconePreview" class="w-9 h-9 rounded flex items-center justify-center shrink-0" ' +
@@ -4521,6 +4844,18 @@ window.SIPAV = window.SIPAV || {};
               '<input id="atvIcone" class="campo font-mono text-xs" value="' + esc(icone) + '" ' +
                      'onchange="SIPAV.app.sincronizarIcone(this.value)">' +
             '</div></div>' +
+        '</div>' +
+
+        '<div>' +
+          '<label class="rotulo">Cores que a obra já usa</label>' +
+          '<div class="flex flex-wrap gap-1.5">' +
+            usadas.map(function (u) {
+              return '<button type="button" class="atv-cor-usada" ' +
+                       'style="background:' + esc(u.cor) + '" ' +
+                       'title="' + esc(u.nomes.join(', ')) + '" ' +
+                       'onclick="SIPAV.app.sincronizarCor(\'' + esc(u.cor) + '\')"></button>';
+            }).join('') +
+          '</div>' +
         '</div>' +
 
         '<div class="rounded-lg border border-slate-200 p-2 max-h-28 overflow-y-auto barra-fina ' +
@@ -4540,7 +4875,7 @@ window.SIPAV = window.SIPAV || {};
         '<p class="text-xs text-slate-400 -mt-2">' +
           'Desmarque para atividade condicional — que só acontece em algumas torres, ' +
           'como perfuração em rocha ou tubulão. A importação do estágio só marca como ' +
-          'executadas as obrigatórias anteriores.' +
+          'executadas as obrigatórias anteriores, e a posição na lista decide o que é "anterior".' +
         '</p>' +
 
         '<div>' +
@@ -4559,7 +4894,7 @@ window.SIPAV = window.SIPAV || {};
               '</div>'
             : '<p class="text-sm text-slate-400 italic">Nenhuma atividade anterior — esta fica livre.</p>') +
           '<p class="text-xs text-slate-400 mt-1">' +
-            'Só aparecem atividades de ordem anterior, para não criar dependência circular.' +
+            'Só aparecem atividades que vêm antes na lista, para não criar dependência circular.' +
           '</p>' +
         '</div>' +
       '</div>';
@@ -4602,43 +4937,76 @@ window.SIPAV = window.SIPAV || {};
   }
 
   function salvarFormAtividade(id) {
-    var nome  = $('atvNome').value.trim();
-    var ordem = parseInt($('atvOrdem').value, 10);
-    var cor   = $('atvCorTexto').value.trim();
+    var nome = $('atvNome').value.trim();
+    var cor  = $('atvCorTexto').value.trim();
 
     if (!nome) { ui.avisar('Dê um nome à atividade.', 'alerta'); $('atvNome').focus(); return; }
-    if (isNaN(ordem)) { ui.avisar('A ordem de execução precisa ser um número.', 'alerta'); return; }
     if (!/^#[0-9a-fA-F]{6}$/.test(cor)) { ui.avisar('Cor inválida. Use o formato #RRGGBB.', 'alerta'); return; }
 
-    var conflito = E.atividades.find(function (x) {
-      return x.id !== id && x.ordem_execucao === ordem;
+    // Nome repetido entre as que aparecem: dizer qual, em vez de esperar o erro
+    // de chave duplicada do banco, que não diz nada.
+    var repetida = E.atividades.find(function (x) {
+      return x.id !== id && normalizar(x.nome) === normalizar(nome);
     });
-    if (conflito) {
-      ui.avisar('A ordem ' + ordem + ' já é da atividade ' + conflito.nome +
-                '. Use outro número.', 'alerta', 6000);
+    if (repetida) {
+      ui.avisar('Já existe uma atividade chamada ' + repetida.nome + '.', 'alerta', 6000);
+      $('atvNome').focus();
       return;
     }
 
     var deps = Array.prototype.slice.call(document.querySelectorAll('.atvDep:checked'))
       .map(function (c) { return c.value; });
 
-    ui.processando('Salvando atividade…');
-
-    db.salvarAtividade({
+    var dados = {
       id: id,
       nome: nome,
-      ordemExecucao: ordem,
       corFundo: cor,
       icone: $('atvIcone').value.trim() || 'circle-dashed',
       obrigatoria: $('atvObrigatoria').checked
-    })
-      .then(function (salva) { return db.salvarDependencias(salva.id, deps); })
-      .then(recarregarCatalogoAtividades)
-      .then(function () {
-        ui.pronto();
-        ui.fecharModal('modalGenerico');
-        abrirAtividades();
-        ui.avisar(id ? 'Atividade atualizada.' : 'Atividade criada.', 'sucesso');
+    };
+
+    // Remover só desativa, e o nome continua ocupado no banco. Criar de novo com
+    // o mesmo nome aparecia como "já existe" sem nenhuma atividade à vista, e a
+    // saída era inventar um nome parecido. Agora pergunto se quero a de volta.
+    var procura = id ? Promise.resolve(null) : db.atividadeRemovidaPorNome(nome);
+
+    procura
+      .then(function (removida) {
+        if (!removida) return dados;
+
+        return ui.confirmar('Já existe uma atividade removida com esse nome',
+          '“' + removida.nome + '” foi removida antes e o nome continua dela. ' +
+          'Recuperar essa, com o histórico, em vez de criar outra? Ela volta para o fim ' +
+          'da lista, com a cor, o ícone e os pré-requisitos que você preencheu aqui. ' +
+          'Quem dependia dela volta a depender.', 'Recuperar')
+          .then(function (sim) {
+            if (!sim) {
+              ui.avisar('Escolha outro nome, ou recupere a removida.', 'alerta', 6000);
+              return null;
+            }
+            dados.id = removida.id;
+            dados.recuperar = true;
+            // O nome dela, não o que eu digitei: o catálogo inteiro é em
+            // maiúsculas e com acento, e recuperar não pode rebaixar o nome
+            // para "restauracao de acesso" só porque eu digitei com pressa.
+            dados.nome = removida.nome;
+            return dados;
+          });
+      })
+      .then(function (d) {
+        if (!d) return null;
+
+        ui.processando('Salvando atividade…');
+        return db.salvarAtividade(d)
+          .then(function (salva) { return db.salvarDependencias(salva.id, deps); })
+          .then(recarregarCatalogoAtividades)
+          .then(function () {
+            ui.pronto();
+            ui.fecharModal('modalGenerico');
+            abrirAtividades();
+            ui.avisar(d.recuperar ? 'Atividade recuperada.'
+              : id ? 'Atividade atualizada.' : 'Atividade criada.', 'sucesso');
+          });
       })
       .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro', 7000); });
   }
