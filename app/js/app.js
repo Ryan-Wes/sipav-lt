@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v103 · 2026-10-01';
+  var VERSAO = 'v104 · 2026-10-01';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -5611,15 +5611,19 @@ window.SIPAV = window.SIPAV || {};
   /* ======================================================================== */
 
   /**
-   * Encarregado que muda de canteiro, máquina que muda de canteiro ou de torre, ou
-   * um dia sem atividade por outro motivo.
+   * Encarregado que muda de canteiro, deslocamento de máquina, ou um dia sem
+   * atividade por outro motivo.
    *
    * Existe para o dia vazio não ser um mistério. Nos painéis, um dia sem nada
    * pode ser mudança, chuva, falta de material ou programação que ninguém lançou,
    * e vazio não diz qual.
    *
-   * Vale para um dia só: a mudança fica registrada naquele dia. Se se repete no
-   * dia seguinte, registra-se de novo.
+   * Vale para um dia só: o registro fica naquele dia. Se se repete no dia
+   * seguinte, registra-se de novo.
+   *
+   * O deslocamento de máquina é só isso, um registro no dia. Na planilha de
+   * programação escrevia-se "mudança de máquina" e mais nada, e é esse o nível de
+   * detalhe: sem qual máquina, sem de onde nem para onde.
    *
    * Não é programação: não tem torre nem atividade de execução, e não passa por
    * precedência, aderência nem relatório da ISA.
@@ -5659,14 +5663,6 @@ window.SIPAV = window.SIPAV || {};
         }).join('');
     };
 
-    // Os nomes de máquina já usados, para a grafia não divergir ("PC200",
-    // "pc 200", "Escavadeira PC200"). Não há cadastro de máquinas: decidir o modelo
-    // antes de saber como elas são identificadas seria chutar.
-    var maquinas = [];
-    (E.movimentacoes || []).forEach(function (x) {
-      if (x.maquina && maquinas.indexOf(x.maquina) === -1) maquinas.push(x.maquina);
-    });
-
     var corpo =
       '<div class="space-y-3">' +
         '<p class="text-xs" style="color:var(--texto-fraco)">' +
@@ -5678,7 +5674,7 @@ window.SIPAV = window.SIPAV || {};
         '<div><label class="rotulo">O que aconteceu</label>' +
           '<select id="movTipo" class="campo" onchange="SIPAV.app.mudarTipoMovimentacao()">' +
             '<option value="MUDANCA_TRECHO">Mudança de trecho (encarregado)</option>' +
-            '<option value="MUDANCA_MAQUINA">Mudança de trecho (máquina)</option>' +
+            '<option value="MUDANCA_MAQUINA">Deslocamento de máquina</option>' +
             '<option value="OUTRO">Outro motivo (dia sem atividade)</option>' +
           '</select></div>' +
 
@@ -5695,20 +5691,6 @@ window.SIPAV = window.SIPAV || {};
             E.encarregados.map(function (e) { return '<option value="' + esc(e.nome) + '">'; }).join('') +
           '</datalist></div>' +
 
-        '<div id="movBlocoMaq" class="space-y-3 hidden">' +
-          '<div><label class="rotulo">Máquina</label>' +
-            '<input id="movMaquina" class="campo" list="movListaMaq" autocomplete="off" ' +
-                   'placeholder="Ex.: Escavadeira PC200">' +
-            '<datalist id="movListaMaq">' +
-              maquinas.map(function (n) { return '<option value="' + esc(n) + '">'; }).join('') +
-            '</datalist></div>' +
-          '<div><label class="rotulo">Muda de</label>' +
-            '<select id="movModo" class="campo" onchange="SIPAV.app.mudarTipoMovimentacao()">' +
-              '<option value="CANTEIRO">Canteiro</option>' +
-              '<option value="TORRE">Torre (dentro do mesmo canteiro)</option>' +
-            '</select></div>' +
-        '</div>' +
-
         '<div id="movBlocoCanteiros" class="grid grid-cols-2 gap-3">' +
           '<div><label class="rotulo">Do canteiro</label>' +
             '<select id="movCanteiroOrigem" class="campo">' +
@@ -5716,20 +5698,6 @@ window.SIPAV = window.SIPAV || {};
           '<div><label class="rotulo">Para o canteiro</label>' +
             '<select id="movCanteiroDestino" class="campo">' +
               opcoesCanteiro(m ? m.canteiro_destino_id : '') + '</select></div>' +
-        '</div>' +
-
-        '<div id="movBlocoTorres" class="grid grid-cols-2 gap-3 hidden">' +
-          '<div><label class="rotulo">Da torre</label>' +
-            '<input id="movTorreOrigem" class="campo" list="movListaTorres" autocomplete="off" ' +
-                   'placeholder="Ex.: 118/2"></div>' +
-          '<div><label class="rotulo">Para a torre</label>' +
-            '<input id="movTorreDestino" class="campo" list="movListaTorres" autocomplete="off" ' +
-                   'placeholder="Ex.: 120/1"></div>' +
-          '<datalist id="movListaTorres">' +
-            (E.torres || []).map(function (t) {
-              return '<option value="' + esc(t.identificador) + '">';
-            }).join('') +
-          '</datalist>' +
         '</div>' +
 
         '<div><label class="rotulo" id="movRotuloObs">Observação ' +
@@ -5759,24 +5727,22 @@ window.SIPAV = window.SIPAV || {};
     $('movTipo').value = m ? m.tipo : 'MUDANCA_TRECHO';
     $('movData').value = m ? m.data : (E.periodo && E.periodo.de && E.periodo.de > ui.hoje() ? E.periodo.de : ui.hoje());
     $('movEncarregado').value = m && m.encarregado ? m.encarregado.nome : '';
-    $('movMaquina').value = m ? (m.maquina || '') : '';
-    $('movModo').value = m && (m.torre_origem_id || m.torre_destino_id) ? 'TORRE' : 'CANTEIRO';
-    $('movTorreOrigem').value = m && m.torre_origem ? m.torre_origem.identificador : '';
-    $('movTorreDestino').value = m && m.torre_destino ? m.torre_destino.identificador : '';
     $('movObs').value = m ? (m.observacao || '') : '';
 
     mudarTipoMovimentacao();
     mostrarDiasDaMovimentacao();
   }
 
-  /** O que a janela pede muda com o tipo: máquina pede máquina, "outro" pede motivo. */
+  /**
+   * O que a janela pede muda com o tipo. Mudança de trecho pede encarregado e os
+   * dois canteiros; "outro" pede o motivo; o deslocamento de máquina não pede nada
+   * além do dia.
+   */
   function mudarTipoMovimentacao() {
     var tipo = $('movTipo').value;
-    var porTorre = tipo === 'MUDANCA_MAQUINA' && $('movModo').value === 'TORRE';
 
-    $('movBlocoMaq').classList.toggle('hidden', tipo !== 'MUDANCA_MAQUINA');
-    $('movBlocoCanteiros').classList.toggle('hidden', tipo === 'OUTRO' || porTorre);
-    $('movBlocoTorres').classList.toggle('hidden', !porTorre);
+    $('movBlocoEnc').classList.toggle('hidden', tipo === 'MUDANCA_MAQUINA');
+    $('movBlocoCanteiros').classList.toggle('hidden', tipo !== 'MUDANCA_TRECHO');
 
     $('movRotuloEnc').textContent = tipo === 'MUDANCA_TRECHO'
       ? 'Encarregado' : 'Encarregado (opcional)';
@@ -5786,7 +5752,7 @@ window.SIPAV = window.SIPAV || {};
 
     $('movObs').placeholder = tipo === 'OUTRO'
       ? 'Ex.: chuva, falta de material, feriado local'
-      : 'Ex.: sai depois do almoço';
+      : tipo === 'MUDANCA_MAQUINA' ? 'Ex.: escavadeira PC200' : 'Ex.: sai depois do almoço';
   }
 
   function mostrarDiasDaMovimentacao() {
@@ -5802,10 +5768,7 @@ window.SIPAV = window.SIPAV || {};
     var tipo = $('movTipo').value;
     var data = $('movData').value;
     var obs = $('movObs').value.trim();
-    var nomeEnc = $('movEncarregado').value.trim();
-    var maquina = tipo === 'MUDANCA_MAQUINA' ? $('movMaquina').value.trim() : '';
-    var porTorre = tipo === 'MUDANCA_MAQUINA' && $('movModo').value === 'TORRE';
-    var porCanteiro = tipo === 'MUDANCA_TRECHO' || (tipo === 'MUDANCA_MAQUINA' && !porTorre);
+    var nomeEnc = tipo === 'MUDANCA_MAQUINA' ? '' : $('movEncarregado').value.trim();
 
     function recusar(texto, campo) {
       ui.avisar(texto, 'alerta', 6000);
@@ -5823,12 +5786,11 @@ window.SIPAV = window.SIPAV || {};
     }
 
     if (tipo === 'MUDANCA_TRECHO' && !enc) return recusar('Escolha o encarregado que muda de canteiro.', 'movEncarregado');
-    if (tipo === 'MUDANCA_MAQUINA' && !maquina) return recusar('Diga qual máquina.', 'movMaquina');
     if (tipo === 'OUTRO' && !obs) return recusar('Diga o motivo: é ele que explica o dia vazio.', 'movObs');
 
-    var canteiroOrigem = '', canteiroDestino = '', torreOrigem = null, torreDestino = null;
+    var canteiroOrigem = '', canteiroDestino = '';
 
-    if (porCanteiro) {
+    if (tipo === 'MUDANCA_TRECHO') {
       canteiroOrigem = $('movCanteiroOrigem').value;
       canteiroDestino = $('movCanteiroDestino').value;
       if (!canteiroOrigem) return recusar('Escolha de qual canteiro.', 'movCanteiroOrigem');
@@ -5836,25 +5798,10 @@ window.SIPAV = window.SIPAV || {};
       if (canteiroOrigem === canteiroDestino) return recusar('O destino é o mesmo canteiro de origem.', 'movCanteiroDestino');
     }
 
-    if (porTorre) {
-      var achar = function (campo, rotulo) {
-        var texto = $(campo).value.trim();
-        if (!texto) { recusar('Diga ' + rotulo + '.', campo); return false; }
-        var t = (E.torres || []).find(function (x) { return normalizar(x.identificador) === normalizar(texto); });
-        if (!t) { recusar('Não achei a torre "' + texto + '" neste trecho.', campo); return false; }
-        return t;
-      };
-      torreOrigem = achar('movTorreOrigem', 'de qual torre');
-      if (!torreOrigem) return;
-      torreDestino = achar('movTorreDestino', 'para qual torre');
-      if (!torreDestino) return;
-      if (torreOrigem.id === torreDestino.id) return recusar('A torre de destino é a mesma de origem.', 'movTorreDestino');
-    }
-
     // Choque com a programação: quem muda de canteiro (ou está sem atividade) num
     // dia em que tem torre programada. Pode ser legítimo — sai depois do serviço —
     // mas tem que ser deliberado, e não descoberto na sexta.
-    var choque = (enc && tipo !== 'MUDANCA_MAQUINA')
+    var choque = enc
       ? E.programacoes.filter(function (p) {
           return p.encarregado && p.encarregado.id === enc.id && p.data === data;
         })
@@ -5865,12 +5812,9 @@ window.SIPAV = window.SIPAV || {};
       tipo: tipo,
       data: data,
       encarregadoId: enc ? enc.id : null,
-      maquina: maquina,
       trechoId: E.trechoAtual.id,
       canteiroOrigemId: canteiroOrigem,
       canteiroDestinoId: canteiroDestino,
-      torreOrigemId: torreOrigem ? torreOrigem.id : null,
-      torreDestinoId: torreDestino ? torreDestino.id : null,
       observacao: obs
     };
 
@@ -5898,7 +5842,6 @@ window.SIPAV = window.SIPAV || {};
       .then(function (sim) { return sim ? gravar() : null; })
       .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro', 7000); });
   }
-
   function removerMovimentacao(m) {
     ui.confirmar('Remover a movimentação',
       'Apaga este registro. O dia volta a aparecer sem explicação nos painéis.', 'Remover')

@@ -877,13 +877,11 @@ window.SIPAV = window.SIPAV || {};
     return obra().then(function (o) {
       return cliente()
         .from('movimentacao')
-        .select('id, tipo, data, trecho_id, encarregado_id, maquina, observacao, ' +
-                'canteiro_origem_id, canteiro_destino_id, torre_origem_id, torre_destino_id, ' +
+        .select('id, tipo, data, trecho_id, encarregado_id, observacao, ' +
+                'canteiro_origem_id, canteiro_destino_id, ' +
                 'encarregado:encarregado_id ( id, nome ), ' +
                 'canteiro_origem:canteiro_origem_id ( id, nome ), ' +
-                'canteiro_destino:canteiro_destino_id ( id, nome ), ' +
-                'torre_origem:torre_origem_id ( id, identificador, trecho_id ), ' +
-                'torre_destino:torre_destino_id ( id, identificador, trecho_id )')
+                'canteiro_destino:canteiro_destino_id ( id, nome )')
         .eq('obra_id', o.id)
         .order('data')
         .then(function (r) {
@@ -894,9 +892,8 @@ window.SIPAV = window.SIPAV || {};
   }
 
   /**
-   * @param {object} d {id?, tipo, data, encarregadoId, maquina, trechoId,
-   *                    canteiroOrigemId, canteiroDestinoId,
-   *                    torreOrigemId, torreDestinoId, observacao}
+   * @param {object} d {id?, tipo, data, encarregadoId, trechoId,
+   *                    canteiroOrigemId, canteiroDestinoId, observacao}
    * trechoId só vale na criação: é o trecho em que a movimentação foi registrada.
    */
   function salvarMovimentacao(d) {
@@ -914,13 +911,10 @@ window.SIPAV = window.SIPAV || {};
         var linha = {
           tipo:              d.tipo,
           data:              d.data,
-          encarregado_id:     d.encarregadoId || null,
-          maquina:            d.maquina || null,
+          encarregado_id:      d.encarregadoId || null,
           canteiro_origem_id:  d.canteiroOrigemId || null,
           canteiro_destino_id: d.canteiroDestinoId || null,
-          torre_origem_id:     d.torreOrigemId || null,
-          torre_destino_id:    d.torreDestinoId || null,
-          observacao:         d.observacao || null
+          observacao:          d.observacao || null
         };
 
         if (d.id) {

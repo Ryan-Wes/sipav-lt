@@ -2,9 +2,9 @@
 -- Movimentação: o dia em que não há atividade na torre — 01/10/2026
 -- =============================================================================
 -- Tem dia em que um encarregado não está em torre nenhuma porque mudou de
--- canteiro, e dia em que uma máquina é levada para outro canteiro ou para outra
--- torre. Nos painéis esse dia aparecia vazio, e vazio não diz nada: pode ser
--- mudança, chuva, falta de material, ou programação que ninguém lançou.
+-- canteiro, e dia em que uma máquina é deslocada. Nos painéis esse dia aparecia
+-- vazio, e vazio não diz nada: pode ser mudança, chuva, falta de material, ou
+-- programação que ninguém lançou.
 --
 -- Esta tabela guarda a explicação. Não é programação: não entra em precedência,
 -- em aderência nem no relatório da ISA. É só o registro de que "naquele dia, foi
@@ -13,24 +13,25 @@
 -- Três tipos, porque são os que existem:
 --
 --   MUDANCA_TRECHO   (encarregado) vai de um canteiro para outro
---   MUDANCA_MAQUINA  máquina vai de um canteiro para outro, OU de uma torre
---                    para outra dentro do mesmo canteiro
+--   MUDANCA_MAQUINA  deslocamento de máquina. É só o registro no dia: na planilha
+--                    de programação escrevia-se "mudança de máquina" e mais nada,
+--                    então não há qual máquina, de onde nem para onde. A
+--                    observação, opcional, diz o que quiserem
 --   OUTRO            dia sem atividade por outro motivo, escrito na observação
 --
 -- O nome MUDANCA_TRECHO ficou porque é como a obra chama ("mudança de trecho
--- (encarregado)"), embora o que muda seja o canteiro.
---
--- A máquina é texto livre. Não existe cadastro de máquinas no SIPAV, e criar um
--- agora seria decidir o modelo antes de saber como vocês as identificam (placa,
--- prefixo, modelo). A tela sugere os nomes já usados, para a grafia não divergir.
+-- (encarregado)"), embora o que mude seja o canteiro. O MUDANCA_MAQUINA aparece na
+-- tela como "Deslocamento de máquina".
 --
 -- trecho_id é o trecho em que o registro foi feito. Como o canteiro atende mais
--- de um trecho, a tela também mostra a movimentação no trecho dos canteiros e
--- das torres envolvidas.
+-- de um trecho, a tela também mostra a mudança de encarregado no trecho dos
+-- canteiros envolvidos.
 --
--- Esta versão substitui a primeira, que usava trecho de origem e destino e tinha
--- data final. Se a tabela antiga existir VAZIA ela é refeita; se tiver registro
--- a execução para, para nada ser perdido sem você ver.
+-- Esta versão substitui as anteriores. A primeira usava trecho de origem e
+-- destino e tinha data final; a segunda guardava máquina, canteiro e torre no
+-- deslocamento. Se a primeira existir, a tabela é refeita quando estiver VAZIA; se
+-- tiver registro a execução para, para nada ser perdido sem você ver. A segunda
+-- é ajustada no lugar: sai a regra que exigia máquina e destino.
 --
 -- Idempotente.
 -- =============================================================================
@@ -73,12 +74,9 @@ create table if not exists movimentacao (
   trecho_id           uuid not null references trecho(id) on delete cascade,
 
   encarregado_id      uuid references encarregado(id),
-  maquina             text,
 
   canteiro_origem_id  uuid references canteiro(id) on delete cascade,
   canteiro_destino_id uuid references canteiro(id) on delete cascade,
-  torre_origem_id     uuid references torre(id)    on delete cascade,
-  torre_destino_id    uuid references torre(id)    on delete cascade,
 
   observacao          text,
 
@@ -93,25 +91,6 @@ create table if not exists movimentacao (
       and canteiro_origem_id is not null
       and canteiro_destino_id is not null
       and canteiro_origem_id <> canteiro_destino_id
-      and torre_origem_id is null
-      and torre_destino_id is null
-    )
-  ),
-
-  -- Mudança de trecho da máquina: ou muda de canteiro, ou muda de torre. Nunca
-  -- os dois ao mesmo tempo, e sempre com origem e destino diferentes.
-  constraint movimentacao_maquina_ok check (
-    tipo <> 'MUDANCA_MAQUINA' or (
-      nullif(btrim(coalesce(maquina, '')), '') is not null
-      and (
-        (canteiro_origem_id is not null and canteiro_destino_id is not null
-          and canteiro_origem_id <> canteiro_destino_id
-          and torre_origem_id is null and torre_destino_id is null)
-        or
-        (torre_origem_id is not null and torre_destino_id is not null
-          and torre_origem_id <> torre_destino_id
-          and canteiro_origem_id is null and canteiro_destino_id is null)
-      )
     )
   ),
 
@@ -120,14 +99,17 @@ create table if not exists movimentacao (
     tipo <> 'OUTRO' or (
       nullif(btrim(coalesce(observacao, '')), '') is not null
       and canteiro_origem_id is null and canteiro_destino_id is null
-      and torre_origem_id is null and torre_destino_id is null
     )
   )
 );
 
+-- Se a tabela veio da segunda versão, tira a regra que exigia máquina e
+-- canteiro ou torre no deslocamento. Num banco novo isto não faz nada.
+alter table movimentacao drop constraint if exists movimentacao_maquina_ok;
+
 comment on table movimentacao is
-  'Dia sem atividade na torre: encarregado mudando de canteiro, máquina mudando de canteiro ou de torre, '
-  'ou outro motivo. Vale um dia só. Não é programação e não entra em precedência nem em aderência.';
+  'Dia sem atividade na torre: encarregado mudando de canteiro, deslocamento de máquina, ou outro motivo. '
+  'Vale um dia só. Não é programação e não entra em precedência nem em aderência.';
 
 create index if not exists movimentacao_data_idx   on movimentacao (data);
 create index if not exists movimentacao_trecho_idx on movimentacao (trecho_id, data);
@@ -180,23 +162,18 @@ on conflict (numero) do nothing;
 -- Conferência
 -- =============================================================================
 -- Tem que sair vazio na primeira vez. Registre uma movimentação pela tela e rode
--- de novo: ela tem que aparecer, com canteiros ou torres conforme o tipo.
+-- de novo: ela tem que aparecer, com os canteiros no caso da mudança de trecho.
 -- =============================================================================
 
 select m.tipo,
        to_char(m.data, 'DD/MM/YYYY') as data,
        e.nome                        as encarregado,
-       m.maquina,
        co.nome                       as do_canteiro,
        cd.nome                       as para_canteiro,
-       tor.identificador             as da_torre,
-       tde.identificador             as para_torre,
        m.observacao
 from movimentacao m
 left join encarregado e on e.id = m.encarregado_id
 left join canteiro co  on co.id  = m.canteiro_origem_id
 left join canteiro cd  on cd.id  = m.canteiro_destino_id
-left join torre    tor on tor.id = m.torre_origem_id
-left join torre    tde on tde.id = m.torre_destino_id
 order by m.data desc
 limit 20;

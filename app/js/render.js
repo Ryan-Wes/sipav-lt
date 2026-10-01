@@ -460,18 +460,15 @@ window.SIPAV = window.SIPAV || {};
   }
 
   /**
-   * Uma movimentação pertence a este trecho se foi registrada nele, se um dos
-   * canteiros dela atende o trecho, ou se uma das torres é daqui. Assim quem sai
-   * de um canteiro e quem chega no outro veem a mesma linha.
+   * Uma movimentação pertence a este trecho se foi registrada nele ou se um dos
+   * canteiros dela atende o trecho. Assim quem sai de um canteiro e quem chega no
+   * outro veem a mesma linha.
    */
   function movimentacaoDoTrecho(m) {
     var atual = E.trechoAtual ? E.trechoAtual.id : null;
     if (m.trecho_id === atual) return true;
     if (m.canteiro_origem_id && canteiroServeOTrecho(m.canteiro_origem_id)) return true;
-    if (m.canteiro_destino_id && canteiroServeOTrecho(m.canteiro_destino_id)) return true;
-    return [m.torre_origem, m.torre_destino].some(function (t) {
-      return t && t.trecho_id === atual;
-    });
+    return !!(m.canteiro_destino_id && canteiroServeOTrecho(m.canteiro_destino_id));
   }
 
   /** O dia em que ela é desenhada. É sempre um dia só. */
@@ -503,13 +500,10 @@ window.SIPAV = window.SIPAV || {};
   function textoDaMovimentacao(m) {
     if (m.tipo === 'OUTRO') return m.observacao || 'Sem atividade';
 
+    // Só o fato, como na planilha de programação: "mudança de máquina". A
+    // observação, se alguém quis dizer qual, vem junto.
     if (m.tipo === 'MUDANCA_MAQUINA') {
-      var quem = m.maquina || 'Máquina';
-      if (m.torre_origem_id || m.torre_destino_id) {
-        var t = function (x) { return x ? x.identificador : '—'; };
-        return quem + ' · torre ' + t(m.torre_origem) + ' → ' + t(m.torre_destino);
-      }
-      return quem + ' · ' + rotaDeCanteiro(m);
+      return 'Deslocamento de máquina' + (m.observacao ? ' · ' + m.observacao : '');
     }
 
     return 'Muda de canteiro · ' + rotaDeCanteiro(m);
@@ -528,7 +522,7 @@ window.SIPAV = window.SIPAV || {};
     // Em "por data" não há o nome do encarregado no título do bloco: entra aqui
     var texto = (comQuem && m.encarregado ? m.encarregado.nome + ' · ' : '') + textoDaMovimentacao(m);
     var dica = textoDaMovimentacao(m) +
-      (m.tipo !== 'OUTRO' && m.observacao ? ' — ' + m.observacao : '');
+      (m.tipo === 'MUDANCA_TRECHO' && m.observacao ? ' — ' + m.observacao : '');
 
     var editavel = podeEditarMovimentacao();
 

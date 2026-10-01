@@ -51,8 +51,10 @@ Criei a tabela `movimentacao` (`db/39`), com três tipos, que a obra chama assim
 
 - **Mudança de trecho (encarregado):** vai de um canteiro para outro. É o canteiro
   que muda, não o trecho. O nome ficou porque é como a obra fala.
-- **Mudança de trecho (máquina):** muda de canteiro, ou só de torre dentro do
-  mesmo canteiro. Uma coisa ou a outra, nunca as duas.
+- **Deslocamento de máquina:** só o registro no dia. Na planilha de programação
+  escrevia-se "mudança de máquina" e mais nada, e é esse o nível de detalhe: sem
+  qual máquina, sem de onde nem para onde. Tem observação opcional, para quem
+  quiser dizer.
 - **Outro motivo:** dia sem atividade com o motivo escrito.
 
 Decisões:
@@ -64,9 +66,6 @@ Decisões:
 - **Aparece onde o canteiro atende.** O canteiro serve mais de um trecho, então a
   linha aparece no trecho onde foi registrada, no dos canteiros envolvidos e no
   das torres envolvidas. Em quem sai, "vai para X"; em quem recebe, "vem de X".
-- **Máquina em texto livre.** Não há cadastro de máquinas, e criar um agora seria
-  decidir o modelo sem saber como elas se identificam (placa, prefixo, modelo). A
-  tela sugere os nomes já usados.
 - **"Outro" exige o motivo.** Dia sem atividade sem motivo é o vazio que isto
   existe para tirar. O banco também recusa.
 - **Quem registra.** Só administração e planejamento. O supervisor já tem o
@@ -75,8 +74,6 @@ Decisões:
   tela pergunta antes. Não bloqueia: ele pode sair depois do serviço.
 - **Filtro some com ela.** Filtrar por atividade, canteiro ou torre é pedir "só
   isto", e a movimentação viraria ruído.
-- **Torre da máquina.** Só as torres do trecho aberto. Máquina que muda de torre
-  para outro trecho se registra como mudança de canteiro.
 - **Aparece como cartão, na ordem de data.** Primeiro era uma faixa embaixo do
   encarregado. Virou cartão no mesmo molde da torre, com as setinhas no lugar do
   número, dentro da semana e no dia em que aconteceu; no mesmo dia vem antes das
