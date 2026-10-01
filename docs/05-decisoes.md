@@ -48,6 +48,9 @@ trecho, máquina muda de trecho, e "outro" com o motivo escrito. Decisões:
 não é impedido, só avisado na hora de registrar a movimentação. O contrário
 (programar depois) ainda passa calado.
 
+**Sem tabela.** Antes de colar a 39 a tela abre normal, sem movimentação, e o
+registro avisa que falta aplicar a migração em vez de mostrar erro cru.
+
 ### Voltar o estágio para "nada executado" de verdade — [WR]
 
 A opção existia no seletor, mas só apagava a carga da planilha. Numa torre com
