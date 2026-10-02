@@ -939,6 +939,12 @@ window.SIPAV = window.SIPAV || {};
   function salvarMovimentacao(d) {
     // Sem a tabela o erro cru do banco não diz o que fazer
     function conferir(r, contexto) {
+      // O tipo novo (db/43) antes da migração: a mensagem do enum cita
+      // "movimentacao" e seria tomada por "tabela inexistente"
+      if (r.error && /invalid input value for enum/i.test(r.error.message || '')) {
+        throw new Error('O banco ainda não conhece este tipo de movimentação. ' +
+                        'Falta aplicar a migração 43 (db/43-folga-de-campo.sql).');
+      }
       if (semTabelaMovimentacao(r.error)) {
         throw new Error('A tabela de movimentação ainda não existe no banco. ' +
                         'Falta aplicar a migração 39 (db/39-movimentacao.sql).');

@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v112 · 2026-10-01';
+  var VERSAO = 'v113 · 2026-10-02';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -1756,13 +1756,31 @@ window.SIPAV = window.SIPAV || {};
     }))
       .then(function (resultados) {
         var com = resultados.filter(function (r) { return r.lista.length; });
-        if (!com.length) { ui.esconder('avisoConflito'); return; }
 
-        $('textoConflito').textContent = com.map(function (r) {
+        // Quem está de folga de campo, ou mudando de canteiro, nesse dia: o
+        // registro existe justamente para não programarem a pessoa por cima
+        var ausencias = (E.movimentacoes || []).filter(function (m) {
+          return m.data === data && (m.tipo === 'FOLGA_CAMPO' || m.tipo === 'MUDANCA_TRECHO') &&
+                 render.encarregadosDe(m).some(function (e) { return ids.indexOf(e.id) !== -1; });
+        });
+
+        if (!com.length && !ausencias.length) { ui.esconder('avisoConflito'); return; }
+
+        var frases = com.map(function (r) {
           var torres = r.lista.map(function (c) { return c.torre ? c.torre.identificador : '?'; });
           return r.nome + ' já está programado em ' + ui.dataCurta(data) + ' na(s) torre(s) ' +
                  torres.join(', ') + '.';
-        }).join(' ') + ' Confira se a equipe dá conta.';
+        });
+
+        ausencias.forEach(function (m) {
+          var quem = render.encarregadosDe(m)
+            .filter(function (e) { return ids.indexOf(e.id) !== -1; })
+            .map(function (e) { return e.nome; }).join(' e ');
+          frases.push(quem + (m.tipo === 'FOLGA_CAMPO'
+            ? ' está de folga de campo em ' : ' muda de canteiro em ') + ui.dataCurta(data) + '.');
+        });
+
+        $('textoConflito').textContent = frases.join(' ') + ' Confira se a equipe dá conta.';
         ui.mostrar('avisoConflito');
         ui.icones();
       })
@@ -5985,6 +6003,7 @@ window.SIPAV = window.SIPAV || {};
           '<select id="movTipo" class="campo" onchange="SIPAV.app.mudarTipoMovimentacao()">' +
             '<option value="MUDANCA_TRECHO">Mudança de trecho (encarregado)</option>' +
             '<option value="MUDANCA_MAQUINA">Deslocamento de máquina</option>' +
+            '<option value="FOLGA_CAMPO">Folga de campo</option>' +
             '<option value="OUTRO">Outro motivo (dia sem atividade)</option>' +
           '</select></div>' +
 
@@ -6060,8 +6079,8 @@ window.SIPAV = window.SIPAV || {};
 
   /**
    * O que a janela pede muda com o tipo. Mudança de trecho pede encarregado e os
-   * dois canteiros; "outro" pede o motivo; o deslocamento de máquina pede só o dia,
-   * e o encarregado se quiserem ligar o registro a ele.
+   * dois canteiros; "outro" pede o motivo; o deslocamento de máquina e a folga de
+   * campo pedem só o dia, e o encarregado se quiserem ligar o registro a ele.
    */
   function mudarTipoMovimentacao() {
     var tipo = $('movTipo').value;
@@ -6076,7 +6095,9 @@ window.SIPAV = window.SIPAV || {};
 
     $('movObs').placeholder = tipo === 'OUTRO'
       ? 'Ex.: chuva, falta de material, feriado local'
-      : tipo === 'MUDANCA_MAQUINA' ? 'Ex.: escavadeira PC200' : 'Ex.: sai depois do almoço';
+      : tipo === 'MUDANCA_MAQUINA' ? 'Ex.: escavadeira PC200'
+      : tipo === 'FOLGA_CAMPO' ? 'Ex.: equipe toda, ou só parte dela'
+      : 'Ex.: sai depois do almoço';
   }
 
   function mostrarEncarregado2Mov() {

@@ -512,13 +512,15 @@ window.SIPAV = window.SIPAV || {};
    * programação que ninguém lançou, e vazio não diz qual.
    */
   var ICONE_MOVIMENTACAO = {
-    MUDANCA_TRECHO: 'arrow-right-left', MUDANCA_MAQUINA: 'truck', OUTRO: 'ban'
+    MUDANCA_TRECHO: 'arrow-right-left', MUDANCA_MAQUINA: 'truck',
+    FOLGA_CAMPO: 'coffee', OUTRO: 'ban'
   };
 
   /** Os tipos, com o nome que a obra usa, na ordem em que aparecem. */
   var TIPOS_DE_MOVIMENTACAO = [
     { tipo: 'MUDANCA_TRECHO',  titulo: 'Mudança de trecho (encarregado)' },
     { tipo: 'MUDANCA_MAQUINA', titulo: 'Deslocamento de máquina' },
+    { tipo: 'FOLGA_CAMPO',     titulo: 'Folga de campo' },
     { tipo: 'OUTRO',           titulo: 'Outro motivo (dia sem atividade)' }
   ];
 
@@ -593,6 +595,10 @@ window.SIPAV = window.SIPAV || {};
     // observação, se alguém quis dizer qual, vem junto.
     if (m.tipo === 'MUDANCA_MAQUINA') {
       return 'Deslocamento de máquina' + (m.observacao ? ' · ' + m.observacao : '');
+    }
+
+    if (m.tipo === 'FOLGA_CAMPO') {
+      return 'Folga de campo' + (m.observacao ? ' · ' + m.observacao : '');
     }
 
     return 'Muda de canteiro · ' + rotaDeCanteiro(m);

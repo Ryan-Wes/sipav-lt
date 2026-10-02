@@ -120,6 +120,11 @@ Decisões:
 - **Aparece onde o canteiro atende.** O canteiro serve mais de um trecho, então a
   linha aparece no trecho onde foi registrada e no dos canteiros envolvidos. Em
   quem sai, "vai para X"; em quem recebe, "vem de X".
+- **Folga de campo** (`db/43`). Quarto tipo, no mesmo esquema: um dia, encarregado
+  opcional (e um segundo), observação opcional. Sem encarregado vale como folga geral
+  e aparece em "Máquinas e outros". Ao programar um encarregado em um dia em que
+  ele está de folga, ou mudando de canteiro, o formulário avisa — antes só avisava
+  quem registrava a movimentação, e o contrário passava calado.
 - **"Outro" exige o motivo.** Dia sem atividade sem motivo é o vazio que isto
   existe para tirar. O banco também recusa.
 - **Quem registra.** Só administração e planejamento. O supervisor já tem o
