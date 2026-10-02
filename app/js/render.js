@@ -734,12 +734,28 @@ window.SIPAV = window.SIPAV || {};
     }).join('');
   }
 
+  /** Quem consulta não lança; quem programa (planejamento, supervisor) sim. */
+  function podeLancar() {
+    return !!E.perfil && E.perfil.papel !== 'LEITURA';
+  }
+
+  /** O botão de cima da aba: lançar escolhendo o encarregado na própria janela. */
+  function barraLancamento() {
+    if (!podeLancar()) return '';
+    return '<div class="barra-lancamento">' +
+             '<button type="button" class="btn-primario" ' +
+                     'onclick="SIPAV.app.lancarPorEncarregado()">' +
+               '<i data-lucide="plus" class="w-4 h-4"></i> Lançar por encarregado' +
+             '</button>' +
+           '</div>';
+  }
+
   function renderPorEncarregado() {
     var lista = programacoesVisiveis();
     var movs = movimentacoesVisiveis();
     var cont = $('visaoEncarregados');
     if (!lista.length && !movs.length) {
-      cont.innerHTML = vazio('Nenhuma atividade programada neste trecho');
+      cont.innerHTML = barraLancamento() + vazio('Nenhuma atividade programada neste trecho');
       return;
     }
 
@@ -809,7 +825,7 @@ window.SIPAV = window.SIPAV || {};
         '</p>' +
       '</section>';
 
-    cont.innerHTML = (lista.length ? tabela : '') + g.ordem.concat(extras).map(function (nome) {
+    cont.innerHTML = barraLancamento() + (lista.length ? tabela : '') + g.ordem.concat(extras).map(function (nome) {
       var itens = g.mapa[nome] || [];
       var datas = {};
       itens.forEach(function (p) { datas[p.data] = true; });
@@ -844,6 +860,14 @@ window.SIPAV = window.SIPAV || {};
 
       var t = totais(itens);
 
+      // O botão de lançar para este encarregado, no cabeçalho do bloco dele
+      var dele = (E.encarregados || []).find(function (x) { return x.nome === nome; });
+      var botaoLancar = (podeLancar() && dele)
+        ? '<button type="button" class="btn-lancar" ' +
+                  'title="Lançar atividades, torres e datas para ' + esc(nome) + '" ' +
+                  'onclick="SIPAV.app.lancarPorEncarregado(\'' + dele.id + '\')">+ Lançar</button>'
+        : '';
+
       return '' +
         '<section class="bloco-quadrante painel overflow-hidden">' +
           '<header class="flex flex-wrap items-baseline justify-between gap-x-3 px-4 py-2.5 bg-slate-50 border-b border-slate-200">' +
@@ -853,7 +877,8 @@ window.SIPAV = window.SIPAV || {};
                 (qtd ? qtd + (qtd === 1 ? ' dia programado' : ' dias programados')
                      : 'nenhum dia programado') + '</p>' +
             '</div>' +
-            '<span class="text-xs font-semibold text-slate-500 shrink-0">' +
+            '<span class="text-xs font-semibold text-slate-500 shrink-0 flex items-center gap-2">' +
+              botaoLancar +
               (itens.length
                 ? t.torres + (t.torres === 1 ? ' torre' : ' torres') + ' · ' + ui.km(t.km) + ' km · ' +
                   itens.length + (itens.length === 1 ? ' atividade' : ' atividades')

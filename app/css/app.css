@@ -1318,3 +1318,13 @@ body.modo-selecao #visaoGrade { user-select: none; }
 }
 .link-tirar:hover { color: #E11D48; }
 .chip-parceiro { font-style: italic; }
+/* Lançar pela aba Por Encarregado */
+.barra-lancamento { display: flex; justify-content: flex-end; margin-bottom: .5rem; }
+.barra-lancamento .btn-primario { display: inline-flex; align-items: center; gap: .375rem; }
+.btn-lancar {
+  padding: .1875rem .5rem; border-radius: .375rem;
+  font-size: .6875rem; font-weight: 700; line-height: 1.2;
+  color: var(--acento); background: transparent;
+  border: 1px solid rgba(249,115,22,.45); cursor: pointer;
+}
+.btn-lancar:hover { background: rgba(249,115,22,.12); }

@@ -40,6 +40,29 @@ cumprida (R18/D4). Saber quais pés foram feitos não a torna mais rigorosa.
 
 **Fora do escopo:** editar em lote e programar vários pela seleção não carregam as
 letras. O mastro central sozinho (`ESCAVAÇÃO - MC`) segue sem partes.
+### Lançar pelo encarregado — [WR]
+
+Até aqui só se programava partindo da torre (cartão) ou de torres marcadas na grade
+(lote). Na aba Por Encarregado o caminho é o inverso: parte-se de quem faz, e diz-se
+o que ele faz.
+
+- **O botão.** Cada bloco de encarregado tem `+ Lançar`, e a aba tem
+  `Lançar por encarregado` no topo (escolhe o encarregado na própria janela).
+  Quem só consulta não vê os botões.
+- **É o lote, não uma tela nova.** Abre a janela do lote já com o encarregado
+  escolhido e **sem torres marcadas**. Percentual, observação, segundo encarregado,
+  "repetir o último", conferência da sequência e o motivo para o que estiver fora
+  dela são os mesmos.
+- **Torres digitadas.** O lote ganhou o campo `Torres`: `120/1`, várias separadas
+  por vírgula ou espaço, ou um intervalo na ordem da linha, `131/1 a 125/2`. O
+  intervalo dado de trás para a frente sai de trás para a frente, que é a ordem em
+  que a equipe caminha. O que não existe no trecho é avisado, e o texto fica no
+  campo para corrigir. O campo vale também para o lote aberto pela grade.
+- **As datas continuam sendo escolhidas.** "Uma torre por dia" a partir de uma
+  data (pulando domingo), ou "mesma data em todas". Não preenche sozinho: lançar
+  para hoje sem querer seria pior que um clique a mais.
+
+**Fora do escopo:** a janela não mostra o que o encarregado já tem programado.
 ### Lote: programar fora da sequência, com o motivo — [WR]
 
 O lote só mostrava a linha em vermelho e mandava tirá-la ou programar "um a um, pelo

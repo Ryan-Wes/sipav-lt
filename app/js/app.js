@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v113 · 2026-10-02';
+  var VERSAO = 'v114 · 2026-10-02';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -2953,11 +2953,16 @@ window.SIPAV = window.SIPAV || {};
    *   "repetir sequência"; pela grade não vem nada e a torre entra sem data.
    */
   function abrirProgramacaoEmLote(atividadeId, encarregadoId, percentual, cabo,
-                                  torresIniciais, sequencia) {
+                                  torresIniciais, sequencia, opcoes) {
     if (!E.trechoAtual) return;
+    opcoes = opcoes || {};
 
     var torres = torresIniciais || [];
-    if (!torres.length) {
+
+    // Sem torres marcadas só vale quando o lote começa por outro caminho (o
+    // lançamento por encarregado): aí as torres entram digitadas, dentro da janela
+    loteSemTorresOk = !!opcoes.semTorres;
+    if (!torres.length && !loteSemTorresOk) {
       ui.avisar('Marque as torres na grade primeiro, pelo botão Selecionar.', 'alerta', 5000);
       return;
     }
@@ -2985,14 +2990,30 @@ window.SIPAV = window.SIPAV || {};
       '<div class="space-y-4">' +
 
         '<p class="text-xs" style="color:var(--texto-fraco)">' +
-          'O que você preencher aqui vale para as <strong>' + loteTorres.length +
-          '</strong> torres marcadas. Cada atividade vira uma linha ali embaixo, com data, encarregado e percentual próprios.' +
+          'O que você preencher aqui vale para todas as torres da lista. ' +
+          'Cada atividade vira uma linha ali embaixo, com data, encarregado e percentual próprios.' +
         '</p>' +
 
         // O último lançamento, para não refazer o mesmo formulário a cada lote
         '<div id="blocoUltimoLote" class="hidden"></div>' +
 
         '<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">' +
+          // As torres: as que vieram marcadas da grade e as que eu digitar aqui
+          '<div class="sm:col-span-2">' +
+            '<label class="rotulo">Torres</label>' +
+            '<div class="flex gap-2">' +
+              '<input id="loteTorresTexto" class="campo" autocomplete="off" ' +
+                     'placeholder="Ex.: 131/1 a 125/2, 120/1" ' +
+                     'onkeydown="SIPAV.app.teclaTorresLote(event)">' +
+              '<button type="button" class="btn-secundario shrink-0" ' +
+                      'onclick="SIPAV.app.adicionarTorresAoLote()">Adicionar</button>' +
+            '</div>' +
+            '<p class="text-xs mt-1" style="color:var(--texto-fraco)">' +
+              'Uma por uma, separadas por vírgula, ou um intervalo na ordem da linha: ' +
+              '<strong>131/1 a 125/2</strong>.</p>' +
+            '<div id="loteTorresChips" class="chips-escolhidos mt-1"></div>' +
+          '</div>' +
+
           '<div class="sm:col-span-2">' +
             '<label class="rotulo">Atividade</label>' +
             '<div class="combo">' +
@@ -3113,7 +3134,9 @@ window.SIPAV = window.SIPAV || {};
       '</div>';
 
     ui.modalGenerico({
-      titulo: 'Programar ' + loteTorres.length + ' torres — ' + E.trechoAtual.nome,
+      titulo: opcoes.titulo
+        ? opcoes.titulo + ' — ' + E.trechoAtual.nome
+        : 'Programar ' + loteTorres.length + ' torres — ' + E.trechoAtual.nome,
       corpoHtml: corpo,
       botoes: [
         { rotulo: 'Cancelar', classe: 'btn-secundario' },
@@ -3122,10 +3145,160 @@ window.SIPAV = window.SIPAV || {};
     });
 
     loteModoData = 'mesma';
+
+    // O combo do encarregado também mostra o que veio preenchido: antes só as
+    // linhas tinham o valor, e o campo de cima parecia vazio
+    $('loteEncarregado').value = lotePadrao.encarregadoId;
+
+    renderChipsTorresLote();
     renderChipsAtividadeLote();
     mudarDataBaseLote();
     renderLoteEscolhidas();
     renderUltimoNoLote();
+  }
+
+  var loteSemTorresOk = false;   // o lote pode ficar sem torres (lançamento por encarregado)
+
+  /**
+   * Lançar pelo encarregado, na aba Por Encarregado.
+   *
+   * É o lote, visto de outro lado: em vez de marcar torres na grade e depois
+   * dizer quem as faz, parte-se do encarregado e diz-se o que ele faz. Abre a
+   * mesma janela do lote já com ele escolhido e sem torre nenhuma — elas entram
+   * digitadas ("131/1 a 125/2"), e a data se espalha por "uma torre por dia".
+   * Tudo o mais é o lote de sempre: percentual, observação, segundo encarregado,
+   * conferência da sequência e o motivo para o que estiver fora dela.
+   */
+  function lancarPorEncarregado(encarregadoId) {
+    if (!E.trechoAtual) return;
+    if (E.perfil && E.perfil.papel === 'LEITURA') {
+      ui.avisar('Seu perfil só consulta. Quem programa é planejamento ou supervisor.', 'alerta');
+      return;
+    }
+
+    var e = encarregadoId && E.encarregados.find(function (x) { return x.id === encarregadoId; });
+    abrirProgramacaoEmLote(null, e ? e.id : '', 100, null, [], null, {
+      semTorres: true,
+      titulo: e ? 'Lançar para ' + e.nome : 'Lançar por encarregado'
+    });
+  }
+
+  /* ---------------------------------------------- Torres do lote, digitadas -- */
+
+  /**
+   * Lê "131/1 a 125/2, 120/1" e devolve as torres do trecho.
+   *
+   * Três formas, que se misturam: uma torre ("120/1"), várias separadas por
+   * vírgula, espaço ou quebra de linha, e um intervalo ("131/1 a 125/2", também
+   * "131/1 - 125/2" ou "131/1 até 125/2") que vale todas as torres entre as duas,
+   * na ordem em que estão na linha. Se o intervalo é dado de trás para a frente,
+   * a lista sai de trás para a frente: é a ordem em que a equipe vai caminhar.
+   *
+   * O que não existe neste trecho volta em `faltam`, em vez de sumir calado.
+   */
+  function interpretarTorresDoLote(texto) {
+    var lista = E.torres || [];
+    var indice = {};
+    lista.forEach(function (t, i) { if (!(normalizar(t.identificador) in indice)) indice[normalizar(t.identificador)] = i; });
+
+    var torres = [], vistas = {}, faltam = [];
+
+    function pegar(i) {
+      var t = lista[i];
+      if (t && !vistas[t.torre_id]) { vistas[t.torre_id] = true; torres.push(t); }
+    }
+
+    function resolver(nome) {
+      var k = normalizar(nome);
+      return k in indice ? indice[k] : -1;
+    }
+
+    String(texto || '').split(/[,;\n]+/).forEach(function (item) {
+      item = item.trim();
+      if (!item) return;
+
+      // Uma torre só, do jeito que está escrito
+      var i = resolver(item);
+      if (i !== -1) { pegar(i); return; }
+
+      // Intervalo
+      var partes = item.split(/\s+(?:a|ate|até|ao)\s+|\s*[-–—]\s*/i);
+      if (partes.length === 2) {
+        var de = resolver(partes[0]), ate = resolver(partes[1]);
+        if (de !== -1 && ate !== -1) {
+          var passo = de <= ate ? 1 : -1;
+          for (var k = de; passo > 0 ? k <= ate : k >= ate; k += passo) pegar(k);
+          return;
+        }
+      }
+
+      // Várias separadas por espaço: "131/1 130/1 129/1"
+      var soltas = item.split(/\s+/);
+      if (soltas.length > 1) {
+        soltas.forEach(function (s) {
+          var j = resolver(s);
+          if (j === -1) faltam.push(s); else pegar(j);
+        });
+        return;
+      }
+
+      faltam.push(item);
+    });
+
+    return { torres: torres, faltam: faltam };
+  }
+
+  function renderChipsTorresLote() {
+    var caixa = $('loteTorresChips');
+    if (!caixa) return;
+
+    caixa.innerHTML = loteTorres.map(function (t) {
+      return '<span class="chip-escolhido" style="background:var(--superficie-3);color:var(--texto)">' +
+               esc(t.identificador) +
+               '<button type="button" onclick="SIPAV.app.tirarTorreLote(\'' + t.torreId + '\')" ' +
+                       'title="Tirar a torre">&times;</button>' +
+             '</span>';
+    }).join('');
+  }
+
+  function adicionarTorresAoLote() {
+    var campo = $('loteTorresTexto');
+    if (!campo || !campo.value.trim()) return;
+
+    var r = interpretarTorresDoLote(campo.value);
+
+    if (r.faltam.length) {
+      ui.avisar('Não achei neste trecho: ' + r.faltam.join(', ') + '.', 'alerta', 6000);
+    }
+
+    var jaTem = {};
+    loteTorres.forEach(function (t) { jaTem[t.torreId] = true; });
+    var novas = r.torres.filter(function (t) { return !jaTem[t.torre_id]; });
+
+    novas.forEach(function (t) {
+      loteTorres.push({ torreId: t.torre_id, identificador: t.identificador, data: '', encarregadoId: '' });
+    });
+
+    // O que deu certo sai do campo; o que não deu fica, para corrigir
+    if (!r.faltam.length) campo.value = '';
+
+    sincronizarLinhasLote();
+    renderChipsTorresLote();
+    renderLoteEscolhidas();
+    conferirLoteAoVivo();
+  }
+
+  function teclaTorresLote(ev) {
+    if (ev.key === 'Enter') { ev.preventDefault(); adicionarTorresAoLote(); }
+  }
+
+  function tirarTorreLote(torreId) {
+    loteTorres = loteTorres.filter(function (t) { return t.torreId !== torreId; });
+    loteLinhas = loteLinhas.filter(function (l) { return l.torreId !== torreId; });
+    if (E.selecionadas) delete E.selecionadas[torreId];
+    renderChipsTorresLote();
+    renderLoteEscolhidas();
+    conferirLoteAoVivo();
   }
 
   /**
@@ -3565,12 +3738,13 @@ window.SIPAV = window.SIPAV || {};
       delete E.selecionadas[x.torreId];
     }
 
-    if (!loteTorres.length) {
+    if (!loteTorres.length && !loteSemTorresOk) {
       ui.fecharModal('modalGenerico');
       ui.avisar('Nenhuma torre sobrou no lote.', 'info');
       render.tudo(); renderBarraSelecao();
       return;
     }
+    renderChipsTorresLote();
     renderLoteEscolhidas();
   }
 
@@ -3761,9 +3935,15 @@ window.SIPAV = window.SIPAV || {};
       return;
     }
 
+    if (!loteLinhas.length) {
+      ui.avisar('Adicione as torres no campo "Torres".', 'alerta');
+      if ($('loteTorresTexto')) $('loteTorresTexto').focus();
+      return;
+    }
+
     var semData = loteLinhas.filter(function (x) { return !x.data; });
     if (semData.length) {
-      ui.avisar(semData.length + ' lançamento(s) sem data.', 'alerta');
+      ui.avisar(semData.length + ' lançamento(s) sem data. Use "Mesma data em todas" ou "Uma torre por dia".', 'alerta', 6000);
       return;
     }
 
@@ -6896,6 +7076,10 @@ window.SIPAV = window.SIPAV || {};
     apagarProgramacoesSelecionadas: apagarProgramacoesSelecionadas,
     repetirUltimoLancamento: repetirUltimoLancamento,
     repetirUltimoNoLote: repetirUltimoNoLote,
+    adicionarTorresAoLote: adicionarTorresAoLote,
+    teclaTorresLote: teclaTorresLote,
+    tirarTorreLote: tirarTorreLote,
+    lancarPorEncarregado: lancarPorEncarregado,
     alternarSelecaoProgramacoes: alternarSelecaoProgramacoes,
     alternarProgramacaoMarcada: alternarProgramacaoMarcada,
     limparSelecaoProgramacoes: limparSelecaoProgramacoes,
