@@ -1382,3 +1382,33 @@ button.obs-existente:hover { background: var(--superficie-3); }
 .grupo-atv:first-child { border-top: 0; }
 .grupo-atv .chip-atividade { font-size: .6875rem; padding: .25rem .625rem; }
 .grupo-atv-qtd { font-size: .6875rem; font-weight: 600; color: var(--texto-fraco); }
+/* Por encarregado: a semana em colunas de dia, SEG a SÁB (e DOM se houver) */
+.semana-dias {
+  display: grid; gap: .5rem; padding: .75rem;
+  grid-template-columns: repeat(var(--colunas, 6), minmax(0, 1fr));
+  align-items: start;
+}
+.dia-col { min-width: 0; }
+.dia-col-cab {
+  display: flex; align-items: baseline; justify-content: space-between; gap: .25rem;
+  padding: .25rem .375rem; margin-bottom: .375rem;
+  font-size: .6875rem; text-transform: uppercase; letter-spacing: .02em;
+  color: var(--texto-suave); border-bottom: 2px solid var(--borda-forte);
+}
+.dia-col-cab b { font-weight: 800; color: var(--texto); }
+.dia-col-cab span { font-weight: 600; color: var(--texto-fraco); }
+.dia-col-cab.fim-de-semana b { color: #F59E0B; }
+.dia-col-vazia .dia-col-cab { opacity: .55; }
+.dia-col-corpo { display: flex; flex-direction: column; gap: .375rem; }
+
+/* Na coluna estreita o cartão não tem largura para tudo na mesma linha */
+.dia-col .chip-prog { padding: .3125rem .4375rem; }
+.dia-col .chip-prog .chip-atividade { flex: 1 1 auto; min-width: 0; overflow-wrap: break-word; }
+.dia-col .chip-prog.empilhado .chip-linha { flex-wrap: wrap; row-gap: .1875rem; }
+.dia-col .chip-mov-card { flex-direction: column; align-items: flex-start; gap: .125rem; }
+
+/* Tela estreita: os dias empilham, um embaixo do outro, e os vazios somem */
+@media (max-width: 1100px) {
+  .semana-dias { grid-template-columns: 1fr; }
+  .dia-col-vazia { display: none; }
+}

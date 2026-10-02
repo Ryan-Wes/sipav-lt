@@ -701,8 +701,9 @@ window.SIPAV = window.SIPAV || {};
    * da torre vão as setinhas (ou o caminhão, ou o "proibido"), e ela entra na
    * mesma ordem de data das torres, no dia em que aconteceu.
    */
-  function cartaoMovimentacao(m, comQuem, doEncarregado) {
-    var quando = '<span class="chip-data">' + esc(ui.dataCurta(m.data)) +
+  function cartaoMovimentacao(m, comQuem, doEncarregado, semData) {
+    // Na coluna do dia a data já está no cabeçalho dela: não se repete
+    var quando = semData ? '' : '<span class="chip-data">' + esc(ui.dataCurta(m.data)) +
       '<b class="chip-dia' + (ui.fimDeSemana(m.data) ? ' fim-de-semana' : '') + '">' +
       esc(ui.diaDaSemana(m.data).slice(0, 3)) + '</b></span>';
 
@@ -744,28 +745,31 @@ window.SIPAV = window.SIPAV || {};
   }
 
   /**
-   * Em ordem de torre, da menor para a maior, como estão na linha. Quem olha o
-   * bloco de um encarregado quer ver por onde ele anda, e a mesma torre com duas
-   * atividades fica junta; a data só desempata dentro da mesma torre.
+   * Em ordem de data. No mesmo dia, a movimentação primeiro (é de onde a pessoa
+   * saiu antes de chegar às torres) e, depois, as torres da menor para a maior,
+   * como estão na linha — assim o dia não depende da ordem em que o banco devolveu.
    *
-   * A movimentação não tem torre: vai no começo, por data.
+   * Eu cheguei a ordenar por torre em vez de por data. Não era o que se queria: o
+   * planejamento é por dia, e a data é o que organiza o bloco do encarregado.
    */
-  function emOrdemDeTorre(progs, movs) {
-    var eventos = (movs || []).map(function (m) { return { data: diaDaMovimentacao(m), m: m }; })
-      .sort(function (a, b) { return a.data < b.data ? -1 : a.data > b.data ? 1 : 0; });
+  function emOrdemDeDataETorre(progs, movs) {
+    var eventos = (movs || []).map(function (m, i) { return { data: diaDaMovimentacao(m), m: m, i: i }; });
+    var doTrecho = progs.map(function (p, i) { return { data: p.data, p: p, i: i }; });
 
-    var doTrecho = progs.map(function (p, i) { return { data: p.data, p: p, i: i }; })
-      .sort(function (a, b) {
-        var oa = a.p.torre && a.p.torre.ordem != null ? Number(a.p.torre.ordem) : 1e9;
-        var ob = b.p.torre && b.p.torre.ordem != null ? Number(b.p.torre.ordem) : 1e9;
-        if (oa !== ob) return oa - ob;
-        if (a.data !== b.data) return a.data < b.data ? -1 : 1;
-        var ea = a.p.atividade ? a.p.atividade.ordem_execucao : 9999;
-        var eb = b.p.atividade ? b.p.atividade.ordem_execucao : 9999;
-        return (ea - eb) || (a.i - b.i);
-      });
+    function ordemDaTorre(e) {
+      return e.p && e.p.torre && e.p.torre.ordem != null ? Number(e.p.torre.ordem) : 1e9;
+    }
 
-    return eventos.concat(doTrecho);
+    return eventos.concat(doTrecho).sort(function (a, b) {
+      if (a.data !== b.data) return a.data < b.data ? -1 : 1;
+      if (!!a.m !== !!b.m) return a.m ? -1 : 1;
+      if (a.m) return a.i - b.i;
+      var d = ordemDaTorre(a) - ordemDaTorre(b);
+      if (d) return d;
+      var ea = a.p.atividade ? a.p.atividade.ordem_execucao : 9999;
+      var eb = b.p.atividade ? b.p.atividade.ordem_execucao : 9999;
+      return (ea - eb) || (a.i - b.i);
+    });
   }
 
   function vazio(mensagem) {
@@ -883,6 +887,47 @@ window.SIPAV = window.SIPAV || {};
            '</div>';
   }
 
+  /**
+   * A semana do encarregado em colunas de dia: SEG | TER | QUA | QUI | SEX | SÁB, e
+   * DOM só quando há algo no domingo (DSR na planilha). O cabeçalho é fixo — os
+   * dias estão sempre lá, na mesma ordem, caiba ou não coisa em cada um — e cada
+   * cartão fica embaixo do dia dele, como na planilha da ISA. Dentro do dia, as
+   * torres seguem a ordem da linha (os eventos já chegam assim).
+   *
+   * Como a coluna é estreita, o cartão leva a data só na coluna (não repete) e o
+   * nome da atividade quebra em duas linhas, se precisar.
+   */
+  function semanaEmDias(segundaIso, eventos, nome) {
+    var inicio = ui.paraData(segundaIso);
+    var dias = [0, 1, 2, 3, 4, 5, 6].map(function (i) { return ui.iso(ui.somarDias(inicio, i)); });
+
+    var temDomingo = eventos.some(function (e) { return e.data === dias[6]; });
+    var visiveis = temDomingo ? dias : dias.slice(0, 6);
+
+    return '<div class="semana-dias" style="--colunas:' + visiveis.length + '">' +
+      visiveis.map(function (iso) {
+        var doDia = eventos.filter(function (e) { return e.data === iso; });
+        var fds = ui.fimDeSemana(iso);
+
+        return '<div class="dia-col' + (doDia.length ? '' : ' dia-col-vazia') + '">' +
+                 '<div class="dia-col-cab' + (fds ? ' fim-de-semana' : '') + '">' +
+                   '<b>' + esc(ui.diaDaSemana(iso).slice(0, 3).toUpperCase()) + '</b>' +
+                   '<span>' + esc(ui.dataCurta(iso)) + '</span>' +
+                 '</div>' +
+                 '<div class="dia-col-corpo">' +
+                   doDia.map(function (e) {
+                     return e.m
+                       ? cartaoMovimentacao(e.m, false, nome, true)
+                       : chipProgramacao(e.p, { torre: true, data: false, atividade: true,
+                                                encarregado: false, empilhado: true,
+                                                doEncarregado: nome });
+                   }).join('') +
+                 '</div>' +
+               '</div>';
+      }).join('') +
+    '</div>';
+  }
+
   function renderPorEncarregado() {
     var lista = programacoesVisiveis();
     var movs = movimentacoesVisiveis();
@@ -968,11 +1013,10 @@ window.SIPAV = window.SIPAV || {};
       // seguinte é a QUINZENAL, que é como a gente chama e como vai para a ISA.
       // A movimentação entra na mesma ordem, no dia em que aconteceu, e não numa
       // faixa à parte embaixo: é um dia do encarregado como os outros.
-      var porSemana = agrupar(emOrdemDeTorre(itens, movsPorEnc.mapa[nome]),
+      var porSemana = agrupar(emOrdemDeDataETorre(itens, movsPorEnc.mapa[nome]),
         function (e) { return ui.iso(ui.segundaDaSemana(ui.paraData(e.data))); });
 
-      // Ordenado por torre dentro da semana, as semanas chegariam na ordem em que
-      // a primeira torre de cada uma aparece: as segundas-feiras em ordem, sempre
+      // As segundas-feiras em ordem, sempre
       var corpo = porSemana.ordem.slice().sort().map(function (segunda) {
         return '<div class="faixa-semana">' +
                  '<span class="faixa-semana-nome">' + esc(nomeDaSemana(segunda)) + '</span>' +
@@ -981,16 +1025,7 @@ window.SIPAV = window.SIPAV || {};
                    esc(ui.dataCurta(ui.iso(ui.somarDias(ui.paraData(segunda), 6)))) +
                  '</span>' +
                '</div>' +
-               '<div class="p-3 grid gap-2" ' +
-                    'style="grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr))">' +
-                 porSemana.mapa[segunda].map(function (e) {
-                   return e.m
-                     ? cartaoMovimentacao(e.m, false, nome)
-                     : chipProgramacao(e.p, { torre: true, data: true,
-                                              atividade: true, encarregado: false,
-                                              doEncarregado: nome });
-                 }).join('') +
-               '</div>';
+               semanaEmDias(segunda, porSemana.mapa[segunda], nome);
       }).join('');
 
       var t = totais(itens);

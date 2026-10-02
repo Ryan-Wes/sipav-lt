@@ -40,6 +40,21 @@ cumprida (R18/D4). Saber quais pés foram feitos não a torna mais rigorosa.
 
 **Fora do escopo:** editar em lote e programar vários pela seleção não carregam as
 letras. O mastro central sozinho (`ESCAVAÇÃO - MC`) segue sem partes.
+### Por Encarregado: a semana em colunas de dia — [WR]
+
+O bloco de cada encarregado mostrava os cartões em sequência, e achar o dia era ler a
+data de cada um. Agora cada semana (Semanal, Quinzenal…) tem uma faixa fixa de dias,
+**SEG | TER | QUA | QUI | SEX | SÁB**, e **DOM** só quando há algo no domingo (DSR
+na planilha). Cada cartão fica embaixo do dia dele, como na planilha da ISA; a
+movimentação vai no dia dela, antes das torres. Dentro do dia, as torres seguem a
+ordem da linha.
+
+- **Por data, não por torre.** Cheguei a ordenar o bloco por torre, e não era o que se
+  queria: o planejamento é por dia. A ordem por data é a das colunas.
+- **Dias sem nada** ficam na faixa, apagados: o dia vazio também é informação.
+- **Tela estreita** (abaixo de 1100 px): os dias empilham, um embaixo do outro, e os
+  vazios somem.
+
 ### Por Data: o dia separado por atividade — [WR]
 
 Num dia com 30 torres os cartões saíam misturados (supressão, pré-montagem, revisão
