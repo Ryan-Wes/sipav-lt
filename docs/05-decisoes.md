@@ -40,6 +40,16 @@ cumprida (R18/D4). Saber quais pés foram feitos não a torna mais rigorosa.
 
 **Fora do escopo:** editar em lote e programar vários pela seleção não carregam as
 letras. O mastro central sozinho (`ESCAVAÇÃO - MC`) segue sem partes.
+### Por Data: o dia separado por atividade — [WR]
+
+Num dia com 30 torres os cartões saíam misturados (supressão, pré-montagem, revisão
+tudo junto) e era preciso ler um a um. Agora, dentro de cada dia, as atividades ficam
+em grupos, na **ordem em que se executam**: primeiro todas as supressões, depois todas
+as pré-montagens, e assim por diante. Cada grupo tem o nome da atividade na cor dela
+e quantas torres tem; os cartões dentro seguem por encarregado e, no mesmo
+encarregado, pela ordem das torres na linha. A movimentação fica no topo, antes dos
+grupos. O nome da atividade sai do cartão (já está no grupo), e sobra o ponto colorido.
+
 ### Observação da torre — [WR]
 
 Barra–Correntina tem trechos de serra, e ninguém via isso no cartão. A torre ganhou uma

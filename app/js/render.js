@@ -415,7 +415,10 @@ window.SIPAV = window.SIPAV || {};
         (op && op.porEncarregado && itens.length
           ? linhasPorEncarregado(itens, op)
           : '') +
-        (!(op && op.porEncarregado && itens.length) && (itens.length || movs.length)
+        (op && op.porAtividade && !op.porEncarregado
+          ? gruposPorAtividade(itens, movs, op)
+          : '') +
+        (!(op && (op.porEncarregado || op.porAtividade)) && (itens.length || movs.length)
           ? '<div class="p-3 grid gap-2" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr))">' +
               emOrdemDeData(itens, movs).map(function (e) {
                 return e.m ? cartaoMovimentacao(e.m, true) : chipProgramacao(e.p, op);
@@ -423,6 +426,63 @@ window.SIPAV = window.SIPAV || {};
             '</div>'
           : '') +
       '</section>';
+  }
+
+  /**
+   * Dentro de um dia, as atividades separadas, na ordem em que se executam:
+   * primeiro todas as supressões, depois todas as pré-montagens, e assim por diante.
+   * Cada grupo tem o nome da atividade na cor dela e a contagem; os cartões dentro
+   * seguem por encarregado e, no mesmo encarregado, pela ordem das torres na linha.
+   *
+   * A movimentação (folga, mudança, deslocamento) fica no topo, antes dos grupos:
+   * não é atividade, e explica o dia.
+   */
+  var GRADE_CARTOES = 'p-3 grid gap-2" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr))';
+
+  function gruposPorAtividade(itens, movs, op) {
+    var html = '';
+
+    if (movs.length) {
+      html += '<div class="' + GRADE_CARTOES + '">' +
+                movs.map(function (m) { return cartaoMovimentacao(m, true); }).join('') +
+              '</div>';
+    }
+
+    var g = agrupar(itens.slice(), function (p) { return p.atividade ? p.atividade.id : ''; });
+    var ids = g.ordem.slice().sort(function (a, b) {
+      if (!a) return 1;
+      if (!b) return -1;
+      var pa = g.mapa[a][0].atividade, pb = g.mapa[b][0].atividade;
+      var d = (pa.ordem_execucao || 0) - (pb.ordem_execucao || 0);
+      return d || pa.nome.localeCompare(pb.nome, 'pt-BR');
+    });
+
+    ids.forEach(function (id) {
+      var lista = g.mapa[id].slice().sort(function (a, b) {
+        var na = a.encarregado ? a.encarregado.nome : '', nb = b.encarregado ? b.encarregado.nome : '';
+        if (na !== nb) return !na ? 1 : !nb ? -1 : na.localeCompare(nb, 'pt-BR');
+        return (a.torre ? a.torre.ordem : 0) - (b.torre ? b.torre.ordem : 0);
+      });
+
+      var atv = lista[0].atividade;
+      var cor = atv ? atv.cor_fundo : '#94A3B8';
+      var t = totais(lista);
+
+      html += '<div class="grupo-atv">' +
+                '<span class="chip-atividade" style="background:' + cor + ';color:' +
+                  ui.corDoTexto(cor) + '">' + esc(atv ? atv.nome : 'Sem atividade') + '</span>' +
+                '<span class="grupo-atv-qtd">' + t.torres +
+                  (t.torres === 1 ? ' torre' : ' torres') + '</span>' +
+              '</div>' +
+              '<div class="' + GRADE_CARTOES + '">' +
+                // O nome da atividade já está no grupo: o cartão fica só com um ponto
+                lista.map(function (p) {
+                  return chipProgramacao(p, Object.assign({}, op, { atividade: false }));
+                }).join('') +
+              '</div>';
+    });
+
+    return html;
   }
 
   /**
@@ -760,7 +820,7 @@ window.SIPAV = window.SIPAV || {};
             // em tres linhas e a grade perde o alinhamento.
             return blocoQuadrante(ui.dataLonga(data), null, progsPorDia.mapa[data] || [],
               { torre: true, data: false, atividade: true, encarregado: true, empilhado: true,
-                movs: movsPorDia.mapa[data] || [] });
+                porAtividade: true, movs: movsPorDia.mapa[data] || [] });
           }).join('') +
         '</section>';
     }).join('');
