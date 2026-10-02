@@ -742,6 +742,32 @@ window.SIPAV = window.SIPAV || {};
       return a.i - b.i;
     });
   }
+
+  /**
+   * Em ordem de torre, da menor para a maior, como estão na linha. Quem olha o
+   * bloco de um encarregado quer ver por onde ele anda, e a mesma torre com duas
+   * atividades fica junta; a data só desempata dentro da mesma torre.
+   *
+   * A movimentação não tem torre: vai no começo, por data.
+   */
+  function emOrdemDeTorre(progs, movs) {
+    var eventos = (movs || []).map(function (m) { return { data: diaDaMovimentacao(m), m: m }; })
+      .sort(function (a, b) { return a.data < b.data ? -1 : a.data > b.data ? 1 : 0; });
+
+    var doTrecho = progs.map(function (p, i) { return { data: p.data, p: p, i: i }; })
+      .sort(function (a, b) {
+        var oa = a.p.torre && a.p.torre.ordem != null ? Number(a.p.torre.ordem) : 1e9;
+        var ob = b.p.torre && b.p.torre.ordem != null ? Number(b.p.torre.ordem) : 1e9;
+        if (oa !== ob) return oa - ob;
+        if (a.data !== b.data) return a.data < b.data ? -1 : 1;
+        var ea = a.p.atividade ? a.p.atividade.ordem_execucao : 9999;
+        var eb = b.p.atividade ? b.p.atividade.ordem_execucao : 9999;
+        return (ea - eb) || (a.i - b.i);
+      });
+
+    return eventos.concat(doTrecho);
+  }
+
   function vazio(mensagem) {
     return '<div class="text-center py-16 text-slate-400">' +
              '<i data-lucide="calendar-x" class="w-10 h-10 mx-auto mb-2 text-slate-300"></i>' +
@@ -942,10 +968,12 @@ window.SIPAV = window.SIPAV || {};
       // seguinte é a QUINZENAL, que é como a gente chama e como vai para a ISA.
       // A movimentação entra na mesma ordem, no dia em que aconteceu, e não numa
       // faixa à parte embaixo: é um dia do encarregado como os outros.
-      var porSemana = agrupar(emOrdemDeData(itens, movsPorEnc.mapa[nome]),
+      var porSemana = agrupar(emOrdemDeTorre(itens, movsPorEnc.mapa[nome]),
         function (e) { return ui.iso(ui.segundaDaSemana(ui.paraData(e.data))); });
 
-      var corpo = porSemana.ordem.map(function (segunda) {
+      // Ordenado por torre dentro da semana, as semanas chegariam na ordem em que
+      // a primeira torre de cada uma aparece: as segundas-feiras em ordem, sempre
+      var corpo = porSemana.ordem.slice().sort().map(function (segunda) {
         return '<div class="faixa-semana">' +
                  '<span class="faixa-semana-nome">' + esc(nomeDaSemana(segunda)) + '</span>' +
                  '<span class="faixa-semana-datas">' +
