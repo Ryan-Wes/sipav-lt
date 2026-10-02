@@ -144,6 +144,9 @@ Barra–Correntina tem trechos de serra, e ninguém via isso no cartão. A torre
 Não é a observação da programação (vale um dia) nem a restrição (bloqueia e tem
 liberação): é só informação.
 
+- **Serra tem símbolo próprio.** Observação com a palavra "serra" (em qualquer caixa,
+  com ou sem acento, no meio de outro texto) troca o bloco de notas por uma **montanha**,
+  em tom de terra. É pelo texto: sem cadastro de tipo e sem coluna nova.
 - **No cartão**, um ícone de bloco de notas no canto de cima à esquerda, com o texto na
   dica. **Nos chips** dos painéis, o mesmo ícone ao lado do número da torre.
 - **Pela janela da torre**, um campo editável. **Em várias torres**, o menu Cadastros >

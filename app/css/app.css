@@ -1437,3 +1437,8 @@ body.modo-historico .chip-lixeira { display: none !important; }
 .plano-linha-titulo { font-size: .8125rem; font-weight: 700; color: var(--texto); }
 .plano-linha-detalhe { font-size: .6875rem; color: var(--texto-fraco); margin-top: .125rem; }
 .plano-linha-acoes { display: flex; gap: .375rem; }
+/* Serra: montanha em tom de terra, para se distinguir do azul das outras observações */
+.selo-obs.serra {
+  color: #D97706; background: rgba(217,119,6,.15); border-color: rgba(217,119,6,.45);
+}
+.chip-obs.serra { color: #D97706; }

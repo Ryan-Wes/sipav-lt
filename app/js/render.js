@@ -157,6 +157,20 @@ window.SIPAV = window.SIPAV || {};
 
   /* --------------------------------------------------- Cartão de torre --- */
 
+  /**
+   * Serra é o que a obra mais quer ver de relance, então tem símbolo próprio. É
+   * pelo texto: qualquer observação com a palavra "serra" (Serra, serra íngreme,
+   * trecho de serra) ganha a montanha, sem cadastro de tipo nem coluna nova.
+   */
+  function ehSerra(texto) {
+    return String(texto || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase().indexOf('serra') !== -1;
+  }
+
+  function iconeDaObservacao(texto) {
+    return ehSerra(texto) ? 'mountain' : 'sticky-note';
+  }
+
   function cartaoTorre(torre) {
     // A view torre_situacao expõe a chave como torre_id, não id.
     //
@@ -230,10 +244,11 @@ window.SIPAV = window.SIPAV || {};
         }).join('') + '</div>'
       : '';
 
-    // A observação da torre, no canto de cima à esquerda: de relance, sem abrir
+    // A observação da torre, no canto de cima à esquerda: de relance, sem abrir.
+    // Serra tem símbolo próprio (uma montanha); o resto, um bloco de notas.
     var seloObs = torre.observacao
-      ? '<span class="selo-obs" title="' + esc(torre.observacao) + '">' +
-          '<i data-lucide="sticky-note" style="width:11px;height:11px"></i></span>'
+      ? '<span class="selo-obs' + (ehSerra(torre.observacao) ? ' serra' : '') + '" title="' + esc(torre.observacao) + '">' +
+          '<i data-lucide="' + iconeDaObservacao(torre.observacao) + '" style="width:11px;height:11px"></i></span>'
       : '';
 
     var selo = ordenadas.length
@@ -330,8 +345,8 @@ window.SIPAV = window.SIPAV || {};
     var torre = op.torre === false ? ''
       : '<span class="chip-torre">' + esc(p.torre ? p.torre.identificador : '?') +
           (obsTorre
-            ? '<span class="chip-obs" title="' + esc(obsTorre) + '">' +
-                '<i data-lucide="sticky-note"></i></span>'
+            ? '<span class="chip-obs' + (ehSerra(obsTorre) ? ' serra' : '') + '" title="' + esc(obsTorre) + '">' +
+                '<i data-lucide="' + iconeDaObservacao(obsTorre) + '"></i></span>'
             : '') +
         '</span>';
 
@@ -1181,6 +1196,8 @@ window.SIPAV = window.SIPAV || {};
   window.SIPAV.render = {
     tudo: tudo,
     encarregadosDe: encarregadosDe,
+    iconeDaObservacao: iconeDaObservacao,
+    ehSerra: ehSerra,
     movimentacaoDoTrecho: movimentacaoDoTrecho,
     textoDaMovimentacao: textoDaMovimentacao,
     nomesDosEncarregados: nomesDosEncarregados,

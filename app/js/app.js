@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v122 · 2026-10-02';
+  var VERSAO = 'v123 · 2026-10-02';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -666,6 +666,7 @@ window.SIPAV = window.SIPAV || {};
     // ela estiver vazia
     var podeObs = podeEditarTorre();
     $('campoObsTorre').value = torreAberta.observacao || '';
+    atualizarIconeDaObsTorre(torreAberta.observacao);
     $('campoObsTorre').readOnly = !podeObs;
     $('btnSalvarObsTorre').classList.toggle('hidden', !podeObs);
     $('blocoObsTorre').classList.toggle('hidden', !podeObs && !torreAberta.observacao);
@@ -978,6 +979,14 @@ window.SIPAV = window.SIPAV || {};
     return partesMarcadas.letras.join(',');
   }
 
+  /** O ícone ao lado do campo: montanha para serra, bloco de notas para o resto. */
+  function atualizarIconeDaObsTorre(texto) {
+    var cor = render.ehSerra(texto) ? '#D97706' : 'var(--acento)';
+    $('iconeObsTorre').innerHTML = '<i data-lucide="' + render.iconeDaObservacao(texto) +
+      '" class="w-4 h-4" style="color:' + cor + '"></i>';
+    ui.icones();
+  }
+
   /** Salva a observação da torre que está aberta. Vazio limpa. */
   function salvarObsDaTorreAberta() {
     if (!torreAberta || !podeEditarTorre()) return;
@@ -987,6 +996,7 @@ window.SIPAV = window.SIPAV || {};
     db.salvarObservacaoDasTorres([torreAberta.torre_id], texto)
       .then(function () {
         torreAberta.observacao = texto || null;
+        atualizarIconeDaObsTorre(texto);
         render.tudo();
         ui.avisar(texto ? 'Observação da torre salva.' : 'Observação da torre removida.', 'sucesso');
       })
@@ -1022,7 +1032,8 @@ window.SIPAV = window.SIPAV || {};
       '<div class="space-y-3">' +
         '<p class="text-xs" style="color:var(--texto-fraco)">' +
           'Uma anotação que fica na torre, para ver no cartão onde há dificuldade ' +
-          '(serra, acesso difícil…). Não bloqueia nada.' +
+          '(serra, acesso difícil…). Não bloqueia nada. Se o texto tiver a palavra ' +
+          '<strong>serra</strong>, o cartão ganha o símbolo de montanha.' +
         '</p>' +
         '<div><label class="rotulo">Torres</label>' +
           '<input id="obsTorresTexto" class="campo" autocomplete="off" ' +
