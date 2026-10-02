@@ -383,27 +383,32 @@ window.SIPAV = window.SIPAV || {};
     return { achados: achados, duplicados: duplicados, tortos: tortos, doisLados: doisLados };
   }
 
+  /**
+   * A segunda-feira de uma semana da planilha, como "AAAA-MM-DD", ou nulo.
+   *
+   * As datas são fórmulas encadeadas a partir do cabeçalho (`Q10+1`), então vêm
+   * como {formula, result}. O `valor()` desembrulha; o resultado pode ser Date,
+   * string ISO ou o serial do Excel, dependendo de como foi digitada.
+   */
+  function dataDaLinha(ws, linha) {
+    var v = valor(ws.getCell(linha, COL.SEGUNDA));
+    if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}/.test(v)) v = new Date(v);
+    if (v instanceof Date) {
+      // O ExcelJS devolve meia-noite UTC; ler em local viraria o dia anterior
+      return ui.iso(new Date(v.getUTCFullYear(), v.getUTCMonth(), v.getUTCDate()));
+    }
+    if (typeof v === 'number') {                     // serial do Excel
+      var d = new Date(Date.UTC(1899, 11, 30) + v * 86400000);
+      return ui.iso(new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+    }
+    return null;
+  }
+
   /** Confere se a planilha é da quinzena escolhida. */
   function conferirDatas(ws, segundaS1) {
-    // As datas são fórmulas encadeadas a partir do cabeçalho (`Q10+1`), então
-    // vêm como {formula, result}. O `valor()` desembrulha; o resultado pode ser
-    // Date, string ISO ou o serial do Excel, dependendo de como foi digitada.
-    function dataDa(linha) {
-      var v = valor(ws.getCell(linha, COL.SEGUNDA));
-      if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}/.test(v)) v = new Date(v);
-      if (v instanceof Date) {
-        // O ExcelJS devolve meia-noite UTC; ler em local viraria o dia anterior
-        return ui.iso(new Date(v.getUTCFullYear(), v.getUTCMonth(), v.getUTCDate()));
-      }
-      if (typeof v === 'number') {                     // serial do Excel
-        var d = new Date(Date.UTC(1899, 11, 30) + v * 86400000);
-        return ui.iso(new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
-      }
-      return null;
-    }
     return {
-      s1: dataDa(LINHA_DATAS_S1),
-      s2: dataDa(LINHA_DATAS_S2),
+      s1: dataDaLinha(ws, LINHA_DATAS_S1),
+      s2: dataDaLinha(ws, LINHA_DATAS_S2),
       esperadoS1: ui.iso(segundaS1),
       esperadoS2: ui.iso(ui.somarDias(segundaS1, 7))
     };
@@ -561,6 +566,364 @@ window.SIPAV = window.SIPAV || {};
     return total;
   }
 
+  /* ------------------------------------------------- Importar da planilha --- */
+
+  /**
+   * O caminho inverso do exportador: lê o que está nas linhas PROG. 1 e PROG. 2 e
+   * devolve as programações que isso representa.
+   *
+   * Existe porque a programação da sexta já nasce na planilha, e lançá-la de novo
+   * no SIPAV, torre por torre, é horas de trabalho repetido. Aqui a planilha é só
+   * lida: nada é gravado, e quem chama mostra uma prévia antes de criar qualquer
+   * coisa.
+   *
+   * O que ela faz:
+   *   - acha as linhas pelo nome do item, como o exportador;
+   *   - cada dia tem as torres de cada encarregado, uma linha por encarregado na
+   *     mesma ordem da coluna de encarregados: "1/1, 2/1 (50%)";
+   *   - o percentual e a retirada de flambagem/pendências vêm entre parênteses;
+   *   - a torre que aparece nas linhas de dois encarregados é UMA programação com
+   *     os dois (o segundo encarregado), e não duas;
+   *   - os itens que são partes de uma atividade do SIPAV (escavação do estai e do
+   *     mastro central, por exemplo) voltam a ser a atividade inteira.
+   *
+   * Só os itens do catálogo, que são os que o SIPAV programa. Os preenchidos à
+   * mão na planilha (topografia, canteiro, quilometragem) não são lidos.
+   *
+   * @param {File}   arquivo  .xlsx do trecho
+   * @param {object} ctx      {torres:[{torre_id, identificador, estrutura}],
+   *                           encarregados:[{id, nome}], atividades:[{id, nome}],
+   *                           segundaS1?: 'AAAA-MM-DD' (vale sobre a da planilha)}
+   * @returns {Promise<{datas, registros, problemas, resumo}>}
+   */
+  function interpretar(arquivo, ctx) {
+    if (!window.ExcelJS) {
+      return Promise.reject(new Error('A biblioteca de planilha não carregou. Recarregue a página.'));
+    }
+    var wb = new ExcelJS.Workbook();
+
+    return arquivo.arrayBuffer()
+      .then(function (buf) { return wb.xlsx.load(buf); })
+      .then(function () {
+        var ws = wb.getWorksheet('PS');
+        if (!ws) throw new Error('Não achei a aba "PS" neste arquivo. É a planilha certa?');
+        if (norm(valor(ws.getCell(9, COL.ITEM))) !== 'item') {
+          throw new Error('As colunas desta planilha não estão onde deveriam: a linha 9 deveria ' +
+                          'começar com ITEM na coluna C.');
+        }
+        return interpretarAba(ws, ctx || {});
+      });
+  }
+
+  /** Os itens que aparecem nas linhas de cabo, e o cabo de cada um. */
+  function caboDoItem(item) {
+    if (/^4\.1\./.test(item)) return 'PARA_RAIO';
+    if (/^4\.2D\./.test(item)) return 'OPGW_DIREITO';
+    if (/^4\.2E\./.test(item)) return 'OPGW_ESQUERDO';
+    if (/^4\.2\./.test(item)) return 'OPGW';
+    return null;
+  }
+
+  /** Divide por vírgula, mas não a que está dentro de parênteses. */
+  function dividirNaVirgula(texto) {
+    var partes = [], atual = '', fundo = 0;
+    for (var i = 0; i < texto.length; i++) {
+      var c = texto.charAt(i);
+      if (c === '(') fundo++;
+      if (c === ')') fundo = Math.max(0, fundo - 1);
+      if (c === ',' && fundo === 0) { partes.push(atual); atual = ''; continue; }
+      atual += c;
+    }
+    partes.push(atual);
+    return partes.map(function (p) { return p.trim(); }).filter(Boolean);
+  }
+
+  /** "61/1 (50% · RETIRADA DE FLAMBAGEM)" → {torre, percentual, notas} */
+  function interpretarToken(token) {
+    var m = /^([^(]*?)\s*(?:\(([^)]*)\))?\s*$/.exec(token);
+    var torre = (m ? m[1] : token).trim();
+    var dentro = m && m[2] ? m[2] : '';
+
+    var percentual = null, notas = [];
+    dentro.split(/[·+;]|,\s*/).forEach(function (parte) {
+      parte = parte.trim();
+      if (!parte) return;
+      var p = /^(\d+(?:[.,]\d+)?)\s*%$/.exec(parte);
+      if (p) percentual = Number(p[1].replace(',', '.'));
+      else notas.push(parte);
+    });
+
+    return { torre: torre, percentual: percentual, notas: notas };
+  }
+
+  /** O texto de uma célula, com as quebras de linha da planilha. */
+  function textoDaCelula(ws, linha, col) {
+    var v = valor(ws.getCell(linha, col));
+    return v == null ? '' : String(v).replace(/\r/g, '').trim();
+  }
+
+  function semTexto(t) { return !t || t === '-' || /^dsr$/i.test(t); }
+
+  function interpretarAba(ws, ctx) {
+    var problemas = [];
+    function problema(tipo, texto) { problemas.push({ tipo: tipo, texto: texto }); }
+
+    var mapa = mapearLinhas(ws);
+    var lidas = lerDatasDaPlanilha(ws, ctx);
+
+    // Índices
+    var torres = {};
+    (ctx.torres || []).forEach(function (t) {
+      var k = norm(t.identificador);
+      if (!(k in torres)) torres[k] = t;
+    });
+    var atividades = {};
+    (ctx.atividades || []).forEach(function (a) { atividades[norm(a.nome)] = a; });
+
+    function acharEncarregado(nome) {
+      var k = norm(nome);
+      var lista = ctx.encarregados || [];
+      var exato = lista.filter(function (e) { return norm(e.nome) === k; });
+      if (exato.length === 1) return exato[0];
+
+      // O nome da planilha pode vir encurtado ("FRANCISCO"). Só vale se for único
+      var partes = k.split(' ').filter(Boolean);
+      var contem = lista.filter(function (e) {
+        var n = ' ' + norm(e.nome) + ' ';
+        return partes.length && partes.every(function (p) { return n.indexOf(' ' + p + ' ') !== -1; });
+      });
+      return contem.length === 1 ? contem[0] : null;
+    }
+
+    // ---- 1. As linhas cruas: item, dia, encarregado, torre ----
+    var brutas = [];
+    var encDesconhecidos = {}, torresDesconhecidas = {};
+
+    Object.keys(mapa.achados).forEach(function (item) {
+      ['prog1', 'prog2'].forEach(function (semana) {
+        var linha = mapa.achados[item][semana];
+        var segunda = semana === 'prog1' ? lidas.s1 : lidas.s2;
+        if (!segunda) return;
+
+        var textoEnc = textoDaCelula(ws, linha, COL.ENCARREGADO);
+        var nomes = semTexto(textoEnc) ? [] : textoEnc.split('\n').map(function (n) { return n.trim(); });
+
+        for (var dia = 0; dia < 7; dia++) {
+          var texto = textoDaCelula(ws, linha, COL.SEGUNDA + dia);
+          if (semTexto(texto)) continue;
+
+          var linhas = texto.split('\n').map(function (l) { return l.trim(); });
+          linhas.forEach(function (l, i) {
+            if (semTexto(l)) return;
+
+            var nomeEnc = nomes.length ? nomes[i] : null;
+            if (nomes.length && nomeEnc === undefined) {
+              problema('celula', 'Item ' + item + ', dia ' + ui.dataCurta(ui.iso(ui.somarDias(ui.paraData(segunda), dia))) +
+                ': tem mais linhas de torre do que encarregados. "' + l + '" ficou de fora.');
+              return;
+            }
+
+            dividirNaVirgula(l).forEach(function (token) {
+              var t = interpretarToken(token);
+              brutas.push({
+                item: item, semana: semana, dia: dia,
+                data: ui.iso(ui.somarDias(ui.paraData(segunda), dia)),
+                encNome: nomeEnc && !semTexto(nomeEnc) ? nomeEnc : null,
+                torreTexto: t.torre, percentual: t.percentual, notas: t.notas
+              });
+            });
+          });
+        }
+      });
+    });
+
+    // ---- 2. Resolve torre e encarregado ----
+    var porItem = {};      // torre|data|item → {torre, data, item, encs:[], pct, notas}
+    brutas.forEach(function (b) {
+      var torre = torres[norm(b.torreTexto)];
+      if (!torre) { torresDesconhecidas[b.torreTexto] = (torresDesconhecidas[b.torreTexto] || 0) + 1; return; }
+
+      var enc = null;
+      if (b.encNome) {
+        enc = acharEncarregado(b.encNome);
+        if (!enc) { encDesconhecidos[b.encNome] = (encDesconhecidos[b.encNome] || 0) + 1; return; }
+      }
+
+      var chave = torre.torre_id + '|' + b.data + '|' + b.item;
+      var x = porItem[chave] = porItem[chave] || {
+        torre: torre, data: b.data, item: b.item, encs: [], percentual: null, notas: []
+      };
+      if (enc && !x.encs.some(function (e) { return e.id === enc.id; })) x.encs.push(enc);
+      if (b.percentual != null && x.percentual == null) x.percentual = b.percentual;
+      b.notas.forEach(function (n) { if (x.notas.indexOf(n) === -1) x.notas.push(n); });
+    });
+
+    Object.keys(torresDesconhecidas).sort().forEach(function (t) {
+      problema('torre', 'Torre "' + t + '" não existe neste trecho (' + torresDesconhecidas[t] + ' ocorrência(s)).');
+    });
+    Object.keys(encDesconhecidos).sort().forEach(function (e) {
+      problema('encarregado', 'Encarregado "' + e + '" não está cadastrado (' + encDesconhecidos[e] +
+               ' lançamento(s) de fora). Cadastre e importe de novo.');
+    });
+
+    // ---- 3. Os itens viram atividades ----
+    // Agrupa por torre, dia e equipe: os itens de uma mesma equipe, na mesma torre e
+    // no mesmo dia, podem ser uma atividade só (escavação do estai + do mastro).
+    var grupos = {};
+    Object.keys(porItem).forEach(function (k) {
+      var x = porItem[k];
+      var equipe = x.encs.map(function (e) { return e.id; }).sort().join('+');
+      var g = x.torre.torre_id + '|' + x.data + '|' + equipe;
+      grupos[g] = grupos[g] || { torre: x.torre, data: x.data, encs: x.encs, itens: [] };
+      grupos[g].itens.push(x);
+    });
+
+    var registros = {};
+    Object.keys(grupos).forEach(function (g) {
+      var grupo = grupos[g];
+      var estrutura = grupo.torre.estrutura;
+      var presentes = grupo.itens.map(function (x) { return x.item; });
+      var infoDe = {};
+      grupo.itens.forEach(function (x) { infoDe[x.item] = x; });
+
+      function guardar(nomeAtiv, itensUsados, cabo) {
+        var atv = atividades[norm(nomeAtiv)];
+        if (!atv) {
+          problema('atividade', 'A atividade "' + nomeAtiv + '" não existe no SIPAV (torre ' +
+                   grupo.torre.identificador + ', ' + ui.dataCurta(grupo.data) + ').');
+          return;
+        }
+
+        var primeiro = infoDe[itensUsados[0]];
+        var notas = [];
+        itensUsados.forEach(function (i) {
+          infoDe[i].notas.forEach(function (n) { if (notas.indexOf(n) === -1) notas.push(n); });
+        });
+
+        var chave = [grupo.torre.torre_id, atv.id, grupo.data,
+                     grupo.encs.map(function (e) { return e.id; }).join('+'), cabo || ''].join('|');
+        if (registros[chave]) return;
+
+        registros[chave] = {
+          torreId: grupo.torre.torre_id, torre: grupo.torre.identificador,
+          estrutura: estrutura || null,
+          atividadeId: atv.id, atividade: atv.nome,
+          data: grupo.data,
+          encarregadoId: grupo.encs[0] ? grupo.encs[0].id : null,
+          encarregado2Id: grupo.encs[1] ? grupo.encs[1].id : null,
+          encarregados: grupo.encs.map(function (e) { return e.nome; }),
+          percentual: primeiro.percentual != null ? primeiro.percentual : 100,
+          cabo: cabo || null,
+          observacao: observacaoDasNotas(atv.nome, notas),
+          itens: itensUsados.slice()
+        };
+      }
+
+      // Cabo: um item por atividade, o cabo vem da seção da planilha
+      var restantes = [];
+      presentes.forEach(function (item) {
+        var cabo = caboDoItem(item);
+        if (!cabo) { restantes.push(item); return; }
+        var nomes = atividadesDoItem(item);
+        if (!nomes.length) { problema('atividade', 'O item ' + item + ' não corresponde a nenhuma atividade do SIPAV.'); return; }
+        guardar(nomes[0], [item], cabo);
+      });
+
+      // O resto: cobre o conjunto com as atividades que o explicam por inteiro,
+      // as maiores primeiro. Empate vai para a de nome mais curto: numa torre
+      // autoportante, "ESCAVAÇÃO" e "ESCAVAÇÃO - ESTAI" têm o mesmo item, e é a
+      // genérica que vale para ela.
+      var faltam = restantes.slice();
+      var candidatas = {};
+      restantes.forEach(function (i) { atividadesDoItem(i).forEach(function (n) { candidatas[n] = true; }); });
+
+      var infos = Object.keys(candidatas).map(function (nome) {
+        return { nome: nome, itens: itensDe({ atividade: { nome: nome }, cabo: null }, estrutura, false) };
+      }).filter(function (c) { return c.itens.length; })
+        .sort(function (a, b) { return (b.itens.length - a.itens.length) || (a.nome.length - b.nome.length); });
+
+      infos.forEach(function (c) {
+        var inteira = c.itens.every(function (i) { return faltam.indexOf(i) !== -1; });
+        if (!inteira) return;
+        guardar(c.nome, c.itens, null);
+        faltam = faltam.filter(function (i) { return c.itens.indexOf(i) === -1; });
+      });
+
+      // O que sobrou é parte de uma atividade (só uma das duas linhas preenchida)
+      faltam.forEach(function (item) {
+        var dona = infos.filter(function (c) { return c.itens.indexOf(item) !== -1; })[0];
+        if (!dona) {
+          var qualquer = atividadesDoItem(item)[0];
+          if (!qualquer) { problema('atividade', 'O item ' + item + ' não corresponde a nenhuma atividade do SIPAV.'); return; }
+          guardar(qualquer, [item], null);
+          return;
+        }
+        guardar(dona.nome, [item], null);
+
+        // Só vale avisar se a outra parte existe na planilha e está vazia
+        var outras = dona.itens.filter(function (i) { return i !== item && mapa.achados[i]; });
+        if (outras.length) {
+          problema('parcial', 'Torre ' + grupo.torre.identificador + ', ' + ui.dataCurta(grupo.data) +
+                   ': só o item ' + item + ' de "' + dona.nome + '" está preenchido; entrou como a atividade inteira.');
+        }
+      });
+    });
+
+    var lista = Object.keys(registros).map(function (k) { return registros[k]; })
+      .sort(function (a, b) {
+        if (a.data !== b.data) return a.data < b.data ? -1 : 1;
+        return a.torre.localeCompare(b.torre, 'pt-BR', { numeric: true });
+      });
+
+    return {
+      datas: { s1: lidas.s1, s2: lidas.s2, origem: lidas.origem },
+      registros: lista,
+      problemas: problemas,
+      resumo: {
+        itensLidos: Object.keys(mapa.achados).length,
+        celulas: brutas.length,
+        tortos: mapa.tortos.length
+      }
+    };
+  }
+
+  /**
+   * As segundas-feiras das duas semanas. A planilha manda; só quando ela não traz
+   * as datas (arquivo que nunca foi aberto no Excel, sem o valor das fórmulas) é
+   * que vale a que foi informada na tela.
+   */
+  function lerDatasDaPlanilha(ws, ctx) {
+    var s1 = dataDaLinha(ws, LINHA_DATAS_S1);
+    var s2 = dataDaLinha(ws, LINHA_DATAS_S2);
+
+    if (ctx.segundaS1) {
+      return { s1: ctx.segundaS1, s2: ui.iso(ui.somarDias(ui.paraData(ctx.segundaS1), 7)), origem: 'informada' };
+    }
+    if (s1 && !s2) s2 = ui.iso(ui.somarDias(ui.paraData(s1), 7));
+    return { s1: s1, s2: s2, origem: 'planilha' };
+  }
+
+  /**
+   * "RETIRADA DE FLAMBAGEM" → "Retirada de flambagem", a frase que a tela grava na
+   * observação da revisão. Nas outras atividades, o que estava entre parênteses é
+   * mantido como veio.
+   */
+  function observacaoDasNotas(nomeAtividade, notas) {
+    if (!notas.length) return null;
+
+    if (norm(nomeAtividade) === 'revisao') {
+      var padrao = [];
+      notas.forEach(function (n) {
+        var k = norm(n);
+        if (k.indexOf('retirada de flambagem') !== -1) padrao.push('Retirada de flambagem');
+        else if (k.indexOf('retirada de pendencia') !== -1) padrao.push('Retirada de pendências');
+        else padrao.push(n);
+      });
+      return padrao.join(' · ');
+    }
+    return notas.join(' · ');
+  }
+
   /* --------------------------------------------------------- Exportar ----- */
 
   /**
@@ -685,6 +1048,7 @@ window.SIPAV = window.SIPAV || {};
 
   window.SIPAV.isa = {
     gerar: gerar,
+    interpretar: interpretar,
     DE_PARA: DE_PARA,
     CATALOGO: CATALOGO
   };

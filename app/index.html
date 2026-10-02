@@ -41,7 +41,7 @@
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 
   <!-- ?v= força o navegador a buscar de novo quando o código muda. -->
-  <link rel="stylesheet" href="css/app.css?v=120">
+  <link rel="stylesheet" href="css/app.css?v=121">
 </head>
 <body class="h-full flex flex-col antialiased">
 
@@ -148,6 +148,9 @@
           <div id="menuExportar" class="menu hidden">
             <button class="menu-item" onclick="SIPAV.app.fecharMenus();SIPAV.app.abrirRelatorioIsa()">
               <i data-lucide="table-2" class="w-4 h-4 icone-excel"></i> Relatório da ISA
+            </button>
+            <button class="menu-item" onclick="SIPAV.app.fecharMenus();SIPAV.app.abrirImportarIsa()">
+              <i data-lucide="upload" class="w-4 h-4 icone-excel"></i> Importar programação da ISA
             </button>
             <div class="menu-sep"></div>
             <button class="menu-item" onclick="SIPAV.app.fecharMenus();SIPAV.app.abrirExportarPdf()">
@@ -697,11 +700,11 @@
   </div>
 </div>
 
-<script src="js/config.js?v=120"></script>
-<script src="js/db.js?v=120"></script>
-<script src="js/ui.js?v=120"></script>
-<script src="js/render.js?v=120"></script>
-<script src="js/isa.js?v=120"></script>
-<script src="js/app.js?v=120"></script>
+<script src="js/config.js?v=121"></script>
+<script src="js/db.js?v=121"></script>
+<script src="js/ui.js?v=121"></script>
+<script src="js/render.js?v=121"></script>
+<script src="js/isa.js?v=121"></script>
+<script src="js/app.js?v=121"></script>
 </body>
 </html>

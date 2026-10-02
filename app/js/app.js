@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v120 · 2026-10-02';
+  var VERSAO = 'v121 · 2026-10-02';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -6997,6 +6997,318 @@ window.SIPAV = window.SIPAV || {};
     });
   }
 
+  /* ----------------------------------- Importar a programação da ISA ------- */
+
+  /**
+   * Lança no SIPAV o que já está na planilha da ISA.
+   *
+   * A programação da sexta nasce na planilha, e lançá-la de novo torre por torre é
+   * horas de trabalho repetido. Aqui a planilha é lida, uma prévia mostra o que
+   * vai ser criado, e só depois de confirmar é que as programações entram.
+   *
+   * As duas semanas vêm da própria planilha: PROG. 1 é a semanal (a semana em que
+   * estamos) e PROG. 2 é a quinzenal (a seguinte), que é como a obra a preenche
+   * toda sexta. O que já está no SIPAV não é duplicado.
+   */
+  var importacaoIsa = null;       // {arquivo, datas, registros, problemas}
+  var importacaoIsaFalhas = [];   // o que a precedência recusou, para tentar com o motivo
+  var importacaoIsaJustRetro = '';
+
+  function abrirImportarIsa() {
+    if (!E.trechoAtual) return;
+    if (E.perfil && E.perfil.papel === 'LEITURA') {
+      ui.avisar('Seu perfil só consulta. Quem programa é planejamento ou supervisor.', 'alerta');
+      return;
+    }
+
+    var corpo =
+      '<div class="space-y-4">' +
+        '<p class="text-sm" style="color:var(--texto-suave)">' +
+          'Sobe a planilha <strong>RPSQ</strong> deste trecho já preenchida. O SIPAV lê as linhas ' +
+          '<strong>PROG. 1</strong> (a semanal) e <strong>PROG. 2</strong> (a quinzenal), mostra o que ' +
+          'vai lançar e, só depois de você confirmar, cria as programações.' +
+        '</p>' +
+
+        '<div><label class="rotulo">Planilha do trecho</label>' +
+          '<input id="isaImpArquivo" type="file" accept=".xlsx" class="campo text-sm"></div>' +
+
+        '<div><label class="rotulo">Segunda-feira da semana 1 ' +
+            '<span style="font-weight:400">(deixe vazio para ler da planilha)</span></label>' +
+          '<input id="isaImpSegunda" type="date" class="campo">' +
+          '<p class="text-xs mt-1" style="color:var(--texto-fraco)">' +
+            'Só precisa preencher se a planilha não trouxer as datas.' +
+          '</p></div>' +
+
+        '<p class="text-xs" style="color:var(--texto-fraco)">' +
+          'O arquivo não é alterado. Torre ou encarregado que o SIPAV não conhece, e atividade ' +
+          'que a planilha não tem como entrar, aparecem na prévia e ficam de fora.' +
+        '</p>' +
+      '</div>';
+
+    ui.modalGenerico({
+      titulo: 'Importar programação da ISA — ' + E.trechoAtual.nome,
+      corpoHtml: corpo,
+      botoes: [
+        { rotulo: 'Cancelar', classe: 'btn-secundario' },
+        { rotulo: 'Ler a planilha', classe: 'btn-primario', acao: lerImportacaoIsa }
+      ]
+    });
+  }
+
+  function lerImportacaoIsa() {
+    var entrada = $('isaImpArquivo');
+    var arquivo = entrada.files && entrada.files[0];
+    if (!arquivo) { ui.avisar('Escolha a planilha do trecho.', 'alerta'); return; }
+
+    var segunda = $('isaImpSegunda').value || null;
+
+    ui.fecharModal('modalGenerico');
+    ui.processando('Lendo a planilha…');
+
+    SIPAV.isa.interpretar(arquivo, {
+      torres: E.torres, encarregados: E.encarregados, atividades: E.atividades, segundaS1: segunda
+    })
+      .then(function (r) {
+        if (!r.datas.s1) {
+          throw new Error('Não consegui ler as datas da planilha. Abra o arquivo no Excel, salve, ' +
+                          'ou informe a segunda-feira da semana 1.');
+        }
+        importacaoIsa = { arquivo: arquivo.name, datas: r.datas, registros: r.registros,
+                          problemas: r.problemas, resumo: r.resumo };
+
+        var fim = ui.iso(ui.somarDias(ui.paraData(r.datas.s1), 13));
+        return db.programacoes({ trechoId: E.trechoAtual.id, de: r.datas.s1, ate: fim });
+      })
+      .then(function (existentes) {
+        // O que já está no SIPAV não entra de novo. A chave é a mesma do banco:
+        // torre, atividade, data e encarregado
+        var ja = {};
+        existentes.forEach(function (p) {
+          ja[[p.torre.id, p.atividade ? p.atividade.id : '', p.data, p.encarregado ? p.encarregado.id : ''].join('|')] = true;
+        });
+        importacaoIsa.registros.forEach(function (x) {
+          x.existe = !!ja[[x.torreId, x.atividadeId, x.data, x.encarregadoId || ''].join('|')];
+        });
+
+        ui.pronto();
+        mostrarPreviaIsa();
+      })
+      .catch(function (e) { ui.pronto(); ui.avisar(e.message || 'Falha ao ler a planilha', 'erro', 8000); });
+  }
+
+  function mostrarPreviaIsa() {
+    var imp = importacaoIsa;
+    if (!imp) return;
+
+    var criar = imp.registros.filter(function (x) { return !x.existe; });
+    var jaTem = imp.registros.length - criar.length;
+    var hoje = ui.hoje();
+    var noPassado = criar.filter(function (x) { return x.data < hoje; }).length;
+
+    var s1 = imp.datas.s1, s2 = imp.datas.s2;
+    var fimS1 = ui.iso(ui.somarDias(ui.paraData(s1), 6));
+    var fimS2 = ui.iso(ui.somarDias(ui.paraData(s2), 6));
+
+    var corpo = '<div class="space-y-3">' +
+      '<p class="text-xs" style="color:var(--texto-suave)">' +
+        '<strong>' + esc(imp.arquivo) + '</strong><br>' +
+        'Semanal (PROG. 1): <strong>' + ui.dataCurta(s1) + ' a ' + ui.dataCurta(fimS1) + '</strong> · ' +
+        'Quinzenal (PROG. 2): <strong>' + ui.dataCurta(s2) + ' a ' + ui.dataCurta(fimS2) + '</strong>' +
+        (imp.datas.origem === 'informada' ? ' · datas informadas por você' : ' · datas lidas da planilha') +
+      '</p>' +
+
+      '<div class="previa-grade">' +
+        cartaoPrevia('previa-nova', criar.length, 'a programar', '') +
+        cartaoPrevia('previa-igual', jaTem, 'já estão no SIPAV', '') +
+        cartaoPrevia('previa-muda', imp.problemas.length, 'avisos', '') +
+      '</div>';
+
+    // Muita torre desconhecida: quase sempre é a planilha de outro trecho
+    var semTorre = imp.problemas.filter(function (p) { return p.tipo === 'torre'; }).length;
+    if (semTorre && semTorre >= 5 && criar.length < semTorre * 2) {
+      corpo +=
+        '<div class="rounded-lg border border-rose-300 bg-rose-50 p-3">' +
+          '<p class="text-sm font-semibold text-rose-800">Parece a planilha de outro trecho</p>' +
+          '<p class="text-xs text-rose-800 mt-1">Muitas torres da planilha não existem em ' +
+            esc(E.trechoAtual.nome) + '. Confira o trecho que está aberto.</p>' +
+        '</div>';
+    }
+
+    if (imp.problemas.length) {
+      corpo +=
+        '<details class="rounded-lg border border-amber-300 bg-amber-50 p-3">' +
+          '<summary class="text-sm font-semibold text-amber-900 cursor-pointer">' +
+            imp.problemas.length + ' aviso(s) — ficou de fora</summary>' +
+          '<ul class="text-xs text-amber-800 mt-2 space-y-1 max-h-40 overflow-y-auto barra-fina">' +
+            imp.problemas.map(function (p) { return '<li>' + esc(p.texto) + '</li>'; }).join('') +
+          '</ul>' +
+        '</details>';
+    }
+
+    if (criar.length) {
+      corpo +=
+        '<div><p class="rotulo">O que vai ser programado</p>' +
+          '<div class="resumo-enc-lista barra-fina" style="max-height:16rem">' +
+            criar.map(function (x) {
+              return '<div class="resumo-enc-linha">' +
+                '<span class="resumo-enc-data">' + esc(ui.dataCurta(x.data)) +
+                  '<b class="' + (ui.fimDeSemana(x.data) ? 'fim-de-semana' : '') + '">' +
+                    esc(ui.diaDaSemana(x.data).slice(0, 3)) + '</b></span>' +
+                '<span><strong>' + esc(x.torre) + '</strong> · ' + esc(x.atividade) +
+                  (x.cabo ? ' · ' + esc(rotuloCabo(x.cabo)) : '') +
+                  (x.percentual < 100 ? ' · ' + formatarPercentual(x.percentual) : '') +
+                  (x.observacao ? ' · ' + esc(x.observacao) : '') +
+                  ' <em style="color:var(--texto-fraco)">' +
+                    (x.encarregados.length ? esc(x.encarregados.join(' + ')) : 'sem encarregado') +
+                  '</em></span>' +
+              '</div>';
+            }).join('') +
+          '</div></div>';
+    }
+
+    // Parte da semana já passou: o banco pede o motivo, e a planilha é o motivo
+    if (noPassado) {
+      corpo +=
+        '<div class="rounded-lg border border-amber-300 bg-amber-50 p-3">' +
+          '<p class="text-sm text-amber-800">' + noPassado + ' lançamento(s) são de dias que já passaram. ' +
+            'O motivo fica registrado em cada um.</p>' +
+          '<input id="isaImpRetro" class="campo mt-2" autocomplete="off" ' +
+                 'value="' + esc('Importado do relatório da ISA (' + imp.arquivo + ')') + '">' +
+        '</div>';
+    }
+
+    corpo += '</div>';
+
+    var botoes = [{ rotulo: 'Voltar', classe: 'btn-secundario', acao: function () { abrirImportarIsa(); } }];
+    if (criar.length) {
+      botoes.push({ rotulo: 'Programar ' + criar.length, classe: 'btn-primario', acao: gravarImportacaoIsa });
+    }
+
+    ui.modalGenerico({ titulo: 'Conferir antes de lançar', corpoHtml: corpo, botoes: botoes });
+  }
+
+  /**
+   * Cria as programações, uma a uma e em ordem de data e de execução, como o lote:
+   * o gatilho de precedência pede o pré-requisito já gravado, e assim o que a
+   * própria planilha traz (escavação na segunda, concretagem na quarta) entra na
+   * ordem certa. O que ainda assim for recusado volta num relato, com o motivo.
+   */
+  function gravarImportacaoIsa() {
+    var imp = importacaoIsa;
+    if (!imp) return;
+
+    var criar = imp.registros.filter(function (x) { return !x.existe; });
+    if (!criar.length) { ui.avisar('Nada para programar.', 'alerta'); return; }
+
+    var hoje = ui.hoje();
+    var justRetro = $('isaImpRetro') ? $('isaImpRetro').value.trim() : '';
+    if (criar.some(function (x) { return x.data < hoje; }) && !justRetro) {
+      ui.avisar('Diga o motivo para os dias que já passaram.', 'alerta');
+      if ($('isaImpRetro')) $('isaImpRetro').focus();
+      return;
+    }
+    importacaoIsaJustRetro = justRetro;
+
+    var tarefas = criar.slice().sort(function (a, b) {
+      if (a.data !== b.data) return a.data < b.data ? -1 : 1;
+      return ordemDaAtividade(a.atividadeId) - ordemDaAtividade(b.atividadeId);
+    });
+
+    ui.processando('Programando ' + tarefas.length + ' lançamento(s)…');
+    criarRegistrosDaIsa(tarefas, null)
+      .then(function (r) {
+        loteUltimoLote = r.ids;
+        return recarregarProgramacoes().then(function () { ui.pronto(); relatarImportacaoIsa(r.ok, r.falhou); });
+      })
+      .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro'); });
+  }
+
+  /** Grava a lista, uma a uma. `motivo` liga o "programar mesmo assim" nas linhas. */
+  function criarRegistrosDaIsa(tarefas, motivo) {
+    var situacao = E.perfil.papel === 'SUPERVISOR' ? 'SOLICITADA' : 'APROVADA';
+    var hoje = ui.hoje();
+    var ok = [], falhou = [], ids = [];
+
+    return tarefas.reduce(function (antes, x) {
+      return antes.then(function () {
+        return db.criarProgramacao({
+          torreId: x.torreId, atividadeId: x.atividadeId,
+          encarregadoId: x.encarregadoId, encarregado2Id: x.encarregado2Id,
+          data: x.data, percentual: x.percentual, cabo: x.cabo, observacao: x.observacao,
+          situacao: situacao,
+          overrideMotivo: motivo || null,
+          justificativaRetroativa: x.data < hoje ? importacaoIsaJustRetro : null
+        })
+          .then(function (nova) { ok.push(x.torre + ' · ' + x.atividade); if (nova && nova.id) ids.push(nova.id); })
+          .catch(function (e) { falhou.push({ registro: x, motivo: e.message }); });
+      });
+    }, Promise.resolve()).then(function () { return { ok: ok, falhou: falhou, ids: ids }; });
+  }
+
+  function relatarImportacaoIsa(ok, falhou) {
+    importacaoIsaFalhas = falhou.map(function (f) { return f.registro; });
+
+    var botoes = [{ rotulo: 'Fechar', classe: 'btn-secundario' }];
+    if (loteUltimoLote.length) {
+      botoes.push({ rotulo: 'Desfazer', classe: 'btn-perigo', acao: desfazerUltimoLote });
+    }
+    if (falhou.length) {
+      botoes.push({ rotulo: 'Programar mesmo assim', classe: 'btn-primario', acao: forcarImportacaoIsa });
+    }
+
+    ui.modalGenerico({
+      titulo: 'Importação da ISA',
+      corpoHtml:
+        '<div class="space-y-2">' +
+          (ok.length
+            ? '<div class="rounded-lg border border-emerald-300 bg-emerald-50 p-3">' +
+                '<p class="text-sm font-semibold text-emerald-800">' + ok.length +
+                  ' programada(s)</p>' +
+                '<p class="text-xs text-emerald-700 mt-1">O botão Desfazer apaga tudo o que esta importação criou.</p>' +
+              '</div>'
+            : '') +
+          (falhou.length
+            ? '<div class="rounded-lg border border-rose-200 bg-rose-50 p-3">' +
+                '<p class="text-sm font-semibold text-rose-800">' + falhou.length + ' não entrou</p>' +
+                '<div class="text-xs text-rose-800 mt-1 space-y-1 max-h-48 overflow-y-auto barra-fina">' +
+                  falhou.map(function (f) {
+                    return '<p><strong>' + esc(f.registro.torre) + ' · ' + esc(f.registro.atividade) +
+                           ' (' + esc(ui.dataCurta(f.registro.data)) + ')</strong> — ' + esc(f.motivo) + '</p>';
+                  }).join('') +
+                '</div>' +
+                '<p class="text-xs text-rose-700 mt-2">Quase sempre é sequência: falta o pré-requisito no SIPAV. ' +
+                  'Se a planilha está certa, escreva o motivo e programe mesmo assim.</p>' +
+                '<input id="isaImpMotivo" class="campo mt-2" autocomplete="off" ' +
+                       'placeholder="Por que programar fora da sequência? (fica registrado)">' +
+              '</div>'
+            : '') +
+        '</div>',
+      botoes: botoes
+    });
+  }
+
+  function forcarImportacaoIsa() {
+    var motivo = $('isaImpMotivo') ? $('isaImpMotivo').value.trim() : '';
+    if (!motivo) {
+      ui.avisar('Escreva o motivo para programar fora da sequência.', 'alerta');
+      if ($('isaImpMotivo')) $('isaImpMotivo').focus();
+      return;
+    }
+
+    var tarefas = importacaoIsaFalhas.slice().sort(function (a, b) {
+      if (a.data !== b.data) return a.data < b.data ? -1 : 1;
+      return ordemDaAtividade(a.atividadeId) - ordemDaAtividade(b.atividadeId);
+    });
+
+    ui.processando('Programando ' + tarefas.length + ' lançamento(s)…');
+    criarRegistrosDaIsa(tarefas, motivo)
+      .then(function (r) {
+        loteUltimoLote = loteUltimoLote.concat(r.ids);
+        return recarregarProgramacoes().then(function () { ui.pronto(); relatarImportacaoIsa(r.ok, r.falhou); });
+      })
+      .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro'); });
+  }
+
   /* --------------------------------------------- Relatório da ISA -------- */
 
   function abrirRelatorioIsa() {
@@ -7377,6 +7689,7 @@ window.SIPAV = window.SIPAV || {};
     conferirImportacao: conferirImportacao,
     abrirExportarPdf: abrirExportarPdf,
     abrirRelatorioIsa: abrirRelatorioIsa,
+    abrirImportarIsa: abrirImportarIsa,
     compartilharWhatsApp: compartilharWhatsApp
   };
 

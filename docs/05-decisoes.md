@@ -40,6 +40,28 @@ cumprida (R18/D4). Saber quais pés foram feitos não a torna mais rigorosa.
 
 **Fora do escopo:** editar em lote e programar vários pela seleção não carregam as
 letras. O mastro central sozinho (`ESCAVAÇÃO - MC`) segue sem partes.
+### Importar a programação da planilha da ISA — [WR]
+
+A programação da sexta nasce na planilha, e lançá-la de novo no SIPAV, torre por torre,
+levava horas. Menu Exportar > `Importar programação da ISA`: sobe a planilha do
+trecho, o SIPAV lê a semanal e a quinzenal, mostra uma **prévia** do que vai lançar e só
+cria depois de confirmar. Detalhes em DEC-22 (`docs/04-relatorio-isa.md`).
+
+- **Dias que já passaram** pedem o motivo (o banco exige): vem preenchido com `Importado
+  do relatório da ISA (arquivo)`, editável.
+- **Sequência.** Cria em ordem de data e de execução, como o lote, para o que a própria
+  planilha traz entrar na ordem certa. O que a precedência ainda recusar volta num
+  relato, com o motivo; escrevendo um motivo, `Programar mesmo assim` lança essas.
+- **Desfazer** apaga tudo o que a importação criou.
+- **Idempotente.** Rodar de novo com a mesma planilha não duplica: a chave é torre,
+  atividade, data e encarregado.
+
+**Limites.** Só os itens do catálogo (os preenchidos à mão, em KM, não são lidos). Se
+uma programação já lançada à mão tem o mesmo serviço mas outro encarregado, a
+importação cria a da planilha ao lado: a conferência é por chave exata. O nome do
+encarregado na planilha tem que bater com o cadastro (ou ser uma abreviação
+única).
+
 ### Por Encarregado: a semana em colunas de dia — [WR]
 
 O bloco de cada encarregado mostrava os cartões em sequência, e achar o dia era ler a
