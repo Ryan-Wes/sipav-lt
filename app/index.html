@@ -41,7 +41,7 @@
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 
   <!-- ?v= força o navegador a buscar de novo quando o código muda. -->
-  <link rel="stylesheet" href="css/app.css?v=121">
+  <link rel="stylesheet" href="css/app.css?v=122">
 </head>
 <body class="h-full flex flex-col antialiased">
 
@@ -190,6 +190,15 @@
           <span class="rotulo-btn">Movimentação</span>
         </button>
 
+        <!-- A foto do planejamento da semana (semanal + quinzenal), e rever as
+             anteriores -->
+        <button onclick="SIPAV.app.abrirPlanejamentos()" class="btn-header"
+                id="btnPlanejamento"
+                title="Salvar o planejamento da semana e rever os anteriores">
+          <i data-lucide="history" class="w-4 h-4" style="color:var(--acento)"></i>
+          <span class="rotulo-btn">Planejamentos</span>
+        </button>
+
         <button onclick="SIPAV.app.alternarModoSelecao()" class="btn-header"
                 id="btnModoSelecao" title="Marcar torres na grade para programar, editar ou apagar de uma vez">
           <i data-lucide="box-select" class="w-4 h-4" style="color:var(--acento)"></i>
@@ -253,6 +262,17 @@
 
   <main class="max-w-[1600px] mx-auto px-5 mt-5 flex-1 w-full pb-12">
 
+    <!-- Aparece quando se está vendo um planejamento salvo: só consulta -->
+    <div id="bannerHistorico" class="hidden banner-historico no-print">
+      <div class="min-w-0">
+        <p id="bannerHistoricoTitulo" class="banner-historico-titulo"></p>
+        <p id="bannerHistoricoTexto" class="banner-historico-texto"></p>
+      </div>
+      <button type="button" class="btn-primario shrink-0" onclick="SIPAV.app.sairDoHistorico()">
+        Voltar ao planejamento atual
+      </button>
+    </div>
+
     <!-- Abas + filtros -->
     <div class="barra-ferramentas painel p-3 mb-5 flex flex-wrap justify-between items-center gap-4 no-print">
 
@@ -278,10 +298,15 @@
             <option value="semana">Esta semana</option>
             <option value="proxima">Próxima semana</option>
             <option value="duas">Esta e a próxima</option>
+            <option value="plano">Semanal e quinzenal de…</option>
             <option value="mes">Este mês</option>
             <option value="tudo">Todo o período</option>
             <option value="custom">Personalizado…</option>
           </select>
+          <!-- Qualquer dia da semana do planejamento: vale a segunda-feira dela e a
+               seguinte. É o semanal e o quinzenal, como a obra planeja. -->
+          <input id="periodoSemana" type="date" onchange="SIPAV.app.mudarPeriodo('plano')"
+                 class="hidden select-filtro" title="Um dia da semana do planejamento (semanal + quinzenal)">
           <input id="periodoDe"  type="date" onchange="SIPAV.app.mudarPeriodo('custom')"
                  class="hidden select-filtro" title="De">
           <input id="periodoAte" type="date" onchange="SIPAV.app.mudarPeriodo('custom')"
@@ -700,11 +725,11 @@
   </div>
 </div>
 
-<script src="js/config.js?v=121"></script>
-<script src="js/db.js?v=121"></script>
-<script src="js/ui.js?v=121"></script>
-<script src="js/render.js?v=121"></script>
-<script src="js/isa.js?v=121"></script>
-<script src="js/app.js?v=121"></script>
+<script src="js/config.js?v=122"></script>
+<script src="js/db.js?v=122"></script>
+<script src="js/ui.js?v=122"></script>
+<script src="js/render.js?v=122"></script>
+<script src="js/isa.js?v=122"></script>
+<script src="js/app.js?v=122"></script>
 </body>
 </html>

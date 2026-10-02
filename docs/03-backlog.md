@@ -54,6 +54,8 @@ Situação conferida em **23/09/2026**, item por item, contra o que está public
 | **R24** | **Lançar pelo encarregado** (aba Por Encarregado) | [WR] 02/10 | ✅ lote sem torres marcadas + campo de torres digitadas e intervalo |
 | **R25** | **Observação da torre** (serra, acesso difícil), aplicável em intervalo | [WR] 02/10 | ✅ ``db/44`` — ícone no cartão e nos chips |
 | **R26** | **Importar a programação da planilha da ISA** (semanal e quinzenal) | [WR] 02/10 | ✅ prévia, dias passados com motivo, sequência com "programar mesmo assim", desfazer |
+| **R27** | **Importação de status confere o programado** (execução sem data) | [WR] 02/10 | ✅ ``db/45`` — prévia com lista; futuras desmarcadas |
+| **R28** | **Planejamento semanal salvo** (foto) e semanal+quinzenal de qualquer semana | [WR] 02/10 | ✅ ``db/46`` — botão Planejamentos, modo consulta |
 
 ## Relatórios e saídas
 

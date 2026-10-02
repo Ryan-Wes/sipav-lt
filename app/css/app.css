@@ -1412,3 +1412,28 @@ button.obs-existente:hover { background: var(--superficie-3); }
   .semana-dias { grid-template-columns: 1fr; }
   .dia-col-vazia { display: none; }
 }
+/* Vendo um planejamento salvo: só consulta */
+.banner-historico {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem;
+  margin-bottom: 1rem; padding: .75rem 1rem; border-radius: .75rem;
+  background: rgba(245,158,11,.12); border: 1px solid rgba(245,158,11,.5);
+}
+.banner-historico-titulo { font-weight: 800; font-size: .875rem; color: #B45309; }
+.banner-historico-texto { font-size: .75rem; color: var(--texto-suave); margin-top: .125rem; }
+html.dark .banner-historico-titulo { color: #FBBF24; }
+
+/* O que altera programação some enquanto se olha uma foto */
+body.modo-historico #btnMovimentacao,
+body.modo-historico .btn-lancar,
+body.modo-historico .barra-lancamento,
+body.modo-historico .chip-lixeira { display: none !important; }
+
+/* Janela dos planejamentos */
+.plano-linha {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem;
+  padding: .625rem .75rem; border: 1px solid var(--borda); border-radius: .5rem;
+  background: var(--superficie-2);
+}
+.plano-linha-titulo { font-size: .8125rem; font-weight: 700; color: var(--texto); }
+.plano-linha-detalhe { font-size: .6875rem; color: var(--texto-fraco); margin-top: .125rem; }
+.plano-linha-acoes { display: flex; gap: .375rem; }

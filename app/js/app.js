@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v121 · 2026-10-02';
+  var VERSAO = 'v122 · 2026-10-02';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -308,6 +308,10 @@ window.SIPAV = window.SIPAV || {};
   }
 
   function recarregarProgramacoes() {
+    // Olhando uma foto, o que chega do banco (tempo real, outro usuário) não pode
+    // sobrescrevê-la
+    if (E.snapshot) return Promise.resolve();
+
     return Promise.all([
       db.torres(E.trechoAtual.id),
       db.programacoes(filtroProgramacao()),
@@ -400,6 +404,8 @@ window.SIPAV = window.SIPAV || {};
     }).join('');
     $('seletorTrecho').onchange = function (ev) {
       var escolhido = ev.target.value;
+      // Outro trecho não tem nada a ver com a foto que estava aberta
+      if (E.snapshot) deixarOHistorico();
       E.trechoAtual = E.trechos.find(function (t) { return t.id === escolhido; });
       localStorage.setItem('sipav_trecho', E.trechoAtual.id);
       anunciarTrechoAtual();
@@ -510,6 +516,13 @@ window.SIPAV = window.SIPAV || {};
         return { de: ui.iso(ui.somarDias(seg, 7)), ate: ui.iso(ui.somarDias(seg, 13)) };
       case 'duas':
         return { de: ui.iso(seg), ate: ui.iso(ui.somarDias(seg, 13)) };
+      case 'plano': {
+        // O semanal e o quinzenal de uma semana qualquer: a segunda-feira dela e a
+        // seguinte, inteiras
+        var dia = $('periodoSemana') && $('periodoSemana').value;
+        var base = dia ? ui.segundaDaSemana(ui.paraData(dia)) : seg;
+        return { de: ui.iso(base), ate: ui.iso(ui.somarDias(base, 13)) };
+      }
       case 'mes':
         return { de: ui.iso(ui.primeiroDiaDoMes()), ate: ui.iso(ui.ultimoDiaDoMes()) };
       case 'custom':
@@ -524,6 +537,10 @@ window.SIPAV = window.SIPAV || {};
 
     $('periodoDe').classList.toggle('hidden', !custom);
     $('periodoAte').classList.toggle('hidden', !custom);
+
+    var plano = modo === 'plano';
+    $('periodoSemana').classList.toggle('hidden', !plano);
+    if (plano && !$('periodoSemana').value) $('periodoSemana').value = ui.iso(ui.segundaDaSemana());
 
     if (custom) {
       // Ao entrar no personalizado, começa com o que estava valendo
@@ -547,7 +564,15 @@ window.SIPAV = window.SIPAV || {};
       .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro'); });
   }
 
-  function mudarPeriodo(modo) { aplicarPeriodo(modo, true); }
+  function mudarPeriodo(modo) {
+    // Olhando um planejamento salvo, o período é o dele
+    if (E.snapshot) {
+      $('filtroPeriodo').value = 'plano';
+      somenteConsulta();
+      return;
+    }
+    aplicarPeriodo(modo, true);
+  }
 
   /** Restaura o período salvo. Padrão: semana atual mais a próxima — é o
    *  horizonte de planejamento, e evita que algo lançado para a semana que vem
@@ -617,6 +642,7 @@ window.SIPAV = window.SIPAV || {};
    *   exemplo, que sem isto só marcava a torre e não abria nada.
    */
   function abrirTorre(torreId, forcar) {
+    if (somenteConsulta()) return;
     // Fim de um arrasto, não um clique: o gesto já decidiu o que marcar
     if (arrastou && !forcar) return;
     // Modo seleção: o clique no cartão escolhe em vez de abrir
@@ -981,6 +1007,7 @@ window.SIPAV = window.SIPAV || {};
    */
   function abrirObservacaoDasTorres() {
     if (!E.trechoAtual) return;
+    if (somenteConsulta()) return;
     if (!podeEditarTorre()) {
       ui.avisar('Só administração e planejamento alteram a observação da torre.', 'alerta');
       return;
@@ -1643,6 +1670,14 @@ window.SIPAV = window.SIPAV || {};
   function textoDoExecutado(ex, p) {
     var prog = ex.data_programada || p.data;
     var orig = ex.data_programada_original || prog;
+
+    // Conferida pelo status da planilha: a atividade está feita, e quando, não se
+    // sabe. Sem data não há prazo a medir.
+    if (!ex.data_execucao) {
+      return 'Executada · data não informada (conferida pelo status da planilha) · programado para ' +
+             ui.dataCurta(prog);
+    }
+
     var dias = Math.round((ui.paraData(ex.data_execucao) - ui.paraData(prog)) / 86400000);
 
     var t = 'Executado em ' + ui.dataCurta(ex.data_execucao);
@@ -2856,6 +2891,8 @@ window.SIPAV = window.SIPAV || {};
    * Enquanto o modo está ligado, clicar no cartão marca em vez de abrir a torre.
    */
   function alternarModoSelecao() {
+    // Ligar a seleção é para programar ou apagar: não vale olhando uma foto
+    if (E.snapshot && !E.modoSelecao) { somenteConsulta(); return; }
     E.modoSelecao = !E.modoSelecao;
     if (!E.modoSelecao) E.selecionadas = {};
     document.body.classList.toggle('modo-selecao', E.modoSelecao);
@@ -3135,6 +3172,7 @@ window.SIPAV = window.SIPAV || {};
   function abrirProgramacaoEmLote(atividadeId, encarregadoId, percentual, cabo,
                                   torresIniciais, sequencia, opcoes) {
     if (!E.trechoAtual) return;
+    if (somenteConsulta()) return;
     opcoes = opcoes || {};
 
     var torres = torresIniciais || [];
@@ -3354,6 +3392,7 @@ window.SIPAV = window.SIPAV || {};
    */
   function lancarPorEncarregado(encarregadoId) {
     if (!E.trechoAtual) return;
+    if (somenteConsulta()) return;
     if (E.perfil && E.perfil.papel === 'LEITURA') {
       ui.avisar('Seu perfil só consulta. Quem programa é planejamento ou supervisor.', 'alerta');
       return;
@@ -4413,6 +4452,11 @@ window.SIPAV = window.SIPAV || {};
    * não liga não vê diferença nenhuma.
    */
   function alternarSelecaoProgramacoes(ligado) {
+    if (E.snapshot && ligado) {
+      somenteConsulta();
+      var marca = $('checkSelecaoProg'); if (marca) marca.checked = false;
+      return;
+    }
     E.modoSelecaoProg = !!ligado;
     E.progSelecionadas = {};
 
@@ -4466,6 +4510,7 @@ window.SIPAV = window.SIPAV || {};
 
   /** A lixeira do chip. Uma só, com a pergunta dizendo exatamente qual é. */
   function apagarUmaProgramacao(id) {
+    if (somenteConsulta()) return;
     var p = E.programacoes.find(function (x) { return x.id === id; });
     if (!p) return;
 
@@ -6111,6 +6156,7 @@ window.SIPAV = window.SIPAV || {};
   /* ======================================================================== */
 
   function abrirImportacao() {
+    if (somenteConsulta()) return;
     var corpo =
       '<div class="space-y-3">' +
         '<p class="text-sm text-slate-600">' +
@@ -6390,6 +6436,7 @@ window.SIPAV = window.SIPAV || {};
 
   function abrirMovimentacao(id) {
     if (!E.trechoAtual) return;
+    if (somenteConsulta()) return;
 
     if (!podeRegistrarMovimentacao()) {
       ui.avisar('Só administração e planejamento registram movimentação.', 'alerta');
@@ -6927,8 +6974,6 @@ window.SIPAV = window.SIPAV || {};
         '</div>';
     }
 
-    corpo += '</div>';
-
     var botoes = [{ rotulo: 'Voltar e corrigir', classe: 'btn-secundario',
                     acao: function () { ui.fecharModal('modalGenerico'); abrirImportacao(); } }];
 
@@ -6937,31 +6982,150 @@ window.SIPAV = window.SIPAV || {};
                     classe: 'btn-primario', acao: executarImportacao });
     }
 
-    ui.modalGenerico({
-      titulo: 'Conferir antes de importar — ' + (E.trechoAtual ? E.trechoAtual.nome : ''),
-      corpoHtml: corpo,
-      botoes: botoes
-    });
+    function mostrar(extra) {
+      ui.modalGenerico({
+        titulo: 'Conferir antes de importar — ' + (E.trechoAtual ? E.trechoAtual.nome : ''),
+        corpoHtml: corpo + extra + '</div>',
+        botoes: botoes
+      });
+    }
+
+    // Cruza o status novo com o que está programado. Se o cruzamento falhar, a
+    // importação segue sem ele: conferir é um extra, e não pode travar quem só
+    // quer atualizar o estágio.
+    coberturasImportacao = [];
+    if (impede) { mostrar(''); return; }
+
+    ui.processando('Conferindo as programações…');
+    cobrirProgramacoesPeloStatus(linhas)
+      .then(function (cobertas) {
+        ui.pronto();
+        coberturasImportacao = cobertas;
+        mostrar(htmlCoberturasDaImportacao(cobertas));
+      })
+      .catch(function () { ui.pronto(); mostrar(''); });
   }
 
   var importacaoPendente = null;
   var textoImportacao = '';
+  var coberturasImportacao = [];   // [{p, estagio, futura}] das programações que o status cobre
+
+  /**
+   * Programações que o status novo da planilha torna feitas.
+   *
+   * O estágio de uma torre é a atividade informada mais todas as obrigatórias
+   * anteriores da cadeia. Uma programação dessa torre, de uma atividade que está
+   * nesse conjunto, aconteceu — mesmo que ninguém a tenha apontado. Ficam de fora a
+   * que já foi apontada, a solicitada que ainda não foi aprovada, e as atividades
+   * condicionais (perfuração, tubulão): a planilha não diz se a torre as levou.
+   *
+   * Busca as programações do trecho inteiro, e não as da tela: o filtro de período
+   * deixaria de fora justamente as de semanas anteriores.
+   */
+  function cobrirProgramacoesPeloStatus(linhas) {
+    var torres = {};
+    E.torres.forEach(function (t) { torres[normalizar(t.identificador)] = t; });
+
+    return Promise.all([
+      db.programacoes({ trechoId: E.trechoAtual.id }),
+      db.execucoes({ trechoId: E.trechoAtual.id })
+    ]).then(function (r) {
+      var apontada = {};
+      r[1].forEach(function (x) { if (x.programacao_id) apontada[x.programacao_id] = true; });
+
+      var hoje = ui.hoje();
+      var cobertas = [], vistas = {};
+
+      linhas.forEach(function (l) {
+        if (!l.estagio) return;                       // sem estágio na linha: nada a cobrir
+        var torre = torres[normalizar(l.identificador)];
+        if (!torre) return;                           // torre nova: não tem programação
+        var ativ = acharAtividade(l.estagio);
+        if (!ativ) return;
+
+        var cobre = expandirEstagio(ativ);
+        r[0].forEach(function (p) {
+          if (!p.torre || p.torre.id !== torre.torre_id || !p.atividade) return;
+          if (cobre.indexOf(p.atividade.id) === -1) return;
+          if (p.situacao !== 'APROVADA') return;
+          if (apontada[p.id] || vistas[p.id]) return;
+
+          vistas[p.id] = true;
+          cobertas.push({ p: p, estagio: ativ.nome, futura: p.data > hoje });
+        });
+      });
+
+      return cobertas.sort(function (a, b) {
+        if (a.p.data !== b.p.data) return a.p.data < b.p.data ? -1 : 1;
+        return a.p.torre.identificador.localeCompare(b.p.torre.identificador, 'pt-BR', { numeric: true });
+      });
+    });
+  }
+
+  function htmlCoberturasDaImportacao(cobertas) {
+    if (!cobertas.length) return '';
+
+    return '<div>' +
+        '<p class="rotulo">Programações que o novo status cobre (' + cobertas.length + ')</p>' +
+        '<p class="text-xs" style="color:var(--texto-suave)">' +
+          'A planilha diz que estas torres já passaram da atividade programada. Marcadas, viram ' +
+          '<strong>executadas, sem data</strong> (a planilha não diz quando). Desmarque o que ' +
+          'não quiser conferir.' +
+        '</p>' +
+        '<label class="text-xs flex items-center gap-2 mt-1" style="cursor:pointer">' +
+          '<input type="checkbox" id="chkStatusTodas" checked ' +
+                 'onchange="SIPAV.app.marcarCoberturas(this.checked)"> Marcar todas' +
+        '</label>' +
+        '<div class="resumo-enc-lista barra-fina" style="max-height:14rem">' +
+          cobertas.map(function (c, i) {
+            return '<label class="resumo-enc-linha" style="cursor:pointer">' +
+              '<input type="checkbox" class="chk-status" data-i="' + i + '"' + (c.futura ? '' : ' checked') + '>' +
+              '<span class="resumo-enc-data">' + esc(ui.dataCurta(c.p.data)) + '</span>' +
+              '<span><strong>' + esc(c.p.torre.identificador) + '</strong> · ' + esc(c.p.atividade.nome) +
+                (Number(c.p.percentual) < 100 ? ' · ' + formatarPercentual(c.p.percentual) : '') +
+                ' <em style="color:var(--texto-fraco)">' +
+                  (c.p.encarregado ? esc(render.nomesDosEncarregados(c.p)) : 'sem encarregado') +
+                  ' · status ' + esc(c.estagio) +
+                  (c.futura ? ' · programada para depois de hoje (desmarcada)' : '') +
+                '</em></span>' +
+            '</label>';
+          }).join('') +
+        '</div>' +
+      '</div>';
+  }
+
+  function marcarCoberturas(marcar) {
+    Array.prototype.forEach.call(document.querySelectorAll('.chk-status'), function (c) { c.checked = marcar; });
+  }
+
+  /** As programações que ficaram marcadas na janela de conferência. */
+  function coberturasMarcadas() {
+    return Array.prototype.map.call(document.querySelectorAll('.chk-status:checked'), function (c) {
+      return coberturasImportacao[Number(c.getAttribute('data-i'))];
+    }).filter(Boolean);
+  }
 
   function executarImportacao() {
     var linhas = importacaoPendente;
     if (!linhas || !linhas.length) { ui.avisar('Nada para importar.', 'alerta'); return; }
 
+    // Lidas antes de fechar a janela: depois dela as caixas já não existem
+    var conferir = coberturasMarcadas().map(function (c) { return c.p; });
+
     ui.processando('Importando ' + linhas.length + ' torres…');
     resolverCanteiros(linhas)
       .then(function () { return db.importarTorres(E.trechoAtual.id, linhas); })
       .then(function (torres) { return gravarEstagios(torres, linhas); })
+      .then(function () { return db.registrarExecucoesPorStatus(conferir); })
       .then(carregarTrecho)
       .then(function () {
         ui.pronto();
         ui.fecharModal('modalGenerico');
         importacaoPendente = null;
         textoImportacao = '';
-        ui.avisar(linhas.length + ' torres importadas.', 'sucesso');
+        ui.avisar(linhas.length + ' torres importadas' +
+          (conferir.length ? ' e ' + conferir.length + ' programação(ões) conferida(s) pelo status.' : '.'),
+          'sucesso', 6000);
       })
       .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro', 6000); });
   }
@@ -6997,6 +7161,291 @@ window.SIPAV = window.SIPAV || {};
     });
   }
 
+  /* ----------------------------------------------- Planejamentos salvos ------ */
+
+  /**
+   * A foto do planejamento da semana.
+   *
+   * A programação viva muda ao longo dos dias (data adiada, torre trocada,
+   * atividade apagada), e o que foi planejado numa sexta se perde. Ao terminar de
+   * planejar, salva-se a foto: o estágio de cada torre e as programações do semanal
+   * e do quinzenal naquele momento. Revisitar "o que lancei no dia 25/07" é abrir a
+   * foto daquela semana. As fotos não são programações — são uma cópia congelada —,
+   * então não conflitam com a programação viva nem entre si.
+   *
+   * Semanal é a semana da data escolhida (segunda a domingo) e quinzenal é a
+   * seguinte, como a obra planeja toda sexta.
+   */
+  function descreverSemanasDoPlano(baseIso) {
+    var b = ui.paraData(baseIso);
+    var fim1 = ui.somarDias(b, 6), ini2 = ui.somarDias(b, 7), fim2 = ui.somarDias(b, 13);
+    return 'Semanal ' + ui.dataCurta(baseIso) + ' a ' + ui.dataCurta(ui.iso(fim1)) +
+           ' · Quinzenal ' + ui.dataCurta(ui.iso(ini2)) + ' a ' + ui.dataCurta(ui.iso(fim2));
+  }
+
+  /** Quando se está vendo uma foto, nada que altere programação vale. */
+  function somenteConsulta() {
+    if (!E.snapshot) return false;
+    ui.avisar('Você está vendo um planejamento salvo, só para consulta. ' +
+              'Volte ao planejamento atual para alterar.', 'alerta', 5000);
+    return true;
+  }
+
+  function abrirPlanejamentos() {
+    if (!E.trechoAtual) return;
+
+    ui.processando('Carregando os planejamentos…');
+    db.planejamentosSalvos(E.trechoAtual.id)
+      .then(function (r) { ui.pronto(); montarJanelaDosPlanejamentos(r); })
+      .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro'); });
+  }
+
+  function montarJanelaDosPlanejamentos(r) {
+    var pode = podeEditarTorre() && !E.snapshot;
+    var hoje = ui.iso(ui.segundaDaSemana());
+
+    var corpo = '<div class="space-y-4">';
+
+    if (r.semTabela) {
+      corpo +=
+        '<div class="rounded-lg border border-amber-300 bg-amber-50 p-3">' +
+          '<p class="text-sm font-semibold text-amber-900">Falta aplicar a migração 46</p>' +
+          '<p class="text-xs text-amber-800 mt-1">A tabela dos planejamentos salvos ainda não existe ' +
+            'no banco (<strong>db/46-planejamento-semanal.sql</strong>).</p>' +
+        '</div>';
+    }
+
+    if (pode && !r.semTabela) {
+      corpo +=
+        '<div class="space-y-2">' +
+          '<p class="rotulo" style="margin-bottom:0">Salvar o planejamento</p>' +
+          '<p class="text-xs" style="color:var(--texto-fraco)">' +
+            'Guarda uma foto de como as torres e a programação estão agora, para rever depois. ' +
+            'A programação continua editável.' +
+          '</p>' +
+          '<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">' +
+            '<div><label class="rotulo">Semana do semanal</label>' +
+              '<input id="planSemana" type="date" class="campo" value="' + hoje + '" ' +
+                     'oninput="SIPAV.app.previaDoPlano()">' +
+              '<p id="planPrevia" class="text-xs mt-1" style="color:var(--texto-fraco)"></p></div>' +
+            '<div><label class="rotulo">Anotação <span style="font-weight:400">(opcional)</span></label>' +
+              '<input id="planTitulo" class="campo" autocomplete="off" ' +
+                     'placeholder="Ex.: versão da sexta, antes da chuva"></div>' +
+          '</div>' +
+          '<button type="button" class="btn-primario" onclick="SIPAV.app.salvarPlanejamentoAtual()">' +
+            'Salvar planejamento' +
+          '</button>' +
+        '</div>';
+    } else if (!pode && !r.semTabela) {
+      corpo += '<p class="text-xs" style="color:var(--texto-fraco)">' +
+        (E.snapshot ? 'Para salvar um planejamento, volte ao planejamento atual.'
+                    : 'Só administração e planejamento salvam um planejamento.') + '</p>';
+    }
+
+    corpo += '<div><p class="rotulo">Salvos neste trecho (' + r.lista.length + ')</p>';
+    if (r.lista.length) {
+      corpo += '<div class="space-y-2 max-h-72 overflow-y-auto barra-fina">' +
+        r.lista.map(function (p) {
+          var salvo = new Date(p.criado_em);
+          var quando = ui.dataCurta(ui.iso(salvo)) + ' às ' +
+            ('0' + salvo.getHours()).slice(-2) + ':' + ('0' + salvo.getMinutes()).slice(-2);
+          return '<div class="plano-linha">' +
+            '<div class="min-w-0">' +
+              '<p class="plano-linha-titulo">Semana de ' + esc(ui.dataCurta(p.semana_base)) +
+                (p.titulo ? ' · ' + esc(p.titulo) : '') + '</p>' +
+              '<p class="plano-linha-detalhe">' + esc(descreverSemanasDoPlano(p.semana_base)) + '</p>' +
+              '<p class="plano-linha-detalhe">Salvo em ' + esc(quando) +
+                (p.criador ? ' por ' + esc(p.criador.nome) : '') + ' · ' +
+                p.n_torres + ' torres · ' + p.n_programacoes + ' programações</p>' +
+            '</div>' +
+            '<div class="plano-linha-acoes">' +
+              '<button type="button" class="btn-secundario" ' +
+                      'onclick="SIPAV.app.verPlanejamentoSalvo(\'' + p.id + '\')">Ver</button>' +
+              (podeEditarTorre()
+                ? '<button type="button" class="btn-secundario btn-secundario-perigo" ' +
+                          'onclick="SIPAV.app.apagarPlanejamentoSalvo(\'' + p.id + '\')">Apagar</button>'
+                : '') +
+            '</div>' +
+          '</div>';
+        }).join('') +
+      '</div>';
+    } else {
+      corpo += '<p class="text-xs" style="color:var(--texto-fraco)">Nenhum ainda.</p>';
+    }
+    corpo += '</div></div>';
+
+    ui.modalGenerico({
+      titulo: 'Planejamentos — ' + E.trechoAtual.nome,
+      corpoHtml: corpo,
+      botoes: [{ rotulo: 'Fechar', classe: 'btn-secundario' }]
+    });
+    previaDoPlano();
+  }
+
+  function previaDoPlano() {
+    var campo = $('planPrevia');
+    var dia = $('planSemana') && $('planSemana').value;
+    if (!campo) return;
+    campo.textContent = dia
+      ? descreverSemanasDoPlano(ui.iso(ui.segundaDaSemana(ui.paraData(dia)))) : '';
+  }
+
+  /**
+   * Tira a foto: busca de novo no banco o que vale agora, em vez de usar o que a
+   * tela tem. A tela está recortada por período e por filtros, e a foto não pode
+   * depender do que estava marcado no momento de salvar.
+   */
+  function salvarPlanejamentoAtual() {
+    if (!podeEditarTorre() || E.snapshot) return;
+
+    var dia = $('planSemana').value;
+    if (!dia) { ui.avisar('Informe a semana do planejamento.', 'alerta'); return; }
+
+    var base = ui.iso(ui.segundaDaSemana(ui.paraData(dia)));
+    var fim = ui.iso(ui.somarDias(ui.paraData(base), 13));
+    var titulo = $('planTitulo').value.trim();
+    var trecho = E.trechoAtual;
+
+    ui.processando('Salvando o planejamento…');
+    Promise.all([
+      db.torres(trecho.id),
+      db.programacoes({ trechoId: trecho.id, de: base, ate: fim }),
+      db.execucoes({ trechoId: trecho.id, de: base, ate: fim }),
+      db.observacoesDasTorres(trecho.id)
+    ])
+      .then(function (r) {
+        var obs = r[3] || {};
+        var torres = r[0].map(function (t) {
+          var c = Object.assign({}, t);
+          c.observacao = obs[t.torre_id] || null;
+          return c;
+        });
+
+        var movs = (E.movimentacoes || []).filter(function (m) {
+          return m.data >= base && m.data <= fim && render.movimentacaoDoTrecho(m);
+        });
+
+        return db.salvarPlanejamentoSemanal({
+          trechoId: trecho.id, semanaBase: base, titulo: titulo,
+          nTorres: torres.length, nProgramacoes: r[1].length,
+          dados: {
+            versao: 1, trecho: { id: trecho.id, nome: trecho.nome },
+            semana_base: base, fim: fim,
+            torres: torres, programacoes: r[1], execucoes: r[2], movimentacoes: movs
+          }
+        });
+      })
+      .then(function () {
+        ui.pronto();
+        ui.avisar('Planejamento salvo.', 'sucesso');
+        abrirPlanejamentos();
+      })
+      .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro', 7000); });
+  }
+
+  function verPlanejamentoSalvo(id) {
+    ui.processando('Abrindo o planejamento…');
+    db.planejamentoSalvo(id)
+      .then(function (p) { ui.pronto(); entrarNoHistorico(p); })
+      .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro'); });
+  }
+
+  /**
+   * A tela passa a mostrar a foto: as torres com o estágio de então e as
+   * programações do semanal e do quinzenal. É o mesmo desenho de sempre, porque a
+   * foto guarda os dados do jeito que a tela os lê. O que altera programação fica
+   * bloqueado, e a banda no topo diz onde se está.
+   */
+  function entrarNoHistorico(p) {
+    var dados = p.dados || {};
+
+    if (E.modoSelecao) alternarModoSelecao();
+    if (E.modoSelecaoProg) alternarSelecaoProgramacoes(false);
+    E.selecionadas = {};
+
+    // Guarda o que estava valendo para voltar
+    if (!E.snapshot) {
+      E.vivo = {
+        periodo: E.periodo,
+        semana: $('periodoSemana').value,
+        de: $('periodoDe').value,
+        ate: $('periodoAte').value
+      };
+    }
+
+    E.snapshot = { id: p.id, semana_base: p.semana_base, criado_em: p.criado_em };
+    torreAberta = null;
+
+    E.torres = dados.torres || [];
+    E.programacoes = dados.programacoes || [];
+    E.execucoes = dados.execucoes || [];
+    E.movimentacoes = dados.movimentacoes || [];
+
+    var fim = dados.fim || ui.iso(ui.somarDias(ui.paraData(p.semana_base), 13));
+    E.periodo = { modo: 'plano', de: p.semana_base, ate: fim };
+    $('filtroPeriodo').value = 'plano';
+    $('periodoSemana').classList.remove('hidden');
+    $('periodoSemana').value = p.semana_base;
+    $('periodoDe').classList.add('hidden');
+    $('periodoAte').classList.add('hidden');
+
+    var salvo = new Date(p.criado_em);
+    $('bannerHistoricoTitulo').textContent =
+      'Planejamento salvo em ' + ui.dataCurta(ui.iso(salvo)) + ' às ' +
+      ('0' + salvo.getHours()).slice(-2) + ':' + ('0' + salvo.getMinutes()).slice(-2) +
+      (p.criador ? ' por ' + p.criador.nome : '') + (p.titulo ? ' — ' + p.titulo : '');
+    $('bannerHistoricoTexto').textContent =
+      descreverSemanasDoPlano(p.semana_base) +
+      ' · só consulta: é como estava naquele momento, não a programação de hoje.';
+    $('bannerHistorico').classList.remove('hidden');
+    document.body.classList.add('modo-historico');
+
+    ui.fecharModal('modalGenerico');
+    render.tudo();
+    window.scrollTo(0, 0);
+  }
+
+  /** Sai da foto sem recarregar: quem chama decide o que vem depois. */
+  function deixarOHistorico() {
+    var vivo = E.vivo;
+    E.snapshot = null;
+    E.vivo = null;
+    document.body.classList.remove('modo-historico');
+    $('bannerHistorico').classList.add('hidden');
+
+    if (vivo) {
+      E.periodo = vivo.periodo;
+      $('periodoSemana').value = vivo.semana || '';
+      $('periodoDe').value = vivo.de || '';
+      $('periodoAte').value = vivo.ate || '';
+    }
+  }
+
+  function sairDoHistorico() {
+    if (!E.snapshot) return;
+    var modo = E.vivo && E.vivo.periodo ? E.vivo.periodo.modo : 'duas';
+    deixarOHistorico();
+
+    ui.processando('Voltando ao planejamento atual…');
+    aplicarPeriodo(modo, true)
+      .then(ui.pronto)
+      .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro'); });
+  }
+
+  function apagarPlanejamentoSalvo(id) {
+    ui.confirmar('Apagar o planejamento salvo',
+      'Apaga só esta foto. A programação atual não é tocada. Não dá para desfazer.', 'Apagar')
+      .then(function (sim) {
+        if (!sim) return;
+        ui.processando('Apagando…');
+        return db.apagarPlanejamentoSemanal(id).then(function () {
+          ui.pronto();
+          abrirPlanejamentos();
+        });
+      })
+      .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro', 7000); });
+  }
+
   /* ----------------------------------- Importar a programação da ISA ------- */
 
   /**
@@ -7016,6 +7465,7 @@ window.SIPAV = window.SIPAV || {};
 
   function abrirImportarIsa() {
     if (!E.trechoAtual) return;
+    if (somenteConsulta()) return;
     if (E.perfil && E.perfil.papel === 'LEITURA') {
       ui.avisar('Seu perfil só consulta. Quem programa é planejamento ou supervisor.', 'alerta');
       return;
@@ -7653,6 +8103,7 @@ window.SIPAV = window.SIPAV || {};
     copiarDatasDe: copiarDatasDe,
     atualizarAtalhosPercentual: atualizarAtalhosPercentual,
     alternarParteEscavacao: alternarParteEscavacao,
+    marcarCoberturas: marcarCoberturas,
     salvarObsDaTorreAberta: salvarObsDaTorreAberta,
     abrirObservacaoDasTorres: abrirObservacaoDasTorres,
     previaObservacaoDasTorres: previaObservacaoDasTorres,
@@ -7690,6 +8141,12 @@ window.SIPAV = window.SIPAV || {};
     abrirExportarPdf: abrirExportarPdf,
     abrirRelatorioIsa: abrirRelatorioIsa,
     abrirImportarIsa: abrirImportarIsa,
+    abrirPlanejamentos: abrirPlanejamentos,
+    previaDoPlano: previaDoPlano,
+    salvarPlanejamentoAtual: salvarPlanejamentoAtual,
+    verPlanejamentoSalvo: verPlanejamentoSalvo,
+    apagarPlanejamentoSalvo: apagarPlanejamentoSalvo,
+    sairDoHistorico: sairDoHistorico,
     compartilharWhatsApp: compartilharWhatsApp
   };
 

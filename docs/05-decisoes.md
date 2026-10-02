@@ -40,6 +40,56 @@ cumprida (R18/D4). Saber quais pés foram feitos não a torna mais rigorosa.
 
 **Fora do escopo:** editar em lote e programar vários pela seleção não carregam as
 letras. O mastro central sozinho (`ESCAVAÇÃO - MC`) segue sem partes.
+### O status importado confere o que estava programado — [WR]
+
+A importação do status do Alessandro só trocava o estágio da torre. A 1/2 estava
+programada para MONTAGEM em 30/09, a planilha dizia "montada", e a programação ficava
+pendente como se nada tivesse acontecido. Agora a prévia da importação (`Importar
+torres`) tem uma lista: **"Programações que o novo status cobre"**. Marcadas, viram
+**executadas**.
+
+- **O que "cobre".** O estágio da torre é a atividade informada mais todas as
+  obrigatórias anteriores da cadeia. Uma programação dessa torre, de uma atividade
+  nesse conjunto, aconteceu. Ficam de fora: a já apontada, a solicitada que ainda não
+  foi aprovada, e as condicionais (perfuração, tubulão), que a planilha não diz se a
+  torre levou.
+- **Sem data de execução** (decisão do Wesley, 02/10). A planilha diz que está feita, não
+  quando; inventar uma data faria a meta parecer cumprida ou atrasada sem ninguém
+  saber. A execução entra ligada à programação e ao percentual dela, com a marca
+  `por_status` (`db/45`). O cartão mostra o ✓ ("data não informada, conferida pelo
+  status da planilha"), e a aderência a chama de `EXECUTADO SEM DATA`: sem data não
+  há prazo.
+- **Programação para depois de hoje** vem **desmarcada**. Se a planilha já diz que está
+  feita e estava marcada para a semana que vem, quase sempre é plano desatualizado
+  ou status errado, e vale olhar antes de conferir.
+- **Busca no trecho inteiro**, não na tela: o filtro de período deixaria de fora
+  justamente as programações das semanas anteriores.
+- A precedência passou a contar a execução sem data como cumprida (`db/45`); antes a
+  condição `data_execucao <= data` nunca era verdadeira para uma data nula.
+
+### Planejamento semanal salvo — [WR]
+
+A obra planeja toda sexta o **semanal** (a semana que começa) e o **quinzenal** (a
+seguinte). A programação viva muda ao longo dos dias, e o que foi planejado numa sexta
+se perdia. O botão **Planejamentos** (`db/46`) guarda uma **foto**: o estágio de cada
+torre e as programações do semanal e do quinzenal naquele momento.
+
+- **Foto, não programação.** Não conflita com a programação viva nem com as outras
+  fotos (a mesma torre pode ter a mesma atividade na mesma data em duas fotos), e a
+  viva continua editável. Decisão do Wesley: foto salva por um botão, em vez de
+  etiqueta automática em cada programação.
+- **Semana.** Escolhe-se um dia; vale a segunda-feira dele (semanal) e a seguinte
+  (quinzenal). Pode haver mais de uma foto da mesma semana (versões), cada uma com a
+  hora e quem salvou.
+- **Revisitar.** `Ver` abre a foto: a tela inteira (grade, por data, por encarregado,
+  por atividade) mostra as torres com o **estágio de então**, inclusive as sem
+  programação, e as programações como estavam. Uma banda no topo diz que é só
+  consulta; tudo o que altera programação fica bloqueado, e o que chega do banco não
+  sobrescreve a foto. `Voltar ao planejamento atual` recarrega a viva.
+- **Quem.** Salvam e apagam administração e planejamento; todo mundo vê.
+- **Semanal e quinzenal de…** é uma opção nova no filtro de período, sobre a programação
+  viva: escolhe um dia e mostra a semana dele e a seguinte, inteiras, com todas as
+  torres na grade.
 ### Importar a programação da planilha da ISA — [WR]
 
 A programação da sexta nasce na planilha, e lançá-la de novo no SIPAV, torre por torre,

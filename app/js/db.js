@@ -901,8 +901,15 @@ window.SIPAV = window.SIPAV || {};
         .eq('carga_inicial', false)
         .eq('torre.trecho_id', filtro.trechoId);
 
-      if (filtro.de)  q = q.gte('data_execucao', filtro.de);
-      if (filtro.ate) q = q.lte('data_execucao', filtro.ate);
+      // A execução sem data (conferida pelo status da planilha, db/45) tem que
+      // vir sempre: filtrar por data a tiraria da tela, e a programação dela
+      // voltaria a parecer pendente.
+      if (filtro.de || filtro.ate) {
+        var faixa = [];
+        if (filtro.de)  faixa.push('data_execucao.gte.' + filtro.de);
+        if (filtro.ate) faixa.push('data_execucao.lte.' + filtro.ate);
+        q = q.or('data_execucao.is.null,and(' + faixa.join(',') + ')');
+      }
       return q;
     }
 
@@ -931,6 +938,84 @@ window.SIPAV = window.SIPAV || {};
       .eq('torre_id', torreId)
       .eq('carga_inicial', false)
       .then(function (r) { return ok(r, 'Falha ao carregar o que foi apontado nesta torre'); });
+  }
+
+  /* ======================================================================== */
+  /* PLANEJAMENTO SEMANAL SALVO — a foto do que foi planejado                 */
+  /* ======================================================================== */
+
+  /** A tabela ainda não existe (db/46 por aplicar)? */
+  function semTabelaPlanejamento(erro) {
+    return !!erro && (erro.code === '42P01' || erro.code === 'PGRST205' ||
+                      /planejamento_semanal/i.test(erro.message || ''));
+  }
+
+  function erroSemPlanejamento() {
+    return new Error('A tabela dos planejamentos salvos ainda não existe no banco. ' +
+                     'Falta aplicar a migração 46 (db/46-planejamento-semanal.sql).');
+  }
+
+  /**
+   * Os planejamentos salvos do trecho, do mais recente para o mais antigo, SEM a
+   * foto: ela é grande e só se carrega quando alguém abre aquele planejamento.
+   * Sem a tabela volta vazio, para a janela abrir e explicar.
+   */
+  function planejamentosSalvos(trechoId) {
+    return cliente()
+      .from('planejamento_semanal')
+      .select('id, semana_base, titulo, n_torres, n_programacoes, criado_em, criador:criado_por ( nome )')
+      .eq('trecho_id', trechoId)
+      .order('semana_base', { ascending: false })
+      .order('criado_em', { ascending: false })
+      .then(function (r) {
+        if (semTabelaPlanejamento(r.error)) return { semTabela: true, lista: [] };
+        return { semTabela: false, lista: ok(r, 'Falha ao carregar os planejamentos salvos') };
+      });
+  }
+
+  /** Um planejamento salvo, com a foto. */
+  function planejamentoSalvo(id) {
+    return cliente()
+      .from('planejamento_semanal')
+      .select('id, semana_base, titulo, criado_em, dados, criador:criado_por ( nome )')
+      .eq('id', id)
+      .single()
+      .then(function (r) { return ok(r, 'Falha ao abrir o planejamento'); });
+  }
+
+  /**
+   * @param {object} d {trechoId, semanaBase, titulo, dados, nTorres, nProgramacoes}
+   */
+  function salvarPlanejamentoSemanal(d) {
+    return obra().then(function (o) {
+      return auth.usuario().then(function (u) {
+        return cliente().from('planejamento_semanal').insert({
+          obra_id:        o.id,
+          trecho_id:      d.trechoId,
+          semana_base:    d.semanaBase,
+          titulo:         d.titulo || null,
+          n_torres:       d.nTorres,
+          n_programacoes: d.nProgramacoes,
+          dados:          d.dados,
+          criado_por:     u ? u.id : null
+        }).select('id').single().then(function (r) {
+          if (semTabelaPlanejamento(r.error)) throw erroSemPlanejamento();
+          return ok(r, 'Falha ao salvar o planejamento');
+        });
+      });
+    });
+  }
+
+  function apagarPlanejamentoSemanal(id) {
+    return cliente().from('planejamento_semanal').delete().eq('id', id)
+      .select('id')
+      .then(function (r) {
+        if (r.error) throw traduzErro(r.error, 'Falha ao apagar o planejamento');
+        if (!r.data || !r.data.length) {
+          throw new Error('Só administração e planejamento apagam um planejamento salvo.');
+        }
+        return true;
+      });
   }
 
   /* ======================================================================== */
@@ -1096,6 +1181,47 @@ window.SIPAV = window.SIPAV || {};
           }
           return ok(r, 'Falha ao apontar execução');
         });
+    });
+  }
+
+  /**
+   * Marca como executadas as programações que o status importado cobre, SEM data.
+   *
+   * A planilha do Alessandro diz que a torre está montada, não quando. Inventar
+   * uma data faria a meta parecer cumprida ou atrasada sem ninguém saber. A
+   * execução fica ligada à programação e ao percentual dela (por isso o cartão
+   * mostra o ✓), com `por_status` para a tela dizer de onde veio.
+   */
+  function registrarExecucoesPorStatus(programacoes) {
+    if (!programacoes || !programacoes.length) return Promise.resolve(0);
+
+    return auth.usuario().then(function (u) {
+      var linhas = programacoes.map(function (p) {
+        return {
+          torre_id:       p.torre.id,
+          atividade_id:   p.atividade.id,
+          encarregado_id: p.encarregado ? p.encarregado.id : null,
+          programacao_id: p.id,
+          data_execucao:  null,
+          percentual:     Number(p.percentual) || 100,
+          carga_inicial:  false,
+          por_status:     true,
+          observacao:     'Conferida pela importação do status da planilha (data de execução não informada)',
+          registrado_por: u ? u.id : null
+        };
+      });
+
+      return cliente().from('execucao').insert(linhas).then(function (r) {
+        if (r.error) {
+          // Antes da db/45 a coluna da data é obrigatória e a marca não existe
+          if (r.error.code === '23502' || /por_status/i.test(r.error.message || '')) {
+            throw new Error('O banco ainda não aceita execução sem data. ' +
+                            'Falta aplicar a migração 45 (db/45-execucao-sem-data.sql).');
+          }
+          throw traduzErro(r.error, 'Falha ao conferir as programações pelo status');
+        }
+        return linhas.length;
+      });
     });
   }
 
@@ -1372,6 +1498,11 @@ window.SIPAV = window.SIPAV || {};
     salvarDependencias: salvarDependencias,
     reordenarAtividades: reordenarAtividades,
     importarTorres: importarTorres,
+    planejamentosSalvos: planejamentosSalvos,
+    planejamentoSalvo: planejamentoSalvo,
+    salvarPlanejamentoSemanal: salvarPlanejamentoSemanal,
+    apagarPlanejamentoSemanal: apagarPlanejamentoSemanal,
+    registrarExecucoesPorStatus: registrarExecucoesPorStatus,
     observacoesDasTorres: observacoesDasTorres,
     salvarObservacaoDasTorres: salvarObservacaoDasTorres,
     limparCargaInicial: limparCargaInicial,

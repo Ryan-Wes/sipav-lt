@@ -60,7 +60,10 @@ window.SIPAV = window.SIPAV || {};
   function marcaFeito(p) {
     var ex = execucaoDa(p.id);
     if (!ex) return '';
-    var quando = ex.data_execucao !== p.data ? ' em ' + ui.dataCurta(ex.data_execucao) : '';
+    // Sem data: veio do status da planilha, que diz que está feita e não quando
+    var quando = !ex.data_execucao
+      ? ' (data não informada, conferida pelo status da planilha)'
+      : ex.data_execucao !== p.data ? ' em ' + ui.dataCurta(ex.data_execucao) : '';
     return '<span class="marca-feito" title="Executada' + quando + '">✓</span>';
   }
 
@@ -1178,6 +1181,7 @@ window.SIPAV = window.SIPAV || {};
   window.SIPAV.render = {
     tudo: tudo,
     encarregadosDe: encarregadosDe,
+    movimentacaoDoTrecho: movimentacaoDoTrecho,
     textoDaMovimentacao: textoDaMovimentacao,
     nomesDosEncarregados: nomesDosEncarregados,
     programacoesDaTorre: programacoesDaTorre,
