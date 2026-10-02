@@ -1328,3 +1328,31 @@ body.modo-selecao #visaoGrade { user-select: none; }
   border: 1px solid rgba(249,115,22,.45); cursor: pointer;
 }
 .btn-lancar:hover { background: rgba(249,115,22,.12); }
+/* O que o encarregado já tem, dentro da janela de lançamento */
+.resumo-enc {
+  border: 1px solid var(--borda); border-radius: .5rem;
+  background: var(--superficie-2); padding: .5rem .75rem;
+}
+.resumo-enc summary {
+  cursor: pointer; font-size: .75rem; color: var(--texto-suave);
+  display: flex; flex-wrap: wrap; align-items: center; gap: .25rem .625rem;
+}
+.resumo-enc summary strong { color: var(--texto); }
+.resumo-enc-periodo { color: var(--texto-fraco); }
+.resumo-enc-aviso {
+  padding: .0625rem .375rem; border-radius: .25rem; font-weight: 700;
+  color: #B45309; background: rgba(245,158,11,.15);
+}
+.resumo-enc-lista { margin-top: .5rem; max-height: 9rem; overflow-y: auto; }
+.resumo-enc-linha {
+  display: flex; gap: .625rem; align-items: baseline;
+  padding: .1875rem .25rem; font-size: .75rem; color: var(--texto-suave);
+  border-top: 1px solid var(--borda);
+}
+.resumo-enc-linha:first-child { border-top: 0; }
+.resumo-enc-data { flex: 0 0 4.5rem; font-weight: 700; color: var(--texto); }
+.resumo-enc-data b { margin-left: .1875rem; font-size: .625rem; text-transform: uppercase; color: var(--texto-fraco); }
+.resumo-enc-data b.fim-de-semana { color: #F59E0B; }
+.resumo-enc-mov { font-style: italic; }
+.resumo-enc-bate { background: rgba(245,158,11,.14); border-radius: .25rem; }
+.resumo-enc-vazio { margin-top: .5rem; font-size: .75rem; color: var(--texto-fraco); }

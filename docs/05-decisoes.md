@@ -62,7 +62,11 @@ o que ele faz.
   data (pulando domingo), ou "mesma data em todas". Não preenche sozinho: lançar
   para hoje sem querer seria pior que um clique a mais.
 
-**Fora do escopo:** a janela não mostra o que o encarregado já tem programado.
+- **O que ele já tem.** A janela mostra, antes da lista do lote, as programações, as
+  movimentações e as folgas do encarregado escolhido, em ordem de data. Os dias em
+  que as linhas do lote caem em cima de algo que ele já tem ficam marcados, com a
+  contagem no topo. Vem do que a tela tem carregado, ou seja, do período do filtro;
+  acompanha a troca do encarregado e das datas.
 ### Lote: programar fora da sequência, com o motivo — [WR]
 
 O lote só mostrava a linha em vermelho e mandava tirá-la ou programar "um a um, pelo

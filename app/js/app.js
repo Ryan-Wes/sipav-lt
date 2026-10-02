@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v114 · 2026-10-02';
+  var VERSAO = 'v115 · 2026-10-02';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -3119,6 +3119,9 @@ window.SIPAV = window.SIPAV || {};
           '</div>' +
         '</div>' +
 
+        // O que o encarregado escolhido já tem: programação e movimentação
+        '<div id="loteResumoEnc" class="hidden"></div>' +
+
         '<div class="pt-3" style="border-top:1px solid var(--borda)">' +
           '<div class="flex flex-wrap items-center justify-between gap-2 mb-2">' +
             '<label class="rotulo" style="margin-bottom:0">O que vai ser programado</label>' +
@@ -3286,6 +3289,70 @@ window.SIPAV = window.SIPAV || {};
     renderChipsTorresLote();
     renderLoteEscolhidas();
     conferirLoteAoVivo();
+  }
+
+  /**
+   * O que o encarregado do lote já tem, dentro da própria janela.
+   *
+   * Lançar para alguém sem ver o que ele já faz é onde nasce a sobreposição: dois
+   * serviços no mesmo dia, ou uma folga ignorada. Mostra o que a tela tem carregado
+   * (o período do filtro): as programações dele, e as movimentações e folgas. Os
+   * dias em que as linhas do lote caem em cima de algo que ele já tem ficam
+   * marcados.
+   */
+  function renderResumoDoEncarregadoLote() {
+    var caixa = $('loteResumoEnc');
+    if (!caixa) return;
+
+    var id = $('loteEncarregado') ? $('loteEncarregado').value : '';
+    var enc = id && E.encarregados.find(function (x) { return x.id === id; });
+    if (!enc) { caixa.classList.add('hidden'); caixa.innerHTML = ''; return; }
+
+    var eDele = function (x) { return render.encarregadosDe(x).some(function (e) { return e.id === id; }); };
+
+    var itens = [];
+    E.programacoes.filter(eDele).forEach(function (p) {
+      itens.push({
+        data: p.data, movimentacao: false,
+        texto: (p.torre ? p.torre.identificador : '?') + ' · ' + (p.atividade ? p.atividade.nome : '—') +
+               (Number(p.percentual) < 100 ? ' · ' + formatarPercentual(p.percentual) : '')
+      });
+    });
+    (E.movimentacoes || []).filter(eDele).forEach(function (m) {
+      itens.push({ data: m.data, movimentacao: true, texto: render.textoDaMovimentacao(m) });
+    });
+    itens.sort(function (a, b) { return a.data < b.data ? -1 : a.data > b.data ? 1 : 0; });
+
+    // Datas do lote, para marcar onde bate
+    var doLote = {};
+    loteLinhas.forEach(function (l) { if (l.data) doLote[l.data] = true; });
+    var batem = itens.filter(function (x) { return doLote[x.data]; }).length;
+
+    var periodo = ui.rotuloPeriodo(E.periodo.de, E.periodo.ate);
+
+    caixa.innerHTML =
+      '<details class="resumo-enc"' + (itens.length && itens.length <= 14 ? ' open' : '') + '>' +
+        '<summary>Já tem para ' + esc(enc.nome) + ': <strong>' + itens.length + '</strong>' +
+          '<span class="resumo-enc-periodo">' + esc(periodo) + '</span>' +
+          (batem ? '<span class="resumo-enc-aviso">' + batem + ' no mesmo dia do lote</span>' : '') +
+        '</summary>' +
+        (itens.length
+          ? '<div class="resumo-enc-lista barra-fina">' +
+              itens.map(function (x) {
+                var fds = ui.fimDeSemana(x.data);
+                return '<div class="resumo-enc-linha' + (doLote[x.data] ? ' resumo-enc-bate' : '') +
+                         (x.movimentacao ? ' resumo-enc-mov' : '') + '">' +
+                         '<span class="resumo-enc-data">' + esc(ui.dataCurta(x.data)) +
+                           '<b class="' + (fds ? 'fim-de-semana' : '') + '">' +
+                             esc(ui.diaDaSemana(x.data).slice(0, 3)) + '</b></span>' +
+                         '<span>' + esc(x.texto) + '</span>' +
+                       '</div>';
+              }).join('') +
+            '</div>'
+          : '<p class="resumo-enc-vazio">Nada neste período.</p>') +
+      '</details>';
+
+    caixa.classList.remove('hidden');
   }
 
   function teclaTorresLote(ev) {
@@ -3765,6 +3832,7 @@ window.SIPAV = window.SIPAV || {};
       : loteTorres.length + ' torre(s) · escolha a atividade';
 
     avisarDataPassada(loteLinhas.map(function (x) { return x.data; }));
+    renderResumoDoEncarregadoLote();
 
     if (!loteAtividades.length) {
       caixa.innerHTML =

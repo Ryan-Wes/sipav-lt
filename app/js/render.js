@@ -1008,6 +1008,7 @@ window.SIPAV = window.SIPAV || {};
   window.SIPAV.render = {
     tudo: tudo,
     encarregadosDe: encarregadosDe,
+    textoDaMovimentacao: textoDaMovimentacao,
     nomesDosEncarregados: nomesDosEncarregados,
     programacoesDaTorre: programacoesDaTorre,
     programacoesVisiveis: programacoesVisiveis,
