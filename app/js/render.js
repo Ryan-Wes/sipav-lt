@@ -786,6 +786,17 @@ window.SIPAV = window.SIPAV || {};
     }
     lista.forEach(function (p) { daSemana(p.data).progs.push(p); });
     movs.forEach(function (m) { daSemana(diaDaMovimentacao(m)).movs.push(m); });
+
+    // Toda semana do período aparece, mesmo sem nada programado. Sem isto, pedir
+    // "esta e a próxima" mostrava só a semana que tinha serviço, e a outra sumia:
+    // parecia que o filtro tinha pegado errado, quando a semana só estava vazia.
+    if (E.periodo.de && E.periodo.ate) {
+      var seg = ui.segundaDaSemana(ui.paraData(E.periodo.de));
+      for (var n = 0; n < 12 && ui.iso(seg) <= E.periodo.ate; n++) {
+        daSemana(ui.iso(seg));
+        seg = ui.somarDias(seg, 7);
+      }
+    }
     ordemSemanas.sort();
 
     cont.innerHTML = ordemSemanas.map(function (segunda) {
@@ -814,6 +825,10 @@ window.SIPAV = window.SIPAV || {};
                 : 'sem atividade nas torres') +
             '</span>' +
           '</header>' +
+          (dias.length
+            ? ''
+            : '<p class="px-1 py-3 text-sm" style="color:var(--texto-fraco)">' +
+                'Nada programado nesta semana.</p>') +
           dias.map(function (data) {
             // A data esta no titulo do bloco, entao sai do chip. O encarregado
             // desce para a segunda linha: lado a lado, o nome da atividade quebra
