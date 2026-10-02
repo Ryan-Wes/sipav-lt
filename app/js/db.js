@@ -784,6 +784,63 @@ window.SIPAV = window.SIPAV || {};
       });
   }
 
+  /* ---------------------------------------------- Observação da torre ------ */
+
+  /**
+   * As observações das torres do trecho, { torreId: texto }.
+   *
+   * Buscadas à parte, e não pela view torre_situacao: mexer na view para carregar
+   * uma coluna só seria arriscar a que mais importa da tela. Sem a coluna (db/44
+   * por aplicar) volta vazio, e a tela segue sem as anotações.
+   */
+  function observacoesDasTorres(trechoId) {
+    return cliente()
+      .from('torre')
+      .select('id, observacao')
+      .eq('trecho_id', trechoId)
+      .not('observacao', 'is', null)
+      .then(function (r) {
+        if (r.error) {
+          if (/observacao/i.test(r.error.message || '')) return {};
+          throw traduzErro(r.error, 'Falha ao carregar as observações das torres');
+        }
+        var mapa = {};
+        (r.data || []).forEach(function (x) { if (x.observacao) mapa[x.id] = x.observacao; });
+        return mapa;
+      });
+  }
+
+  /**
+   * Grava (ou limpa, com texto vazio) a observação de várias torres de uma vez.
+   * Em pedaços: uma lista grande de ids estoura o tamanho da consulta.
+   */
+  function salvarObservacaoDasTorres(torreIds, texto) {
+    var valor = (texto || '').trim() || null;
+    var pedacos = [];
+    for (var i = 0; i < torreIds.length; i += 100) pedacos.push(torreIds.slice(i, i + 100));
+
+    return pedacos.reduce(function (antes, ids) {
+      return antes.then(function () {
+        return cliente().from('torre').update({ observacao: valor }).in('id', ids)
+          .select('id')
+          .then(function (r) {
+            if (r.error) {
+              if (/observacao/i.test(r.error.message || '')) {
+                throw new Error('A coluna da observação ainda não existe no banco. ' +
+                                'Falta aplicar a migração 44 (db/44-observacao-da-torre.sql).');
+              }
+              throw traduzErro(r.error, 'Falha ao salvar a observação');
+            }
+            // Sem erro e sem linhas: a política de escrita da torre não deixou
+            if (!r.data || r.data.length !== ids.length) {
+              throw new Error('Só administração e planejamento alteram a observação da torre.');
+            }
+            return true;
+          });
+      });
+    }, Promise.resolve());
+  }
+
   /**
    * Importa torres coladas da planilha de controle.
    * @param {Array} linhas [{identificador, km, ordem, canteiroId?}]
@@ -1315,6 +1372,8 @@ window.SIPAV = window.SIPAV || {};
     salvarDependencias: salvarDependencias,
     reordenarAtividades: reordenarAtividades,
     importarTorres: importarTorres,
+    observacoesDasTorres: observacoesDasTorres,
+    salvarObservacaoDasTorres: salvarObservacaoDasTorres,
     limparCargaInicial: limparCargaInicial,
     registrarCargaInicial: registrarCargaInicial,
     criarTrecho: criarTrecho,

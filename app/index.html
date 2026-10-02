@@ -41,7 +41,7 @@
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 
   <!-- ?v= força o navegador a buscar de novo quando o código muda. -->
-  <link rel="stylesheet" href="css/app.css?v=115">
+  <link rel="stylesheet" href="css/app.css?v=116">
 </head>
 <body class="h-full flex flex-col antialiased">
 
@@ -168,6 +168,9 @@
           <div id="menuCadastros" class="menu hidden">
             <button class="menu-item" onclick="SIPAV.app.fecharMenus();SIPAV.app.abrirAtividades()">
               <i data-lucide="list-ordered" class="w-4 h-4"></i> Atividades e dependências
+            </button>
+            <button class="menu-item" onclick="SIPAV.app.fecharMenus();SIPAV.app.abrirObservacaoDasTorres()">
+              <i data-lucide="sticky-note" class="w-4 h-4"></i> Observação nas torres
             </button>
             <button class="menu-item" onclick="SIPAV.app.fecharMenus();SIPAV.app.abrirEncarregados()">
               <i data-lucide="users" class="w-4 h-4"></i> Encarregados
@@ -377,6 +380,18 @@
             <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
           </button>
         </p>
+
+        <!-- Anotação permanente da torre (serra, acesso difícil…). Quem não pode
+             alterar só vê, e nem vê o campo quando está vazia. -->
+        <div id="blocoObsTorre" class="hidden mt-2 flex items-center gap-2">
+          <i data-lucide="sticky-note" class="w-4 h-4 shrink-0" style="color:var(--acento)"></i>
+          <input id="campoObsTorre" class="campo" style="font-size:.8125rem;padding:.25rem .5rem"
+                 autocomplete="off" placeholder="Observação da torre (ex.: serra, acesso difícil)"
+                 onkeydown="if(event.key==='Enter'){SIPAV.app.salvarObsDaTorreAberta()}">
+          <button type="button" id="btnSalvarObsTorre" class="btn-secundario shrink-0"
+                  style="font-size:.75rem;padding:.25rem .625rem"
+                  onclick="SIPAV.app.salvarObsDaTorreAberta()">Salvar</button>
+        </div>
       </div>
       <button onclick="SIPAV.app.fecharModal('modalProgramacao')" class="btn-icone shrink-0">
         <i data-lucide="x" class="w-5 h-5"></i>
@@ -682,11 +697,11 @@
   </div>
 </div>
 
-<script src="js/config.js?v=115"></script>
-<script src="js/db.js?v=115"></script>
-<script src="js/ui.js?v=115"></script>
-<script src="js/render.js?v=115"></script>
-<script src="js/isa.js?v=115"></script>
-<script src="js/app.js?v=115"></script>
+<script src="js/config.js?v=116"></script>
+<script src="js/db.js?v=116"></script>
+<script src="js/ui.js?v=116"></script>
+<script src="js/render.js?v=116"></script>
+<script src="js/isa.js?v=116"></script>
+<script src="js/app.js?v=116"></script>
 </body>
 </html>

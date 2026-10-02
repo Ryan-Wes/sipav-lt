@@ -40,6 +40,27 @@ cumprida (R18/D4). Saber quais pés foram feitos não a torna mais rigorosa.
 
 **Fora do escopo:** editar em lote e programar vários pela seleção não carregam as
 letras. O mastro central sozinho (`ESCAVAÇÃO - MC`) segue sem partes.
+### Observação da torre — [WR]
+
+Barra–Correntina tem trechos de serra, e ninguém via isso no cartão. A torre ganhou uma
+**observação permanente** (`db/44`, `torre.observacao`): "serra", "acesso difícil".
+Não é a observação da programação (vale um dia) nem a restrição (bloqueia e tem
+liberação): é só informação.
+
+- **No cartão**, um ícone de bloco de notas no canto de cima à esquerda, com o texto na
+  dica. **Nos chips** dos painéis, o mesmo ícone ao lado do número da torre.
+- **Pela janela da torre**, um campo editável. **Em várias torres**, o menu Cadastros >
+  `Observação nas torres`: as torres se escolhem como no lote (`49/2 a 52/1, 60/1 a
+  61/2`), ou já abre com as marcadas na grade. Embaixo, a lista do que já está anotado
+  no trecho; clicar numa traz para os campos, para corrigir. Observação vazia tira, e
+  pede confirmação quando há algo a perder.
+- **Quem escreve:** administração e planejamento, como em qualquer escrita na torre.
+  Supervisor vê, mas não altera.
+- **A importação das torres não apaga as observações**: o upsert só grava as colunas
+  que ela conhece.
+- **Carrega à parte** (`db.observacoesDasTorres`), e não pela view `torre_situacao`:
+  mexer na view que alimenta a tela inteira por uma coluna de texto não valia o risco.
+  Sem a `db/44` a tela segue sem as anotações.
 ### Lançar pelo encarregado — [WR]
 
 Até aqui só se programava partindo da torre (cartão) ou de torres marcadas na grade

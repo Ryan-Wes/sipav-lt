@@ -1356,3 +1356,20 @@ body.modo-selecao #visaoGrade { user-select: none; }
 .resumo-enc-mov { font-style: italic; }
 .resumo-enc-bate { background: rgba(245,158,11,.14); border-radius: .25rem; }
 .resumo-enc-vazio { margin-top: .5rem; font-size: .75rem; color: var(--texto-fraco); }
+/* Observação da torre (serra, acesso difícil…): ícone no canto do cartão e ao lado
+   do número nos chips, com o texto na dica */
+.selo-obs {
+  position: absolute; top: 7px; left: 7px;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 1.125rem; height: 1.125rem; border-radius: .3125rem;
+  color: #0EA5E9; background: rgba(14,165,233,.14); border: 1px solid rgba(14,165,233,.35);
+}
+/* O texto vai na dica da embalagem: o ícone vira SVG e perderia o title */
+.chip-obs { display: inline-block; margin-left: .25rem; vertical-align: -1px; color: #0EA5E9; }
+.chip-obs svg { width: 11px; height: 11px; }
+button.obs-existente {
+  width: 100%; text-align: left; background: none; border-width: 0; border-top: 1px solid var(--borda);
+  cursor: pointer; border-radius: .25rem;
+}
+button.obs-existente:first-child { border-top: 0; }
+button.obs-existente:hover { background: var(--superficie-3); }

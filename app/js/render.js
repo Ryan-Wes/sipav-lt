@@ -227,6 +227,12 @@ window.SIPAV = window.SIPAV || {};
         }).join('') + '</div>'
       : '';
 
+    // A observação da torre, no canto de cima à esquerda: de relance, sem abrir
+    var seloObs = torre.observacao
+      ? '<span class="selo-obs" title="' + esc(torre.observacao) + '">' +
+          '<i data-lucide="sticky-note" style="width:11px;height:11px"></i></span>'
+      : '';
+
     var selo = ordenadas.length
       ? '<span class="selo-prog" title="' + ordenadas.length + ' programada(s)">' +
           '<i data-lucide="calendar-check" style="width:10px;height:10px"></i>' +
@@ -248,7 +254,8 @@ window.SIPAV = window.SIPAV || {};
       (torre.modelo ? ' · ' + esc(torre.modelo) : '') +
       (torre.estrutura ? ' · ' + (estaiada ? 'estaiada' : 'autoportante') : '') +
       ' — ' + esc(estado) +
-      (ordenadas.length ? ' · ' + ordenadas.length + ' programada(s)' : '');
+      (ordenadas.length ? ' · ' + ordenadas.length + ' programada(s)' : '') +
+      (torre.observacao ? ' · obs: ' + esc(torre.observacao) : '');
 
     // Contorno inteiro na cor do estado: cheia em cima, diluída nos lados e na
     // base, para o cartão ter a cor sem virar um bloco de contorno grosso.
@@ -264,6 +271,7 @@ window.SIPAV = window.SIPAV || {};
            'onclick="SIPAV.app.abrirTorre(\'' + torre.torre_id + '\')" ' +
            'title="' + dica + '">' +
         selo +
+        seloObs +
         '<span class="identidade">' +
           '<span class="identificador">' + esc(torre.identificador) + '</span>' +
           pastilha +
@@ -314,8 +322,15 @@ window.SIPAV = window.SIPAV || {};
         'title="Programada fora da sequência"></i>'
       : '';
 
+    // Torre com observação (serra…): o ícone acompanha o número, com o texto na dica
+    var obsTorre = p.torre ? observacaoDaTorre(p.torre.id) : null;
     var torre = op.torre === false ? ''
-      : '<span class="chip-torre">' + esc(p.torre ? p.torre.identificador : '?') + '</span>';
+      : '<span class="chip-torre">' + esc(p.torre ? p.torre.identificador : '?') +
+          (obsTorre
+            ? '<span class="chip-obs" title="' + esc(obsTorre) + '">' +
+                '<i data-lucide="sticky-note"></i></span>'
+            : '') +
+        '</span>';
 
     // A data com o dia da semana: a obra se guia por dia da semana, e "01/10"
     // sozinho obriga a ir olhar no calendário para saber se é quarta ou sábado.
@@ -479,6 +494,23 @@ window.SIPAV = window.SIPAV || {};
     var outros = encarregadosDe(p).filter(function (e) { return e.nome !== nomeDoBloco; })
       .map(function (e) { return e.nome; });
     return outros.length ? 'com ' + outros.join(' + ') : '';
+  }
+
+  /**
+   * A observação de uma torre, a partir do id. As programações trazem a torre sem
+   * ela, então procura-se na lista de torres do trecho, que é indexada uma vez por
+   * carga.
+   */
+  var indiceObsTorre = { lista: null, mapa: {} };
+
+  function observacaoDaTorre(torreId) {
+    if (indiceObsTorre.lista !== E.torres) {
+      indiceObsTorre = { lista: E.torres, mapa: {} };
+      (E.torres || []).forEach(function (t) {
+        if (t.observacao) indiceObsTorre.mapa[t.torre_id] = t.observacao;
+      });
+    }
+    return indiceObsTorre.mapa[torreId] || null;
   }
 
   /** Agrupa programações por uma chave, preservando ordem de inserção. */

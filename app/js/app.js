@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v115 · 2026-10-02';
+  var VERSAO = 'v116 · 2026-10-02';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -273,18 +273,35 @@ window.SIPAV = window.SIPAV || {};
     return { trechoId: E.trechoAtual.id };
   }
 
+  /**
+   * Põe a observação de cada torre na própria torre. Vêm de uma consulta à parte
+   * (ver db.observacoesDasTorres), então é aqui que se juntam: depois disso o
+   * cartão e a janela leem `torre.observacao` como qualquer outro campo.
+   */
+  function aplicarObservacoesDasTorres(mapa) {
+    mapa = mapa || {};
+    E.torres.forEach(function (t) { t.observacao = mapa[t.torre_id] || null; });
+  }
+
+  /** Só administração e planejamento escrevem na torre (política do banco). */
+  function podeEditarTorre() {
+    return !!E.perfil && (E.perfil.papel === 'ADMIN' || E.perfil.papel === 'PLANEJAMENTO');
+  }
+
   function carregarTrecho() {
     if (!E.trechoAtual) return Promise.resolve();
     return Promise.all([
       db.torres(E.trechoAtual.id),
       db.programacoes(filtroProgramacao()),
       db.execucoes(filtroExecucao()),
-      db.movimentacoes()
+      db.movimentacoes(),
+      db.observacoesDasTorres(E.trechoAtual.id)
     ]).then(function (r) {
       E.torres = r[0];
       E.programacoes = r[1];
       E.execucoes = r[2];
       E.movimentacoes = r[3];
+      aplicarObservacoesDasTorres(r[4]);
       preencherFiltroCanteiro();
       render.tudo();
     });
@@ -295,12 +312,14 @@ window.SIPAV = window.SIPAV || {};
       db.torres(E.trechoAtual.id),
       db.programacoes(filtroProgramacao()),
       db.execucoes(filtroExecucao()),
-      db.movimentacoes()
+      db.movimentacoes(),
+      db.observacoesDasTorres(E.trechoAtual.id)
     ]).then(function (r) {
       E.torres = r[0];
       E.programacoes = r[1];
       E.execucoes = r[2];
       E.movimentacoes = r[3];
+      aplicarObservacoesDasTorres(r[4]);
       render.tudo();
       if (torreAberta) renderListaDoModal();
     });
@@ -617,6 +636,14 @@ window.SIPAV = window.SIPAV || {};
     $('modalTorreTipo').textContent = partesTipo.length ? partesTipo.join(' ') + ' · ' : '';
     $('modalTorreUltima').textContent = torreAberta.ultima_atividade || 'Não iniciada';
 
+    // A observação da torre. Quem não pode alterar só a vê, e nem vê o campo se
+    // ela estiver vazia
+    var podeObs = podeEditarTorre();
+    $('campoObsTorre').value = torreAberta.observacao || '';
+    $('campoObsTorre').readOnly = !podeObs;
+    $('btnSalvarObsTorre').classList.toggle('hidden', !podeObs);
+    $('blocoObsTorre').classList.toggle('hidden', !podeObs && !torreAberta.observacao);
+
     var selo = $('modalTorreRestricao');
     if (torreAberta.tem_restricao) {
       selo.textContent = 'Restrição ' + String(torreAberta.restricao_tipo).toLowerCase();
@@ -923,6 +950,159 @@ window.SIPAV = window.SIPAV || {};
     if (!db.temPartes()) return null;
     if (partesMarcadas.chave !== chaveDasPartes() || !partesMarcadas.letras.length) return null;
     return partesMarcadas.letras.join(',');
+  }
+
+  /** Salva a observação da torre que está aberta. Vazio limpa. */
+  function salvarObsDaTorreAberta() {
+    if (!torreAberta || !podeEditarTorre()) return;
+    var texto = $('campoObsTorre').value.trim();
+    if (texto === (torreAberta.observacao || '')) return;
+
+    db.salvarObservacaoDasTorres([torreAberta.torre_id], texto)
+      .then(function () {
+        torreAberta.observacao = texto || null;
+        render.tudo();
+        ui.avisar(texto ? 'Observação da torre salva.' : 'Observação da torre removida.', 'sucesso');
+      })
+      .catch(function (e) { ui.avisar(e.message, 'erro', 7000); });
+  }
+
+  /* ---------------------------------------------- Observação em várias torres -- */
+
+  var obsExistentes = [];   // as torres que já têm observação, para a lista da janela
+
+  /**
+   * Põe (ou tira) a mesma observação em várias torres de uma vez.
+   *
+   * As torres se escolhem como no lote: uma a uma, ou em intervalo ("49/2 a 52/1,
+   * 60/1 a 61/2"). Se há torres marcadas na grade, a janela já abre com elas.
+   * Embaixo fica o que já está anotado no trecho, para ver o conjunto e poder
+   * corrigir uma anotação clicando nela.
+   */
+  function abrirObservacaoDasTorres() {
+    if (!E.trechoAtual) return;
+    if (!podeEditarTorre()) {
+      ui.avisar('Só administração e planejamento alteram a observação da torre.', 'alerta');
+      return;
+    }
+
+    var marcadas = E.torres.filter(function (t) { return E.selecionadas && E.selecionadas[t.torre_id]; })
+      .map(function (t) { return t.identificador; }).join(', ');
+
+    obsExistentes = E.torres.filter(function (t) { return t.observacao; });
+
+    var corpo =
+      '<div class="space-y-3">' +
+        '<p class="text-xs" style="color:var(--texto-fraco)">' +
+          'Uma anotação que fica na torre, para ver no cartão onde há dificuldade ' +
+          '(serra, acesso difícil…). Não bloqueia nada.' +
+        '</p>' +
+        '<div><label class="rotulo">Torres</label>' +
+          '<input id="obsTorresTexto" class="campo" autocomplete="off" ' +
+                 'placeholder="Ex.: 49/2 a 52/1, 60/1 a 61/2" ' +
+                 'oninput="SIPAV.app.previaObservacaoDasTorres()">' +
+          '<p id="obsTorresPrevia" class="text-xs mt-1" style="color:var(--texto-fraco)"></p></div>' +
+        '<div><label class="rotulo">Observação ' +
+            '<span style="font-weight:400">(vazio tira a observação das torres)</span></label>' +
+          '<input id="obsTorresObs" class="campo" autocomplete="off" placeholder="Ex.: serra">' +
+        '</div>' +
+        (obsExistentes.length
+          ? '<div><label class="rotulo">Já anotadas neste trecho (' + obsExistentes.length + ')</label>' +
+              '<div class="resumo-enc-lista barra-fina" style="max-height:11rem">' +
+                obsExistentes.map(function (t, i) {
+                  return '<button type="button" class="resumo-enc-linha obs-existente" ' +
+                           'onclick="SIPAV.app.usarObservacaoExistente(' + i + ')" ' +
+                           'title="Clique para corrigir ou tirar">' +
+                           '<span class="resumo-enc-data">' + esc(t.identificador) + '</span>' +
+                           '<span>' + esc(t.observacao) + '</span>' +
+                         '</button>';
+                }).join('') +
+              '</div></div>'
+          : '') +
+      '</div>';
+
+    ui.modalGenerico({
+      titulo: 'Observação nas torres — ' + E.trechoAtual.nome,
+      corpoHtml: corpo,
+      botoes: [
+        { rotulo: 'Cancelar', classe: 'btn-secundario' },
+        { rotulo: 'Aplicar', classe: 'btn-primario', acao: aplicarObservacaoDasTorres }
+      ]
+    });
+
+    $('obsTorresTexto').value = marcadas;
+    previaObservacaoDasTorres();
+  }
+
+  function previaObservacaoDasTorres() {
+    var campo = $('obsTorresPrevia');
+    if (!campo) return;
+
+    var r = interpretarTorresDoLote($('obsTorresTexto').value);
+    var partes = [];
+    if (r.torres.length) {
+      partes.push(r.torres.length + (r.torres.length === 1 ? ' torre: ' : ' torres: ') +
+        r.torres.slice(0, 12).map(function (t) { return t.identificador; }).join(', ') +
+        (r.torres.length > 12 ? '…' : ''));
+    }
+    campo.textContent = partes.join(' ');
+    campo.style.color = 'var(--texto-fraco)';
+
+    if (r.faltam.length) {
+      campo.textContent += (partes.length ? ' · ' : '') + 'não achei: ' + r.faltam.join(', ');
+      campo.style.color = '#F59E0B';
+    }
+  }
+
+  /** Clicar numa anotação existente a traz para os campos, para corrigir. */
+  function usarObservacaoExistente(i) {
+    var t = obsExistentes[Number(i)];
+    if (!t) return;
+    $('obsTorresTexto').value = t.identificador;
+    $('obsTorresObs').value = t.observacao;
+    previaObservacaoDasTorres();
+    $('obsTorresObs').focus();
+  }
+
+  function aplicarObservacaoDasTorres() {
+    var r = interpretarTorresDoLote($('obsTorresTexto').value);
+    var texto = $('obsTorresObs').value.trim();
+
+    if (r.faltam.length) {
+      ui.avisar('Não achei neste trecho: ' + r.faltam.join(', ') + '.', 'alerta', 6000);
+      return;
+    }
+    if (!r.torres.length) {
+      ui.avisar('Diga em quais torres.', 'alerta');
+      $('obsTorresTexto').focus();
+      return;
+    }
+
+    function gravar() {
+      ui.processando('Salvando…');
+      return db.salvarObservacaoDasTorres(r.torres.map(function (t) { return t.torre_id; }), texto)
+        .then(function () {
+          r.torres.forEach(function (t) { t.observacao = texto || null; });
+          render.tudo();
+          ui.pronto();
+          ui.fecharModal('modalGenerico');
+          ui.avisar(texto
+            ? 'Observação em ' + r.torres.length + (r.torres.length === 1 ? ' torre.' : ' torres.')
+            : 'Observação removida de ' + r.torres.length + (r.torres.length === 1 ? ' torre.' : ' torres.'),
+            'sucesso');
+        });
+    }
+
+    // Vazio apaga o que já estava lá: pede confirmação se há algo para perder
+    var comAlgo = r.torres.filter(function (t) { return t.observacao; });
+    var seguir = (!texto && comAlgo.length)
+      ? ui.confirmar('Tirar a observação',
+          'Apaga a observação de ' + comAlgo.length + ' torre(s) que já tinham uma.', 'Tirar')
+      : Promise.resolve(true);
+
+    seguir
+      .then(function (sim) { return sim ? gravar() : null; })
+      .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro', 7000); });
   }
 
   /** Mostra ou esconde o seletor de cabo conforme a atividade escolhida. */
@@ -7161,6 +7341,10 @@ window.SIPAV = window.SIPAV || {};
     copiarDatasDe: copiarDatasDe,
     atualizarAtalhosPercentual: atualizarAtalhosPercentual,
     alternarParteEscavacao: alternarParteEscavacao,
+    salvarObsDaTorreAberta: salvarObsDaTorreAberta,
+    abrirObservacaoDasTorres: abrirObservacaoDasTorres,
+    previaObservacaoDasTorres: previaObservacaoDasTorres,
+    usarObservacaoExistente: usarObservacaoExistente,
     mostrarEncarregado2: mostrarEncarregado2,
     tirarEncarregado2: tirarEncarregado2,
     atualizarNotasDaRevisao: atualizarNotasDaRevisao,

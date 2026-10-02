@@ -1,7 +1,7 @@
 -- =============================================================================
 -- PARA COLAR NO SQL EDITOR DO SUPABASE — atualizado em 01/10/2026
 -- =============================================================================
--- Pendente: a 39-movimentacao.sql, a 40-partes-da-escavacao.sql, a 41-opgw-direito-esquerdo.sql e a 42-segundo-encarregado.sql e a 43-folga-de-campo.sql (e a 38, se ainda não entrou).
+-- Pendente: a 39-movimentacao.sql, a 40-partes-da-escavacao.sql, a 41-opgw-direito-esquerdo.sql e a 42-segundo-encarregado.sql e a 43-folga-de-campo.sql e a 44-observacao-da-torre.sql (e a 38, se ainda não entrou).
 --
 -- Confere antes o que já entrou. A 36, a 37 e a 38 também precisam estar aplicadas:
 --

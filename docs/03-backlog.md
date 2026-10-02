@@ -52,6 +52,7 @@ Situação conferida em **23/09/2026**, item por item, contra o que está public
 | **R22** | **Dois encarregados na mesma atividade** | [WR] 01/10 | ✅ ``db/42`` — uma programação, dois nomes; total da ISA conta uma vez |
 | **R23** | **Lote: repetir o último** (com data, observação e percentual) | [WR] 01/10 | ✅ lote ganhou observação e segundo encarregado |
 | **R24** | **Lançar pelo encarregado** (aba Por Encarregado) | [WR] 02/10 | ✅ lote sem torres marcadas + campo de torres digitadas e intervalo |
+| **R25** | **Observação da torre** (serra, acesso difícil), aplicável em intervalo | [WR] 02/10 | ✅ ``db/44`` — ícone no cartão e nos chips |
 
 ## Relatórios e saídas
 
