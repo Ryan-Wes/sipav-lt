@@ -16,6 +16,16 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 07/10/2026
 
+### Importar da ISA grava como está na planilha — [WR]
+
+A planilha da ISA registra o que foi decidido em outro dia. Quando importo a da sexta, o status das
+torres já andou, e a sequência de hoje não vale para ontem. Pedir motivo linha a linha seria
+trabalho sem informação nova. A prévia ganhou uma caixa, marcada de partida: **gravar como está na
+planilha, sem barrar por sequência**. O motivo *Importado do relatório da ISA (arquivo)* entra
+sozinho em cada programação, e o Desfazer continua valendo. As travas do dia a dia
+(lançar pela tela, em lote, copiar plano) não mudam. Desmarcar a caixa devolve o comportamento
+anterior: o que a sequência barrar volta num relato, com *Programar mesmo assim*.
+
 ### Aba Dias sem atividade — [WR]
 
 Mudança de trecho, deslocamento de máquina, folga de campo e dia sem atividade

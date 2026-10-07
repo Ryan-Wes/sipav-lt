@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v129 · 2026-10-07';
+  var VERSAO = 'v130 · 2026-10-07';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -8308,6 +8308,19 @@ window.SIPAV = window.SIPAV || {};
         '</div>';
     }
 
+    // A planilha é o registro do que foi decidido em outro dia: o status das torres
+    // pode ter andado desde então, e a sequência de hoje não vale para ontem. Vem
+    // marcado; o motivo entra sozinho em cada programação.
+    if (criar.length) {
+      corpo +=
+        '<label class="text-xs flex items-start gap-2" style="cursor:pointer">' +
+          '<input type="checkbox" id="isaImpLiberar" checked class="mt-0.5">' +
+          '<span>Gravar como está na planilha, sem barrar por sequência nem pedir justificativa ' +
+            'linha a linha. O motivo <strong>Importado do relatório da ISA</strong> fica registrado ' +
+            'em cada programação.</span>' +
+        '</label>';
+    }
+
     corpo += '</div>';
 
     var botoes = [{ rotulo: 'Voltar', classe: 'btn-secundario', acao: function () { abrirImportarIsa(); } }];
@@ -8347,7 +8360,8 @@ window.SIPAV = window.SIPAV || {};
     });
 
     ui.processando('Programando ' + tarefas.length + ' lançamento(s)…');
-    criarRegistrosDaIsa(tarefas, null)
+    var liberar = !!($('isaImpLiberar') && $('isaImpLiberar').checked);
+    criarRegistrosDaIsa(tarefas, liberar ? 'Importado do relatório da ISA (' + imp.arquivo + ')' : null)
       .then(function (r) {
         loteUltimoLote = r.ids;
         return recarregarProgramacoes().then(function () { ui.pronto(); relatarImportacaoIsa(r.ok, r.falhou); });
