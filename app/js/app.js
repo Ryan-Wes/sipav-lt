@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v127 · 2026-10-07';
+  var VERSAO = 'v128 · 2026-10-07';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -6454,7 +6454,7 @@ window.SIPAV = window.SIPAV || {};
     if (somenteConsulta()) return;
 
     if (!podeRegistrarMovimentacao()) {
-      ui.avisar('Só administração e planejamento registram movimentação.', 'alerta');
+      ui.avisar('Só administração e planejamento registram dias sem atividade.', 'alerta');
       return;
     }
 
@@ -6557,7 +6557,7 @@ window.SIPAV = window.SIPAV || {};
     } });
 
     ui.modalGenerico({
-      titulo: m ? 'Alterar movimentação' : 'Registrar movimentação',
+      titulo: m ? 'Alterar dia sem atividade' : 'Registrar dia sem atividade',
       corpoHtml: corpo,
       botoes: botoes
     });
@@ -6726,8 +6726,8 @@ window.SIPAV = window.SIPAV || {};
         .then(function () {
           ui.pronto();
           ui.fecharModal('modalGenerico');
-          ui.avisar(id ? 'Movimentação atualizada.'
-                       : datas.length > 1 ? datas.length + ' dias registrados.' : 'Movimentação registrada.', 'sucesso');
+          ui.avisar(id ? 'Registro atualizado.'
+                       : datas.length > 1 ? datas.length + ' dias registrados.' : 'Registrado.', 'sucesso');
         });
     }
 
@@ -6738,7 +6738,7 @@ window.SIPAV = window.SIPAV || {};
           (datas.length > 1 ? 'dias entre ' + ui.dataCurta(data) + ' e ' + ui.dataCurta(ate) : ui.dataCurta(data)) + ' (' + choque.slice(0, 3).map(function (p) {
             return p.torre ? p.torre.identificador : '?';
           }).join(', ') + (choque.length > 3 ? '…' : '') + '). ' +
-          'Registrar a movimentação mesmo assim?', 'Registrar mesmo assim')
+          'Registrar mesmo assim?', 'Registrar mesmo assim')
       : Promise.resolve(true);
 
     seguir
@@ -6746,7 +6746,7 @@ window.SIPAV = window.SIPAV || {};
       .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro', 7000); });
   }
   function removerMovimentacao(m) {
-    ui.confirmar('Remover a movimentação',
+    ui.confirmar('Remover o registro',
       'Apaga este registro. O dia volta a aparecer sem explicação nos painéis.', 'Remover')
       .then(function (sim) {
         if (!sim) return;
@@ -6756,7 +6756,7 @@ window.SIPAV = window.SIPAV || {};
           .then(function () {
             ui.pronto();
             ui.fecharModal('modalGenerico');
-            ui.avisar('Movimentação removida.', 'sucesso');
+            ui.avisar('Registro removido.', 'sucesso');
           });
       })
       .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro'); });
@@ -7191,7 +7191,7 @@ window.SIPAV = window.SIPAV || {};
 
   function tituloRelatorio() {
     var nomes = { grade: 'Grade Geral', datas: 'Programação por Data',
-                  encarregados: 'Programação por Encarregado', atividades: 'Programação por Atividade', movimentacoes: 'Movimentações' };
+                  encarregados: 'Programação por Encarregado', atividades: 'Programação por Atividade', movimentacoes: 'Dias sem atividade' };
     return nomes[E.aba] + ' — ' + (E.trechoAtual ? E.trechoAtual.nome : '');
   }
 

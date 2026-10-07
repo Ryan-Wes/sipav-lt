@@ -642,7 +642,7 @@ window.SIPAV = window.SIPAV || {};
     { tipo: 'MUDANCA_TRECHO',  titulo: 'Mudança de trecho (encarregado)' },
     { tipo: 'MUDANCA_MAQUINA', titulo: 'Deslocamento de máquina' },
     { tipo: 'FOLGA_CAMPO',     titulo: 'Folga de campo' },
-    { tipo: 'OUTRO',           titulo: 'Outro motivo (dia sem atividade)' }
+    { tipo: 'OUTRO',           titulo: 'Outro motivo' }
   ];
 
   function podeEditarMovimentacao() {
@@ -1190,7 +1190,7 @@ window.SIPAV = window.SIPAV || {};
     var todas = movimentacoesDoPeriodo();
 
     if (!todas.length) {
-      cont.innerHTML = vazio('Nenhuma movimentação neste trecho, no período exibido');
+      cont.innerHTML = vazio('Nenhum dia sem atividade registrado neste trecho, no período exibido');
       return;
     }
 

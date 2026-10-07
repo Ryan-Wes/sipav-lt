@@ -1068,7 +1068,7 @@ window.SIPAV = window.SIPAV || {};
         return r;
       }).then(function (r) {
         if (semTabelaMovimentacao(r.error)) return [];
-        return ok(r, 'Falha ao carregar movimentações');
+        return ok(r, 'Falha ao carregar os dias sem atividade');
       });
     });
   }
@@ -1084,11 +1084,11 @@ window.SIPAV = window.SIPAV || {};
       // O tipo novo (db/43) antes da migração: a mensagem do enum cita
       // "movimentacao" e seria tomada por "tabela inexistente"
       if (r.error && /invalid input value for enum/i.test(r.error.message || '')) {
-        throw new Error('O banco ainda não conhece este tipo de movimentação. ' +
+        throw new Error('O banco ainda não conhece este tipo de registro. ' +
                         'Falta aplicar a migração 43 (db/43-folga-de-campo.sql).');
       }
       if (semTabelaMovimentacao(r.error)) {
-        throw new Error('A tabela de movimentação ainda não existe no banco. ' +
+        throw new Error('A tabela de dias sem atividade ainda não existe no banco. ' +
                         'Falta aplicar a migração 39 (db/39-movimentacao.sql).');
       }
       return ok(r, contexto);
@@ -1111,7 +1111,7 @@ window.SIPAV = window.SIPAV || {};
         if (d.id) {
           return cliente().from('movimentacao').update(linha).eq('id', d.id)
             .select('id').single()
-            .then(function (r) { return conferir(r, 'Falha ao salvar a movimentação'); });
+            .then(function (r) { return conferir(r, 'Falha ao salvar o registro'); });
         }
 
         linha.obra_id = o.id;
@@ -1125,7 +1125,7 @@ window.SIPAV = window.SIPAV || {};
         });
         var q = cliente().from('movimentacao').insert(linhas).select('id');
         if (linhas.length === 1) q = q.single();
-        return q.then(function (r) { return conferir(r, 'Falha ao registrar a movimentação'); });
+        return q.then(function (r) { return conferir(r, 'Falha ao registrar'); });
       });
     });
   }
@@ -1133,7 +1133,7 @@ window.SIPAV = window.SIPAV || {};
   function removerMovimentacao(id) {
     return cliente().from('movimentacao').delete().eq('id', id)
       .then(function (r) {
-        if (r.error) throw traduzErro(r.error, 'Falha ao remover a movimentação');
+        if (r.error) throw traduzErro(r.error, 'Falha ao remover o registro');
         return true;
       });
   }

@@ -41,7 +41,7 @@
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 
   <!-- ?v= força o navegador a buscar de novo quando o código muda. -->
-  <link rel="stylesheet" href="css/app.css?v=127">
+  <link rel="stylesheet" href="css/app.css?v=128">
 </head>
 <body class="h-full flex flex-col antialiased">
 
@@ -185,9 +185,9 @@
              ou outro motivo. Sem isto o dia aparecia vazio nos painéis. -->
         <button onclick="SIPAV.app.abrirMovimentacao()" class="btn-header hidden"
                 id="btnMovimentacao"
-                title="Registrar mudança de trecho de encarregado ou de máquina, ou um dia sem atividade">
-          <i data-lucide="truck" class="w-4 h-4" style="color:var(--acento)"></i>
-          <span class="rotulo-btn">Movimentação</span>
+                title="Registrar mudança de trecho, deslocamento de máquina, folga de campo ou outro dia sem atividade">
+          <i data-lucide="calendar-x" class="w-4 h-4" style="color:var(--acento)"></i>
+          <span class="rotulo-btn">Dias sem atividade</span>
         </button>
 
         <!-- O planejamento salvo da semana (semanal + quinzenal), e rever os
@@ -306,7 +306,7 @@
           <i data-lucide="activity" class="w-4 h-4"></i> Por Atividade
         </button>
         <button id="abaMovimentacoes" onclick="SIPAV.app.trocarAba('movimentacoes')" class="aba">
-          <i data-lucide="truck" class="w-4 h-4"></i> Movimentações
+          <i data-lucide="calendar-x" class="w-4 h-4"></i> Dias sem atividade
         </button>
       </div>
 
@@ -745,11 +745,11 @@
   </div>
 </div>
 
-<script src="js/config.js?v=127"></script>
-<script src="js/db.js?v=127"></script>
-<script src="js/ui.js?v=127"></script>
-<script src="js/render.js?v=127"></script>
-<script src="js/isa.js?v=127"></script>
-<script src="js/app.js?v=127"></script>
+<script src="js/config.js?v=128"></script>
+<script src="js/db.js?v=128"></script>
+<script src="js/ui.js?v=128"></script>
+<script src="js/render.js?v=128"></script>
+<script src="js/isa.js?v=128"></script>
+<script src="js/app.js?v=128"></script>
 </body>
 </html>

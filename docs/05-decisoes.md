@@ -16,16 +16,22 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 07/10/2026
 
-### Aba Movimentações — [WR]
+### Aba Dias sem atividade — [WR]
 
 Mudança de trecho, deslocamento de máquina, folga de campo e dia sem atividade
 apareciam só espalhados nos painéis, cada um no seu dia. Faltava ver o conjunto: por
-exemplo, quantas folgas um encarregado teve no mês. A aba **Movimentações** lista tudo
+exemplo, quantas folgas um encarregado teve no mês. A aba **Dias sem atividade** lista tudo
 do trecho no período do filtro, com um resumo por encarregado (dupla conta para os dois)
 e filtro por tipo e por encarregado. Clicar no nome do encarregado no resumo filtra a
 lista; clicar numa linha abre a movimentação para editar ou apagar. Não obedece ao
 filtro de atividade, canteiro nem à busca, porque movimentação não é nenhuma dessas
 coisas. Não aparece na Grade Geral, que é por torre.
+
+**O nome.** Folga não é movimentação, e mudança de trecho também não é um dia de atividade.
+O que junta os quatro tipos (mudança de trecho, deslocamento de máquina, folga de campo e outro
+motivo) é o dia sem atividade na torre. O botão, a aba e a janela passaram a se chamar **Dias sem
+atividade**. É só o texto da tela: a tabela e o código continuam com o nome antigo, movimentacao,
+para não mexer no banco por causa de um rótulo.
 
 **Até o dia.** Uma folga de campo costuma durar vários dias seguidos. Ao registrar (não ao
 alterar), o campo **Até o dia** cria um registro por dia, de uma vez só: entram todos ou nenhum.
