@@ -680,6 +680,39 @@ window.SIPAV = window.SIPAV || {};
     var atividades = {};
     (ctx.atividades || []).forEach(function (a) { atividades[norm(a.nome)] = a; });
 
+    // A ordem em que as torres vêm é a da linha (o banco devolve por `ordem`):
+    // é por ela que "0/2 A 5/1" vira a lista de torres do meio
+    var posicaoDaTorre = {};
+    (ctx.torres || []).forEach(function (t, i) {
+      var k = norm(t.identificador);
+      if (!(k in posicaoDaTorre)) posicaoDaTorre[k] = i;
+    });
+
+    /**
+     * "49/2 à 59/2", "0/2 A 5/1": de uma torre a outra, as duas incluídas. É como a
+     * obra escreve o lançamento de cabo, que corre vários vãos. Devolve os nomes das
+     * torres do intervalo, ou nulo se não for um intervalo conhecido.
+     */
+    function faixaDeTorres(texto) {
+      var m = /^(\S+)\s+(?:a|à|ate|até|ao)\s+(\S+)$/i.exec(texto.trim());
+      if (!m) return null;
+      var de = posicaoDaTorre[norm(m[1])], ate = posicaoDaTorre[norm(m[2])];
+      if (de === undefined || ate === undefined) return null;
+      var nomes = [], passo = de <= ate ? 1 : -1;
+      for (var i = de; passo > 0 ? i <= ate : i >= ate; i += passo) nomes.push(ctx.torres[i].identificador);
+      return nomes;
+    }
+
+    /** "PAULO / RAIMUNDO" são dois; a aspa que sobra no começo é de digitação. */
+    function nomesDaEquipe(texto) {
+      return String(texto).replace(/^['"’`´]+/, '').split('/')
+        .map(function (n) { return n.trim(); }).filter(function (n) { return n && !semTexto(n); });
+    }
+
+    // Anotações que a obra escreve onde iria a torre. Não são torres e não dá para
+    // programá-las: ficam de fora, mas num aviso só, e não como "torre que não existe".
+    var ehAnotacao = /feriado|folga|mudan[cç]a|portico|p[oó]rtico|fase [abc]|prepara[cç][aã]o|i[cç]amento/i;
+    var anotacoes = {};
     function acharEncarregado(nome) {
       var k = norm(nome);
       var lista = ctx.encarregados || [];
@@ -725,11 +758,13 @@ window.SIPAV = window.SIPAV || {};
 
             dividirNaVirgula(l).forEach(function (token) {
               var t = interpretarToken(token);
-              brutas.push({
-                item: item, semana: semana, dia: dia,
-                data: ui.iso(ui.somarDias(ui.paraData(segunda), dia)),
-                encNome: nomeEnc && !semTexto(nomeEnc) ? nomeEnc : null,
-                torreTexto: t.torre, percentual: t.percentual, notas: t.notas
+              (faixaDeTorres(t.torre) || [t.torre]).forEach(function (nomeTorre) {
+                brutas.push({
+                  item: item, semana: semana, dia: dia,
+                  data: ui.iso(ui.somarDias(ui.paraData(segunda), dia)),
+                  encNomes: nomeEnc && !semTexto(nomeEnc) ? nomesDaEquipe(nomeEnc) : [],
+                  torreTexto: nomeTorre, percentual: t.percentual, notas: t.notas
+                });
               });
             });
           });
@@ -741,22 +776,40 @@ window.SIPAV = window.SIPAV || {};
     var porItem = {};      // torre|data|item → {torre, data, item, encs:[], pct, notas}
     brutas.forEach(function (b) {
       var torre = torres[norm(b.torreTexto)];
-      if (!torre) { torresDesconhecidas[b.torreTexto] = (torresDesconhecidas[b.torreTexto] || 0) + 1; return; }
-
-      var enc = null;
-      if (b.encNome) {
-        enc = acharEncarregado(b.encNome);
-        if (!enc) { encDesconhecidos[b.encNome] = (encDesconhecidos[b.encNome] || 0) + 1; return; }
+      if (!torre) {
+        if (ehAnotacao.test(b.torreTexto)) {
+          var nota = b.torreTexto.trim().toUpperCase();
+          anotacoes[nota] = (anotacoes[nota] || 0) + 1;
+        } else {
+          torresDesconhecidas[b.torreTexto] = (torresDesconhecidas[b.torreTexto] || 0) + 1;
+        }
+        return;
       }
 
+      // A equipe da célula: um nome, ou dois ("A / B") que fazem juntos
+      var equipe = [], faltou = false;
+      b.encNomes.forEach(function (nome) {
+        var e = acharEncarregado(nome);
+        if (!e) { encDesconhecidos[nome] = (encDesconhecidos[nome] || 0) + 1; faltou = true; }
+        else if (!equipe.some(function (x) { return x.id === e.id; })) equipe.push(e);
+      });
+      if (faltou) return;
       var chave = torre.torre_id + '|' + b.data + '|' + b.item;
       var x = porItem[chave] = porItem[chave] || {
         torre: torre, data: b.data, item: b.item, encs: [], percentual: null, notas: []
       };
-      if (enc && !x.encs.some(function (e) { return e.id === enc.id; })) x.encs.push(enc);
+      equipe.forEach(function (enc) {
+        if (!x.encs.some(function (e) { return e.id === enc.id; })) x.encs.push(enc);
+      });
       if (b.percentual != null && x.percentual == null) x.percentual = b.percentual;
       b.notas.forEach(function (n) { if (x.notas.indexOf(n) === -1) x.notas.push(n); });
     });
+
+    var avulsas = Object.keys(anotacoes);
+    if (avulsas.length) {
+      problema('texto', 'Anotações da planilha que não são torre, ficaram de fora: ' +
+        avulsas.sort().map(function (n) { return n + ' (' + anotacoes[n] + ')'; }).join(' · ') + '.');
+    }
 
     Object.keys(torresDesconhecidas).sort().forEach(function (t) {
       problema('torre', 'Torre "' + t + '" não existe neste trecho (' + torresDesconhecidas[t] + ' ocorrência(s)).');
