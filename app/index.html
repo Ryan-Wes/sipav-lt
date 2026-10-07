@@ -41,7 +41,7 @@
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 
   <!-- ?v= força o navegador a buscar de novo quando o código muda. -->
-  <link rel="stylesheet" href="css/app.css?v=125">
+  <link rel="stylesheet" href="css/app.css?v=126">
 </head>
 <body class="h-full flex flex-col antialiased">
 
@@ -305,6 +305,9 @@
         <button id="abaAtividades"   onclick="SIPAV.app.trocarAba('atividades')"   class="aba">
           <i data-lucide="activity" class="w-4 h-4"></i> Por Atividade
         </button>
+        <button id="abaMovimentacoes" onclick="SIPAV.app.trocarAba('movimentacoes')" class="aba">
+          <i data-lucide="truck" class="w-4 h-4"></i> Movimentações
+        </button>
       </div>
 
       <div class="linha-filtros">
@@ -390,6 +393,7 @@
       <div id="visaoDatas"        class="hidden space-y-6"></div>
       <div id="visaoEncarregados" class="hidden space-y-5"></div>
       <div id="visaoAtividades"   class="hidden space-y-5"></div>
+      <div id="visaoMovimentacoes" class="hidden space-y-5"></div>
     </div>
 
     <div id="estadoVazio" class="hidden text-center py-20">
@@ -741,11 +745,11 @@
   </div>
 </div>
 
-<script src="js/config.js?v=125"></script>
-<script src="js/db.js?v=125"></script>
-<script src="js/ui.js?v=125"></script>
-<script src="js/render.js?v=125"></script>
-<script src="js/isa.js?v=125"></script>
-<script src="js/app.js?v=125"></script>
+<script src="js/config.js?v=126"></script>
+<script src="js/db.js?v=126"></script>
+<script src="js/ui.js?v=126"></script>
+<script src="js/render.js?v=126"></script>
+<script src="js/isa.js?v=126"></script>
+<script src="js/app.js?v=126"></script>
 </body>
 </html>

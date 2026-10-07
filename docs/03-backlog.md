@@ -59,6 +59,7 @@ Situação conferida em **23/09/2026**, item por item, contra o que está public
 | **R29** | **Planejar do zero**: grade limpa do semanal e do quinzenal, com a foto ao terminar | [WR] 07/10 | ✅ programações existentes escondidas, não apagadas |
 | **R30** | **Copiar de um plano salvo** para outra semana, só pendência ou tudo | [WR] 07/10 | ✅ mesmo dia da semana, sem duplicar o que existe |
 | **R31** | **Meta × realizado** por encarregado: plano da sexta contra o apontado | [WR] 07/10 | ✅ resolve B2 só para o plano salvo; falta o painel geral |
+| **R32** | **Aba Movimentações**: lista das mudanças, deslocamentos e folgas, com resumo por encarregado | [WR] 07/10 | ✅ filtro por tipo e encarregado, clique abre para editar |
 
 ## Relatórios e saídas
 

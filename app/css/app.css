@@ -1468,3 +1468,14 @@ html.dark .banner-planejando .banner-historico-titulo { color: #38BDF8; }
 }
 .selo-versao.oficial { color: #16A34A; background: rgba(22,163,74,.12); border-color: rgba(22,163,74,.45); }
 .selo-versao.ajuste { color: #D97706; background: rgba(217,119,6,.12); border-color: rgba(217,119,6,.45); }
+/* Aba de movimentações */
+.tabela-mov { width: 100%; font-size: .8125rem; border-collapse: collapse; }
+.tabela-mov th {
+  padding: .375rem .5rem; text-align: left; font-weight: 700; white-space: nowrap;
+  text-transform: uppercase; letter-spacing: .02em; font-size: .625rem; color: var(--texto-fraco);
+  border-bottom: 2px solid var(--borda-forte);
+}
+.tabela-mov td { border-top: 1px solid var(--borda); }
+.tabela-mov a { color: var(--acento); text-decoration: underline; text-decoration-style: dotted; }
+.tabela-mov .linha-clicavel { cursor: pointer; }
+.tabela-mov .linha-clicavel:hover { background: var(--superficie-2); }.tabela-mov-resumo th:not(:first-child), .tabela-mov-resumo td:not(:first-child) { text-align: center; }

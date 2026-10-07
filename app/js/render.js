@@ -1144,8 +1144,165 @@ window.SIPAV = window.SIPAV || {};
     }).join('');
   }
 
-  /* ---------------------------------------------------------- Estatística -- */
+  /* ------------------------------------------------------- Movimentações --- */
 
+  /**
+   * Todas as movimentações do trecho num período, em tabela: mudança de trecho,
+   * deslocamento de máquina, folga de campo e os dias sem atividade. Os painéis
+   * mostram cada uma no seu dia; aqui dá para ver o conjunto e contar, por exemplo,
+   * as folgas de um encarregado no mês.
+   *
+   * Não obedece ao filtro de atividade, de canteiro nem à busca: movimentação não é
+   * nenhuma dessas coisas. Obedece ao trecho e ao período.
+   */
+  function movimentacoesDoPeriodo() {
+    var de = E.periodo.de, ate = E.periodo.ate;
+    return (E.movimentacoes || []).filter(function (m) {
+      if (ate && m.data > ate) return false;
+      if (de && m.data < de) return false;
+      return movimentacaoDoTrecho(m);
+    });
+  }
+
+  function detalheDaMovimentacao(m) {
+    if (m.tipo === 'MUDANCA_TRECHO') {
+      return rotaDeCanteiro(m) + (m.observacao ? ' — ' + m.observacao : '');
+    }
+    return m.observacao || '';
+  }
+
+  function tituloDoTipo(tipo) {
+    var t = TIPOS_DE_MOVIMENTACAO.find(function (x) { return x.tipo === tipo; });
+    return t ? t.titulo : tipo;
+  }
+
+  /** Os dois filtros da aba. Um valor indefinido deixa o filtro como está. */
+  function filtrarMovimentacoes(tipo, encarregadoId) {
+    var f = E.movFiltro = E.movFiltro || { tipo: '', enc: '' };
+    if (tipo !== undefined) f.tipo = tipo;
+    if (encarregadoId !== undefined) f.enc = encarregadoId;
+    tudo();
+  }
+
+  function renderMovimentacoes() {
+    var cont = $('visaoMovimentacoes');
+    var f = E.movFiltro = E.movFiltro || { tipo: '', enc: '' };
+    var todas = movimentacoesDoPeriodo();
+
+    if (!todas.length) {
+      cont.innerHTML = vazio('Nenhuma movimentação neste trecho, no período exibido');
+      return;
+    }
+
+    // O resumo conta tudo do período; só a lista de baixo obedece aos filtros.
+    // Dupla conta para os dois.
+    var porEnc = {};
+    var encarregadosDoPeriodo = {};
+    todas.forEach(function (m) {
+      var quem = encarregadosDe(m);
+      (quem.length ? quem : [{ id: '', nome: 'Sem encarregado' }]).forEach(function (e) {
+        var o = porEnc[e.id] = porEnc[e.id] || { id: e.id, nome: e.nome, total: 0 };
+        o[m.tipo] = (o[m.tipo] || 0) + 1;
+        o.total++;
+        if (e.id) encarregadosDoPeriodo[e.id] = e.nome;
+      });
+    });
+
+    var linhasResumo = Object.keys(porEnc).map(function (k) { return porEnc[k]; })
+      .sort(function (a, b) {
+        if (!a.id) return 1;
+        if (!b.id) return -1;
+        return a.nome.localeCompare(b.nome, 'pt-BR');
+      });
+
+    function celula(n) {
+      return '<td class="px-2 py-1.5 text-right" style="' +
+             (n ? 'font-weight:700' : 'color:var(--texto-fraco)') + '">' + (n || 0) + '</td>';
+    }
+
+    var resumo =
+      '<div class="overflow-x-auto"><table class="tabela-mov tabela-mov-resumo">' +
+        '<thead><tr><th>Encarregado</th><th>Mudança de trecho</th><th>Desloc. de máquina</th>' +
+          '<th>Folga de campo</th><th>Outros</th><th>Total</th></tr></thead><tbody>' +
+        linhasResumo.map(function (o) {
+          var nome = o.id
+            ? '<a href="#" onclick="SIPAV.render.filtrarMovimentacoes(undefined, \'' + o.id + '\'); return false;" ' +
+              'title="Ver só as dele">' + esc(o.nome) + '</a>'
+            : esc(o.nome);
+          return '<tr><td class="px-2 py-1.5 font-medium">' + nome + '</td>' +
+            celula(o.MUDANCA_TRECHO) + celula(o.MUDANCA_MAQUINA) + celula(o.FOLGA_CAMPO) +
+            celula(o.OUTRO) + celula(o.total) + '</tr>';
+        }).join('') +
+      '</tbody></table></div>';
+
+    var lista = todas.filter(function (m) {
+      if (f.tipo && m.tipo !== f.tipo) return false;
+      if (f.enc && !encarregadosDe(m).some(function (e) { return e.id === f.enc; })) return false;
+      return true;
+    }).sort(function (a, b) { return a.data < b.data ? -1 : a.data > b.data ? 1 : 0; });
+
+    var editavel = podeEditarMovimentacao();
+    var tabela = lista.length
+      ? '<div class="overflow-x-auto"><table class="tabela-mov">' +
+          '<thead><tr><th>Data</th><th>Tipo</th><th>Quem</th><th>Detalhe</th></tr></thead><tbody>' +
+          lista.map(function (m) {
+            var quem = encarregadosDe(m).length ? nomesDosEncarregados(m) : '—';
+            return '<tr' + (editavel ? ' class="linha-clicavel" onclick="SIPAV.app.abrirMovimentacao(\'' + m.id + '\')"' : '') + '>' +
+              '<td class="px-2 py-1.5 whitespace-nowrap">' + esc(ui.dataCurta(m.data)) +
+                ' <b class="chip-dia' + (ui.fimDeSemana(m.data) ? ' fim-de-semana' : '') + '">' +
+                esc(ui.diaDaSemana(m.data).slice(0, 3)) + '</b></td>' +
+              '<td class="px-2 py-1.5 whitespace-nowrap">' +
+                '<i data-lucide="' + (ICONE_MOVIMENTACAO[m.tipo] || 'ban') + '" class="w-3.5 h-3.5" ' +
+                  'style="display:inline;vertical-align:-2px;margin-right:.25rem"></i>' +
+                esc(tituloDoTipo(m.tipo)) + '</td>' +
+              '<td class="px-2 py-1.5">' + esc(quem) + '</td>' +
+              '<td class="px-2 py-1.5" style="color:var(--texto-suave)">' + esc(detalheDaMovimentacao(m)) + '</td>' +
+            '</tr>';
+          }).join('') +
+        '</tbody></table></div>'
+      : '<p class="text-xs" style="color:var(--texto-fraco)">Nada com esses filtros.</p>';
+
+    var filtrando = !!(f.tipo || f.enc);
+    cont.innerHTML =
+      '<div class="space-y-4">' +
+        '<p class="text-xs" style="color:var(--texto-fraco)">' + todas.length +
+          (todas.length === 1 ? ' registro' : ' registros') + ' em ' +
+          esc(ui.rotuloPeriodo(E.periodo.de, E.periodo.ate)) + '. ' +
+          'Para ver outro mês, mude o período no filtro acima.' +
+          (editavel ? ' Clique numa linha para editar ou apagar.' : '') + '</p>' +
+        resumo +
+        '<div class="flex flex-wrap items-end gap-3">' +
+          '<div><label class="rotulo">Tipo</label>' +
+            '<select id="movFiltroTipo" class="campo" ' +
+              'onchange="SIPAV.render.filtrarMovimentacoes(this.value, undefined)">' +
+              '<option value="">Todos</option>' +
+              TIPOS_DE_MOVIMENTACAO.map(function (t) {
+                return '<option value="' + t.tipo + '"' + (f.tipo === t.tipo ? ' selected' : '') + '>' +
+                       esc(t.titulo) + '</option>';
+              }).join('') +
+            '</select></div>' +
+          '<div><label class="rotulo">Encarregado</label>' +
+            '<select id="movFiltroEnc" class="campo" ' +
+              'onchange="SIPAV.render.filtrarMovimentacoes(undefined, this.value)">' +
+              '<option value="">Todos</option>' +
+              Object.keys(encarregadosDoPeriodo).sort(function (a, b) {
+                return encarregadosDoPeriodo[a].localeCompare(encarregadosDoPeriodo[b], 'pt-BR');
+              }).map(function (id) {
+                return '<option value="' + id + '"' + (f.enc === id ? ' selected' : '') + '>' +
+                       esc(encarregadosDoPeriodo[id]) + '</option>';
+              }).join('') +
+            '</select></div>' +
+          (filtrando
+            ? '<button type="button" class="btn-secundario" ' +
+                'onclick="SIPAV.render.filtrarMovimentacoes(\'\', \'\')">Limpar filtros</button>'
+            : '') +
+          (filtrando ? '<p class="text-xs" style="color:var(--texto-fraco)">' + lista.length + ' de ' + todas.length + '</p>' : '') +
+        '</div>' +
+        tabela +
+      '</div>';
+  }
+
+  /* ---------------------------------------------------------- Estatística -- */
   function renderEstatisticas() {
     var torresProgramadas = {};
     var kmProgramado = 0;
@@ -1185,7 +1342,8 @@ window.SIPAV = window.SIPAV || {};
     grade:        { div: 'visaoGrade',        aba: 'abaGrade',        fn: renderGrade },
     datas:        { div: 'visaoDatas',        aba: 'abaDatas',        fn: renderPorData },
     encarregados: { div: 'visaoEncarregados', aba: 'abaEncarregados', fn: renderPorEncarregado },
-    atividades:   { div: 'visaoAtividades',   aba: 'abaAtividades',   fn: renderPorAtividade }
+    atividades:   { div: 'visaoAtividades',   aba: 'abaAtividades',   fn: renderPorAtividade },
+    movimentacoes: { div: 'visaoMovimentacoes', aba: 'abaMovimentacoes', fn: renderMovimentacoes }
   };
 
   function tudo() {
@@ -1206,6 +1364,7 @@ window.SIPAV = window.SIPAV || {};
 
   window.SIPAV.render = {
     tudo: tudo,
+    filtrarMovimentacoes: filtrarMovimentacoes,
     encarregadosDe: encarregadosDe,
     escondida: escondida,
     iconeDaObservacao: iconeDaObservacao,

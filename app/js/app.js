@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v125 · 2026-10-07';
+  var VERSAO = 'v126 · 2026-10-07';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -597,8 +597,10 @@ window.SIPAV = window.SIPAV || {};
 
     // "Selecionar vários" marca programação, que só aparece nos painéis. Sair
     // deles com o modo ligado deixaria uma barra de apagar sobre a grade.
-    $('caixaSelecaoProg').classList.toggle('hidden', aba === 'grade');
-    if (aba === 'grade' && E.modoSelecaoProg) { alternarSelecaoProgramacoes(false); return; }
+    // Movimentações não são programação: não há o que marcar nelas
+    var semSelecao = aba === 'grade' || aba === 'movimentacoes';
+    $('caixaSelecaoProg').classList.toggle('hidden', semSelecao);
+    if (semSelecao && E.modoSelecaoProg) { alternarSelecaoProgramacoes(false); return; }
 
     render.tudo();
     renderBarraSelecaoProg();
@@ -7149,7 +7151,7 @@ window.SIPAV = window.SIPAV || {};
 
   function tituloRelatorio() {
     var nomes = { grade: 'Grade Geral', datas: 'Programação por Data',
-                  encarregados: 'Programação por Encarregado', atividades: 'Programação por Atividade' };
+                  encarregados: 'Programação por Encarregado', atividades: 'Programação por Atividade', movimentacoes: 'Movimentações' };
     return nomes[E.aba] + ' — ' + (E.trechoAtual ? E.trechoAtual.nome : '');
   }
 
