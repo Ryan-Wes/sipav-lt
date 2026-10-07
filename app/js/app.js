@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v132 · 2026-10-07';
+  var VERSAO = 'v133 · 2026-10-07';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -8152,6 +8152,10 @@ window.SIPAV = window.SIPAV || {};
    * estamos) e PROG. 2 é a quinzenal (a seguinte), que é como a obra a preenche
    * toda sexta. O que já está no SIPAV não é duplicado.
    */
+  var importacaoIsaApelidos = {};   // nome da planilha → id do encarregado, escolhido na prévia
+  var importacaoIsaRotulos = {};    // e o nome como veio na planilha, para mostrar
+  var importacaoIsaArquivoObj = null;
+  var importacaoIsaSegunda = null;
   var importacaoIsa = null;       // {arquivo, datas, registros, problemas}
   var importacaoIsaFalhas = [];   // o que a precedência recusou, para tentar com o motivo
   var importacaoIsaJustRetro = '';
@@ -8159,6 +8163,8 @@ window.SIPAV = window.SIPAV || {};
 
   function abrirImportarIsa() {
     if (!E.trechoAtual) return;
+    importacaoIsaApelidos = {};
+    importacaoIsaRotulos = {};
     if (somenteConsulta()) return;
     if (E.perfil && E.perfil.papel === 'LEITURA') {
       ui.avisar('Seu perfil só consulta. Quem programa é planejamento ou supervisor.', 'alerta');
@@ -8204,13 +8210,22 @@ window.SIPAV = window.SIPAV || {};
     var arquivo = entrada.files && entrada.files[0];
     if (!arquivo) { ui.avisar('Escolha a planilha do trecho.', 'alerta'); return; }
 
-    var segunda = $('isaImpSegunda').value || null;
+    importacaoIsaArquivoObj = arquivo;
+    importacaoIsaSegunda = $('isaImpSegunda').value || null;
+    processarImportacaoIsa();
+  }
+
+  /** Lê a planilha de novo, com o que foi escolhido na prévia para os nomes não reconhecidos. */
+  function processarImportacaoIsa() {
+    var arquivo = importacaoIsaArquivoObj;
+    var segunda = importacaoIsaSegunda;
 
     ui.fecharModal('modalGenerico');
     ui.processando('Lendo a planilha…');
 
     SIPAV.isa.interpretar(arquivo, {
-      torres: E.torres, encarregados: E.encarregados, atividades: E.atividades, segundaS1: segunda
+      torres: E.torres, encarregados: E.encarregados, atividades: E.atividades, segundaS1: segunda,
+      apelidos: importacaoIsaApelidos
     })
       .then(function (r) {
         if (!r.datas.s1) {
@@ -8218,7 +8233,8 @@ window.SIPAV = window.SIPAV || {};
                           'ou informe a segunda-feira da semana 1.');
         }
         importacaoIsa = { arquivo: arquivo.name, datas: r.datas, registros: r.registros,
-                          movimentos: r.movimentos || [], problemas: r.problemas, resumo: r.resumo };
+                          movimentos: r.movimentos || [], naoReconhecidos: r.naoReconhecidos || [],
+                          problemas: r.problemas, resumo: r.resumo };
 
         var fim = ui.iso(ui.somarDias(ui.paraData(r.datas.s1), 13));
         return db.programacoes({ trechoId: E.trechoAtual.id, de: r.datas.s1, ate: fim });
@@ -8247,6 +8263,14 @@ window.SIPAV = window.SIPAV || {};
         mostrarPreviaIsa();
       })
       .catch(function (e) { ui.pronto(); ui.avisar(e.message || 'Falha ao ler a planilha', 'erro', 8000); });
+  }
+
+  function associarEncarregadoIsa(chave, id) {
+    if (!id) return;
+    var x = (importacaoIsa ? importacaoIsa.naoReconhecidos : []).filter(function (n) { return n.chave === chave; })[0];
+    importacaoIsaApelidos[chave] = id;
+    importacaoIsaRotulos[chave] = x ? x.nome : chave;
+    processarImportacaoIsa();
   }
 
   function mostrarPreviaIsa() {
@@ -8287,6 +8311,40 @@ window.SIPAV = window.SIPAV || {};
           '<p class="text-xs text-rose-800 mt-1">Muitas torres da planilha não existem em ' +
             esc(E.trechoAtual.nome) + '. Confira o trecho que está aberto.</p>' +
         '</div>';
+    }
+
+    // Nome que o SIPAV não sabe de quem é: escolhe-se aqui, em vez de cadastrar e
+    // voltar. Vale só para esta leitura.
+    if ((imp.naoReconhecidos || []).length) {
+      corpo +=
+        '<div class="rounded-lg border border-amber-300 bg-amber-50 p-3 space-y-2">' +
+          '<p class="text-sm font-semibold text-amber-900">Encarregados que não reconheci</p>' +
+          '<p class="text-xs text-amber-800">Escolha quem é cada um. Sem escolha, os lançamentos dele ficam de fora.</p>' +
+          imp.naoReconhecidos.map(function (x) {
+            var porNome = E.encarregados.slice().sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); });
+            var candidatos = x.candidatos.map(function (c) { return c.id; });
+            var opcoes = '<option value="">Deixar de fora</option>' +
+              porNome.map(function (e) {
+                return '<option value="' + e.id + '">' + esc(e.nome) +
+                       (candidatos.indexOf(e.id) !== -1 ? ' (parecido)' : '') + '</option>';
+              }).join('');
+            return '<div class="flex items-center gap-2 flex-wrap">' +
+              '<span class="text-xs font-semibold" style="min-width:8rem">' + esc(x.nome) +
+                ' <em style="font-weight:400">· ' + x.qtd + '</em></span>' +
+              '<select class="campo" style="flex:1;min-width:10rem" ' +
+                      'onchange="SIPAV.app.associarEncarregadoIsa(\'' + esc(x.chave) + '\', this.value)">' +
+                opcoes + '</select></div>';
+          }).join('') +
+        '</div>';
+    }
+
+    var ligados = Object.keys(importacaoIsaApelidos);
+    if (ligados.length) {
+      corpo += '<p class="text-xs" style="color:var(--texto-fraco)">Associados nesta leitura: ' +
+        ligados.map(function (k) {
+          var e = E.encarregados.filter(function (x) { return x.id === importacaoIsaApelidos[k]; })[0];
+          return esc(importacaoIsaRotulos[k] || k) + ' → ' + esc(e ? e.nome : '?');
+        }).join(' · ') + '.</p>';
     }
 
     if (imp.problemas.length) {
@@ -8926,6 +8984,7 @@ window.SIPAV = window.SIPAV || {};
     abrirExportarPdf: abrirExportarPdf,
     abrirRelatorioIsa: abrirRelatorioIsa,
     abrirImportarIsa: abrirImportarIsa,
+    associarEncarregadoIsa: associarEncarregadoIsa,
     abrirPlanejamentos: abrirPlanejamentos,
     previaDoPlano: previaDoPlano,
     salvarPlanejamentoAtual: salvarPlanejamentoAtual,

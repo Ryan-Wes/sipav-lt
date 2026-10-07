@@ -731,9 +731,18 @@ window.SIPAV = window.SIPAV || {};
       }
       return null;
     }
-    var movimentosBrutos = [];    function acharEncarregado(nome) {
+    var movimentosBrutos = [];    // O que a pessoa escolheu na prévia para um nome que o SIPAV não reconheceu
+    var apelidos = ctx.apelidos || {};
+    var candidatosDe = {};
+
+    function acharEncarregado(nome) {
       var k = norm(nome);
       var lista = ctx.encarregados || [];
+
+      if (k in apelidos) {
+        return lista.filter(function (e) { return e.id === apelidos[k]; })[0] || null;
+      }
+
       var exato = lista.filter(function (e) { return norm(e.nome) === k; });
       if (exato.length === 1) return exato[0];
 
@@ -743,7 +752,11 @@ window.SIPAV = window.SIPAV || {};
         var n = ' ' + norm(e.nome) + ' ';
         return partes.length && partes.every(function (p) { return n.indexOf(' ' + p + ' ') !== -1; });
       });
-      return contem.length === 1 ? contem[0] : null;
+      if (contem.length === 1) return contem[0];
+
+      // Mais de um cabe ("BENEDITO" com dois Beneditos): quem decide é a pessoa
+      candidatosDe[k] = (exato.length > 1 ? exato : contem).map(function (e) { return { id: e.id, nome: e.nome }; });
+      return null;
     }
 
     // ---- 1. As linhas cruas: item, dia, encarregado, torre ----
@@ -858,9 +871,23 @@ window.SIPAV = window.SIPAV || {};
     Object.keys(torresDesconhecidas).sort().forEach(function (t) {
       problema('torre', 'Torre "' + t + '" não existe neste trecho (' + torresDesconhecidas[t] + ' ocorrência(s)).');
     });
-    Object.keys(encDesconhecidos).sort().forEach(function (e) {
-      problema('encarregado', 'Encarregado "' + e + '" não está cadastrado (' + encDesconhecidos[e] +
-               ' lançamento(s) de fora). Cadastre e importe de novo.');
+    // Os nomes que não foram reconhecidos, juntando as grafias que dão no mesmo
+    // ("ANTONIO JOSE" e "ANTONIO JOSÉ"), para a prévia deixar escolher quem é
+    var naoReconhecidos = {};
+    Object.keys(encDesconhecidos).forEach(function (nome) {
+      var k = norm(nome);
+      var x = naoReconhecidos[k] = naoReconhecidos[k] || { chave: k, nome: nome, qtd: 0, candidatos: candidatosDe[k] || [] };
+      x.qtd += encDesconhecidos[nome];
+    });
+
+    Object.keys(naoReconhecidos).sort().forEach(function (k) {
+      var x = naoReconhecidos[k];
+      problema('encarregado', x.candidatos.length > 1
+        ? 'Encarregado "' + x.nome + '": há mais de um no SIPAV (' +
+          x.candidatos.map(function (c) { return c.nome; }).join(', ') + '). Escolha qual, logo abaixo (' +
+          x.qtd + ' lançamento(s) de fora).'
+        : 'Encarregado "' + x.nome + '" não está cadastrado (' + x.qtd +
+          ' lançamento(s) de fora). Escolha quem é, logo abaixo, ou cadastre e leia de novo.');
     });
 
     // ---- 3. Os itens viram atividades ----
@@ -975,6 +1002,7 @@ window.SIPAV = window.SIPAV || {};
     return {
       datas: { s1: lidas.s1, s2: lidas.s2, origem: lidas.origem },
       registros: lista,
+      naoReconhecidos: Object.keys(naoReconhecidos).sort().map(function (k) { return naoReconhecidos[k]; }),
       movimentos: Object.keys(movimentos).map(function (k) { return movimentos[k]; })
         .sort(function (a, b) { return a.data < b.data ? -1 : a.data > b.data ? 1 : 0; }),
       problemas: problemas,
