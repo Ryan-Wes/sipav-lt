@@ -22,9 +22,16 @@ Planejo na sexta (02/10) o semanal (05 a 10/10) e o quinzenal (12 a 17/10). Na
 sexta seguinte, o que eu tinha programado para 12/10 pode ter mudado: não deu para
 bater a meta, houve reajuste no meio da semana, ou outro motivo. Mesmo assim preciso
 saber o que foi prometido para aquela data, para ver se os encarregados estão
-batendo a meta. Por isso a foto salva em `db/46` é o compromisso, e a programação
-viva continua livre para mudar. Nada de etiqueta em cada programação: o histórico é a
-foto, comparada depois com o que foi apontado.
+batendo a meta. Por isso o planejamento salvo em `db/46` é o compromisso, e a programação
+viva continua livre para mudar. Nada de etiqueta em cada programação: o histórico é o
+planejamento salvo, comparado depois com o que foi apontado.
+
+**Vale a última salva da semana.** Nem sempre dá tempo de fechar na sexta: ajusto no
+sábado, no domingo, na segunda ou, no limite, na terça, para entregar as programações.
+Cada ajuste é um salvar novo. Na lista, o mais recente de cada semana leva o selo
+**Oficial**, os anteriores ficam como **Versão anterior**, e o que foi salvo depois que
+a semana já tinha começado leva o selo **Ajuste**, com o dia da semana. Não trava
+salvar em data nenhuma. Para comparar com o plano original, uso a versão anterior.
 
 Três peças saíram dessa regra, todas sobre a mesma tabela `planejamento_semanal`,
 sem migração nova.
@@ -36,7 +43,7 @@ que vem, a partir de quinta) e o quinzenal vem junto. A grade abre com todas as
 torres e o estágio atualizado, e as programações que já existem nessas duas semanas
 ficam escondidas, para eu montar o plano limpo sem apagar nada. Uma banda no topo
 deixa mostrar as escondidas e tem o botão **Terminar o planejamento**: continuar,
-sair sem salvar, ou salvar a foto e sair.
+sair sem salvar, ou salvar o planejamento e sair.
 
 - Escondidas são só as que existiam quando comecei. O que eu lançar depois aparece.
 - Sair sem salvar não perde nada: a programação viva nunca foi mexida.

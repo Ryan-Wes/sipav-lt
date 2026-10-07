@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v124 · 2026-10-07';
+  var VERSAO = 'v125 · 2026-10-07';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -7246,8 +7246,8 @@ window.SIPAV = window.SIPAV || {};
         '<div class="space-y-2">' +
           '<p class="rotulo" style="margin-bottom:0">Salvar o planejamento</p>' +
           '<p class="text-xs" style="color:var(--texto-fraco)">' +
-            'Guarda uma foto de como as torres e a programação estão agora, para rever depois. ' +
-            'A programação continua editável.' +
+            'Guarda como as torres e a programação estão agora, para rever depois. ' +
+            'A programação continua editável, e dá para salvar de novo: vale a última salva.' +
           '</p>' +
           '<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">' +
             '<div><label class="rotulo">Semana do semanal</label>' +
@@ -7276,7 +7276,7 @@ window.SIPAV = window.SIPAV || {};
           '<p class="rotulo" style="margin-bottom:0">Planejar uma semana</p>' +
           '<p class="text-xs" style="color:var(--texto-fraco)">' +
             'Abre a grade do semanal e do quinzenal com todas as torres e o status atualizado, ' +
-            'para lançar o plano novo. Ao terminar, você salva a foto.' +
+            'para lançar o plano novo. Ao terminar, você salva o planejamento.' +
           '</p>' +
           '<div><label class="rotulo">Semana do semanal</label>' +
             '<input id="planejarSemana" type="date" class="campo" value="' + hoje + '" ' +
@@ -7285,7 +7285,7 @@ window.SIPAV = window.SIPAV || {};
           '<label class="text-xs flex items-start gap-2" style="cursor:pointer">' +
             '<input type="checkbox" id="planejarEsconder" checked class="mt-0.5">' +
             '<span>Esconder o que já está programado nessas duas semanas. Continua no banco ' +
-              '(e a foto de antes guarda o que era); só não aparece, para você lançar o novo sem ' +
+              '(e o planejamento salvo antes guarda o que era); só não aparece, para você lançar o novo sem ' +
               'a tela cheia do antigo.</span>' +
           '</label>' +
           '<button type="button" class="btn-primario" onclick="SIPAV.app.iniciarPlanejamento()">' +
@@ -7296,15 +7296,27 @@ window.SIPAV = window.SIPAV || {};
 
     corpo += '<div><p class="rotulo">Salvos neste trecho (' + r.lista.length + ')</p>';
     if (r.lista.length) {
+      // Vale a última salva da semana: planejar leva até terça, e cada ajuste é um salvar novo
+      var oficial = {};
+      r.lista.forEach(function (p) {
+        var o = oficial[p.semana_base];
+        if (!o || p.criado_em > o.criado_em) oficial[p.semana_base] = p;
+      });
       corpo += '<div class="space-y-2 max-h-72 overflow-y-auto barra-fina">' +
         r.lista.map(function (p) {
           var salvo = new Date(p.criado_em);
-          var quando = ui.dataCurta(ui.iso(salvo)) + ' às ' +
+          var diaSalvo = ui.iso(salvo);
+          var quando = ui.diaDaSemana(diaSalvo).slice(0, 3) + ' ' + ui.dataCurta(diaSalvo) + ' às ' +
             ('0' + salvo.getHours()).slice(-2) + ':' + ('0' + salvo.getMinutes()).slice(-2);
+          var seloVersao = oficial[p.semana_base].id === p.id
+            ? '<span class="selo-versao oficial" title="A última salva desta semana é a que vale">Oficial</span>'
+            : '<span class="selo-versao" title="Tem uma salva mais nova desta semana">Versão anterior</span>';
+          var seloAjuste = diaSalvo >= p.semana_base
+            ? '<span class="selo-versao ajuste" title="Salva depois que a semana já tinha começado">Ajuste</span>' : '';
           return '<div class="plano-linha">' +
             '<div class="min-w-0">' +
               '<p class="plano-linha-titulo">Semana de ' + esc(ui.dataCurta(p.semana_base)) +
-                (p.titulo ? ' · ' + esc(p.titulo) : '') + '</p>' +
+                (p.titulo ? ' · ' + esc(p.titulo) : '') + ' ' + seloVersao + seloAjuste + '</p>' +
               '<p class="plano-linha-detalhe">' + esc(descreverSemanasDoPlano(p.semana_base)) + '</p>' +
               '<p class="plano-linha-detalhe">Salvo em ' + esc(quando) +
                 (p.criador ? ' por ' + esc(p.criador.nome) : '') + ' · ' +
@@ -7520,8 +7532,8 @@ window.SIPAV = window.SIPAV || {};
       titulo: 'Terminar o planejamento',
       corpoHtml:
         '<p class="text-sm" style="color:var(--texto-suave)">' +
-          'Para você ter o registro do que foi planejado, salve a foto antes de sair: ' +
-          '<strong>' + esc(descreverSemanasDoPlano(pl.base)) + '</strong>. A foto guarda o status ' +
+          'Para você ter o registro do que foi planejado, salve o planejamento antes de sair: ' +
+          '<strong>' + esc(descreverSemanasDoPlano(pl.base)) + '</strong>. O planejamento salvo guarda o status ' +
           'das torres e a programação como estão agora, e depois dá para ver se a meta foi batida.' +
         '</p>',
       botoes: botoes
@@ -8055,7 +8067,7 @@ window.SIPAV = window.SIPAV || {};
 
   function apagarPlanejamentoSalvo(id) {
     ui.confirmar('Apagar o planejamento salvo',
-      'Apaga só esta foto. A programação atual não é tocada. Não dá para desfazer.', 'Apagar')
+      'Apaga só esta versão do planejamento. A programação atual não é tocada. Não dá para desfazer.', 'Apagar')
       .then(function (sim) {
         if (!sim) return;
         ui.processando('Apagando…');
