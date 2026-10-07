@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v126 · 2026-10-07';
+  var VERSAO = 'v127 · 2026-10-07';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -6484,7 +6484,8 @@ window.SIPAV = window.SIPAV || {};
     var corpo =
       '<div class="space-y-3">' +
         '<p class="text-xs" style="color:var(--texto-fraco)">' +
-          'Um dia sem atividade na torre, e o motivo. Vale só para o dia escolhido. ' +
+          'Um dia sem atividade na torre, e o motivo. Vale para o dia escolhido, ou para ' +
+          'vários dias seguidos se você marcar até quando. ' +
           'Não é programação: aparece nos painéis Por Encarregado e Por Data, ' +
           'para o dia não ficar vazio sem explicação.' +
         '</p>' +
@@ -6502,6 +6503,13 @@ window.SIPAV = window.SIPAV || {};
                  'onchange="SIPAV.app.mostrarDiasDaMovimentacao()">' +
           // A obra se guia pelo dia da semana, e uma data crua manda olhar o calendário
           '<p id="movDias" class="dia-semana"></p></div>' +
+
+        // Só ao registrar: alterar mexe num dia só
+        '<div id="movBlocoAte"><label class="rotulo">Até o dia ' +
+            '<span style="font-weight:400">(opcional, para vários dias seguidos)</span></label>' +
+          '<input id="movAte" type="date" class="campo" ' +
+                 'onchange="SIPAV.app.mostrarDiasDaMovimentacao()">' +
+          '<p id="movAteDias" class="dia-semana"></p></div>' +
 
         '<div id="movBlocoEnc"><label class="rotulo" id="movRotuloEnc">Encarregado</label>' +
           '<input id="movEncarregado" class="campo" list="movListaEnc" autocomplete="off" ' +
@@ -6563,6 +6571,9 @@ window.SIPAV = window.SIPAV || {};
     if (m && m.encarregado2) mostrarEncarregado2Mov();
     $('movObs').value = m ? (m.observacao || '') : '';
 
+    $('movAte').value = '';
+    $('movBlocoAte').classList.toggle('hidden', !!m);
+
     mudarTipoMovimentacao();
     mostrarDiasDaMovimentacao();
   }
@@ -6608,6 +6619,23 @@ window.SIPAV = window.SIPAV || {};
 
     campo.textContent = ui.diaDaSemana(dia);
     campo.className = 'dia-semana' + (ui.fimDeSemana(dia) ? ' fim-de-semana' : '');
+
+    var ate = $('movAte').value;
+    var avisoAte = $('movAteDias');
+    if (!ate) { avisoAte.textContent = ''; return; }
+    var n = diasDoIntervalo(dia, ate).length;
+    avisoAte.textContent = ui.diaDaSemana(ate) + (n ? ' · ' + n + (n === 1 ? ' dia' : ' dias') + ' no total' : '');
+    avisoAte.className = 'dia-semana' + (ui.fimDeSemana(ate) ? ' fim-de-semana' : '');
+  }
+
+  /** Os dias de "de" a "ate", inclusive os dois. Vazio se o fim vem antes do começo. */
+  function diasDoIntervalo(de, ate) {
+    var dias = [];
+    for (var d = ui.paraData(de), fim = ui.paraData(ate); d <= fim; d = ui.somarDias(d, 1)) {
+      dias.push(ui.iso(d));
+      if (dias.length > 400) break;
+    }
+    return dias;
   }
 
   function salvarMovimentacao(id) {
@@ -6622,6 +6650,16 @@ window.SIPAV = window.SIPAV || {};
     }
 
     if (!data) return recusar('Informe o dia.', 'movData');
+
+    // Vários dias seguidos: só ao registrar, e com teto, para um ano digitado errado
+    // não criar centenas de registros
+    var ate = id ? '' : $('movAte').value;
+    var datas = [data];
+    if (ate) {
+      if (ate < data) return recusar('O \"até o dia\" vem antes do dia de começo.', 'movAte');
+      datas = diasDoIntervalo(data, ate);
+      if (datas.length > 31) return recusar('No máximo 31 dias de uma vez. Registre em partes.', 'movAte');
+    }
 
     // O encarregado vem de uma lista com busca. Nome digitado que não bate com
     // ninguém não pode virar movimentação "sem encarregado" calada.
@@ -6662,7 +6700,7 @@ window.SIPAV = window.SIPAV || {};
     var envolvidos = [enc, enc2].filter(Boolean);
     var choque = (envolvidos.length && tipo !== 'MUDANCA_MAQUINA')
       ? E.programacoes.filter(function (p) {
-          return p.data === data && render.encarregadosDe(p).some(function (e) {
+          return datas.indexOf(p.data) !== -1 && render.encarregadosDe(p).some(function (e) {
             return envolvidos.some(function (x) { return x.id === e.id; });
           });
         })
@@ -6672,6 +6710,7 @@ window.SIPAV = window.SIPAV || {};
       id: id,
       tipo: tipo,
       data: data,
+      datas: datas.length > 1 ? datas : null,
       encarregadoId: enc ? enc.id : null,
       encarregado2Id: enc2 ? enc2.id : null,
       trechoId: E.trechoAtual.id,
@@ -6687,7 +6726,8 @@ window.SIPAV = window.SIPAV || {};
         .then(function () {
           ui.pronto();
           ui.fecharModal('modalGenerico');
-          ui.avisar(id ? 'Movimentação atualizada.' : 'Movimentação registrada.', 'sucesso');
+          ui.avisar(id ? 'Movimentação atualizada.'
+                       : datas.length > 1 ? datas.length + ' dias registrados.' : 'Movimentação registrada.', 'sucesso');
         });
     }
 
@@ -6695,7 +6735,7 @@ window.SIPAV = window.SIPAV || {};
       ? ui.confirmar('Já tem atividade nesse dia',
           envolvidos.map(function (x) { return x.nome; }).join(' e ') + ' tem ' + choque.length +
           ' atividade(s) programada(s) em ' +
-          ui.dataCurta(data) + ' (' + choque.slice(0, 3).map(function (p) {
+          (datas.length > 1 ? 'dias entre ' + ui.dataCurta(data) + ' e ' + ui.dataCurta(ate) : ui.dataCurta(data)) + ' (' + choque.slice(0, 3).map(function (p) {
             return p.torre ? p.torre.identificador : '?';
           }).join(', ') + (choque.length > 3 ? '…' : '') + '). ' +
           'Registrar a movimentação mesmo assim?', 'Registrar mesmo assim')

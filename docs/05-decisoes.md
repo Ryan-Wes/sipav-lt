@@ -26,6 +26,11 @@ e filtro por tipo e por encarregado. Clicar no nome do encarregado no resumo fil
 lista; clicar numa linha abre a movimentação para editar ou apagar. Não obedece ao
 filtro de atividade, canteiro nem à busca, porque movimentação não é nenhuma dessas
 coisas. Não aparece na Grade Geral, que é por torre.
+
+**Até o dia.** Uma folga de campo costuma durar vários dias seguidos. Ao registrar (não ao
+alterar), o campo **Até o dia** cria um registro por dia, de uma vez só: entram todos ou nenhum.
+Teto de 31 dias, para uma data digitada errada não criar centenas de registros. Se o encarregado
+tiver programação em algum desses dias, a janela avisa antes de registrar.
 ### O plano da sexta é o compromisso; a programação viva pode mudar — [WR]
 
 Planejo na sexta (02/10) o semanal (05 a 10/10) e o quinzenal (12 a 17/10). Na

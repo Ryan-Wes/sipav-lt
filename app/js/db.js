@@ -1117,8 +1117,15 @@ window.SIPAV = window.SIPAV || {};
         linha.obra_id = o.id;
         linha.trecho_id = d.trechoId;
         linha.criado_por = u ? u.id : null;
-        return cliente().from('movimentacao').insert(linha).select('id').single()
-          .then(function (r) { return conferir(r, 'Falha ao registrar a movimentação'); });
+
+        // Vários dias seguidos (folga de três dias): uma linha por dia, num insert só,
+        // para entrar tudo ou nada
+        var linhas = (d.datas && d.datas.length ? d.datas : [d.data]).map(function (dia) {
+          return Object.assign({}, linha, { data: dia });
+        });
+        var q = cliente().from('movimentacao').insert(linhas).select('id');
+        if (linhas.length === 1) q = q.single();
+        return q.then(function (r) { return conferir(r, 'Falha ao registrar a movimentação'); });
       });
     });
   }
