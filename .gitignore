@@ -7,3 +7,7 @@ referencia/
 # Windows
 Thumbs.db
 desktop.ini
+
+# Planilha do importador e o arquivo temporário que o Excel cria enquanto ela está aberta
+IMPORTADOR*.xlsx
+~$*.xlsx
