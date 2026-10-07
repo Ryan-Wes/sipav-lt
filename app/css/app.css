@@ -102,6 +102,13 @@ body::before {
   border-bottom: 1px solid var(--borda);
 }
 
+/* Acompanha a rolagem até o fim da página: o botão de selecionar, o de planejamentos e os outros
+   ficam à mão mesmo com as torres lá embaixo. No celular o cabeçalho quebra em várias linhas e
+   comeria a tela, então lá ele rola junto. */
+@media (min-width: 700px) {
+  .app-header { position: sticky; top: 0; }
+}
+
 /* Logotipos: a troca claro/escuro é feita por src, em app.js */
 #logoSimbolo, #logoTexto, #logoLogin { display: block; max-width: 100%; }
 
