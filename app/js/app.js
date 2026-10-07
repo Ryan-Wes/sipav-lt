@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v131 · 2026-10-07';
+  var VERSAO = 'v132 · 2026-10-07';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -3133,6 +3133,7 @@ window.SIPAV = window.SIPAV || {};
   var loteLinhas = [];         // [{torreId, identificador, atividadeId, data, encarregadoId, percentual, bloqueio}]
   var loteAtividades = [];     // ids
   var loteUltimoLote = [];     // ids das programações do último lote, para desfazer
+  var loteUltimasMovs = [];    // e os dias sem atividade que a mesma importação registrou
   var lotePadrao = { encarregadoId: '', percentual: 100 };
 
   /** Dia seguinte, pulando domingo, que é DSR. */
@@ -4352,6 +4353,7 @@ window.SIPAV = window.SIPAV || {};
         ui.pronto();
         ui.fecharModal('modalGenerico');
         loteUltimoLote = ids;
+    loteUltimasMovs = [];
 
         // Guarda o que acabou de entrar para o próximo "repetir o último". Só se
         // algo entrou: lote que foi todo recusado não é um lançamento a repetir.
@@ -4376,12 +4378,14 @@ window.SIPAV = window.SIPAV || {};
 
   /** Apaga o que o último lote criou. Errar 15 de uma vez tem que sair barato. */
   function desfazerUltimoLote() {
-    if (!loteUltimoLote.length) return;
+    if (!loteUltimoLote.length && !loteUltimasMovs.length) return;
     var quantos = loteUltimoLote.length;
+    var quantasMovs = loteUltimasMovs.length;
 
     ui.confirmar('Desfazer o lote',
-      'Apaga as ' + quantos + ' programações que acabaram de ser criadas. ' +
-      'O histórico guarda o registro da remoção.', 'Desfazer')
+      'Apaga as ' + quantos + ' programações' +
+      (quantasMovs ? ' e os ' + quantasMovs + ' dias sem atividade' : '') + ' que acabaram de ser criados. ' +
+      'O histórico guarda o registro da remoção das programações.', 'Desfazer')
       .then(function (sim) {
         if (!sim) return;
         ui.processando('Desfazendo…');
@@ -4390,12 +4394,20 @@ window.SIPAV = window.SIPAV || {};
             return db.removerProgramacao(id).catch(function () { /* já pode ter sumido */ });
           });
         }, Promise.resolve())
+          .then(function () {
+            return loteUltimasMovs.reduce(function (antes, id) {
+              return antes.then(function () {
+                return db.removerMovimentacao(id).catch(function () { /* idem */ });
+              });
+            }, Promise.resolve());
+          })
           .then(recarregarProgramacoes)
           .then(function () {
             loteUltimoLote = [];
+            loteUltimasMovs = [];
             ui.pronto();
             ui.fecharModal('modalGenerico');
-            ui.avisar(quantos + ' programação(ões) desfeita(s).', 'sucesso');
+            ui.avisar(quantos + ' programação(ões)' + (quantasMovs ? ' e ' + quantasMovs + ' dia(s) sem atividade' : '') + ' desfeita(s).', 'sucesso');
           });
       })
       .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro'); });
@@ -8014,6 +8026,7 @@ window.SIPAV = window.SIPAV || {};
     criarRegistrosDaIsa(tarefas, null)
       .then(function (r) {
         loteUltimoLote = r.ids;
+        loteUltimasMovs = [];
         return recarregarProgramacoes().then(function () {
           ui.pronto();
           relatarImportacaoIsa(r.ok, r.falhou);
@@ -8205,7 +8218,7 @@ window.SIPAV = window.SIPAV || {};
                           'ou informe a segunda-feira da semana 1.');
         }
         importacaoIsa = { arquivo: arquivo.name, datas: r.datas, registros: r.registros,
-                          problemas: r.problemas, resumo: r.resumo };
+                          movimentos: r.movimentos || [], problemas: r.problemas, resumo: r.resumo };
 
         var fim = ui.iso(ui.somarDias(ui.paraData(r.datas.s1), 13));
         return db.programacoes({ trechoId: E.trechoAtual.id, de: r.datas.s1, ate: fim });
@@ -8221,6 +8234,15 @@ window.SIPAV = window.SIPAV || {};
           x.existe = !!ja[[x.torreId, x.atividadeId, x.data, x.encarregadoId || ''].join('|')];
         });
 
+        // Os dias sem atividade que já estão registrados não se repetem
+        var jaMov = {};
+        (E.movimentacoes || []).forEach(function (m) {
+          jaMov[[m.tipo, m.data, m.encarregado_id || '', m.encarregado2 ? m.encarregado2.id : '', m.observacao || ''].join('|')] = true;
+        });
+        importacaoIsa.movimentos.forEach(function (x) {
+          x.existe = !!jaMov[[x.tipo, x.data, x.encarregadoId || '', x.encarregado2Id || '', x.observacao || ''].join('|')];
+        });
+
         ui.pronto();
         mostrarPreviaIsa();
       })
@@ -8232,6 +8254,7 @@ window.SIPAV = window.SIPAV || {};
     if (!imp) return;
 
     var criar = imp.registros.filter(function (x) { return !x.existe; });
+    var movCriar = (imp.movimentos || []).filter(function (x) { return !x.existe; });
     var jaTem = imp.registros.length - criar.length;
     var hoje = ui.hoje();
     var noPassado = criar.filter(function (x) { return x.data < hoje; }).length;
@@ -8250,6 +8273,7 @@ window.SIPAV = window.SIPAV || {};
 
       '<div class="previa-grade">' +
         cartaoPrevia('previa-nova', criar.length, 'a programar', '') +
+        (movCriar.length ? cartaoPrevia('previa-igual', movCriar.length, 'dias sem atividade', '') : '') +
         cartaoPrevia('previa-igual', jaTem, 'já estão no SIPAV', '') +
         cartaoPrevia('previa-muda', imp.problemas.length, 'avisos', '') +
       '</div>';
@@ -8297,6 +8321,26 @@ window.SIPAV = window.SIPAV || {};
           '</div></div>';
     }
 
+    if (movCriar.length) {
+      corpo +=
+        '<div><p class="rotulo">Dias sem atividade que vão ser registrados</p>' +
+          '<div class="resumo-enc-lista barra-fina" style="max-height:10rem">' +
+            movCriar.map(function (x) {
+              var titulo = (render.TIPOS_DE_MOVIMENTACAO || []).filter(function (k) { return k.tipo === x.tipo; })[0];
+              return '<div class="resumo-enc-linha">' +
+                '<span class="resumo-enc-data">' + esc(ui.dataCurta(x.data)) +
+                  '<b class="' + (ui.fimDeSemana(x.data) ? 'fim-de-semana' : '') + '">' +
+                    esc(ui.diaDaSemana(x.data).slice(0, 3)) + '</b></span>' +
+                '<span><strong>' + esc(titulo ? titulo.titulo : x.tipo) + '</strong>' +
+                  (x.observacao ? ' · ' + esc(x.observacao) : '') +
+                  ' <em style="color:var(--texto-fraco)">' +
+                    (x.encarregados.length ? esc(x.encarregados.join(' + ')) : 'sem encarregado') +
+                  '</em></span>' +
+              '</div>';
+            }).join('') +
+          '</div></div>';
+    }
+
     // Parte da semana já passou: o banco pede o motivo, e a planilha é o motivo
     if (noPassado) {
       corpo +=
@@ -8324,8 +8368,11 @@ window.SIPAV = window.SIPAV || {};
     corpo += '</div>';
 
     var botoes = [{ rotulo: 'Voltar', classe: 'btn-secundario', acao: function () { abrirImportarIsa(); } }];
-    if (criar.length) {
-      botoes.push({ rotulo: 'Programar ' + criar.length, classe: 'btn-primario', acao: gravarImportacaoIsa });
+    if (criar.length || movCriar.length) {
+      botoes.push({
+        rotulo: criar.length ? 'Programar ' + criar.length + (movCriar.length ? ' e registrar ' + movCriar.length : '') : 'Registrar ' + movCriar.length,
+        classe: 'btn-primario', acao: gravarImportacaoIsa
+      });
     }
 
     ui.modalGenerico({ titulo: 'Conferir antes de lançar', corpoHtml: corpo, botoes: botoes });
@@ -8342,7 +8389,8 @@ window.SIPAV = window.SIPAV || {};
     if (!imp) return;
 
     var criar = imp.registros.filter(function (x) { return !x.existe; });
-    if (!criar.length) { ui.avisar('Nada para programar.', 'alerta'); return; }
+    var movCriar = (imp.movimentos || []).filter(function (x) { return !x.existe; });
+    if (!criar.length && !movCriar.length) { ui.avisar('Nada para programar.', 'alerta'); return; }
 
     var hoje = ui.hoje();
     var justRetro = $('isaImpRetro') ? $('isaImpRetro').value.trim() : '';
@@ -8363,10 +8411,33 @@ window.SIPAV = window.SIPAV || {};
     var liberar = !!($('isaImpLiberar') && $('isaImpLiberar').checked);
     criarRegistrosDaIsa(tarefas, liberar ? 'Importado do relatório da ISA (' + imp.arquivo + ')' : null)
       .then(function (r) {
-        loteUltimoLote = r.ids;
-        return recarregarProgramacoes().then(function () { ui.pronto(); relatarImportacaoIsa(r.ok, r.falhou); });
+        // Os dias sem atividade vão depois: não dependem de sequência
+        return registrarDiasSemAtividadeDaIsa(movCriar).then(function (m) {
+          loteUltimoLote = r.ids;
+          loteUltimasMovs = m.ids;
+          return recarregarProgramacoes().then(function () {
+            ui.pronto();
+            relatarImportacaoIsa(r.ok, r.falhou, m);
+          });
+        });
       })
       .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro'); });
+  }
+
+  /** Registra os dias sem atividade lidos da planilha. Devolve os ids e o que não entrou. */
+  function registrarDiasSemAtividadeDaIsa(lista) {
+    var ids = [], falhou = [];
+    return lista.reduce(function (antes, x) {
+      return antes.then(function () {
+        return db.salvarMovimentacao({
+          tipo: x.tipo, data: x.data,
+          encarregadoId: x.encarregadoId, encarregado2Id: x.encarregado2Id,
+          trechoId: E.trechoAtual.id, observacao: x.observacao
+        })
+          .then(function (nova) { if (nova && nova.id) ids.push(nova.id); })
+          .catch(function (e) { falhou.push({ registro: x, motivo: e.message }); });
+      });
+    }, Promise.resolve()).then(function () { return { ids: ids, falhou: falhou }; });
   }
 
   /** Grava a lista, uma a uma. `motivo` liga o "programar mesmo assim" nas linhas. */
@@ -8392,11 +8463,12 @@ window.SIPAV = window.SIPAV || {};
     }, Promise.resolve()).then(function () { return { ok: ok, falhou: falhou, ids: ids }; });
   }
 
-  function relatarImportacaoIsa(ok, falhou) {
+  function relatarImportacaoIsa(ok, falhou, movs) {
     importacaoIsaFalhas = falhou.map(function (f) { return f.registro; });
+    movs = movs || { ids: [], falhou: [] };
 
     var botoes = [{ rotulo: 'Fechar', classe: 'btn-secundario' }];
-    if (loteUltimoLote.length) {
+    if (loteUltimoLote.length || loteUltimasMovs.length) {
       botoes.push({ rotulo: 'Desfazer', classe: 'btn-perigo', acao: desfazerUltimoLote });
     }
     if (falhou.length) {
@@ -8413,6 +8485,22 @@ window.SIPAV = window.SIPAV || {};
                   ' programada(s)</p>' +
                 '<p class="text-xs text-emerald-700 mt-1">O botão Desfazer apaga tudo o que esta importação criou.</p>' +
               '</div>'
+            : '') +
+          (movs.ids.length
+            ? '<div class="rounded-lg border border-emerald-300 bg-emerald-50 p-3">' +
+                '<p class="text-sm font-semibold text-emerald-800">' + movs.ids.length +
+                  ' dia(s) sem atividade registrado(s)</p>' +
+              '</div>'
+            : '') +
+          (movs.falhou.length
+            ? '<div class="rounded-lg border border-rose-200 bg-rose-50 p-3">' +
+                '<p class="text-sm font-semibold text-rose-800">' + movs.falhou.length +
+                  ' dia(s) sem atividade não entrou</p>' +
+                '<div class="text-xs text-rose-800 mt-1 space-y-1">' +
+                  movs.falhou.slice(0, 6).map(function (f) {
+                    return '<p>' + esc(ui.dataCurta(f.registro.data)) + ' — ' + esc(f.motivo) + '</p>';
+                  }).join('') +
+                '</div></div>'
             : '') +
           (falhou.length
             ? '<div class="rounded-lg border border-rose-200 bg-rose-50 p-3">' +

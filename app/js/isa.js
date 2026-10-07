@@ -713,7 +713,25 @@ window.SIPAV = window.SIPAV || {};
     // programá-las: ficam de fora, mas num aviso só, e não como "torre que não existe".
     var ehAnotacao = /feriado|folga|mudan[cç]a|portico|p[oó]rtico|fase [abc]|prepara[cç][aã]o|i[cç]amento/i;
     var anotacoes = {};
-    function acharEncarregado(nome) {
+
+    /**
+     * Algumas anotações são dias sem atividade de verdade e viram registro no SIPAV:
+     * FOLGA DE CAMPO, MUDANÇA DE MÁQUINA e MUDANÇA PARA <lugar>. A mudança para um
+     * lugar entra como "outro motivo", com o texto: a planilha diz só para onde, e a
+     * mudança de trecho do SIPAV pede também de onde.
+     */
+    function movimentoDaAnotacao(texto) {
+      var n = norm(texto);
+      if (/^folga( de campo)?$/.test(n)) return { tipo: 'FOLGA_CAMPO', obs: '' };
+      if (/^mudanca de maquina$/.test(n)) return { tipo: 'MUDANCA_MAQUINA', obs: '' };
+      var m = /^mudan[cç]a para\s+(.+)$/i.exec(texto.trim());
+      if (m) {
+        var lugar = m[1].toLowerCase().replace(/(^|\s)(\S)/g, function (x, a, b) { return a + b.toUpperCase(); });
+        return { tipo: 'OUTRO', obs: 'Mudança para ' + lugar };
+      }
+      return null;
+    }
+    var movimentosBrutos = [];    function acharEncarregado(nome) {
       var k = norm(nome);
       var lista = ctx.encarregados || [];
       var exato = lista.filter(function (e) { return norm(e.nome) === k; });
@@ -777,6 +795,11 @@ window.SIPAV = window.SIPAV || {};
     brutas.forEach(function (b) {
       var torre = torres[norm(b.torreTexto)];
       if (!torre) {
+        var mov = movimentoDaAnotacao(b.torreTexto);
+        if (mov) {
+          movimentosBrutos.push({ tipo: mov.tipo, obs: mov.obs, data: b.data, encNomes: b.encNomes });
+          return;
+        }
         if (ehAnotacao.test(b.torreTexto)) {
           var nota = b.torreTexto.trim().toUpperCase();
           anotacoes[nota] = (anotacoes[nota] || 0) + 1;
@@ -803,6 +826,27 @@ window.SIPAV = window.SIPAV || {};
       });
       if (b.percentual != null && x.percentual == null) x.percentual = b.percentual;
       b.notas.forEach(function (n) { if (x.notas.indexOf(n) === -1) x.notas.push(n); });
+    });
+
+    // Os dias sem atividade: um por tipo, dia, motivo e equipe, mesmo que a anotação
+    // se repita em vários itens da planilha
+    var movimentos = {};
+    movimentosBrutos.forEach(function (b) {
+      var equipe = [], faltou = false;
+      b.encNomes.forEach(function (nome) {
+        var e = acharEncarregado(nome);
+        if (!e) { encDesconhecidos[nome] = (encDesconhecidos[nome] || 0) + 1; faltou = true; }
+        else if (!equipe.some(function (x) { return x.id === e.id; })) equipe.push(e);
+      });
+      if (faltou) return;
+      var chave = [b.tipo, b.data, b.obs, equipe.map(function (e) { return e.id; }).sort().join('+')].join('|');
+      if (movimentos[chave]) return;
+      movimentos[chave] = {
+        tipo: b.tipo, data: b.data, observacao: b.obs,
+        encarregados: equipe.map(function (e) { return e.nome; }),
+        encarregadoId: equipe[0] ? equipe[0].id : null,
+        encarregado2Id: equipe[1] ? equipe[1].id : null
+      };
     });
 
     var avulsas = Object.keys(anotacoes);
@@ -931,6 +975,8 @@ window.SIPAV = window.SIPAV || {};
     return {
       datas: { s1: lidas.s1, s2: lidas.s2, origem: lidas.origem },
       registros: lista,
+      movimentos: Object.keys(movimentos).map(function (k) { return movimentos[k]; })
+        .sort(function (a, b) { return a.data < b.data ? -1 : a.data > b.data ? 1 : 0; }),
       problemas: problemas,
       resumo: {
         itensLidos: Object.keys(mapa.achados).length,

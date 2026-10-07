@@ -1365,6 +1365,7 @@ window.SIPAV = window.SIPAV || {};
   window.SIPAV.render = {
     tudo: tudo,
     filtrarMovimentacoes: filtrarMovimentacoes,
+    TIPOS_DE_MOVIMENTACAO: TIPOS_DE_MOVIMENTACAO,
     encarregadosDe: encarregadosDe,
     escondida: escondida,
     iconeDaObservacao: iconeDaObservacao,
