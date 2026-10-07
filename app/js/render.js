@@ -179,7 +179,7 @@ window.SIPAV = window.SIPAV || {};
     // coisas era informação em dobro. O selo e o destaque do cartão contam daqui,
     // então também deixam de contar o que já saiu.
     var progs = programacoesDaTorre(torre.torre_id).filter(function (p) {
-      return !refletidaNoEstagio(p);
+      return !refletidaNoEstagio(p) && !escondida(p);
     });
     var restrito = torre.tem_restricao;
 
@@ -602,9 +602,20 @@ window.SIPAV = window.SIPAV || {};
     return { mapa: mapa, ordem: ordem };
   }
 
+  /**
+   * Programação escondida por estar "planejando do zero": as que já existiam nas
+   * duas semanas quando o planejamento começou. Continuam no banco e contam nas
+   * conferências; só não aparecem nas telas, para o plano novo não ser lançado por
+   * cima do velho às cegas. O que for criado depois aparece.
+   */
+  function escondida(p) {
+    return !!(E.planejando && E.planejando.esconder && E.planejando.escondidas[p.id]);
+  }
+
   function programacoesVisiveis() {
     var busca = (E.busca || '').trim().toLowerCase();
     return E.programacoes.filter(function (p) {
+      if (escondida(p)) return false;
       if (E.filtroAtividade && (!p.atividade || p.atividade.id !== E.filtroAtividade)) return false;
       if (E.filtroCanteiro && (!p.torre || p.torre.canteiro_id !== E.filtroCanteiro)) return false;
       if (busca && (!p.torre || p.torre.identificador.toLowerCase().indexOf(busca) === -1)) return false;
@@ -1196,6 +1207,7 @@ window.SIPAV = window.SIPAV || {};
   window.SIPAV.render = {
     tudo: tudo,
     encarregadosDe: encarregadosDe,
+    escondida: escondida,
     iconeDaObservacao: iconeDaObservacao,
     ehSerra: ehSerra,
     movimentacaoDoTrecho: movimentacaoDoTrecho,

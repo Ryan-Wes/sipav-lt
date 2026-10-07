@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v123 · 2026-10-02';
+  var VERSAO = 'v124 · 2026-10-07';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -404,8 +404,10 @@ window.SIPAV = window.SIPAV || {};
     }).join('');
     $('seletorTrecho').onchange = function (ev) {
       var escolhido = ev.target.value;
-      // Outro trecho não tem nada a ver com a foto que estava aberta
+      // Outro trecho não tem nada a ver com a foto que estava aberta, nem com o
+      // planejamento que estava em andamento
       if (E.snapshot) deixarOHistorico();
+      if (E.planejando) limparPlanejamento();
       E.trechoAtual = E.trechos.find(function (t) { return t.id === escolhido; });
       localStorage.setItem('sipav_trecho', E.trechoAtual.id);
       anunciarTrechoAtual();
@@ -7211,9 +7213,22 @@ window.SIPAV = window.SIPAV || {};
       .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro'); });
   }
 
+  /**
+   * A semana do semanal que se propõe ao planejar. A obra planeja na sexta o que
+   * começa na segunda seguinte (semanal) e a outra depois dela (quinzenal). De
+   * quinta a domingo propõe a próxima segunda; de segunda a quarta, a semana em
+   * curso, que é quando se ajusta o que já foi planejado.
+   */
+  function segundaDoPlano() {
+    var dia = new Date().getDay();                      // 0 = domingo
+    var seg = ui.segundaDaSemana();
+    return ui.iso((dia === 0 || dia >= 4) ? ui.somarDias(seg, 7) : seg);
+  }
+
   function montarJanelaDosPlanejamentos(r) {
     var pode = podeEditarTorre() && !E.snapshot;
-    var hoje = ui.iso(ui.segundaDaSemana());
+    var podePlanejar = !!E.perfil && E.perfil.papel !== 'LEITURA' && !E.snapshot;
+    var hoje = segundaDoPlano();
 
     var corpo = '<div class="space-y-4">';
 
@@ -7253,6 +7268,32 @@ window.SIPAV = window.SIPAV || {};
                     : 'Só administração e planejamento salvam um planejamento.') + '</p>';
     }
 
+    // Planejar uma semana: a grade das duas semanas com todas as torres e o status
+    // de hoje, com o que já estava programado escondido
+    if (podePlanejar) {
+      corpo +=
+        '<div class="space-y-2" style="border-top:1px solid var(--borda);padding-top:1rem">' +
+          '<p class="rotulo" style="margin-bottom:0">Planejar uma semana</p>' +
+          '<p class="text-xs" style="color:var(--texto-fraco)">' +
+            'Abre a grade do semanal e do quinzenal com todas as torres e o status atualizado, ' +
+            'para lançar o plano novo. Ao terminar, você salva a foto.' +
+          '</p>' +
+          '<div><label class="rotulo">Semana do semanal</label>' +
+            '<input id="planejarSemana" type="date" class="campo" value="' + hoje + '" ' +
+                   'oninput="SIPAV.app.previaDoPlanejar()">' +
+            '<p id="planejarPrevia" class="text-xs mt-1" style="color:var(--texto-fraco)"></p></div>' +
+          '<label class="text-xs flex items-start gap-2" style="cursor:pointer">' +
+            '<input type="checkbox" id="planejarEsconder" checked class="mt-0.5">' +
+            '<span>Esconder o que já está programado nessas duas semanas. Continua no banco ' +
+              '(e a foto de antes guarda o que era); só não aparece, para você lançar o novo sem ' +
+              'a tela cheia do antigo.</span>' +
+          '</label>' +
+          '<button type="button" class="btn-primario" onclick="SIPAV.app.iniciarPlanejamento()">' +
+            'Começar a planejar' +
+          '</button>' +
+        '</div>';
+    }
+
     corpo += '<div><p class="rotulo">Salvos neste trecho (' + r.lista.length + ')</p>';
     if (r.lista.length) {
       corpo += '<div class="space-y-2 max-h-72 overflow-y-auto barra-fina">' +
@@ -7272,6 +7313,12 @@ window.SIPAV = window.SIPAV || {};
             '<div class="plano-linha-acoes">' +
               '<button type="button" class="btn-secundario" ' +
                       'onclick="SIPAV.app.verPlanejamentoSalvo(\'' + p.id + '\')">Ver</button>' +
+              '<button type="button" class="btn-secundario" title="O que foi feito do que foi planejado" ' +
+                      'onclick="SIPAV.app.abrirMetaDoPlano(\'' + p.id + '\')">Meta</button>' +
+              (podePlanejar
+                ? '<button type="button" class="btn-secundario" title="Copiar o que não foi feito para uma semana nova" ' +
+                          'onclick="SIPAV.app.abrirCopiarPlano(\'' + p.id + '\')">Copiar</button>'
+                : '') +
               (podeEditarTorre()
                 ? '<button type="button" class="btn-secundario btn-secundario-perigo" ' +
                           'onclick="SIPAV.app.apagarPlanejamentoSalvo(\'' + p.id + '\')">Apagar</button>'
@@ -7291,6 +7338,15 @@ window.SIPAV = window.SIPAV || {};
       botoes: [{ rotulo: 'Fechar', classe: 'btn-secundario' }]
     });
     previaDoPlano();
+    previaDoPlanejar();
+  }
+
+  function previaDoPlanejar() {
+    var campo = $('planejarPrevia');
+    var dia = $('planejarSemana') && $('planejarSemana').value;
+    if (!campo) return;
+    campo.textContent = dia
+      ? descreverSemanasDoPlano(ui.iso(ui.segundaDaSemana(ui.paraData(dia)))) : '';
   }
 
   function previaDoPlano() {
@@ -7313,12 +7369,24 @@ window.SIPAV = window.SIPAV || {};
     if (!dia) { ui.avisar('Informe a semana do planejamento.', 'alerta'); return; }
 
     var base = ui.iso(ui.segundaDaSemana(ui.paraData(dia)));
-    var fim = ui.iso(ui.somarDias(ui.paraData(base), 13));
     var titulo = $('planTitulo').value.trim();
-    var trecho = E.trechoAtual;
 
     ui.processando('Salvando o planejamento…');
-    Promise.all([
+    gravarFotoDoPlano(base, titulo)
+      .then(function () {
+        ui.pronto();
+        ui.avisar('Planejamento salvo.', 'sucesso');
+        abrirPlanejamentos();
+      })
+      .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro', 7000); });
+  }
+
+  /** Busca o que vale agora e grava a foto. Devolve a promessa; quem chama avisa. */
+  function gravarFotoDoPlano(base, titulo) {
+    var fim = ui.iso(ui.somarDias(ui.paraData(base), 13));
+    var trecho = E.trechoAtual;
+
+    return Promise.all([
       db.torres(trecho.id),
       db.programacoes({ trechoId: trecho.id, de: base, ate: fim }),
       db.execucoes({ trechoId: trecho.id, de: base, ate: fim }),
@@ -7345,13 +7413,554 @@ window.SIPAV = window.SIPAV || {};
             torres: torres, programacoes: r[1], execucoes: r[2], movimentacoes: movs
           }
         });
-      })
+      });
+  }
+
+  /* ------------------------------------------------ Planejar do zero ------- */
+
+  /**
+   * Planejar uma semana começando de uma tela limpa.
+   *
+   * Mostra a grade do semanal e do quinzenal com todas as torres e o status de hoje
+   * (o que foi importado, o que foi apontado) e, se pedido, esconde as programações
+   * que já existiam nessas duas semanas. Escondidas não é apagadas: continuam no
+   * banco, contam nas conferências (soma de percentual, aviso de serviço repetido,
+   * a trava do banco contra duplicata) e a foto de antes guarda o que eram. O que
+   * se lança durante o planejamento aparece, mesmo que a mesma coisa já existisse.
+   */
+  function iniciarPlanejamento() {
+    if (somenteConsulta()) return;
+    var dia = $('planejarSemana').value;
+    if (!dia) { ui.avisar('Informe a semana do semanal.', 'alerta'); return; }
+
+    var base = ui.iso(ui.segundaDaSemana(ui.paraData(dia)));
+    var fim = ui.iso(ui.somarDias(ui.paraData(base), 13));
+    var esconder = $('planejarEsconder').checked;
+
+    ui.fecharModal('modalGenerico');
+    $('periodoSemana').value = base;
+
+    aplicarPeriodo('plano', true)
       .then(function () {
-        ui.pronto();
-        ui.avisar('Planejamento salvo.', 'sucesso');
-        abrirPlanejamentos();
+        var ids = {}, n = 0;
+        E.programacoes.forEach(function (p) {
+          if (p.data >= base && p.data <= fim) { ids[p.id] = true; n++; }
+        });
+
+        E.planejando = { base: base, fim: fim, esconder: esconder, escondidas: ids, n: n };
+        if (E.aba !== 'grade') { trocarAba('grade'); } else { render.tudo(); }
+        atualizarBannerPlanejando();
       })
-      .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro', 7000); });
+      .catch(function (e) { ui.avisar(e.message, 'erro'); });
+  }
+
+  function atualizarBannerPlanejando() {
+    var b = $('bannerPlanejando');
+    if (!b) return;
+    var pl = E.planejando;
+    b.classList.toggle('hidden', !pl);
+    if (!pl) return;
+
+    $('bannerPlanejandoTitulo').textContent = 'Planejando — ' + descreverSemanasDoPlano(pl.base);
+    $('bannerPlanejandoTexto').textContent = pl.n
+      ? pl.n + ' programação(ões) que já existiam nessas semanas ' +
+        (pl.esconder ? 'estão escondidas. O que você lançar agora aparece.'
+                     : 'estão visíveis.')
+      : 'Nenhuma programação existia nessas semanas.';
+
+    var botao = $('btnAlternarEscondidas');
+    botao.classList.toggle('hidden', !pl.n);
+    botao.textContent = pl.esconder ? 'Mostrar o que já existia' : 'Esconder o que já existia';
+  }
+
+  function alternarEscondidas() {
+    if (!E.planejando) return;
+    E.planejando.esconder = !E.planejando.esconder;
+    atualizarBannerPlanejando();
+    render.tudo();
+  }
+
+  /** Sai do planejamento sem tocar na tela. Quem chama decide o que vem depois. */
+  function limparPlanejamento() {
+    E.planejando = null;
+    atualizarBannerPlanejando();
+  }
+
+  /**
+   * Terminar é o momento de guardar a foto: o plano acabou de ser montado e é o
+   * compromisso da semana. Oferece salvar; sair sem salvar também pode.
+   */
+  function terminarPlanejamento() {
+    var pl = E.planejando;
+    if (!pl) return;
+
+    var botoes = [{ rotulo: 'Continuar planejando', classe: 'btn-secundario' },
+                  { rotulo: 'Sair sem salvar', classe: 'btn-secundario', acao: function () {
+                      ui.fecharModal('modalGenerico');
+                      limparPlanejamento();
+                      render.tudo();
+                    } }];
+
+    if (podeEditarTorre()) {
+      botoes.push({ rotulo: 'Salvar o planejamento e sair', classe: 'btn-primario', acao: function () {
+        ui.fecharModal('modalGenerico');
+        ui.processando('Salvando o planejamento…');
+        gravarFotoDoPlano(pl.base, 'Planejamento de ' + ui.dataCurta(ui.hoje()))
+          .then(function () {
+            ui.pronto();
+            limparPlanejamento();
+            render.tudo();
+            ui.avisar('Planejamento salvo.', 'sucesso');
+          })
+          .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro', 7000); });
+      } });
+    }
+
+    ui.modalGenerico({
+      titulo: 'Terminar o planejamento',
+      corpoHtml:
+        '<p class="text-sm" style="color:var(--texto-suave)">' +
+          'Para você ter o registro do que foi planejado, salve a foto antes de sair: ' +
+          '<strong>' + esc(descreverSemanasDoPlano(pl.base)) + '</strong>. A foto guarda o status ' +
+          'das torres e a programação como estão agora, e depois dá para ver se a meta foi batida.' +
+        '</p>',
+      botoes: botoes
+    });
+  }
+
+  /* ----------------------------------------------- Meta × realizado -------- */
+
+  var ROTULO_STATUS_META = {
+    no_prazo:     { texto: 'No prazo',          cor: '#16A34A' },
+    atrasada:     { texto: 'Feita atrasada',    cor: '#D97706' },
+    sem_data:     { texto: 'Feita, sem data',   cor: '#0D9488' },
+    parcial:      { texto: 'Parcial',           cor: '#D97706' },
+    reprogramada: { texto: 'Reprogramada',      cor: '#0EA5E9' },
+    nao_feita:    { texto: 'Não feita',         cor: '#E11D48' },
+    a_vencer:     { texto: 'A vencer',          cor: '#71717A' },
+    retirada:     { texto: 'Retirada do plano', cor: '#71717A' }
+  };
+
+  /**
+   * O que foi feito do que o planejamento prometeu.
+   *
+   * A foto guarda o plano como ele era no dia em que foi salvo — o compromisso da
+   * sexta. Aqui se compara cada programação dela com o que foi apontado em campo e
+   * com o que está programado hoje, e se diz o que aconteceu com cada uma:
+   *
+   *   no_prazo      foi feita até a data prometida
+   *   atrasada      foi feita depois
+   *   sem_data      foi feita, conferida pelo status da planilha: não há data a comparar
+   *   parcial       saiu parte do percentual
+   *   reprogramada  não saiu e hoje está programada para outra data
+   *   nao_feita     a data passou e não saiu
+   *   a_vencer      a data ainda não chegou
+   *   retirada      não saiu e já não está programada: alguém tirou do plano
+   *
+   * Casa por torre e atividade, não pelo id da programação: quem reajusta o plano
+   * às vezes apaga e lança de novo, e o id muda; o serviço, não.
+   *
+   * Uma torre feita por dois encarregados conta para os dois.
+   */
+  function avaliarPlano(dados, vivas, execs, hoje) {
+    var base = dados.semana_base;
+    var meio = ui.iso(ui.somarDias(ui.paraData(base), 7));
+
+    var execPor = {};
+    (execs || []).forEach(function (x) {
+      // Só vale o que saiu a partir do plano. O que foi feito antes dele não era
+      // para esta meta.
+      if (x.data_execucao && x.data_execucao < base) return;
+      var k = x.torre_id + '|' + x.atividade_id;
+      (execPor[k] = execPor[k] || []).push(x);
+    });
+    Object.keys(execPor).forEach(function (k) {
+      execPor[k].sort(function (a, b) {
+        if (!a.data_execucao) return 1;                // sem data por último
+        if (!b.data_execucao) return -1;
+        return a.data_execucao < b.data_execucao ? -1 : a.data_execucao > b.data_execucao ? 1 : 0;
+      });
+    });
+
+    var vivasPor = {};
+    (vivas || []).forEach(function (p) {
+      if (!p.torre || !p.atividade) return;
+      var k = p.torre.id + '|' + p.atividade.id;
+      (vivasPor[k] = vivasPor[k] || []).push(p);
+    });
+
+    var planejadasPor = {};
+    (dados.programacoes || []).forEach(function (p) {
+      if (!p.torre || !p.atividade) return;
+      var k = p.torre.id + '|' + p.atividade.id;
+      (planejadasPor[k] = planejadasPor[k] || []).push(p);
+    });
+
+    var itens = [];
+
+    Object.keys(planejadasPor).forEach(function (k) {
+      var plano = planejadasPor[k].slice().sort(function (a, b) {
+        return a.data < b.data ? -1 : a.data > b.data ? 1 : 0;
+      });
+      var ex = execPor[k] || [];
+      var feito = ex.reduce(function (s, x) { return s + (Number(x.percentual) || 0); }, 0);
+      var acumulado = 0;
+
+      plano.forEach(function (p) {
+        var perc = Number(p.percentual) || 100;
+        acumulado += perc;
+
+        var item = {
+          p: p, semana: p.data < meio ? 1 : 2, status: null, dataFeita: null, novaData: null,
+          encarregados: render.encarregadosDe(p).map(function (e) { return e.nome; })
+        };
+
+        if (feito >= acumulado - 0.01) {
+          // Em que dia o acumulado até aqui foi alcançado
+          var soma = 0, quando = null;
+          for (var i = 0; i < ex.length; i++) {
+            soma += Number(ex[i].percentual) || 0;
+            if (soma >= acumulado - 0.01) { quando = ex[i].data_execucao; break; }
+          }
+          item.dataFeita = quando;
+          item.status = !quando ? 'sem_data' : (quando <= p.data ? 'no_prazo' : 'atrasada');
+        } else if (feito > acumulado - perc + 0.01) {
+          item.status = 'parcial';
+        } else {
+          var deHoje = (vivasPor[k] || []);
+          var mesma = deHoje.some(function (v) { return v.data === p.data; });
+          var outras = deHoje.filter(function (v) { return v.data !== p.data; })
+            .sort(function (a, b) { return a.data < b.data ? -1 : 1; });
+
+          if (mesma) item.status = p.data < hoje ? 'nao_feita' : 'a_vencer';
+          else if (outras.length) { item.status = 'reprogramada'; item.novaData = outras[0].data; }
+          else item.status = 'retirada';
+        }
+
+        itens.push(item);
+      });
+    });
+
+    itens.sort(function (a, b) {
+      if (a.p.data !== b.p.data) return a.p.data < b.p.data ? -1 : 1;
+      return a.p.torre.identificador.localeCompare(b.p.torre.identificador, 'pt-BR', { numeric: true });
+    });
+
+    // Resumo por encarregado, por semana
+    function zerado() {
+      var o = { total: 0 };
+      Object.keys(ROTULO_STATUS_META).forEach(function (s) { o[s] = 0; });
+      return o;
+    }
+    var porEnc = {};
+    itens.forEach(function (it) {
+      var nomes = it.encarregados.length ? it.encarregados : ['Sem encarregado'];
+      nomes.forEach(function (n) {
+        var e = porEnc[n] = porEnc[n] || { nome: n, s1: zerado(), s2: zerado() };
+        var s = it.semana === 1 ? e.s1 : e.s2;
+        s.total++; s[it.status]++;
+      });
+    });
+
+    var resumo = Object.keys(porEnc).sort(function (a, b) {
+      if (a === 'Sem encarregado') return 1;
+      if (b === 'Sem encarregado') return -1;
+      return a.localeCompare(b, 'pt-BR');
+    }).map(function (n) { return porEnc[n]; });
+
+    return { itens: itens, resumo: resumo, meio: meio };
+  }
+
+  /** Feitas, vencidas e os dois percentuais de uma linha de resumo. */
+  function indicadoresDoResumo(s) {
+    var feitas = s.no_prazo + s.atrasada + s.sem_data;
+    var vencidas = s.total - s.a_vencer - s.retirada;
+    return {
+      feitas: feitas, vencidas: vencidas,
+      pctFeito: vencidas ? Math.round(100 * feitas / vencidas) : null,
+      pctPrazo: vencidas ? Math.round(100 * (s.no_prazo + s.sem_data) / vencidas) : null
+    };
+  }
+
+  function carregarParaAvaliar(id) {
+    return Promise.all([
+      db.planejamentoSalvo(id),
+      db.programacoes({ trechoId: E.trechoAtual.id }),
+      db.execucoes({ trechoId: E.trechoAtual.id })
+    ]);
+  }
+
+  function abrirMetaDoPlano(id) {
+    ui.processando('Conferindo o planejamento…');
+    carregarParaAvaliar(id)
+      .then(function (r) {
+        ui.pronto();
+        mostrarMetaDoPlano(r[0], avaliarPlano(r[0].dados, r[1], r[2], ui.hoje()));
+      })
+      .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro'); });
+  }
+
+  function mostrarMetaDoPlano(plano, av) {
+    var base = plano.semana_base;
+    var ini2 = av.meio;
+    var fim1 = ui.iso(ui.somarDias(ui.paraData(base), 6));
+    var fim2 = plano.dados.fim || ui.iso(ui.somarDias(ui.paraData(base), 13));
+
+    function tabela(titulo, periodo, chave) {
+      var linhas = av.resumo.filter(function (e) { return e[chave].total; });
+      if (!linhas.length) {
+        return '<div><p class="rotulo">' + titulo + ' <span style="font-weight:400">' + esc(periodo) + '</span></p>' +
+               '<p class="text-xs" style="color:var(--texto-fraco)">Nada planejado nesta semana.</p></div>';
+      }
+
+      var soma = { total: 0 };
+      Object.keys(ROTULO_STATUS_META).forEach(function (s) { soma[s] = 0; });
+      av.itens.filter(function (it) { return it.semana === (chave === 's1' ? 1 : 2); })
+        .forEach(function (it) { soma.total++; soma[it.status]++; });
+
+      function celulas(s) {
+        var ind = indicadoresDoResumo(s);
+        function c(v, cor) {
+          return '<td class="px-2 py-1.5 text-right" style="' +
+                 (v && cor ? 'color:' + cor + ';font-weight:700' : 'color:var(--texto-fraco)') + '">' + v + '</td>';
+        }
+        return '<td class="px-2 py-1.5 text-right font-semibold">' + s.total + '</td>' +
+          c(s.no_prazo, ROTULO_STATUS_META.no_prazo.cor) + c(s.atrasada, ROTULO_STATUS_META.atrasada.cor) +
+          c(s.sem_data, ROTULO_STATUS_META.sem_data.cor) + c(s.parcial, ROTULO_STATUS_META.parcial.cor) +
+          c(s.reprogramada, ROTULO_STATUS_META.reprogramada.cor) + c(s.nao_feita, ROTULO_STATUS_META.nao_feita.cor) +
+          c(s.a_vencer, null) + c(s.retirada, null) +
+          '<td class="px-2 py-1.5 text-right font-bold">' + (ind.pctFeito == null ? '—' : ind.pctFeito + '%') + '</td>' +
+          '<td class="px-2 py-1.5 text-right font-bold">' + (ind.pctPrazo == null ? '—' : ind.pctPrazo + '%') + '</td>';
+      }
+
+      return '<div><p class="rotulo">' + titulo + ' <span style="font-weight:400">' + esc(periodo) + '</span></p>' +
+        '<div class="overflow-x-auto"><table class="tabela-meta">' +
+          '<thead><tr><th>Encarregado</th><th title="Programadas no plano">Prog.</th>' +
+            '<th title="Feitas até a data prometida">No prazo</th><th title="Feitas depois da data">Atras.</th>' +
+            '<th title="Feitas, conferidas pelo status da planilha, sem data">S/ data</th>' +
+            '<th title="Saiu parte do percentual">Parc.</th>' +
+            '<th title="Não saíram e hoje estão em outra data">Repr.</th>' +
+            '<th title="A data passou e não saiu">Não feita</th>' +
+            '<th title="A data ainda não chegou">A venc.</th>' +
+            '<th title="Saíram do plano e não foram feitas: não entram nos percentuais">Retir.</th>' +
+            '<th title="Feitas ÷ vencidas">% feito</th>' +
+            '<th title="Feitas no prazo ÷ vencidas">% prazo</th></tr></thead><tbody>' +
+          linhas.map(function (e) {
+            return '<tr><td class="px-2 py-1.5 font-medium">' + esc(e.nome) + '</td>' + celulas(e[chave]) + '</tr>';
+          }).join('') +
+          '<tr class="tabela-meta-total"><td class="px-2 py-1.5">Total</td>' + celulas(soma) + '</tr>' +
+        '</tbody></table></div></div>';
+    }
+
+    var detalhe = av.itens.map(function (it) {
+      var r = ROTULO_STATUS_META[it.status];
+      var extra = it.status === 'reprogramada' ? ' → ' + ui.dataCurta(it.novaData)
+                : (it.status === 'atrasada' || it.status === 'no_prazo') && it.dataFeita
+                  ? ' · feita em ' + ui.dataCurta(it.dataFeita) : '';
+      return '<div class="resumo-enc-linha">' +
+        '<span class="resumo-enc-data">' + esc(ui.dataCurta(it.p.data)) +
+          '<b>' + esc(ui.diaDaSemana(it.p.data).slice(0, 3)) + '</b></span>' +
+        '<span><strong>' + esc(it.p.torre.identificador) + '</strong> · ' + esc(it.p.atividade.nome) +
+          (Number(it.p.percentual) < 100 ? ' · ' + formatarPercentual(it.p.percentual) : '') +
+          ' <em style="color:var(--texto-fraco)">' +
+            (it.encarregados.length ? esc(it.encarregados.join(' + ')) : 'sem encarregado') + '</em> ' +
+          '<b style="color:' + r.cor + '">' + esc(r.texto + extra) + '</b></span>' +
+      '</div>';
+    }).join('');
+
+    var corpo = '<div class="space-y-4">' +
+      '<p class="text-xs" style="color:var(--texto-suave)">' +
+        'O que o planejamento prometeu, comparado com o que foi apontado em campo até hoje e com o ' +
+        'que está programado agora. <strong>% feito</strong> = feitas ÷ vencidas; <strong>% prazo</strong> = ' +
+        'feitas no prazo ÷ vencidas. As que ainda vão vencer não entram na conta.' +
+      '</p>' +
+      tabela('Semanal', ui.dataCurta(base) + ' a ' + ui.dataCurta(fim1), 's1') +
+      tabela('Quinzenal', ui.dataCurta(ini2) + ' a ' + ui.dataCurta(fim2), 's2') +
+      '<details><summary class="text-sm font-semibold cursor-pointer">Programação por programação (' +
+        av.itens.length + ')</summary>' +
+        '<div class="resumo-enc-lista barra-fina" style="max-height:18rem;margin-top:.5rem">' + detalhe + '</div>' +
+      '</details>' +
+    '</div>';
+
+    var salvo = new Date(plano.criado_em);
+    ui.modalGenerico({
+      titulo: 'Meta do planejamento de ' + ui.dataCurta(ui.iso(salvo)) + (plano.titulo ? ' — ' + plano.titulo : ''),
+      corpoHtml: corpo,
+      botoes: [{ rotulo: 'Fechar', classe: 'btn-secundario' }]
+    });
+  }
+
+  /* ------------------------------------- Copiar de um planejamento salvo ---- */
+
+  var copiaPlano = null;   // {plano, vivas, av, itens:[{it, nova, existe}]}
+
+  /**
+   * Leva o que o plano salvo previa para uma semana nova.
+   *
+   * O uso comum é a pendência: o que o planejamento da sexta passada previa e não
+   * saiu vai para a semana seguinte. Por isso o padrão copia só o que não foi
+   * feito. Dá para copiar tudo (semanas repetidas) e escolher qual das duas semanas
+   * do plano vem. Todas as datas andam o mesmo número de semanas, mantendo o dia da
+   * semana: o que era quarta continua quarta.
+   *
+   * O que já existe na programação de hoje, na mesma torre, atividade, data e
+   * encarregado, não é copiado de novo.
+   */
+  function abrirCopiarPlano(id) {
+    if (somenteConsulta()) return;
+
+    ui.processando('Conferindo o planejamento…');
+    carregarParaAvaliar(id)
+      .then(function (r) {
+        ui.pronto();
+        var plano = r[0];
+        copiaPlano = { plano: plano, vivas: r[1], av: avaliarPlano(plano.dados, r[1], r[2], ui.hoje()), itens: [] };
+
+        var alvoPadrao = ui.iso(ui.somarDias(ui.paraData(plano.semana_base), 7));
+        ui.modalGenerico({
+          titulo: 'Copiar o planejamento de ' + ui.dataCurta(plano.semana_base),
+          corpoHtml:
+            '<div class="space-y-3">' +
+              '<p class="text-xs" style="color:var(--texto-suave)">' +
+                esc(descreverSemanasDoPlano(plano.semana_base)) + '</p>' +
+              '<div><label class="rotulo">Para a semana que começa em</label>' +
+                '<input id="copiaAlvo" type="date" class="campo" value="' + alvoPadrao + '" ' +
+                       'oninput="SIPAV.app.atualizarCopiaPlano()">' +
+                '<p id="copiaAlvoTexto" class="text-xs mt-1" style="color:var(--texto-fraco)"></p></div>' +
+              '<div><label class="rotulo">O que copiar</label>' +
+                '<select id="copiaModo" class="campo" onchange="SIPAV.app.atualizarCopiaPlano()">' +
+                  '<option value="pendente">Só o que não foi feito (pendências)</option>' +
+                  '<option value="tudo">Tudo do plano, sem olhar o que foi feito</option>' +
+                '</select></div>' +
+              '<div class="flex gap-4 text-sm">' +
+                '<label class="flex items-center gap-2" style="cursor:pointer">' +
+                  '<input type="checkbox" id="copiaSemana1" checked onchange="SIPAV.app.atualizarCopiaPlano()"> Do semanal</label>' +
+                '<label class="flex items-center gap-2" style="cursor:pointer">' +
+                  '<input type="checkbox" id="copiaSemana2" checked onchange="SIPAV.app.atualizarCopiaPlano()"> Do quinzenal</label>' +
+              '</div>' +
+              '<div id="copiaLista"></div>' +
+              '<div id="copiaRetro" class="hidden rounded-lg border border-amber-300 bg-amber-50 p-3">' +
+                '<p class="text-sm text-amber-800">Parte das datas novas já passou. O motivo fica registrado em cada uma.</p>' +
+                '<input id="copiaRetroTexto" class="campo mt-2" autocomplete="off" ' +
+                       'value="' + esc('Copiado do planejamento de ' + ui.dataCurta(plano.semana_base)) + '">' +
+              '</div>' +
+            '</div>',
+          botoes: [
+            { rotulo: 'Cancelar', classe: 'btn-secundario' },
+            { rotulo: 'Copiar', classe: 'btn-primario', acao: gravarCopiaDoPlano }
+          ]
+        });
+        atualizarCopiaPlano();
+      })
+      .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro'); });
+  }
+
+  /** Recalcula a lista a copiar, conforme a semana de destino, o modo e as semanas. */
+  function atualizarCopiaPlano() {
+    var c = copiaPlano;
+    if (!c || !$('copiaAlvo')) return;
+
+    var alvoDia = $('copiaAlvo').value;
+    if (!alvoDia) { $('copiaLista').innerHTML = ''; c.itens = []; return; }
+
+    var alvo = ui.iso(ui.segundaDaSemana(ui.paraData(alvoDia)));
+    var desloc = Math.round((ui.paraData(alvo) - ui.paraData(c.plano.semana_base)) / 86400000);
+    var modo = $('copiaModo').value;
+    var semanas = { 1: $('copiaSemana1').checked, 2: $('copiaSemana2').checked };
+    $('copiaAlvoTexto').textContent = 'Começa em ' + ui.dataCurta(alvo) + ' (' + ui.diaDaSemana(alvo) + '). ' +
+      (desloc === 0 ? 'É a mesma semana do plano.'
+        : 'As datas andam ' + (desloc / 7) + (Math.abs(desloc / 7) === 1 ? ' semana.' : ' semanas.'));
+
+    // O que já existe na programação de hoje: mesma chave que o banco usa
+    var ja = {};
+    c.vivas.forEach(function (p) {
+      if (!p.torre || !p.atividade) return;
+      ja[[p.torre.id, p.atividade.id, p.data, p.encarregado ? p.encarregado.id : ''].join('|')] = true;
+    });
+
+    c.itens = c.av.itens.filter(function (it) {
+      if (!semanas[it.semana]) return false;
+      if (modo === 'pendente') return it.status === 'nao_feita' || it.status === 'parcial';
+      return true;
+    }).map(function (it) {
+      var nova = ui.iso(ui.somarDias(ui.paraData(it.p.data), desloc));
+      var existe = !!ja[[it.p.torre.id, it.p.atividade.id, nova, it.p.encarregado ? it.p.encarregado.id : ''].join('|')];
+      return { it: it, nova: nova, existe: existe };
+    });
+
+    $('copiaLista').innerHTML = c.itens.length
+      ? '<p class="rotulo">Vão ser copiadas (' + c.itens.filter(function (x) { return !x.existe; }).length + ')</p>' +
+        '<div class="resumo-enc-lista barra-fina" style="max-height:15rem">' +
+          c.itens.map(function (x, i) {
+            var r = ROTULO_STATUS_META[x.it.status];
+            return '<label class="resumo-enc-linha" style="cursor:pointer">' +
+              '<input type="checkbox" class="chk-copia" data-i="' + i + '"' + (x.existe ? ' disabled' : ' checked') + '>' +
+              '<span class="resumo-enc-data">' + esc(ui.dataCurta(x.nova)) +
+                '<b>' + esc(ui.diaDaSemana(x.nova).slice(0, 3)) + '</b></span>' +
+              '<span><strong>' + esc(x.it.p.torre.identificador) + '</strong> · ' + esc(x.it.p.atividade.nome) +
+                (Number(x.it.p.percentual) < 100 ? ' · ' + formatarPercentual(x.it.p.percentual) : '') +
+                ' <em style="color:var(--texto-fraco)">' +
+                  (x.it.encarregados.length ? esc(x.it.encarregados.join(' + ')) : 'sem encarregado') +
+                  ' · era ' + esc(ui.dataCurta(x.it.p.data)) + '</em> ' +
+                (x.existe ? '<b style="color:#71717A">já existe</b>'
+                          : '<b style="color:' + r.cor + '">' + esc(r.texto) + '</b>') + '</span>' +
+            '</label>';
+          }).join('') +
+        '</div>'
+      : '<p class="text-xs" style="color:var(--texto-fraco)">' +
+        (modo === 'pendente' ? 'Nada pendente nas semanas escolhidas. Tudo foi feito, reprogramado ou ainda vai vencer.'
+                             : 'Nada neste plano para as semanas escolhidas.') + '</p>';
+
+    var passou = c.itens.some(function (x) { return !x.existe && x.nova < ui.hoje(); });
+    $('copiaRetro').classList.toggle('hidden', !passou);
+  }
+
+  function gravarCopiaDoPlano() {
+    var c = copiaPlano;
+    if (!c || !c.itens) return;
+
+    var marcadas = Array.prototype.map.call(document.querySelectorAll('.chk-copia:checked'), function (k) {
+      return c.itens[Number(k.getAttribute('data-i'))];
+    }).filter(Boolean);
+    if (!marcadas.length) { ui.avisar('Nada marcado para copiar.', 'alerta'); return; }
+
+    var hoje = ui.hoje();
+    var retro = $('copiaRetroTexto') ? $('copiaRetroTexto').value.trim() : '';
+    if (marcadas.some(function (x) { return x.nova < hoje; }) && !retro) {
+      ui.avisar('Diga o motivo para as datas que já passaram.', 'alerta');
+      $('copiaRetroTexto').focus();
+      return;
+    }
+    importacaoIsaJustRetro = retro;
+
+    // As datas novas viram "registros", o mesmo formato da importação, e passam
+    // pelo mesmo caminho de gravação: em ordem, com a sequência conferida pelo banco
+    var tarefas = marcadas.map(function (x) {
+      var p = x.it.p;
+      return {
+        torreId: p.torre.id, torre: p.torre.identificador,
+        atividadeId: p.atividade.id, atividade: p.atividade.nome,
+        encarregadoId: p.encarregado ? p.encarregado.id : null,
+        encarregado2Id: p.encarregado2 ? p.encarregado2.id : null,
+        data: x.nova, percentual: Number(p.percentual) || 100,
+        cabo: p.cabo || null, observacao: p.observacao || null, partes: p.partes || null
+      };
+    }).sort(function (a, b) {
+      if (a.data !== b.data) return a.data < b.data ? -1 : 1;
+      return ordemDaAtividade(a.atividadeId) - ordemDaAtividade(b.atividadeId);
+    });
+
+    importacaoIsaTitulo = 'Cópia do planejamento';
+    ui.processando('Copiando ' + tarefas.length + ' programação(ões)…');
+    criarRegistrosDaIsa(tarefas, null)
+      .then(function (r) {
+        loteUltimoLote = r.ids;
+        return recarregarProgramacoes().then(function () {
+          ui.pronto();
+          relatarImportacaoIsa(r.ok, r.falhou);
+        });
+      })
+      .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro'); });
   }
 
   function verPlanejamentoSalvo(id) {
@@ -7370,6 +7979,7 @@ window.SIPAV = window.SIPAV || {};
   function entrarNoHistorico(p) {
     var dados = p.dados || {};
 
+    if (E.planejando) limparPlanejamento();
     if (E.modoSelecao) alternarModoSelecao();
     if (E.modoSelecaoProg) alternarSelecaoProgramacoes(false);
     E.selecionadas = {};
@@ -7473,6 +8083,7 @@ window.SIPAV = window.SIPAV || {};
   var importacaoIsa = null;       // {arquivo, datas, registros, problemas}
   var importacaoIsaFalhas = [];   // o que a precedência recusou, para tentar com o motivo
   var importacaoIsaJustRetro = '';
+  var importacaoIsaTitulo = 'Importação da ISA';   // o relato serve também à cópia de planos
 
   function abrirImportarIsa() {
     if (!E.trechoAtual) return;
@@ -7669,6 +8280,7 @@ window.SIPAV = window.SIPAV || {};
       return;
     }
     importacaoIsaJustRetro = justRetro;
+    importacaoIsaTitulo = 'Importação da ISA';
 
     var tarefas = criar.slice().sort(function (a, b) {
       if (a.data !== b.data) return a.data < b.data ? -1 : 1;
@@ -7696,6 +8308,7 @@ window.SIPAV = window.SIPAV || {};
           torreId: x.torreId, atividadeId: x.atividadeId,
           encarregadoId: x.encarregadoId, encarregado2Id: x.encarregado2Id,
           data: x.data, percentual: x.percentual, cabo: x.cabo, observacao: x.observacao,
+          partes: x.partes || null,
           situacao: situacao,
           overrideMotivo: motivo || null,
           justificativaRetroativa: x.data < hoje ? importacaoIsaJustRetro : null
@@ -7718,7 +8331,7 @@ window.SIPAV = window.SIPAV || {};
     }
 
     ui.modalGenerico({
-      titulo: 'Importação da ISA',
+      titulo: importacaoIsaTitulo,
       corpoHtml:
         '<div class="space-y-2">' +
           (ok.length
@@ -8158,6 +8771,14 @@ window.SIPAV = window.SIPAV || {};
     verPlanejamentoSalvo: verPlanejamentoSalvo,
     apagarPlanejamentoSalvo: apagarPlanejamentoSalvo,
     sairDoHistorico: sairDoHistorico,
+    previaDoPlanejar: previaDoPlanejar,
+    iniciarPlanejamento: iniciarPlanejamento,
+    alternarEscondidas: alternarEscondidas,
+    terminarPlanejamento: terminarPlanejamento,
+    abrirMetaDoPlano: abrirMetaDoPlano,
+    abrirCopiarPlano: abrirCopiarPlano,
+    atualizarCopiaPlano: atualizarCopiaPlano,
+    avaliarPlano: avaliarPlano,
     compartilharWhatsApp: compartilharWhatsApp
   };
 

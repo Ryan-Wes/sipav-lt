@@ -41,7 +41,7 @@
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 
   <!-- ?v= força o navegador a buscar de novo quando o código muda. -->
-  <link rel="stylesheet" href="css/app.css?v=123">
+  <link rel="stylesheet" href="css/app.css?v=124">
 </head>
 <body class="h-full flex flex-col antialiased">
 
@@ -261,6 +261,22 @@
   </header>
 
   <main class="max-w-[1600px] mx-auto px-5 mt-5 flex-1 w-full pb-12">
+
+    <!-- Aparece enquanto se planeja do zero: as programações que já existiam nas
+         duas semanas ficam escondidas -->
+    <div id="bannerPlanejando" class="hidden banner-planejando no-print">
+      <div class="min-w-0">
+        <p id="bannerPlanejandoTitulo" class="banner-historico-titulo"></p>
+        <p id="bannerPlanejandoTexto" class="banner-historico-texto"></p>
+      </div>
+      <div class="flex flex-wrap gap-2 shrink-0">
+        <button type="button" id="btnAlternarEscondidas" class="btn-secundario"
+                onclick="SIPAV.app.alternarEscondidas()"></button>
+        <button type="button" class="btn-primario" onclick="SIPAV.app.terminarPlanejamento()">
+          Terminar o planejamento
+        </button>
+      </div>
+    </div>
 
     <!-- Aparece quando se está vendo um planejamento salvo: só consulta -->
     <div id="bannerHistorico" class="hidden banner-historico no-print">
@@ -725,11 +741,11 @@
   </div>
 </div>
 
-<script src="js/config.js?v=123"></script>
-<script src="js/db.js?v=123"></script>
-<script src="js/ui.js?v=123"></script>
-<script src="js/render.js?v=123"></script>
-<script src="js/isa.js?v=123"></script>
-<script src="js/app.js?v=123"></script>
+<script src="js/config.js?v=124"></script>
+<script src="js/db.js?v=124"></script>
+<script src="js/ui.js?v=124"></script>
+<script src="js/render.js?v=124"></script>
+<script src="js/isa.js?v=124"></script>
+<script src="js/app.js?v=124"></script>
 </body>
 </html>

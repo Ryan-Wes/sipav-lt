@@ -56,6 +56,9 @@ Situação conferida em **23/09/2026**, item por item, contra o que está public
 | **R26** | **Importar a programação da planilha da ISA** (semanal e quinzenal) | [WR] 02/10 | ✅ prévia, dias passados com motivo, sequência com "programar mesmo assim", desfazer |
 | **R27** | **Importação de status confere o programado** (execução sem data) | [WR] 02/10 | ✅ ``db/45`` — prévia com lista; futuras desmarcadas |
 | **R28** | **Planejamento semanal salvo** (foto) e semanal+quinzenal de qualquer semana | [WR] 02/10 | ✅ ``db/46`` — botão Planejamentos, modo consulta |
+| **R29** | **Planejar do zero**: grade limpa do semanal e do quinzenal, com a foto ao terminar | [WR] 07/10 | ✅ programações existentes escondidas, não apagadas |
+| **R30** | **Copiar de um plano salvo** para outra semana, só pendência ou tudo | [WR] 07/10 | ✅ mesmo dia da semana, sem duplicar o que existe |
+| **R31** | **Meta × realizado** por encarregado: plano da sexta contra o apontado | [WR] 07/10 | ✅ resolve B2 só para o plano salvo; falta o painel geral |
 
 ## Relatórios e saídas
 

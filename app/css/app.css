@@ -1442,3 +1442,21 @@ body.modo-historico .chip-lixeira { display: none !important; }
   color: #D97706; background: rgba(217,119,6,.15); border-color: rgba(217,119,6,.45);
 }
 .chip-obs.serra { color: #D97706; }
+/* Planejando do zero */
+.banner-planejando {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem;
+  margin-bottom: 1rem; padding: .75rem 1rem; border-radius: .75rem;
+  background: rgba(14,165,233,.10); border: 1px solid rgba(14,165,233,.45);
+}
+.banner-planejando .banner-historico-titulo { color: #0369A1; }
+html.dark .banner-planejando .banner-historico-titulo { color: #38BDF8; }
+/* Meta do planejamento */
+.tabela-meta { width: 100%; font-size: .75rem; border-collapse: collapse; }
+.tabela-meta th {
+  padding: .375rem .5rem; text-align: right; font-weight: 700; white-space: nowrap;
+  text-transform: uppercase; letter-spacing: .02em; font-size: .625rem; color: var(--texto-fraco);
+  border-bottom: 2px solid var(--borda-forte);
+}
+.tabela-meta th:first-child { text-align: left; }
+.tabela-meta td { border-top: 1px solid var(--borda); }
+.tabela-meta-total td { border-top: 2px solid var(--borda-forte); font-weight: 800; }

@@ -14,6 +14,72 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ---
 
+## 07/10/2026
+
+### O plano da sexta é o compromisso; a programação viva pode mudar — [WR]
+
+Planejo na sexta (02/10) o semanal (05 a 10/10) e o quinzenal (12 a 17/10). Na
+sexta seguinte, o que eu tinha programado para 12/10 pode ter mudado: não deu para
+bater a meta, houve reajuste no meio da semana, ou outro motivo. Mesmo assim preciso
+saber o que foi prometido para aquela data, para ver se os encarregados estão
+batendo a meta. Por isso a foto salva em `db/46` é o compromisso, e a programação
+viva continua livre para mudar. Nada de etiqueta em cada programação: o histórico é a
+foto, comparada depois com o que foi apontado.
+
+Três peças saíram dessa regra, todas sobre a mesma tabela `planejamento_semanal`,
+sem migração nova.
+
+### Planejar do zero — [WR]
+
+Em **Planejamentos → Planejar uma semana** escolho o semanal (o padrão é a segunda
+que vem, a partir de quinta) e o quinzenal vem junto. A grade abre com todas as
+torres e o estágio atualizado, e as programações que já existem nessas duas semanas
+ficam escondidas, para eu montar o plano limpo sem apagar nada. Uma banda no topo
+deixa mostrar as escondidas e tem o botão **Terminar o planejamento**: continuar,
+sair sem salvar, ou salvar a foto e sair.
+
+- Escondidas são só as que existiam quando comecei. O que eu lançar depois aparece.
+- Sair sem salvar não perde nada: a programação viva nunca foi mexida.
+
+### Copiar de um plano salvo — [WR]
+
+O que o plano previa e não saiu vai para a semana seguinte. **Copiar** leva o plano
+para outra semana, com todas as datas andando o mesmo número de semanas: o que era
+quarta continua quarta. O padrão é só a pendência (não feita ou parcial); dá para
+copiar tudo e escolher entre semanal e quinzenal. O que já existe (mesma torre,
+atividade, data e encarregado) aparece como "já existe" e não duplica. Datas que já
+passaram pedem o motivo, igual a qualquer lançamento no passado. Passa pelo mesmo
+caminho da importação da ISA: em ordem, com a sequência conferida, e com Desfazer e
+"Programar mesmo assim" no relato final.
+
+### Meta × realizado — [WR]
+
+O botão **Meta** do plano salvo compara o que ele prometeu com o que foi apontado
+desde a segunda-feira do plano e com o que está programado hoje, por encarregado e
+por semana. Cada programação do plano cai em um estado:
+
+| Estado | Quando |
+|---|---|
+| No prazo | feita até a data prometida |
+| Feita atrasada | feita depois |
+| Feita, sem data | conferida pelo status da planilha, sem data para comparar |
+| Parcial | saiu parte do percentual |
+| Reprogramada | não saiu e hoje está em outra data |
+| Não feita | a data passou e não saiu |
+| A vencer | a data ainda não chegou |
+| Retirada | não saiu e já não está programada |
+
+**% feito** = feitas ÷ vencidas. **% prazo** = feitas no prazo (e sem data) ÷ vencidas.
+A vencer e retirada ficam fora da conta, mas aparecem nas colunas para o total fechar.
+
+- Casa por torre e atividade, não pelo id da programação: reajustar o plano às vezes
+  apaga e lança de novo.
+- Dupla de encarregados conta para os dois.
+- Só vale execução a partir da segunda do plano; o que foi feito antes não era meta.
+- Retirada fica fora do percentual de propósito, mas a coluna existe: se alguém tira
+  muita coisa do plano, isso precisa aparecer, não sumir da meta.
+
+---
 ## 01/10/2026
 
 ### Escavação por parte: marcar quais pés, em qualquer ordem — [WR]
