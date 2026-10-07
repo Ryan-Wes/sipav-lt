@@ -7600,7 +7600,8 @@ window.SIPAV = window.SIPAV || {};
 
     var vivasPor = {};
     (vivas || []).forEach(function (p) {
-      if (!p.torre || !p.atividade) return;
+      // Programação anterior ao plano não é reprogramação dele: é de outra semana
+      if (!p.torre || !p.atividade || p.data < base) return;
       var k = p.torre.id + '|' + p.atividade.id;
       (vivasPor[k] = vivasPor[k] || []).push(p);
     });
