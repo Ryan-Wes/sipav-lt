@@ -7393,8 +7393,11 @@ window.SIPAV = window.SIPAV || {};
       .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro', 7000); });
   }
 
-  /** Busca o que vale agora e grava a foto. Devolve a promessa; quem chama avisa. */
-  function gravarFotoDoPlano(base, titulo) {
+  /**
+   * Busca o que vale agora e grava o planejamento salvo. Devolve a promessa; quem chama avisa.
+   * `deixarDe` são as programações escondidas ao planejar do zero: não fazem parte do plano novo.
+   */
+  function gravarFotoDoPlano(base, titulo, deixarDe) {
     var fim = ui.iso(ui.somarDias(ui.paraData(base), 13));
     var trecho = E.trechoAtual;
 
@@ -7406,6 +7409,7 @@ window.SIPAV = window.SIPAV || {};
     ])
       .then(function (r) {
         var obs = r[3] || {};
+        var programacoes = deixarDe ? r[1].filter(function (p) { return !deixarDe[p.id]; }) : r[1];
         var torres = r[0].map(function (t) {
           var c = Object.assign({}, t);
           c.observacao = obs[t.torre_id] || null;
@@ -7418,11 +7422,11 @@ window.SIPAV = window.SIPAV || {};
 
         return db.salvarPlanejamentoSemanal({
           trechoId: trecho.id, semanaBase: base, titulo: titulo,
-          nTorres: torres.length, nProgramacoes: r[1].length,
+          nTorres: torres.length, nProgramacoes: programacoes.length,
           dados: {
             versao: 1, trecho: { id: trecho.id, nome: trecho.nome },
             semana_base: base, fim: fim,
-            torres: torres, programacoes: r[1], execucoes: r[2], movimentacoes: movs
+            torres: torres, programacoes: programacoes, execucoes: r[2], movimentacoes: movs
           }
         });
       });
@@ -7517,7 +7521,7 @@ window.SIPAV = window.SIPAV || {};
       botoes.push({ rotulo: 'Salvar o planejamento e sair', classe: 'btn-primario', acao: function () {
         ui.fecharModal('modalGenerico');
         ui.processando('Salvando o planejamento…');
-        gravarFotoDoPlano(pl.base, 'Planejamento de ' + ui.dataCurta(ui.hoje()))
+        gravarFotoDoPlano(pl.base, 'Planejamento de ' + ui.dataCurta(ui.hoje()), pl.esconder ? pl.escondidas : null)
           .then(function () {
             ui.pronto();
             limparPlanejamento();

@@ -46,6 +46,7 @@ deixa mostrar as escondidas e tem o botão **Terminar o planejamento**: continua
 sair sem salvar, ou salvar o planejamento e sair.
 
 - Escondidas são só as que existiam quando comecei. O que eu lançar depois aparece.
+- O planejamento salvo no fim leva só o que lancei depois de começar: as escondidas ficam de fora dele, mas continuam na programação viva.
 - Sair sem salvar não perde nada: a programação viva nunca foi mexida.
 
 ### Copiar de um plano salvo — [WR]
