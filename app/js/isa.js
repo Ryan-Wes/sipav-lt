@@ -518,7 +518,54 @@ window.SIPAV = window.SIPAV || {};
     return tinha;
   }
 
-  function escreverLinha(ws, linha, porEncarregado) {
+  // Quantas torres seguidas, no mínimo, viram "A À B". Duas ficam como estão.
+  var MINIMO_PARA_INTERVALO = 3;
+
+  /**
+   * As torres de uma célula, em ordem de torre, com as que vêm uma depois da outra na
+   * linha escritas como intervalo: "2/1 À 5/2 (FASE A)" em vez de cada uma. É como a
+   * obra escreve o lançamento de cabo e a supressão, e vale para qualquer atividade:
+   * de uma torre a outra, em lote.
+   *
+   * Só junta torres vizinhas na linha, com o mesmo percentual, os mesmos comentários e
+   * a mesma situação de cópia; qualquer diferença quebra o intervalo.
+   */
+  function escreverTorres(itens, posicao) {
+    var lista = itens.map(function (x, i) { return { x: x, i: i, pos: posicao[x.torre] }; })
+      .sort(function (a, b) {
+        var pa = a.pos === undefined ? 1e9 : a.pos, pb = b.pos === undefined ? 1e9 : b.pos;
+        return pa - pb || a.i - b.i;
+      });
+
+    function entreDe(x) {
+      var entre = [];
+      if (x.percentual < 100) entre.push(pct(x.percentual));
+      (x.notas || []).forEach(function (n) { entre.push(n); });
+      return entre.length ? ' (' + entre.join(' · ') + ')' : '';
+    }
+    function igual(a, b) {
+      return a.percentual === b.percentual && !!a.copia === !!b.copia &&
+             (a.notas || []).join('|') === (b.notas || []).join('|');
+    }
+
+    var saida = [], i = 0;
+    while (i < lista.length) {
+      var j = i;
+      while (j + 1 < lista.length && lista[i].pos !== undefined &&
+             lista[j + 1].pos === lista[j].pos + 1 && igual(lista[i].x, lista[j + 1].x)) j++;
+
+      if (j - i + 1 >= MINIMO_PARA_INTERVALO) {
+        saida.push(lista[i].x.torre + ' À ' + lista[j].x.torre + entreDe(lista[i].x));
+        i = j + 1;
+      } else {
+        saida.push(lista[i].x.torre + entreDe(lista[i].x));
+        i++;
+      }
+    }
+    return saida.join(', ');
+  }
+
+  function escreverLinha(ws, linha, porEncarregado, posicao) {
     var encs = Object.keys(porEncarregado).sort();
     if (!encs.length) return 0;
 
@@ -549,16 +596,13 @@ window.SIPAV = window.SIPAV || {};
       empilhar(ws.getCell(linha, COL.SEGUNDA + dia), encs.map(function (e) {
         var itens = porEncarregado[e][dia];
         if (!itens || !itens.length) return '-';
-        return itens.map(function (x) {
-          if (!x.copia) total += x.percentual / 100;
-          // Entre parênteses, depois da torre: o percentual, se a torre foi
-          // repartida (senão a célula diz que a torre inteira foi feita naquele
-          // dia), e a retirada de flambagem ou de pendências, se a revisão teve.
-          var entre = [];
-          if (x.percentual < 100) entre.push(pct(x.percentual));
-          (x.notas || []).forEach(function (n) { entre.push(n); });
-          return x.torre + (entre.length ? ' (' + entre.join(' · ') + ')' : '');
-        }).join(', ');
+        // O total soma cada torre, mesmo as que saem juntas num intervalo
+        itens.forEach(function (x) { if (!x.copia) total += x.percentual / 100; });
+
+        // Entre parênteses, depois da torre ou do intervalo: o percentual, se a torre
+        // foi repartida (senão a célula diz que a torre inteira foi feita naquele
+        // dia), e os comentários da programação.
+        return escreverTorres(itens, posicao || {});
       }));
     }
     ws.getCell(linha, COL.SEGUNDA + 6).value = 'DSR';    // domingo
@@ -1211,6 +1255,12 @@ window.SIPAV = window.SIPAV || {};
     var torresPorId = {};
     torres.forEach(function (t) { torresPorId[t.torre_id || t.id] = t; });
 
+    // A ordem das torres na linha, para saber quais são vizinhas
+    var posicaoDasTorres = {};
+    torres.forEach(function (t, i) {
+      if (!(t.identificador in posicaoDasTorres)) posicaoDasTorres[t.identificador] = i;
+    });
+
     var wb = new ExcelJS.Workbook();
 
     return arquivo.arrayBuffer()
@@ -1270,7 +1320,7 @@ window.SIPAV = window.SIPAV || {};
           ['prog1', 'prog2'].forEach(function (semana) {
             var porEnc = g.dados[item][semana];
             if (!porEnc) return;
-            var n = escreverLinha(ws, semana === 'prog1' ? alvo.prog1 : alvo.prog2, porEnc);
+            var n = escreverLinha(ws, semana === 'prog1' ? alvo.prog1 : alvo.prog2, porEnc, posicaoDasTorres);
             if (n) { escritas++; torresEscritas += n; }
           });
 

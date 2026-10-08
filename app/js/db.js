@@ -1087,6 +1087,9 @@ window.SIPAV = window.SIPAV || {};
         throw new Error('O banco ainda não conhece este tipo de registro. ' +
                         'Falta aplicar a migração 43 (folga de campo) ou a 47 (feriado), em db/.');
       }
+      if (r.error && /movimentacao_encarregado_ok/i.test(r.error.message || '')) {
+        throw new Error('Mudança de trecho sem canteiro de origem pede a migração 48 (db/48-mudanca-sem-origem.sql).');
+      }
       if (semTabelaMovimentacao(r.error)) {
         throw new Error('A tabela de dias sem atividade ainda não existe no banco. ' +
                         'Falta aplicar a migração 39 (db/39-movimentacao.sql).');

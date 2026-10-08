@@ -706,6 +706,8 @@ window.SIPAV = window.SIPAV || {};
 
   /** "vai para Barra", "vem de Igarité" — conforme o canteiro que atende este trecho. */
   function rotaDeCanteiro(m) {
+    // A planilha da ISA só diz para onde: sem origem, é só "para <canteiro>"
+    if (!m.canteiro_origem_id) return 'para ' + nomeDoCanteiro(m, 'destino');
     if (m.canteiro_origem_id && canteiroServeOTrecho(m.canteiro_origem_id) &&
         !(m.canteiro_destino_id && canteiroServeOTrecho(m.canteiro_destino_id))) {
       return 'vai para ' + nomeDoCanteiro(m, 'destino');
@@ -734,6 +736,7 @@ window.SIPAV = window.SIPAV || {};
       return 'Folga de campo' + (m.observacao ? ' · ' + m.observacao : '');
     }
 
+    if (!m.canteiro_origem_id) return 'Mudança para ' + nomeDoCanteiro(m, 'destino');
     return 'Muda de canteiro · ' + rotaDeCanteiro(m);
   }
 

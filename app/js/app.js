@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v135 · 2026-10-08';
+  var VERSAO = 'v136 · 2026-10-08';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -6547,7 +6547,7 @@ window.SIPAV = window.SIPAV || {};
         '</div>' +
 
         '<div id="movBlocoCanteiros" class="grid grid-cols-2 gap-3">' +
-          '<div><label class="rotulo">Do canteiro</label>' +
+          '<div><label class="rotulo">Do canteiro <span style="font-weight:400">(opcional)</span></label>' +
             '<select id="movCanteiroOrigem" class="campo">' +
               opcoesCanteiro(m ? m.canteiro_origem_id : '') + '</select></div>' +
           '<div><label class="rotulo">Para o canteiro</label>' +
@@ -6705,9 +6705,8 @@ window.SIPAV = window.SIPAV || {};
     if (tipo === 'MUDANCA_TRECHO') {
       canteiroOrigem = $('movCanteiroOrigem').value;
       canteiroDestino = $('movCanteiroDestino').value;
-      if (!canteiroOrigem) return recusar('Escolha de qual canteiro.', 'movCanteiroOrigem');
       if (!canteiroDestino) return recusar('Escolha para qual canteiro.', 'movCanteiroDestino');
-      if (canteiroOrigem === canteiroDestino) return recusar('O destino é o mesmo canteiro de origem.', 'movCanteiroDestino');
+      if (canteiroOrigem && canteiroOrigem === canteiroDestino) return recusar('O destino é o mesmo canteiro de origem.', 'movCanteiroDestino');
     }
 
     // Choque com a programação: quem muda de canteiro (ou está sem atividade) num
@@ -8323,14 +8322,12 @@ window.SIPAV = window.SIPAV || {};
   }
 
   /**
-   * "MUDANÇA PARA IGARITÉ": o canteiro de destino é o que tem esse nome; o de origem,
-   * o outro canteiro que atende este trecho, quando é um só. Sem os dois, não dá para
-   * registrar a mudança de trecho: fica como outro motivo, com o texto, e a prévia
-   * deixa escolher de onde.
+   * "MUDANÇA PARA IGARITÉ": a planilha diz só para onde. Se há um canteiro com esse
+   * nome, é a mudança de trecho do encarregado, sem origem; senão, fica como outro
+   * motivo, com o texto.
    */
   function resolverMudancasDaIsa(movimentos) {
     var canteiros = E.canteiros || [];
-    var doTrecho = canteiros.filter(function (c) { return (c.trechos || []).indexOf(E.trechoAtual.id) !== -1; });
 
     movimentos.forEach(function (x) {
       if (!x.destinoTexto) return;
@@ -8342,30 +8339,11 @@ window.SIPAV = window.SIPAV || {};
         })[0];
 
       x.canteiroDestinoId = destino ? destino.id : null;
-      var origens = doTrecho.filter(function (c) { return !destino || c.id !== destino.id; });
-      x.canteiroOrigemId = destino && origens.length === 1 ? origens[0].id : null;
-      aplicarOrigemDaMudanca(x);
+      x.canteiroOrigemId = null;
+      if (destino) { x.tipo = 'MUDANCA_TRECHO'; x.observacao = ''; }
+      else { x.tipo = 'OUTRO'; x.observacao = 'Mudança para ' + x.destinoTexto; }
     });
   }
-
-  /** Mudança de trecho se há os dois canteiros; senão, outro motivo com o texto. */
-  function aplicarOrigemDaMudanca(x) {
-    if (x.canteiroDestinoId && x.canteiroOrigemId && x.canteiroOrigemId !== x.canteiroDestinoId) {
-      x.tipo = 'MUDANCA_TRECHO';
-      x.observacao = '';
-    } else {
-      x.tipo = 'OUTRO';
-      x.observacao = 'Mudança para ' + x.destinoTexto;
-    }
-  }
-
-  function escolherOrigemDaMudancaIsa(i, id) {
-    var x = importacaoIsa.movimentos[i];
-    x.canteiroOrigemId = id || null;
-    aplicarOrigemDaMudanca(x);
-    mostrarPreviaIsa();
-  }
-
   /** Cadastra o PÓRTICO como torre do trecho, no começo da linha, e lê a planilha de novo. */
   function cadastrarPorticoDaIsa() {
     var menor = E.torres.reduce(function (m, t) { return Math.min(m, Number(t.ordem) || 0); }, 0);
@@ -8521,20 +8499,7 @@ window.SIPAV = window.SIPAV || {};
             movCriar.map(function (x) {
               var titulo = (render.TIPOS_DE_MOVIMENTACAO || []).filter(function (k) { return k.tipo === x.tipo; })[0];
               var nomeC = function (id) { var c = E.canteiros.filter(function (k) { return k.id === id; })[0]; return c ? c.nome : '?'; };
-              var iMov = imp.movimentos.indexOf(x);
-              var rota = '';
-              if (x.destinoTexto) {
-                if (x.tipo === 'MUDANCA_TRECHO') rota = ' · ' + esc(nomeC(x.canteiroOrigemId)) + ' → ' + esc(nomeC(x.canteiroDestinoId));
-                else if (x.canteiroDestinoId) {
-                  rota = ' <select class="campo" style="display:inline;width:auto;padding:.125rem .25rem" ' +
-                           'onchange="SIPAV.app.escolherOrigemDaMudancaIsa(' + iMov + ', this.value)">' +
-                           '<option value="">De onde? (sem escolha, fica como outro motivo)</option>' +
-                           E.canteiros.filter(function (c) { return c.id !== x.canteiroDestinoId; }).map(function (c) {
-                             return '<option value="' + c.id + '">De ' + esc(c.nome) + '</option>';
-                           }).join('') + '</select>';
-                }
-              }
-              return '<div class="resumo-enc-linha">' +
+              var rota = x.tipo === 'MUDANCA_TRECHO' && x.canteiroDestinoId ? ' · para ' + esc(nomeC(x.canteiroDestinoId)) : '';              return '<div class="resumo-enc-linha">' +
                 '<span class="resumo-enc-data">' + esc(ui.dataCurta(x.data)) +
                   '<b class="' + (ui.fimDeSemana(x.data) ? 'fim-de-semana' : '') + '">' +
                     esc(ui.diaDaSemana(x.data).slice(0, 3)) + '</b></span>' +
@@ -9136,7 +9101,6 @@ window.SIPAV = window.SIPAV || {};
     abrirRelatorioIsa: abrirRelatorioIsa,
     abrirImportarIsa: abrirImportarIsa,
     associarEncarregadoIsa: associarEncarregadoIsa,
-    escolherOrigemDaMudancaIsa: escolherOrigemDaMudancaIsa,
     cadastrarPorticoDaIsa: cadastrarPorticoDaIsa,
     pedirNovoEncarregadoIsa: pedirNovoEncarregadoIsa,
     cadastrarEncarregadoDaIsa: cadastrarEncarregadoDaIsa,
