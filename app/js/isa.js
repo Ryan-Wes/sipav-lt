@@ -855,20 +855,28 @@ window.SIPAV = window.SIPAV || {};
     // O mesmo nome da planilha pode ser pessoas diferentes em atividades diferentes (o
     // Benedito do piloto do condutor e o do OPGW): a escolha vale para o nome em todas as
     // atividades, ou só para o nome numa atividade ("benedito|lancamento do piloto...").
-    function acharEncarregado(nome, atividade) {
+    // Escolhas que o sistema tirou sozinho do que já está programado (ver
+    // inferirDoQueJaExiste). Vêm depois das explícitas e do nome que bate sozinho.
+    var apelidosAuto = {};
+    var viaAuto = false;           // a última busca terminou numa escolha automática
+    var autoUsado = {}, autoQtd = {}, nomesAuto = {};
+
+    function acharEncarregado(nome, atividade, semAuto) {
       var k = norm(nome);
       var lista = ctx.encarregados || [];
       var ka = atividade ? k + '|' + norm(atividade) : null;
+      viaAuto = false;
 
-      if (ka && ka in apelidos) {
-        return lista.filter(function (e) { return e.id === apelidos[ka]; })[0] || null;
-      }
-      if (k in apelidos) {
-        return lista.filter(function (e) { return e.id === apelidos[k]; })[0] || null;
-      }
+      function achar(id) { return lista.filter(function (e) { return e.id === id; })[0] || null; }
+
+      // "Deixar de fora", escolhido na prévia, vale mais que qualquer inferência
+      var fora = (ka && apelidos[ka] === '__fora__') || apelidos[k] === '__fora__';
+
+      if (!fora && ka && ka in apelidos) return achar(apelidos[ka]);
+      if (!fora && k in apelidos) return achar(apelidos[k]);
 
       var exato = lista.filter(function (e) { return norm(e.nome) === k; });
-      if (exato.length === 1) return exato[0];
+      if (!fora && exato.length === 1) return exato[0];
 
       // O nome da planilha pode vir encurtado ("FRANCISCO"). Só vale se for único
       var partes = k.split(' ').filter(Boolean);
@@ -876,13 +884,17 @@ window.SIPAV = window.SIPAV || {};
         var n = ' ' + norm(e.nome) + ' ';
         return partes.length && partes.every(function (p) { return n.indexOf(' ' + p + ' ') !== -1; });
       });
-      if (contem.length === 1) return contem[0];
+      if (!fora && contem.length === 1) return contem[0];
+
+      if (!fora && !semAuto && ka && ka in apelidosAuto) {
+        var e = achar(apelidosAuto[ka]);
+        if (e) { viaAuto = true; return e; }
+      }
 
       // Mais de um cabe ("BENEDITO" com dois Beneditos): quem decide é a pessoa
       candidatosDe[k] = (exato.length > 1 ? exato : contem).map(function (e) { return { id: e.id, nome: e.nome }; });
       return null;
     }
-
     // ---- 1. As linhas cruas: item, dia, encarregado, torre ----
     var brutas = [];
     var encDesconhecidos = {}, torresDesconhecidas = {};
@@ -1013,6 +1025,63 @@ window.SIPAV = window.SIPAV || {};
       }
     });
 
+    /**
+     * Quem é o "BENEDITO" da planilha, descoberto no que já está programado: a mesma torre,
+     * na mesma data, na mesma atividade (e cabo) já tem um encarregado, e ele é o nome que
+     * falta. Vale por nome e atividade quando a maioria (80%) dos casos aponta a mesma
+     * pessoa. Serve para importar de novo a mesma planilha sem refazer as escolhas.
+     */
+    (function inferirDoQueJaExiste() {
+      var existentes = ctx.existentes || [];
+      if (!existentes.length) return;
+
+      var porTorreDia = {};
+      existentes.forEach(function (p) { (porTorreDia[p.torreId + '|' + p.data] = porTorreDia[p.torreId + '|' + p.data] || []).push(p); });
+
+      var votos = {};
+      brutas.forEach(function (b) {
+        var tor = torres[norm(b.torreTexto)];
+        if (!tor) return;
+        var nomesAtv = atividadesDoItem(b.item);
+        var atv = nomesAtv[0] || rotuloDoItem(b.item);
+        var cabo = caboDoItem(b.item);
+
+        var conhecidos = [], desconhecidos = [];
+        b.encNomes.forEach(function (n) {
+          var e = acharEncarregado(n, atv, true);
+          if (e) conhecidos.push(e.id); else desconhecidos.push(n);
+        });
+        if (desconhecidos.length !== 1) return;   // com dois a descobrir na mesma linha, não dá para saber qual é qual
+
+        var ids = [];
+        (porTorreDia[tor.torre_id + '|' + b.data] || []).forEach(function (p) {
+          if (nomesAtv.map(norm).indexOf(norm(p.atividadeNome)) === -1) return;
+          if (cabo && p.cabo !== cabo) return;
+          p.encIds.forEach(function (id) { if (conhecidos.indexOf(id) === -1 && ids.indexOf(id) === -1) ids.push(id); });
+        });
+        if (ids.length !== 1) return;
+
+        var ka = norm(desconhecidos[0]) + '|' + norm(atv);
+        votos[ka] = votos[ka] || {};
+        votos[ka][ids[0]] = (votos[ka][ids[0]] || 0) + 1;
+      });
+
+      Object.keys(votos).forEach(function (ka) {
+        var ids = Object.keys(votos[ka]);
+        var total = ids.reduce(function (s, id) { return s + votos[ka][id]; }, 0);
+        var melhor = ids.sort(function (a, b) { return votos[ka][b] - votos[ka][a]; })[0];
+        if (votos[ka][melhor] / total >= 0.8) apelidosAuto[ka] = melhor;
+      });
+    })();
+
+    function registrarAuto(nome, b, atividade, e) {
+      var k = norm(nome);
+      (autoUsado[k] = autoUsado[k] || {})[k + '|' + norm(atividade)] = e.id;
+      autoQtd[k] = (autoQtd[k] || 0) + 1;
+      nomesAuto[k] = nomesAuto[k] || nome;
+      anotarContexto(nome, b, atividade);
+    }
+
     // ---- 2. Resolve torre e encarregado ----
     var porItem = {};      // torre|data|item → {torre, data, item, encs:[], pct, notas}
 
@@ -1074,6 +1143,7 @@ window.SIPAV = window.SIPAV || {};
       b.encNomes.forEach(function (nome) {
         var atividadeDoNome = atividadesDoItem(b.item)[0] || rotuloDoItem(b.item);
         var e = acharEncarregado(nome, atividadeDoNome);
+        if (e && viaAuto) registrarAuto(nome, b, atividadeDoNome, e);
         if (!e) {
           encDesconhecidos[nome] = (encDesconhecidos[nome] || 0) + 1; faltou = true;
           anotarContexto(nome, b, atividadeDoNome);
@@ -1102,6 +1172,7 @@ window.SIPAV = window.SIPAV || {};
       var equipe = [], faltou = false;
       b.encNomes.forEach(function (nome) {
         var e = acharEncarregado(nome, 'Dia sem atividade');
+        if (e && viaAuto) registrarAuto(nome, b, 'Dia sem atividade', e);
         if (!e) {
           encDesconhecidos[nome] = (encDesconhecidos[nome] || 0) + 1; faltou = true;
           anotarContexto(nome, b, 'Dia sem atividade');
@@ -1143,21 +1214,24 @@ window.SIPAV = window.SIPAV || {};
     });
     // Os nomes que não foram reconhecidos, juntando as grafias que dão no mesmo
     // ("ANTONIO JOSE" e "ANTONIO JOSÉ"), para a prévia deixar escolher quem é
+    function montarContexto(k) {
+      var c = contextoDe[k];
+      if (!c) return undefined;
+      return {
+        atividades: Object.keys(c.atividades).map(function (a) { return { nome: a, qtd: c.atividades[a], chave: k + '|' + norm(a) }; })
+          .sort(function (a, b) { return b.qtd - a.qtd; }),
+        parceiros: Object.keys(c.parceiros),
+        primeiro: c.dias.slice().sort()[0], ultimo: c.dias.slice().sort().slice(-1)[0],
+        torres: c.torres
+      };
+    }
+
     var naoReconhecidos = {};
     Object.keys(encDesconhecidos).forEach(function (nome) {
       var k = norm(nome);
       var x = naoReconhecidos[k] = naoReconhecidos[k] || { chave: k, nome: nome, qtd: 0, candidatos: candidatosDe[k] || [] };
       x.qtd += encDesconhecidos[nome];
-      var c = contextoDe[k];
-      if (c) {
-        x.contexto = {
-          atividades: Object.keys(c.atividades).map(function (a) { return { nome: a, qtd: c.atividades[a], chave: k + '|' + norm(a) }; })
-            .sort(function (a, b) { return b.qtd - a.qtd; }),
-          parceiros: Object.keys(c.parceiros),
-          primeiro: c.dias.slice().sort()[0], ultimo: c.dias.slice().sort().slice(-1)[0],
-          torres: c.torres
-        };
-      }
+      x.contexto = montarContexto(k);
     });
 
     Object.keys(naoReconhecidos).sort().forEach(function (k) {
@@ -1168,6 +1242,15 @@ window.SIPAV = window.SIPAV || {};
           x.qtd + ' lançamento(s) de fora).'
         : 'Encarregado "' + x.nome + '" não está cadastrado (' + x.qtd +
           ' lançamento(s) de fora). Escolha quem é, logo abaixo, ou cadastre e leia de novo.');
+    });
+
+    // Os nomes que se resolveram sozinhos, pelo que já está programado, continuam na
+    // prévia com a escolha marcada: a pessoa confere e troca, se quiser
+    Object.keys(autoUsado).forEach(function (k) {
+      var x = naoReconhecidos[k] = naoReconhecidos[k] || { chave: k, nome: nomesAuto[k], qtd: 0, candidatos: candidatosDe[k] || [] };
+      x.qtd += autoQtd[k];
+      x.auto = autoUsado[k];
+      x.contexto = montarContexto(k);
     });
 
     // ---- 3. Os itens viram atividades ----

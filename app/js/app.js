@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v142 · 2026-10-08';
+  var VERSAO = 'v143 · 2026-10-08';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -8162,6 +8162,7 @@ window.SIPAV = window.SIPAV || {};
   var importacaoIsaNovo = {};       // nomes em que a pessoa pediu para cadastrar um encarregado novo
   var importacaoIsaApelidos = {};   // o que já foi aplicado: nome (ou nome|atividade) → id do encarregado
   var importacaoIsaEscolhas = {};   // o que está escolhido na tela e ainda não foi aplicado
+  var importacaoIsaAuto = {};       // o que o sistema tirou sozinho do que já está programado: chave → id
   var importacaoIsaLinhas = {};     // os nomes não reconhecidos já vistos, para continuarem na tela depois de escolhidos
   var importacaoIsaArquivoObj = null;
   var importacaoIsaSegunda = null;
@@ -8174,6 +8175,7 @@ window.SIPAV = window.SIPAV || {};
     if (!E.trechoAtual) return;
     importacaoIsaApelidos = {};
     importacaoIsaEscolhas = {};
+    importacaoIsaAuto = {};
     importacaoIsaLinhas = {};
     importacaoIsaNovo = {};
     historicoDosEncarregados = null;
@@ -8270,9 +8272,19 @@ window.SIPAV = window.SIPAV || {};
     ui.processando('Lendo a planilha…');
 
     carregarHistoricoDosEncarregados().then(function () {
+      // O que já está programado ensina quem é cada nome da planilha: dá para importar de novo
+      // sem refazer as escolhas
+      return db.programacoes({ trechoId: E.trechoAtual.id }).catch(function () { return []; });
+    }).then(function (existentes) {
       return SIPAV.isa.interpretar(arquivo, {
         torres: E.torres, encarregados: E.encarregados, atividades: E.atividades, segundaS1: segunda,
-        apelidos: importacaoIsaApelidos
+        apelidos: importacaoIsaApelidos,
+        existentes: existentes.filter(function (p) { return p.torre && p.atividade; }).map(function (p) {
+          return {
+            torreId: p.torre.id, data: p.data, atividadeNome: p.atividade.nome, cabo: p.cabo || null,
+            encIds: [p.encarregado, p.encarregado2].filter(Boolean).map(function (e) { return e.id; })
+          };
+        })
       });
     })
       .then(function (r) {
@@ -8338,6 +8350,7 @@ window.SIPAV = window.SIPAV || {};
       var l = importacaoIsaLinhas[x.chave] = importacaoIsaLinhas[x.chave] || {
         chave: x.chave, nome: x.nome, qtd: 0, atividades: [], porAtividade: false
       };
+      Object.keys(x.auto || {}).forEach(function (c) { importacaoIsaAuto[c] = x.auto[c]; });
       l.candidatos = x.candidatos;
       l.contexto = x.contexto;
       l.qtd = Math.max(l.qtd, x.qtd);
@@ -8349,13 +8362,20 @@ window.SIPAV = window.SIPAV || {};
     });
   }
 
+  /** O que está valendo para essa chave: a escolha aplicada ou, sem ela, a tirada do que já existe. */
+  function aplicadaIsa(chave) {
+    var a = importacaoIsaApelidos[chave];
+    if (a === '__fora__') return '';
+    return a || importacaoIsaAuto[chave] || '';
+  }
+
   function escolhaAtualIsa(chave) {
-    return chave in importacaoIsaEscolhas ? importacaoIsaEscolhas[chave] : (importacaoIsaApelidos[chave] || '');
+    return chave in importacaoIsaEscolhas ? importacaoIsaEscolhas[chave] : aplicadaIsa(chave);
   }
 
   function escolhasPendentesIsa() {
     return Object.keys(importacaoIsaEscolhas).filter(function (k) {
-      return (importacaoIsaEscolhas[k] || '') !== (importacaoIsaApelidos[k] || '');
+      return (importacaoIsaEscolhas[k] || '') !== aplicadaIsa(k);
     });
   }
 
@@ -8379,6 +8399,7 @@ window.SIPAV = window.SIPAV || {};
   function aplicarEscolhasIsa() {
     Object.keys(importacaoIsaEscolhas).forEach(function (k) {
       if (importacaoIsaEscolhas[k]) importacaoIsaApelidos[k] = importacaoIsaEscolhas[k];
+      else if (importacaoIsaAuto[k]) importacaoIsaApelidos[k] = '__fora__';   // tirou o que o sistema tinha deduzido
       else delete importacaoIsaApelidos[k];
     });
     importacaoIsaEscolhas = {};
@@ -8441,8 +8462,11 @@ window.SIPAV = window.SIPAV || {};
       '<span class="text-xs font-semibold" style="min-width:8rem">' + rotulo + '</span>' +
       '<select class="campo" style="flex:1;min-width:10rem" ' +
               'onchange="SIPAV.app.escolherEncarregadoIsa(\'' + esc(chave) + '\', this.value)">' + opcoes + '</select>' +
-      (importacaoIsaApelidos[chave] && importacaoIsaApelidos[chave] === escolhaAtualIsa(chave)
-        ? '<span title="Aplicado" style="color:#16A34A;font-weight:700">✓</span>' : '') +
+      (aplicadaIsa(chave) && aplicadaIsa(chave) === escolhaAtualIsa(chave)
+        ? (importacaoIsaApelidos[chave] && importacaoIsaApelidos[chave] !== '__fora__'
+            ? '<span title="Aplicado" style="color:#16A34A;font-weight:700">✓</span>'
+            : '<span title="Tirado do que já está programado no SIPAV: confira" style="color:#0D9488;font-weight:700">↺ do que já existe</span>')
+        : '') +
       '<button type="button" class="btn-secundario" ' +
               'onclick="SIPAV.app.pedirNovoEncarregadoIsa(\'' + esc(chave) + '\', true)">+ Novo</button></div>';
   }
