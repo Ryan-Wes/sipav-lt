@@ -1586,3 +1586,11 @@ details.hist-grupo > summary:hover { border-color: var(--borda-forte); }
 }
 .cartao-portico-vazio { justify-content: center; }
 .cartao-portico-vazio .identidade { align-items: center; text-align: center; }
+/* Pórtico: o raio no alto e no meio, na linha onde as torres têm o número, do tamanho dele;
+   o nome e a ponta da linha ficam no centro do cartão, na horizontal e na vertical */
+.cartao-portico { min-height: 160px; }
+.cartao-portico .icone-portico {
+  position: absolute; top: .75rem; left: 50%; transform: translateX(-50%);
+  width: 24px; height: 24px; border-radius: 999px;
+}
+.cartao-portico:not(.cartao-portico-vazio) { padding-top: 2.75rem; }

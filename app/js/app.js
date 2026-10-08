@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v150 · 2026-10-08';
+  var VERSAO = 'v151 · 2026-10-08';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -2841,6 +2841,19 @@ window.SIPAV = window.SIPAV || {};
   }
 
   /** O cartão de um grupo: quem, o quê, quantas, de que (a importação da ISA) e a lista dentro. */
+  var gruposDoHistorico = [];   // as linhas de cada cartão, desenhadas só quando ele é aberto
+
+  /** Abrir o cartão desenha as linhas dele: com mil dentro, desenhar tudo de antemão trava a janela. */
+  function abrirGrupoDoHistorico(detalhes, i) {
+    if (!detalhes.open) return;
+    var corpo = detalhes.querySelector('.hist-conteudo');
+    if (!corpo || corpo.getAttribute('data-feito')) return;
+    var g = gruposDoHistorico[i];
+    corpo.innerHTML = g.itens.map(function (h) { return linhaHistorico(h, g.mostrarTorre); }).join('');
+    corpo.setAttribute('data-feito', '1');
+    ui.icones();
+  }
+
   function cartaoDoGrupoHistorico(g, mostrarTorre) {
     var e = ESTILO_ACAO[g.acao] || ESTILO_ACAO.ALTEROU;
     var n = g.itens.length;
@@ -2883,7 +2896,10 @@ window.SIPAV = window.SIPAV || {};
     resumo.push(Object.keys(torres).length + ' torres');
     if (nomesTrechos.length) resumo.push(esc(nomesTrechos.join(' · ')));
 
-    return '<details class="hist-grupo">' +
+    var indice = gruposDoHistorico.push(g) - 1;
+    g.mostrarTorre = mostrarTorre;
+
+    return '<details class="hist-grupo" ontoggle="SIPAV.app.abrirGrupoDoHistorico(this, ' + indice + ')">' +
       '<summary class="flex gap-3 rounded-lg border border-slate-200 px-3 py-2" style="cursor:pointer;list-style:none">' +
         '<span class="w-6 h-6 rounded-full shrink-0 flex items-center justify-center mt-0.5" ' +
               'style="background:' + e.cor + '22;color:' + e.cor + '">' +
@@ -2895,14 +2911,13 @@ window.SIPAV = window.SIPAV || {};
         '<span class="text-[11px] text-slate-400 shrink-0 whitespace-nowrap mt-0.5">' +
           esc(ui.quandoRelativo(g.itens[0].quando)) + ' <i data-lucide="chevron-down" class="w-3 h-3" style="display:inline;vertical-align:-2px"></i></span>' +
       '</summary>' +
-      '<div class="space-y-1.5 mt-1.5 ml-4" style="max-height:18rem;overflow-y:auto">' +
-        g.itens.map(function (h) { return linhaHistorico(h, mostrarTorre); }).join('') +
-      '</div>' +
+      '<div class="hist-conteudo space-y-1.5 mt-1.5 ml-4" style="max-height:18rem;overflow-y:auto"></div>' +
     '</details>';
   }
 
   /** As linhas do histórico, com as alterações em massa juntas num cartão. */
   function corpoDoHistorico(lista, mostrarTorre) {
+    gruposDoHistorico = [];
     return agruparHistorico(lista).map(function (x) {
       return x.grupo ? cartaoDoGrupoHistorico(x.grupo, mostrarTorre) : linhaHistorico(x.item, mostrarTorre);
     }).join('');
@@ -2988,13 +3003,29 @@ window.SIPAV = window.SIPAV || {};
 
   function abrirHistoricoDoTrecho() {
     ui.processando('Carregando histórico…');
-    db.historicoDoTrecho(null, 2000)
+    carregarHistoricoEmPaginas([], 0)
       .then(function (lista) {
         ui.pronto();
         historicoCarregado = lista;
         montarHistorico(lista, 'Últimas alterações', true, true);
       })
       .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro'); });
+  }
+
+  /**
+   * O banco entrega 1000 linhas por vez. Uma importação ocupa mil sozinha, e parar na
+   * primeira página mostrava só ela, escondendo o que veio antes (a limpeza, os ajustes).
+   * Carrega página a página até haver o que mostrar: uns 40 cartões, ou até 8.000 linhas.
+   */
+  function carregarHistoricoEmPaginas(acumulado, de) {
+    return db.historicoPagina(de).then(function (pagina) {
+      var todos = acumulado.concat(pagina);
+      var cartoes = agruparHistorico(todos).length;
+      if (pagina.length >= 1000 && cartoes < 40 && todos.length < 8000) {
+        return carregarHistoricoEmPaginas(todos, de + 1000);
+      }
+      return todos;
+    });
   }
 
   /** Aplica os dois seletores sobre o que já veio do banco. */
@@ -8315,7 +8346,7 @@ window.SIPAV = window.SIPAV || {};
 
   function abrirImportarIsa() {
     if (!E.trechoAtual) return;
-    importacaoIsaApelidos = {};
+    importacaoIsaApelidos = carregarApelidosDaIsa();
     importacaoIsaEscolhas = {};
     importacaoIsaAuto = {};
     importacaoIsaLinhas = {};
@@ -8435,6 +8466,13 @@ window.SIPAV = window.SIPAV || {};
                           'ou informe a segunda-feira da semana 1.');
         }
         guardarLinhasDeEscolhaIsa(r.naoReconhecidos || []);
+
+        // O que o sistema descobriu pelo que já está programado passa a ser lembrado: na próxima
+        // importação, mesmo sem programação para consultar, o nome já vem resolvido
+        Object.keys(importacaoIsaAuto).forEach(function (k) {
+          if (!(k in importacaoIsaApelidos)) importacaoIsaApelidos[k] = importacaoIsaAuto[k];
+        });
+        guardarApelidosDaIsa();
         importacaoIsa = { arquivo: arquivo.name, datas: r.datas, registros: r.registros,
                           movimentos: r.movimentos || [], naoReconhecidos: r.naoReconhecidos || [],
                           porticoFaltando: (r.resumo && r.resumo.porticoFaltando) || { inicio: 0, fim: 0, indefinido: 0 },
@@ -8545,6 +8583,7 @@ window.SIPAV = window.SIPAV || {};
       else delete importacaoIsaApelidos[k];
     });
     importacaoIsaEscolhas = {};
+    guardarApelidosDaIsa();
     processarImportacaoIsa();
   }
 
@@ -8606,7 +8645,7 @@ window.SIPAV = window.SIPAV || {};
               'onchange="SIPAV.app.escolherEncarregadoIsa(\'' + esc(chave) + '\', this.value)">' + opcoes + '</select>' +
       (aplicadaIsa(chave) && aplicadaIsa(chave) === escolhaAtualIsa(chave)
         ? (importacaoIsaApelidos[chave] && importacaoIsaApelidos[chave] !== '__fora__'
-            ? '<span title="Aplicado" style="color:#16A34A;font-weight:700">✓</span>'
+            ? '<span title="Escolha guardada: vale também na próxima importação" style="color:#16A34A;font-weight:700">✓</span>'
             : '<span title="Tirado do que já está programado no SIPAV: confira" style="color:#0D9488;font-weight:700">↺ do que já existe</span>')
         : '') +
       '<button type="button" class="btn-secundario" ' +
@@ -8946,6 +8985,22 @@ window.SIPAV = window.SIPAV || {};
    * própria planilha traz (escavação na segunda, concretagem na quarta) entra na
    * ordem certa. O que ainda assim for recusado volta num relato, com o motivo.
    */
+  /**
+   * As escolhas de encarregado ficam guardadas por trecho, neste navegador, e voltam na
+   * próxima importação: o "BENEDITO" do piloto do condutor continua sendo o Benedito
+   * Aparecido sem a pessoa precisar dizer de novo. Aparecem na prévia, marcadas, e podem
+   * ser trocadas.
+   */
+  function chaveDosApelidosIsa() { return 'sipav_apelidos_isa_' + (E.trechoAtual ? E.trechoAtual.id : ''); }
+
+  function carregarApelidosDaIsa() {
+    try { return JSON.parse(localStorage.getItem(chaveDosApelidosIsa())) || {}; } catch (e) { return {}; }
+  }
+
+  function guardarApelidosDaIsa() {
+    try { localStorage.setItem(chaveDosApelidosIsa(), JSON.stringify(importacaoIsaApelidos)); } catch (e) { /* sem espaço: segue sem guardar */ }
+  }
+
   var gravandoIsa = false;   // a importação está gravando: um segundo clique não pode começar outra
 
   function gravarImportacaoIsa() {
@@ -8976,6 +9031,13 @@ window.SIPAV = window.SIPAV || {};
       if (a.data !== b.data) return a.data < b.data ? -1 : 1;
       return ordemDaAtividade(a.atividadeId) - ordemDaAtividade(b.atividadeId);
     });
+
+    // O que a prévia mostrou como escolhido (inclusive o descoberto pelo que já existe) vale
+    // para a próxima vez
+    Object.keys(importacaoIsaAuto).forEach(function (k) {
+      if (!(k in importacaoIsaApelidos)) importacaoIsaApelidos[k] = importacaoIsaAuto[k];
+    });
+    guardarApelidosDaIsa();
 
     gravandoIsa = true;
     ui.processando('Programando ' + tarefas.length + ' lançamento(s)…');
@@ -9486,6 +9548,7 @@ window.SIPAV = window.SIPAV || {};
     mostrarDiasDaMovimentacao: mostrarDiasDaMovimentacao,
     abrirHistoricoDaTorre: abrirHistoricoDaTorre,
     abrirHistoricoDoTrecho: abrirHistoricoDoTrecho,
+    abrirGrupoDoHistorico: abrirGrupoDoHistorico,
     filtrarHistorico: filtrarHistorico,
 
     abrirEncarregados: abrirEncarregados,

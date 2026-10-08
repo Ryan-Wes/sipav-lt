@@ -330,6 +330,32 @@ window.SIPAV = window.SIPAV || {};
   // banco o tem.
   var temEncarregado2 = true;
 
+  /**
+   * O Supabase devolve no máximo 1000 linhas por consulta, mesmo pedindo mais, e sem
+   * avisar: com 1.050 programações a tela mostrava 1.000 e o resto sumia. Aqui a consulta
+   * é refeita em páginas de 1000 até acabar. `pagina(de, ate)` monta a consulta daquelas
+   * linhas (com ordem fixa, para as páginas não se repetirem nem se perderem) e devolve a
+   * promessa do Supabase.
+   */
+  var TAMANHO_DA_PAGINA = 1000;
+
+  function paginar(pagina, maximo) {
+    var acumulado = [];
+
+    function proxima(de) {
+      return pagina(de, de + TAMANHO_DA_PAGINA - 1).then(function (r) {
+        if (r.error) return r;
+        var linhas = r.data || [];
+        acumulado = acumulado.concat(linhas);
+        if (linhas.length < TAMANHO_DA_PAGINA || (maximo && acumulado.length >= maximo)) {
+          return { data: acumulado, error: null };
+        }
+        return proxima(de + TAMANHO_DA_PAGINA);
+      });
+    }
+    return proxima(0);
+  }
+
   function selectProgramacao() {
     return 'id, data, situacao, observacao, override_motivo, cabo, percentual, criado_em,' +
       (temPartes ? ' partes,' : '') +
@@ -349,18 +375,20 @@ window.SIPAV = window.SIPAV || {};
     filtro = filtro || {};
 
     function consultar() {
-      var q = cliente()
-        .from('programacao')
-        .select(selectProgramacao());
+      return paginar(function (de, ate) {
+        var q = cliente()
+          .from('programacao')
+          .select(selectProgramacao());
 
-      // Sem trecho, são os da obra toda: é o que as visões por data, encarregado e atividade
-      // mostram quando o escopo é Todos os trechos
-      if (filtro.trechoId) q = q.eq('torre.trecho_id', filtro.trechoId);
+        // Sem trecho, são os da obra toda: é o que as visões por data, encarregado e atividade
+        // mostram quando o escopo é Todos os trechos
+        if (filtro.trechoId) q = q.eq('torre.trecho_id', filtro.trechoId);
 
-      if (filtro.de)  q = q.gte('data', filtro.de);
-      if (filtro.ate) q = q.lte('data', filtro.ate);
+        if (filtro.de)  q = q.gte('data', filtro.de);
+        if (filtro.ate) q = q.lte('data', filtro.ate);
 
-      return q.order('data');
+        return q.order('data').order('id').range(de, ate);
+      });
     }
 
     // Cada coluna nova que o banco ainda não tem derruba a consulta uma vez; tira
@@ -565,15 +593,21 @@ window.SIPAV = window.SIPAV || {};
    * que o histórico dos outros não estava sendo gravado.
    */
   function historicoDoTrecho(trechoId, limite) {
-    var q = cliente()
-      .from('programacao_historico')
-      .select(CAMPOS_HISTORICO);
+    return paginar(function (de, ate) {
+      var q = cliente().from('programacao_historico').select(CAMPOS_HISTORICO);
+      if (trechoId) q = q.eq('trecho_id', trechoId);
+      return q.order('quando', { ascending: false }).order('id').range(de, ate);
+    }, limite || 60).then(function (r) {
+      var lista = ok(r, 'Falha ao carregar histórico');
+      return limite ? lista.slice(0, limite) : lista;
+    });
+  }
 
-    if (trechoId) q = q.eq('trecho_id', trechoId);
-
-    return q
-      .order('quando', { ascending: false })
-      .limit(limite || 60)
+  /** Uma página (1000) do histórico da obra, a partir da linha `de`, para ir carregando aos poucos. */
+  function historicoPagina(de) {
+    return cliente().from('programacao_historico').select(CAMPOS_HISTORICO)
+      .order('quando', { ascending: false }).order('id')
+      .range(de, de + TAMANHO_DA_PAGINA - 1)
       .then(function (r) { return ok(r, 'Falha ao carregar histórico'); });
   }
 
@@ -948,10 +982,14 @@ window.SIPAV = window.SIPAV || {};
       return q;
     }
 
-    return consulta(COLUNAS_EXECUCAO + 'data_programada, data_programada_original, ')
+    function emPaginas(colunas) {
+      return paginar(function (de, ate) { return consulta(colunas).order('id').range(de, ate); });
+    }
+
+    return emPaginas(COLUNAS_EXECUCAO + 'data_programada, data_programada_original, ')
       .then(function (r) {
         if (r.error && (r.error.code === '42703' || /data_programada/.test(r.error.message || ''))) {
-          return consulta(COLUNAS_EXECUCAO);
+          return emPaginas(COLUNAS_EXECUCAO);
         }
         return r;
       })
@@ -1520,6 +1558,7 @@ window.SIPAV = window.SIPAV || {};
     conflitosDoEncarregado: conflitosDoEncarregado,
 
     historicoDaTorre: historicoDaTorre,
+    historicoPagina: historicoPagina,
     historicoDoTrecho: historicoDoTrecho,
     registrarCorrecaoEstagio: registrarCorrecaoEstagio,
 

@@ -872,8 +872,10 @@ window.SIPAV = window.SIPAV || {};
       // "Deixar de fora", escolhido na prévia, vale mais que qualquer inferência
       var fora = (ka && apelidos[ka] === '__fora__') || apelidos[k] === '__fora__';
 
-      if (!fora && ka && ka in apelidos) return achar(apelidos[ka]);
-      if (!fora && k in apelidos) return achar(apelidos[k]);
+      // As escolhas feitas na prévia (ou guardadas da última importação) também voltam como
+      // linhas, para a pessoa ver e poder trocar
+      if (!fora && ka && ka in apelidos) { var ea = achar(apelidos[ka]); if (ea) viaAuto = true; return ea; }
+      if (!fora && k in apelidos) { var eb = achar(apelidos[k]); if (eb) viaAuto = true; return eb; }
 
       var exato = lista.filter(function (e) { return norm(e.nome) === k; });
       if (!fora && exato.length === 1) return exato[0];
