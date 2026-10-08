@@ -171,6 +171,17 @@ window.SIPAV = window.SIPAV || {};
     return ehSerra(texto) ? 'mountain' : 'sticky-note';
   }
 
+  /**
+   * O cabo da programação, quando tem: sem isto, o para-raio e o OPGW da mesma torre, no
+   * mesmo dia, pareciam duas linhas iguais.
+   */
+  function tagCabo(p) {
+    if (!p.cabo) return '';
+    var nome = p.cabo === 'PARA_RAIO' ? 'PARA-RAIO' : p.cabo === 'OPGW_DIREITO' ? 'OPGW DIR.'
+             : p.cabo === 'OPGW_ESQUERDO' ? 'OPGW ESQ.' : String(p.cabo);
+    return '<span class="tag-cabo">' + esc(nome) + '</span>';
+  }
+
   /** O pórtico é uma torre cadastrada com o nome "PÓRTICO…": é a ponta da linha, não uma torre a montar. */
   function ehPortico(torre) {
     return String(torre.identificador || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
@@ -233,7 +244,7 @@ window.SIPAV = window.SIPAV || {};
                 '<b class="dia-curto' + (ui.fimDeSemana(p.data) ? ' fim-de-semana' : '') + '">' +
                   esc(ui.diaDaSemana(p.data).slice(0, 3)) + '</b>' +
               '</span> ' +
-              esc(p.atividade ? p.atividade.nome : '—') +
+              esc(p.atividade ? p.atividade.nome : '—') + tagCabo(p) +
               marcaFeito(p) +
               // Sempre aparece. O 100% vem apagado, para a parte repartida seguir
               // chamando mais atenção que o serviço inteiro
@@ -242,6 +253,7 @@ window.SIPAV = window.SIPAV || {};
               (p.encarregado
                 ? '<span class="encarregado">' + esc(nomesDosEncarregados(p)) + '</span>'
                 : '') +
+              (p.observacao ? '<span class="encarregado">' + esc(p.observacao) + '</span>' : '') +
             '</span>' +
             (conflito[p.id]
               ? '<i data-lucide="alert-triangle" class="conflito" style="width:11px;height:11px"></i>'
@@ -344,7 +356,7 @@ window.SIPAV = window.SIPAV || {};
                 '<b class="dia-curto' + (ui.fimDeSemana(p.data) ? ' fim-de-semana' : '') + '">' +
                   esc(ui.diaDaSemana(p.data).slice(0, 3)) + '</b>' +
               '</span> ' +
-              esc(p.atividade ? p.atividade.nome : '—') +
+              esc(p.atividade ? p.atividade.nome : '—') + tagCabo(p) +
               marcaFeito(p) +
               '<span class="parcial' + (Number(p.percentual) >= 100 ? ' cheio' : '') + '">' + rotuloParcial(p) + '</span>' +
               (p.encarregado ? '<span class="encarregado">' + esc(nomesDosEncarregados(p)) + '</span>' : '') +
@@ -436,7 +448,7 @@ window.SIPAV = window.SIPAV || {};
         ? '<span class="chip-encarregado">' + esc(nomesDosEncarregados(p)) + '</span>' : '';
     }
 
-    var parcial = '<span class="chip-parcial' + (Number(p.percentual) >= 100 ? ' cheio' : '') + '">' +
+    var parcial = tagCabo(p) + '<span class="chip-parcial' + (Number(p.percentual) >= 100 ? ' cheio' : '') + '">' +
       rotuloParcial(p) + '</span>' + marcaFeito(p);
 
     // Com "selecionar vários" ligado, o clique marca em vez de abrir a torre.

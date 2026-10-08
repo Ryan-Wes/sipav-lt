@@ -1510,3 +1510,9 @@ html.dark .banner-planejando .banner-historico-titulo { color: #38BDF8; }
   width: 34px; height: 34px; border-radius: 999px;
   background: rgba(249,115,22,.14); color: var(--acento);
 }
+/* O cabo da programação: para-raio e OPGW da mesma torre não são linhas repetidas */
+.tag-cabo {
+  display: inline-block; margin-left: .25rem; padding: 0 .3125rem; border-radius: .25rem;
+  font-size: .5625rem; font-weight: 800; letter-spacing: .04em; vertical-align: 1px;
+  color: var(--texto-suave); border: 1px solid var(--borda-forte);
+}
