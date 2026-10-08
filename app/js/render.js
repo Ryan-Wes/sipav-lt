@@ -1112,20 +1112,59 @@ window.SIPAV = window.SIPAV || {};
     }).sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); });
     if (!faltam.length) return '';
 
-    return '<div class="alerta-sem-prog">' +
-      '<p class="alerta-sem-prog-titulo"><i data-lucide="alert-triangle" class="w-4 h-4"></i> ' +
-        faltam.length + (faltam.length === 1 ? ' encarregado sem programação' : ' encarregados sem programação') +
-        ' em ' + esc(ui.rotuloPeriodo(E.periodo.de, E.periodo.ate)) + '</p>' +
+    // Uma linha só, cortada: "3 encarregados sem programação em 12/10 a 18/10: Alielton,
+    // Altieres, Antônio…". A seta abre a lista inteira. Clicar num nome abre o espaço dele
+    // aqui embaixo, na ordem, com o semanal e o quinzenal em branco para lançar dia a dia.
+    var periodo = ui.rotuloPeriodo(E.periodo.de, E.periodo.ate);
+    var nomes = faltam.map(function (e) { return esc(e.nome); }).join(', ');
+
+    return '<details class="alerta-sem-prog"' + (E.alertaSemProgAberto ? ' open' : '') +
+             ' ontoggle="SIPAV.render.alertaAberto(this.open)">' +
+      '<summary class="alerta-sem-prog-titulo">' +
+        '<i data-lucide="alert-triangle" class="w-4 h-4 shrink-0"></i>' +
+        '<span class="shrink-0">' + faltam.length +
+          (faltam.length === 1 ? ' encarregado sem programação' : ' encarregados sem programação') +
+          ' em ' + esc(periodo) + '</span>' +
+        '<span class="alerta-sem-prog-resumo">' + nomes + '</span>' +
+        '<i data-lucide="chevron-down" class="w-4 h-4 shrink-0 alerta-seta"></i>' +
+      '</summary>' +
       '<p class="alerta-sem-prog-nomes">' +
         faltam.map(function (e) {
-          return podeLancar()
-            ? '<button type="button" class="chip-sem-prog" title="Lançar para ' + esc(e.nome) + '" ' +
-                'onclick="SIPAV.app.lancarPorEncarregado(\'' + e.id + '\')">' + esc(e.nome) + '</button>'
-            : '<span class="chip-sem-prog">' + esc(e.nome) + '</span>';
+          var aberto = !!(E.encarregadosAbertos || {})[e.nome];
+          return '<button type="button" class="chip-sem-prog' + (aberto ? ' chip-sem-prog-aberto' : '') + '" ' +
+            'title="Abrir o espaço de ' + esc(e.nome) + ' para lançar dia a dia" ' +
+            'onclick="SIPAV.render.abrirEncarregadoSemProgramacao(\'' + e.id + '\')">' + esc(e.nome) + '</button>';
         }).join('') +
-      '</p></div>';
+      '</p></details>';
   }
 
+  function alertaAberto(aberto) { E.alertaSemProgAberto = !!aberto; }
+
+  /** As segundas-feiras do período (o semanal e o quinzenal, se não há período fechado). */
+  function segundasDoPeriodo() {
+    var seg = ui.segundaDaSemana(E.periodo.de ? ui.paraData(E.periodo.de) : undefined);
+    var ate = E.periodo.ate || ui.iso(ui.somarDias(seg, 13));
+    var r = [];
+    for (var i = 0; i < 6 && ui.iso(seg) <= ate; i++) { r.push(ui.iso(seg)); seg = ui.somarDias(seg, 7); }
+    return r;
+  }
+
+  /** Abre o espaço de um encarregado sem programação, e leva a tela até ele. */
+  function abrirEncarregadoSemProgramacao(id) {
+    var e = (E.encarregados || []).filter(function (x) { return x.id === id; })[0];
+    if (!e) return;
+    E.encarregadosAbertos = E.encarregadosAbertos || {};
+    E.encarregadosAbertos[e.nome] = true;
+    tudo();
+    var bloco = document.getElementById('bloco-enc-' + id);
+    if (bloco && bloco.scrollIntoView) bloco.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function fecharEncarregadoAberto(id) {
+    var e = (E.encarregados || []).filter(function (x) { return x.id === id; })[0];
+    if (e && E.encarregadosAbertos) delete E.encarregadosAbertos[e.nome];
+    tudo();
+  }
   function renderPorEncarregado() {
     var lista = programacoesVisiveis();
     var movs = movimentacoesVisiveis();
@@ -1207,7 +1246,18 @@ window.SIPAV = window.SIPAV || {};
         '</p>' +
       '</section>';
 
-    cont.innerHTML = barraLancamento() + avisoFaltam + (lista.length ? tabela : '') + g.ordem.concat(extras).map(function (nome) {
+    // Quem foi aberto pelo alerta entra na lista no seu lugar, em ordem alfabética
+    var abertos = Object.keys(E.encarregadosAbertos || {}).filter(function (n) {
+      return !g.mapa[n] && extras.indexOf(n) === -1 &&
+             (E.encarregados || []).some(function (x) { return x.nome === n; });
+    });
+    var nomesDosBlocos = g.ordem.concat(extras).concat(abertos).sort(function (a, b) {
+      if (a === 'Sem encarregado') return 1;
+      if (b === 'Sem encarregado') return -1;
+      return a.localeCompare(b, 'pt-BR');
+    });
+
+    cont.innerHTML = barraLancamento() + avisoFaltam + (lista.length ? tabela : '') + nomesDosBlocos.map(function (nome) {
       var itens = g.mapa[nome] || [];
       var datas = {};
       itens.forEach(function (p) { datas[p.data] = true; });
@@ -1220,6 +1270,14 @@ window.SIPAV = window.SIPAV || {};
       var dele = (E.encarregados || []).find(function (x) { return x.nome === nome; });
       var porSemana = agrupar(emOrdemDeDataETorre(itens, movsPorEnc.mapa[nome]),
         function (e) { return ui.iso(ui.segundaDaSemana(ui.paraData(e.data))); });
+
+      // Aberto pelo alerta e ainda sem nada: as semanas do período, em branco
+      var estaAberto = abertos.indexOf(nome) !== -1;
+      if (estaAberto) {
+        segundasDoPeriodo().forEach(function (s) {
+          if (!porSemana.mapa[s]) { porSemana.mapa[s] = []; porSemana.ordem.push(s); }
+        });
+      }
 
       // As segundas-feiras em ordem, sempre
       var corpo = porSemana.ordem.slice().sort().map(function (segunda) {
@@ -1243,7 +1301,7 @@ window.SIPAV = window.SIPAV || {};
         : '';
 
       return '' +
-        '<section class="bloco-quadrante painel overflow-hidden">' +
+        '<section class="bloco-quadrante painel overflow-hidden"' + (dele ? ' id="bloco-enc-' + dele.id + '"' : '') + '>' +
           '<header class="flex flex-wrap items-baseline justify-between gap-x-3 px-4 py-2.5 bg-slate-50 border-b border-slate-200">' +
             '<div class="min-w-0">' +
               '<h3 class="font-bold text-slate-800">' + esc(nome) + '</h3>' +
@@ -1253,6 +1311,10 @@ window.SIPAV = window.SIPAV || {};
             '</div>' +
             '<span class="text-xs font-semibold text-slate-500 shrink-0 flex items-center gap-2">' +
               botaoLancar +
+              (estaAberto && dele
+                ? '<button type="button" class="btn-lancar" title="Fechar este espaço" ' +
+                    'onclick="SIPAV.render.fecharEncarregadoAberto(\'' + dele.id + '\')">Fechar</button>'
+                : '') +
               (itens.length
                 ? t.torres + (t.torres === 1 ? ' torre' : ' torres') + ' · ' + ui.km(t.km) + ' km · ' +
                   itens.length + (itens.length === 1 ? ' atividade' : ' atividades')
@@ -1540,6 +1602,9 @@ window.SIPAV = window.SIPAV || {};
   window.SIPAV.render = {
     tudo: tudo,
     filtrarMovimentacoes: filtrarMovimentacoes,
+    alertaAberto: alertaAberto,
+    abrirEncarregadoSemProgramacao: abrirEncarregadoSemProgramacao,
+    fecharEncarregadoAberto: fecharEncarregadoAberto,
     feriadoDoDia: feriadoDoDia,
     TIPOS_DE_MOVIMENTACAO: TIPOS_DE_MOVIMENTACAO,
     encarregadosDe: encarregadosDe,

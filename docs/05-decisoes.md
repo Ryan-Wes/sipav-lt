@@ -20,7 +20,7 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 Um encarregado pode passar uma semana num trecho e a outra em outro, e olhando só um trecho os dias dele pareciam vazios sem estarem. As visões **Por Data, Por Encarregado, Por Atividade e Dias sem atividade** passam a começar com **Todos os trechos**, com a opção **Só este trecho** ao lado dos filtros (a escolha fica guardada no navegador). Cada programação de outro trecho leva o nome do trecho. A grade geral e o planejamento salvo continuam sendo do trecho aberto. Limites: abrir ou editar uma torre de outro trecho pede para trocar de trecho antes, e o ✓ de feito só aparece para o trecho aberto.
 
-No painel do encarregado, cada dia da semana ganhou um **+** embaixo da última atividade (ou sozinho, se o dia está vazio) que abre o lançamento já no encarregado e no dia; a data fica junto do dia da semana, com o **FERIADO** no canto; e o topo avisa **quais encarregados estão sem programação** no período, cada nome abrindo o lançamento dele.
+No painel do encarregado, cada dia da semana ganhou um **+** embaixo da última atividade (ou sozinho, se o dia está vazio) que abre o lançamento já no encarregado e no dia; a data fica junto do dia da semana, com o **FERIADO** no canto; e o topo avisa **quais encarregados estão sem programação** no período. O aviso é uma linha só, cortada ("7 encarregados sem programação em 12/10 a 18/10: Alielton, Altieres…"), e a seta abre a lista inteira. Clicar num nome abre o espaço dele mais abaixo, na ordem alfabética, com as semanas do período em branco e um + em cada dia para lançar do jeito que quiser; o botão Fechar tira o espaço enquanto ele estiver vazio.
 
 ### Feriado marcado no calendário — [WR]
 

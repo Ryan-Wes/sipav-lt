@@ -1553,3 +1553,20 @@ button.chip-sem-prog:hover { border-color: var(--acento); color: var(--acento); 
   font-size: .5625rem; font-weight: 700; letter-spacing: .02em;
   color: #0D9488; background: rgba(13,148,136,.12); border: 1px solid rgba(13,148,136,.4);
 }
+/* O alerta de quem está sem programação: uma linha cortada, e a seta abre a lista inteira */
+details.alerta-sem-prog { padding: 0; }
+details.alerta-sem-prog > summary {
+  list-style: none; cursor: pointer; padding: .625rem .875rem; min-width: 0;
+  display: flex; align-items: center; gap: .5rem;
+}
+details.alerta-sem-prog > summary::-webkit-details-marker { display: none; }
+.alerta-sem-prog-resumo {
+  flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-weight: 500; color: var(--texto-suave);
+}
+details.alerta-sem-prog[open] .alerta-sem-prog-resumo { display: none; }
+details.alerta-sem-prog[open] > summary .alerta-seta { transform: rotate(180deg); }
+details.alerta-sem-prog[open] > summary { padding-bottom: .25rem; }
+details.alerta-sem-prog > .alerta-sem-prog-nomes { margin: 0; padding: .25rem .875rem .75rem; }
+.alerta-seta { margin-left: auto; transition: transform .15s; }
+.chip-sem-prog-aberto { border-color: var(--acento); color: var(--acento); }
