@@ -1516,3 +1516,40 @@ html.dark .banner-planejando .banner-historico-titulo { color: #38BDF8; }
   font-size: .5625rem; font-weight: 800; letter-spacing: .04em; vertical-align: 1px;
   color: var(--texto-suave); border: 1px solid var(--borda-forte);
 }
+/* Dia da coluna: SEG 12/10 ........ FERIADO. A data junto do dia da semana, e o aviso
+   de feriado no canto, sem desmontar o cabeçalho */
+.dia-col-cab { justify-content: flex-start; gap: .5rem; }
+.dia-col-cab .rotulo-feriado { display: inline; margin-left: auto; }
+
+/* O + embaixo da última atividade do dia */
+.dia-mais {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; min-height: 1.5rem; border-radius: .5rem;
+  border: 1px dashed var(--borda-forte); background: transparent;
+  color: var(--texto-fraco); font-weight: 800; font-size: 1rem; line-height: 1; cursor: pointer;
+  transition: color .15s, border-color .15s, background-color .15s;
+}
+.dia-mais:hover { color: var(--acento); border-color: var(--acento); background: rgba(249,115,22,.06); }
+/* Quem está sem programação no período: um alerta no topo, com o nome de cada um */
+.alerta-sem-prog {
+  border: 1px solid rgba(217,119,6,.45); background: rgba(217,119,6,.08);
+  border-radius: .625rem; padding: .625rem .875rem; margin-bottom: 1rem;
+}
+.alerta-sem-prog-titulo {
+  display: flex; align-items: center; gap: .375rem;
+  font-size: .8125rem; font-weight: 700; color: #D97706;
+}
+.alerta-sem-prog-nomes { display: flex; flex-wrap: wrap; gap: .375rem; margin-top: .5rem; }
+.chip-sem-prog {
+  padding: .125rem .5rem; border-radius: 999px; font-size: .75rem; font-weight: 600;
+  color: var(--texto); background: var(--superficie); border: 1px solid var(--borda-forte);
+}
+button.chip-sem-prog { cursor: pointer; }
+button.chip-sem-prog:hover { border-color: var(--acento); color: var(--acento); }
+/* O trecho da programação, quando a tela mostra mais de um */
+.tag-trecho {
+  display: inline-block; max-width: 7.5rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  margin-right: .25rem; padding: 0 .3125rem; border-radius: .25rem; vertical-align: 1px;
+  font-size: .5625rem; font-weight: 700; letter-spacing: .02em;
+  color: #0D9488; background: rgba(13,148,136,.12); border: 1px solid rgba(13,148,136,.4);
+}

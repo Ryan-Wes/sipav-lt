@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v144 · 2026-10-08';
+  var VERSAO = 'v145 · 2026-10-08';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -236,6 +236,9 @@ window.SIPAV = window.SIPAV || {};
         $('seletorTrecho').value = E.trechoAtual.id;
 
         E.colunas = localStorage.getItem('sipav_colunas') || 'auto';
+    // As visões por data, encarregado e atividade começam mostrando todos os trechos
+    E.escopo = localStorage.getItem('sipav_escopo') === 'trecho' ? 'trecho' : 'todos';
+    if ($('filtroEscopo')) $('filtroEscopo').value = E.escopo;
         $('filtroColunas').value = E.colunas;
 
         restaurarPeriodo();
@@ -269,6 +272,11 @@ window.SIPAV = window.SIPAV || {};
    * pode ter sido executada em 03/10. Filtrando por data, ela apareceria como
    * pendente só porque a execução caiu fora da janela.
    */
+  /** As programações da obra toda no período, para as visões que mostram todos os trechos. */
+  function filtroProgramacaoObra() {
+    return { de: E.periodo.de, ate: E.periodo.ate };
+  }
+
   function filtroExecucao() {
     return { trechoId: E.trechoAtual.id };
   }
@@ -295,12 +303,14 @@ window.SIPAV = window.SIPAV || {};
       db.programacoes(filtroProgramacao()),
       db.execucoes(filtroExecucao()),
       db.movimentacoes(),
-      db.observacoesDasTorres(E.trechoAtual.id)
+      db.observacoesDasTorres(E.trechoAtual.id),
+      E.escopo === 'todos' ? db.programacoes(filtroProgramacaoObra()) : Promise.resolve(null)
     ]).then(function (r) {
       E.torres = r[0];
       E.programacoes = r[1];
       E.execucoes = r[2];
       E.movimentacoes = r[3];
+      E.programacoesObra = r[5];
       aplicarObservacoesDasTorres(r[4]);
       preencherFiltroCanteiro();
       render.tudo();
@@ -317,12 +327,14 @@ window.SIPAV = window.SIPAV || {};
       db.programacoes(filtroProgramacao()),
       db.execucoes(filtroExecucao()),
       db.movimentacoes(),
-      db.observacoesDasTorres(E.trechoAtual.id)
+      db.observacoesDasTorres(E.trechoAtual.id),
+      E.escopo === 'todos' ? db.programacoes(filtroProgramacaoObra()) : Promise.resolve(null)
     ]).then(function (r) {
       E.torres = r[0];
       E.programacoes = r[1];
       E.execucoes = r[2];
       E.movimentacoes = r[3];
+      E.programacoesObra = r[5];
       aplicarObservacoesDasTorres(r[4]);
       render.tudo();
       if (torreAberta) renderListaDoModal();
@@ -594,6 +606,8 @@ window.SIPAV = window.SIPAV || {};
     E.aba = aba;
     // Seletor de colunas só faz sentido na grade
     $('filtroColunas').parentNode.style.display = aba === 'grade' ? '' : 'none';
+    // E o escopo só nas outras: a grade é sempre do trecho aberto
+    $('filtroEscopo').parentNode.style.display = aba === 'grade' ? 'none' : '';
 
     // "Selecionar vários" marca programação, que só aparece nos painéis. Sair
     // deles com o modo ligado deixaria uma barra de apagar sobre a grade.
@@ -604,6 +618,16 @@ window.SIPAV = window.SIPAV || {};
 
     render.tudo();
     renderBarraSelecaoProg();
+  }
+
+  /** Todos os trechos ou só o trecho aberto, nas visões por data, encarregado e atividade. */
+  function mudarEscopo(valor) {
+    E.escopo = valor === 'trecho' ? 'trecho' : 'todos';
+    try { localStorage.setItem('sipav_escopo', E.escopo); } catch (e) {}
+    ui.processando('Carregando…');
+    recarregarProgramacoes()
+      .then(ui.pronto)
+      .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro'); });
   }
 
   function mudarColunas(valor) {
@@ -652,7 +676,13 @@ window.SIPAV = window.SIPAV || {};
     // Modo seleção: o clique no cartão escolhe em vez de abrir
     if (E.modoSelecao && !forcar) { alternarTorreSelecionada(torreId); return; }
     torreAberta = E.torres.find(function (t) { return t.torre_id === torreId; });
-    if (!torreAberta) return;
+    if (!torreAberta) {
+      // Programação de outro trecho, vista em Todos os trechos: a torre não está carregada
+      if (E.escopo === 'todos' && E.aba !== 'grade') {
+        ui.avisar('Esta torre é de outro trecho. Troque de trecho, no topo, para abrir e alterar.', 'alerta', 5000);
+      }
+      return;
+    }
 
     $('modalTorreNome').textContent = torreAberta.identificador;
     $('modalTorreKm').textContent = ui.km(torreAberta.km);
@@ -3420,6 +3450,12 @@ window.SIPAV = window.SIPAV || {};
       semTorres: true,
       titulo: e ? 'Lançar para ' + e.nome : 'Lançar por encarregado'
     });
+  }
+
+  /** O + do dia no painel do encarregado: a mesma janela, já no encarregado e no dia. */
+  function lancarNoDia(encarregadoId, iso) {
+    lancarPorEncarregado(encarregadoId);
+    if ($('loteBase')) { $('loteBase').value = iso; mudarDataBaseLote(); }
   }
 
   /* ---------------------------------------------- Torres do lote, digitadas -- */
@@ -9236,7 +9272,7 @@ window.SIPAV = window.SIPAV || {};
     iniciar: iniciar, sair: sair, alternarTema: alternarTema,
     alternarMenu: alternarMenu, fecharMenus: fecharMenus,
     abrirAlterarSenha: abrirAlterarSenha,
-    trocarAba: trocarAba, mudarColunas: mudarColunas, renderizar: renderizar,
+    trocarAba: trocarAba, mudarColunas: mudarColunas, mudarEscopo: mudarEscopo, renderizar: renderizar,
     mudarPeriodo: mudarPeriodo, limparFiltros: limparFiltros,
     fecharModal: ui.fecharModal,
 
@@ -9302,6 +9338,7 @@ window.SIPAV = window.SIPAV || {};
     teclaTorresLote: teclaTorresLote,
     tirarTorreLote: tirarTorreLote,
     lancarPorEncarregado: lancarPorEncarregado,
+    lancarNoDia: lancarNoDia,
     alternarSelecaoProgramacoes: alternarSelecaoProgramacoes,
     alternarProgramacaoMarcada: alternarProgramacaoMarcada,
     limparSelecaoProgramacoes: limparSelecaoProgramacoes,

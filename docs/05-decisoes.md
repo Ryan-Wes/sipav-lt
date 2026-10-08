@@ -16,6 +16,12 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 08/10/2026
 
+### Painéis de todos os trechos, + por dia e quem falta — [WR]
+
+Um encarregado pode passar uma semana num trecho e a outra em outro, e olhando só um trecho os dias dele pareciam vazios sem estarem. As visões **Por Data, Por Encarregado, Por Atividade e Dias sem atividade** passam a começar com **Todos os trechos**, com a opção **Só este trecho** ao lado dos filtros (a escolha fica guardada no navegador). Cada programação de outro trecho leva o nome do trecho. A grade geral e o planejamento salvo continuam sendo do trecho aberto. Limites: abrir ou editar uma torre de outro trecho pede para trocar de trecho antes, e o ✓ de feito só aparece para o trecho aberto.
+
+No painel do encarregado, cada dia da semana ganhou um **+** embaixo da última atividade (ou sozinho, se o dia está vazio) que abre o lançamento já no encarregado e no dia; a data fica junto do dia da semana, com o **FERIADO** no canto; e o topo avisa **quais encarregados estão sem programação** no período, cada nome abrindo o lançamento dele.
+
 ### Feriado marcado no calendário — [WR]
 
 A planilha da ISA traz FERIADO nas células, e a obra precisa saber que naquele dia não se programa. Entrou como um quinto tipo de dia sem atividade (`db/47`), do trecho e sem encarregado, que se registra pela janela de **Dias sem atividade** (com *Até o dia*) ou vem da importação. Os painéis marcam o dia (**FERIADO** no título do dia em Por Data e na coluna do dia em Por Encarregado), a data de lançamento mostra  · FERIADO, e registrar feriado num dia com programação pergunta antes. Não bloqueia programar: avisa.

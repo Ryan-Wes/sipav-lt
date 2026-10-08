@@ -977,6 +977,30 @@ window.SIPAV = window.SIPAV || {};
             porticosDaLinha.forEach(function (pt) {
               var cand = ladoDaLinha ? porticos.filter(function (p) { return p.lado === ladoDaLinha; })[0] : null;
               if (cand) {
+                // A fase vale para o trecho todo, pórtico e torres da linha
+                daLinha.forEach(function (b) {
+                  if (b.ehPortico) return;
+                  pt.rotulos.forEach(function (r) { if (b.notas.indexOf(r) === -1) b.notas.push(r); });
+                });
+                // Lançamento de cabo "PORTICO, 0/2" é do pórtico até a torre: o cabo passa pelas
+                // do meio (a 0/1), e não dá para lançar do pórtico à 0/2 pulando uma. Vale para o
+                // lançamento do cabo em si (x.x.3), não para a ancoragem nem o nivelamento.
+                if (/^4\.(?:1|2|2D|2E|3)\.3$/.test(item)) {
+                  var posDaLinha = daLinha.filter(function (b) { return !ehPortico(b.torreTexto); })
+                    .map(function (b) { return posicaoDaTorre[norm(b.torreTexto)]; })
+                    .filter(function (q) { return q !== undefined; });
+                  if (posDaLinha.length) {
+                    var deP = cand.lado === 'inicio' ? cand.pos + 1 : Math.min.apply(null, posDaLinha);
+                    var ateP = cand.lado === 'inicio' ? Math.max.apply(null, posDaLinha) : cand.pos - 1;
+                    for (var q = deP; q <= ateP; q++) {
+                      var meio = ctx.torres[q];
+                      if (!meio || ehPortico(meio.identificador)) continue;
+                      if (daLinha.some(function (b) { return norm(b.torreTexto) === norm(meio.identificador); })) continue;
+                      daLinha.push({ item: item, semana: semana, dia: dia, data: dataDoDia, encNomes: equipeDaLinha,
+                                     torreTexto: meio.identificador, percentual: null, notas: pt.rotulos.slice() });
+                    }
+                  }
+                }
                 daLinha.push({ item: item, semana: semana, dia: dia, data: dataDoDia, encNomes: equipeDaLinha,
                                torreTexto: cand.torre.identificador, percentual: null, notas: pt.rotulos.slice(), ehPortico: true });
               } else if (ladoDaLinha) {

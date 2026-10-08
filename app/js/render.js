@@ -175,8 +175,27 @@ window.SIPAV = window.SIPAV || {};
    * O cabo da programação, quando tem: sem isto, o para-raio e o OPGW da mesma torre, no
    * mesmo dia, pareciam duas linhas iguais.
    */
+  function rotuloDoCabo(cabo) {
+    return cabo === 'PARA_RAIO' ? 'PARA-RAIO' : cabo === 'OPGW_DIREITO' ? 'OPGW DIREITO'
+         : cabo === 'OPGW_ESQUERDO' ? 'OPGW ESQUERDO' : String(cabo || '');
+  }
+
+  /**
+   * O nome da atividade como aparece nas telas. As atividades do cabo se chamam "… OPGW /
+   * PARA-RAIO" porque uma só serve aos dois; na tela, cada programação mostra o cabo dela
+   * ("LANÇAMENTO DO CABO PARA-RAIO", "LANÇAMENTO DO CABO OPGW"), e assim as duas linhas da
+   * mesma torre deixam de parecer repetidas. É só o texto: a atividade continua uma.
+   */
+  function nomeExibido(p) {
+    var nome = p.atividade ? p.atividade.nome : '—';
+    if (!p.cabo) return nome;
+    return nome.replace(/OPGW\s*\/\s*(?:PARA-RAIO|PR)\b|PARA-RAIO\s*\/\s*OPGW/i, rotuloDoCabo(p.cabo));
+  }
+
   function tagCabo(p) {
     if (!p.cabo) return '';
+    // Já está no nome da atividade: a etiqueta repetiria
+    if (nomeExibido(p) !== (p.atividade ? p.atividade.nome : '—')) return '';
     var nome = p.cabo === 'PARA_RAIO' ? 'PARA-RAIO' : p.cabo === 'OPGW_DIREITO' ? 'OPGW DIR.'
              : p.cabo === 'OPGW_ESQUERDO' ? 'OPGW ESQ.' : String(p.cabo);
     return '<span class="tag-cabo">' + esc(nome) + '</span>';
@@ -244,7 +263,7 @@ window.SIPAV = window.SIPAV || {};
                 '<b class="dia-curto' + (ui.fimDeSemana(p.data) ? ' fim-de-semana' : '') + '">' +
                   esc(ui.diaDaSemana(p.data).slice(0, 3)) + '</b>' +
               '</span> ' +
-              esc(p.atividade ? p.atividade.nome : '—') + tagCabo(p) +
+              esc(nomeExibido(p)) + tagCabo(p) +
               marcaFeito(p) +
               // Sempre aparece. O 100% vem apagado, para a parte repartida seguir
               // chamando mais atenção que o serviço inteiro
@@ -356,7 +375,7 @@ window.SIPAV = window.SIPAV || {};
                 '<b class="dia-curto' + (ui.fimDeSemana(p.data) ? ' fim-de-semana' : '') + '">' +
                   esc(ui.diaDaSemana(p.data).slice(0, 3)) + '</b>' +
               '</span> ' +
-              esc(p.atividade ? p.atividade.nome : '—') + tagCabo(p) +
+              esc(nomeExibido(p)) + tagCabo(p) +
               marcaFeito(p) +
               '<span class="parcial' + (Number(p.percentual) >= 100 ? ' cheio' : '') + '">' + rotuloParcial(p) + '</span>' +
               (p.encarregado ? '<span class="encarregado">' + esc(nomesDosEncarregados(p)) + '</span>' : '') +
@@ -413,7 +432,7 @@ window.SIPAV = window.SIPAV || {};
       // Sem a pastilha da atividade, um ponto mantém a cor presente
       ? '<span class="ponto-atividade" style="background:' + cor + '"></span>'
       : '<span class="chip-atividade" style="background:' + cor + ';color:' +
-          ui.corDoTexto(cor) + '">' + esc(p.atividade ? p.atividade.nome : '—') + '</span>';
+          ui.corDoTexto(cor) + '">' + esc(nomeExibido(p)) + '</span>';
 
     var alerta = p.override_motivo
       ? '<i data-lucide="alert-triangle" class="w-3 h-3 text-amber-500 shrink-0" ' +
@@ -448,7 +467,7 @@ window.SIPAV = window.SIPAV || {};
         ? '<span class="chip-encarregado">' + esc(nomesDosEncarregados(p)) + '</span>' : '';
     }
 
-    var parcial = tagCabo(p) + '<span class="chip-parcial' + (Number(p.percentual) >= 100 ? ' cheio' : '') + '">' +
+    var parcial = tagTrecho(p.torre ? p.torre.trecho_id : null) + tagCabo(p) + '<span class="chip-parcial' + (Number(p.percentual) >= 100 ? ' cheio' : '') + '">' +
       rotuloParcial(p) + '</span>' + marcaFeito(p);
 
     // Com "selecionar vários" ligado, o clique marca em vez de abrir a torre.
@@ -546,13 +565,13 @@ window.SIPAV = window.SIPAV || {};
               '</div>';
     }
 
-    var g = agrupar(itens.slice(), function (p) { return p.atividade ? p.atividade.id : ''; });
+    var g = agrupar(itens.slice(), function (p) { return p.atividade ? p.atividade.id + '|' + nomeExibido(p) : ''; });
     var ids = g.ordem.slice().sort(function (a, b) {
       if (!a) return 1;
       if (!b) return -1;
       var pa = g.mapa[a][0].atividade, pb = g.mapa[b][0].atividade;
       var d = (pa.ordem_execucao || 0) - (pb.ordem_execucao || 0);
-      return d || pa.nome.localeCompare(pb.nome, 'pt-BR');
+      return d || nomeExibido(g.mapa[a][0]).localeCompare(nomeExibido(g.mapa[b][0]), 'pt-BR');
     });
 
     ids.forEach(function (id) {
@@ -568,7 +587,7 @@ window.SIPAV = window.SIPAV || {};
 
       html += '<div class="grupo-atv">' +
                 '<span class="chip-atividade" style="background:' + cor + ';color:' +
-                  ui.corDoTexto(cor) + '">' + esc(atv ? atv.nome : 'Sem atividade') + '</span>' +
+                  ui.corDoTexto(cor) + '">' + esc(atv ? nomeExibido(lista[0]) : 'Sem atividade') + '</span>' +
                 '<span class="grupo-atv-qtd">' + t.torres +
                   (t.torres === 1 ? ' torre' : ' torres') + '</span>' +
               '</div>' +
@@ -692,9 +711,28 @@ window.SIPAV = window.SIPAV || {};
     return !!(E.planejando && E.planejando.esconder && E.planejando.escondidas[p.id]);
   }
 
+  /**
+   * De onde vêm as programações das visões por data, encarregado e atividade: de todos os
+   * trechos (o padrão) ou só do trecho aberto. O Adson pode estar uma semana num trecho e
+   * na outra em outro; olhando só um, os dias dele pareceriam vazios sem estarem. A grade
+   * é sempre do trecho aberto, e uma foto salva também.
+   */
+  function programacoesDeOrigem() {
+    if (E.escopo === 'todos' && E.aba !== 'grade' && !E.snapshot && E.programacoesObra) return E.programacoesObra;
+    return E.programacoes;
+  }
+
+  /** O trecho de uma programação ou movimentação, quando a tela mostra mais de um. */
+  function tagTrecho(trechoId) {
+    if (E.escopo !== 'todos' || E.aba === 'grade' || E.snapshot) return '';
+    if (!trechoId || (E.trechos || []).length < 2) return '';
+    var tr = E.trechos.filter(function (x) { return x.id === trechoId; })[0];
+    return tr ? '<span class="tag-trecho" title="' + esc(tr.nome) + '">' + esc(tr.nome) + '</span>' : '';
+  }
+
   function programacoesVisiveis() {
     var busca = (E.busca || '').trim().toLowerCase();
-    return E.programacoes.filter(function (p) {
+    return programacoesDeOrigem().filter(function (p) {
       if (escondida(p)) return false;
       if (E.filtroAtividade && (!p.atividade || p.atividade.id !== E.filtroAtividade)) return false;
       if (E.filtroCanteiro && (!p.torre || p.torre.canteiro_id !== E.filtroCanteiro)) return false;
@@ -741,7 +779,7 @@ window.SIPAV = window.SIPAV || {};
     return (E.movimentacoes || []).filter(function (m) {
       if (ate && m.data > ate) return false;
       if (de && m.data < de) return false;
-      return movimentacaoDoTrecho(m);
+      return E.escopo === 'todos' || movimentacaoDoTrecho(m);
     });
   }
 
@@ -1021,7 +1059,7 @@ window.SIPAV = window.SIPAV || {};
    * Como a coluna é estreita, o cartão leva a data só na coluna (não repete) e o
    * nome da atividade quebra em duas linhas, se precisar.
    */
-  function semanaEmDias(segundaIso, eventos, nome) {
+  function semanaEmDias(segundaIso, eventos, nome, encarregadoId) {
     var inicio = ui.paraData(segundaIso);
     var dias = [0, 1, 2, 3, 4, 5, 6].map(function (i) { return ui.iso(ui.somarDias(inicio, i)); });
 
@@ -1038,7 +1076,7 @@ window.SIPAV = window.SIPAV || {};
                  '<div class="dia-col-cab' + (fds ? ' fim-de-semana' : '') + '">' +
                    '<b>' + esc(ui.diaDaSemana(iso).slice(0, 3).toUpperCase()) + '</b>' +
                    '<span>' + esc(ui.dataCurta(iso)) + '</span>' +
-                   (feriado ? '<em class="rotulo-feriado">FERIADO</em>' : '') +
+                   (feriado ? '<em class="rotulo-feriado" title="' + esc(feriado.observacao || 'Feriado') + '">FERIADO</em>' : '') +
                  '</div>' +
                  '<div class="dia-col-corpo">' +
                    doDia.map(function (e) {
@@ -1048,18 +1086,58 @@ window.SIPAV = window.SIPAV || {};
                                                 encarregado: false, empilhado: true,
                                                 doEncarregado: nome });
                    }).join('') +
+                   // O + no fim do dia: lança uma atividade para este encarregado neste dia,
+                   // embaixo da última (ou sozinho, se o dia está vazio)
+                   ((encarregadoId && podeLancar())
+                     ? '<button type="button" class="dia-mais" title="Lançar uma atividade para ' + esc(nome) + ' em ' +
+                         esc(ui.dataCurta(iso)) + '" ' +
+                         'onclick="SIPAV.app.lancarNoDia(\'' + encarregadoId + '\', \'' + iso + '\')">+</button>'
+                     : '') +
                  '</div>' +
                '</div>';
       }).join('') +
     '</div>';
   }
 
+  /**
+   * Os encarregados que não aparecem em nada neste período, nem em programação nem em
+   * folga ou mudança: é por onde se vê que faltou alguém. Cada nome abre o lançamento dele.
+   */
+  function alertaSemProgramacao(comProgramacao, comMovimentacao) {
+    var busca = (E.busca || '').trim() || E.filtroAtividade || E.filtroCanteiro;
+    if (busca) return '';       // com filtro ligado, quase todo mundo "some": o aviso mentiria
+
+    var faltam = (E.encarregados || []).filter(function (e) {
+      return !comProgramacao[e.nome] && !comMovimentacao[e.nome];
+    }).sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); });
+    if (!faltam.length) return '';
+
+    return '<div class="alerta-sem-prog">' +
+      '<p class="alerta-sem-prog-titulo"><i data-lucide="alert-triangle" class="w-4 h-4"></i> ' +
+        faltam.length + (faltam.length === 1 ? ' encarregado sem programação' : ' encarregados sem programação') +
+        ' em ' + esc(ui.rotuloPeriodo(E.periodo.de, E.periodo.ate)) + '</p>' +
+      '<p class="alerta-sem-prog-nomes">' +
+        faltam.map(function (e) {
+          return podeLancar()
+            ? '<button type="button" class="chip-sem-prog" title="Lançar para ' + esc(e.nome) + '" ' +
+                'onclick="SIPAV.app.lancarPorEncarregado(\'' + e.id + '\')">' + esc(e.nome) + '</button>'
+            : '<span class="chip-sem-prog">' + esc(e.nome) + '</span>';
+        }).join('') +
+      '</p></div>';
+  }
+
   function renderPorEncarregado() {
     var lista = programacoesVisiveis();
     var movs = movimentacoesVisiveis();
     var cont = $('visaoEncarregados');
+
+    var comProg = {}, comMov = {};
+    lista.forEach(function (p) { encarregadosDe(p).forEach(function (e) { comProg[e.nome] = true; }); });
+    movs.forEach(function (m) { encarregadosDe(m).forEach(function (e) { comMov[e.nome] = true; }); });
+    var avisoFaltam = alertaSemProgramacao(comProg, comMov);
+
     if (!lista.length && !movs.length) {
-      cont.innerHTML = barraLancamento() + vazio('Nenhuma atividade programada neste trecho');
+      cont.innerHTML = barraLancamento() + avisoFaltam + vazio('Nenhuma atividade programada ' + (E.escopo === 'todos' ? 'no período' : 'neste trecho'));
       return;
     }
 
@@ -1116,7 +1194,7 @@ window.SIPAV = window.SIPAV || {};
             '</tr>';
           }).join('') +
           '<tr class="border-t-2 border-slate-300 font-bold">' +
-            '<td class="px-4 py-2 text-slate-800">Total do trecho</td>' +
+            '<td class="px-4 py-2 text-slate-800">' + (E.escopo === 'todos' ? 'Total' : 'Total do trecho') + '</td>' +
             '<td class="px-3 py-2 text-right text-slate-800">' + geral.torres + '</td>' +
             '<td class="px-3 py-2 text-right text-slate-800">' + ui.km(geral.km) + '</td>' +
             '<td class="px-3 py-2 text-right text-slate-800">' + lista.length + '</td>' +
@@ -1129,7 +1207,7 @@ window.SIPAV = window.SIPAV || {};
         '</p>' +
       '</section>';
 
-    cont.innerHTML = barraLancamento() + (lista.length ? tabela : '') + g.ordem.concat(extras).map(function (nome) {
+    cont.innerHTML = barraLancamento() + avisoFaltam + (lista.length ? tabela : '') + g.ordem.concat(extras).map(function (nome) {
       var itens = g.mapa[nome] || [];
       var datas = {};
       itens.forEach(function (p) { datas[p.data] = true; });
@@ -1139,6 +1217,7 @@ window.SIPAV = window.SIPAV || {};
       // seguinte é a QUINZENAL, que é como a gente chama e como vai para a ISA.
       // A movimentação entra na mesma ordem, no dia em que aconteceu, e não numa
       // faixa à parte embaixo: é um dia do encarregado como os outros.
+      var dele = (E.encarregados || []).find(function (x) { return x.nome === nome; });
       var porSemana = agrupar(emOrdemDeDataETorre(itens, movsPorEnc.mapa[nome]),
         function (e) { return ui.iso(ui.segundaDaSemana(ui.paraData(e.data))); });
 
@@ -1151,13 +1230,12 @@ window.SIPAV = window.SIPAV || {};
                    esc(ui.dataCurta(ui.iso(ui.somarDias(ui.paraData(segunda), 6)))) +
                  '</span>' +
                '</div>' +
-               semanaEmDias(segunda, porSemana.mapa[segunda], nome);
+               semanaEmDias(segunda, porSemana.mapa[segunda], nome, dele ? dele.id : null);
       }).join('');
 
       var t = totais(itens);
 
       // O botão de lançar para este encarregado, no cabeçalho do bloco dele
-      var dele = (E.encarregados || []).find(function (x) { return x.nome === nome; });
       var botaoLancar = (podeLancar() && dele)
         ? '<button type="button" class="btn-lancar" ' +
                   'title="Lançar atividades, torres e datas para ' + esc(nome) + '" ' +
@@ -1224,7 +1302,7 @@ window.SIPAV = window.SIPAV || {};
       return a.data < b.data ? -1 : 1;
     });
 
-    var g = agrupar(ordenada, function (p) { return p.atividade ? p.atividade.nome : 'Sem atividade'; });
+    var g = agrupar(ordenada, function (p) { return p.atividade ? nomeExibido(p) : 'Sem atividade'; });
     cont.innerHTML = g.ordem.map(function (nome) {
       // A atividade já está no título do bloco; o espaço vai para o encarregado
       return blocoQuadrante(nome, null, g.mapa[nome],
@@ -1257,7 +1335,7 @@ window.SIPAV = window.SIPAV || {};
     return (E.movimentacoes || []).filter(function (m) {
       if (ate && m.data > ate) return false;
       if (de && m.data < de) return false;
-      return movimentacaoDoTrecho(m);
+      return E.escopo === 'todos' || movimentacaoDoTrecho(m);
     });
   }
 
@@ -1466,6 +1544,7 @@ window.SIPAV = window.SIPAV || {};
     TIPOS_DE_MOVIMENTACAO: TIPOS_DE_MOVIMENTACAO,
     encarregadosDe: encarregadosDe,
     escondida: escondida,
+    nomeExibido: nomeExibido,
     ehPortico: ehPortico,
     iconeDaObservacao: iconeDaObservacao,
     ehSerra: ehSerra,

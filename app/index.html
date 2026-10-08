@@ -41,7 +41,7 @@
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 
   <!-- ?v= força o navegador a buscar de novo quando o código muda. -->
-  <link rel="stylesheet" href="css/app.css?v=144">
+  <link rel="stylesheet" href="css/app.css?v=145">
 </head>
 <body class="h-full flex flex-col antialiased">
 
@@ -333,6 +333,16 @@
                  class="hidden select-filtro" title="De">
           <input id="periodoAte" type="date" onchange="SIPAV.app.mudarPeriodo('custom')"
                  class="hidden select-filtro" title="Até">
+        </div>
+
+        <!-- Só fora da grade: de quais trechos vêm as programações dos painéis -->
+        <div class="caixa-filtro" style="display:none">
+          <i data-lucide="map" class="w-3.5 h-3.5" style="color:var(--texto-fraco)"></i>
+          <select id="filtroEscopo" onchange="SIPAV.app.mudarEscopo(this.value)" class="select-filtro"
+                  title="Todos os trechos, ou só o trecho aberto">
+            <option value="todos">Todos os trechos</option>
+            <option value="trecho">Só este trecho</option>
+          </select>
         </div>
 
         <div class="caixa-filtro">
@@ -748,11 +758,11 @@
   </div>
 </div>
 
-<script src="js/config.js?v=144"></script>
-<script src="js/db.js?v=144"></script>
-<script src="js/ui.js?v=144"></script>
-<script src="js/render.js?v=144"></script>
-<script src="js/isa.js?v=144"></script>
-<script src="js/app.js?v=144"></script>
+<script src="js/config.js?v=145"></script>
+<script src="js/db.js?v=145"></script>
+<script src="js/ui.js?v=145"></script>
+<script src="js/render.js?v=145"></script>
+<script src="js/isa.js?v=145"></script>
+<script src="js/app.js?v=145"></script>
 </body>
 </html>

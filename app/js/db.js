@@ -352,8 +352,11 @@ window.SIPAV = window.SIPAV || {};
     function consultar() {
       var q = cliente()
         .from('programacao')
-        .select(selectProgramacao())
-        .eq('torre.trecho_id', filtro.trechoId);
+        .select(selectProgramacao());
+
+      // Sem trecho, são os da obra toda: é o que as visões por data, encarregado e atividade
+      // mostram quando o escopo é Todos os trechos
+      if (filtro.trechoId) q = q.eq('torre.trecho_id', filtro.trechoId);
 
       if (filtro.de)  q = q.gte('data', filtro.de);
       if (filtro.ate) q = q.lte('data', filtro.ate);
