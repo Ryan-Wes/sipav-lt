@@ -277,12 +277,15 @@ window.SIPAV = window.SIPAV || {};
    * serviço para ir ao lado da torre.
    */
   function notasDaRevisao(prog) {
-    if (!prog.atividade || norm(prog.atividade.nome) !== 'revisao') return [];
-
-    var obs = norm(prog.observacao);
+    // A observação da programação vai para a planilha, entre parênteses depois da
+    // torre, em caixa alta como o resto dela: "Retirada de flambagem" na revisão,
+    // "Fase A" no lançamento do condutor, o que tiver sido escrito. Cada parte
+    // separada por " · " é uma nota.
     var notas = [];
-    if (obs.indexOf('retirada de flambagem') !== -1) notas.push('RETIRADA DE FLAMBAGEM');
-    if (obs.indexOf('retirada de pendencia') !== -1) notas.push('RETIRADA DE PENDÊNCIAS');
+    String(prog.observacao || '').split('·').forEach(function (n) {
+      n = n.trim().toUpperCase();
+      if (n && notas.indexOf(n) === -1) notas.push(n);
+    });
     return notas;
   }
 
@@ -698,6 +701,10 @@ window.SIPAV = window.SIPAV || {};
 
     // A ordem em que as torres vêm é a da linha (o banco devolve por `ordem`):
     // é por ela que "0/2 A 5/1" vira a lista de torres do meio
+    // O pórtico é um card como as torres, se o trecho o tiver cadastrado (torre "PÓRTICO")
+    var porticoDoTrecho = (ctx.torres || []).filter(function (t) { return norm(t.identificador) === 'portico'; })[0];
+    var porticoSoltos = 0;
+
     var posicaoDaTorre = {};
     (ctx.torres || []).forEach(function (t, i) {
       var k = norm(t.identificador);
@@ -727,6 +734,18 @@ window.SIPAV = window.SIPAV || {};
      */
     function lerTorreDoToken(t) {
       var texto = t.torre, rotulos = [];
+
+      // "FASE B - PORTICO", "PORTICO": o próprio pórtico, se ele é uma torre do trecho
+      var fasePortico = /^fase\s+([a-c])\s+-\s+(.+)$/i.exec(texto);
+      var restoPortico = fasePortico ? fasePortico[2] : texto;
+      if (norm(restoPortico) === 'portico') {
+        if (porticoDoTrecho) {
+          return { nomes: [porticoDoTrecho.identificador],
+                   rotulos: fasePortico ? ['Fase ' + fasePortico[1].toUpperCase()] : [] };
+        }
+        porticoSoltos++;
+      }
+
       if (!/\d+\/\d+/.test(texto)) return null;
 
       var fase = /^(.*\S)\s+(fase\s+[a-c])$/i.exec(texto);
@@ -764,7 +783,7 @@ window.SIPAV = window.SIPAV || {};
       var m = /^mudan[cç]a para\s+(.+)$/i.exec(texto.trim());
       if (m) {
         var lugar = m[1].toLowerCase().replace(/(^|\s)(\S)/g, function (x, a, b) { return a + b.toUpperCase(); });
-        return { tipo: 'OUTRO', obs: 'Mudança para ' + lugar };
+        return { tipo: 'MUDANCA_TRECHO', destino: lugar, obs: '' };
       }
       return null;
     }
@@ -838,7 +857,7 @@ window.SIPAV = window.SIPAV || {};
               if (!lida) {
                 var mov = movimentoDaAnotacao(t.torre);
                 if (mov) {
-                  movimentosBrutos.push({ tipo: mov.tipo, obs: mov.obs, data: dataDoDia,
+                  movimentosBrutos.push({ tipo: mov.tipo, obs: mov.obs, destino: mov.destino, data: dataDoDia,
                                           encNomes: mov.tipo === 'FERIADO' ? [] : equipeDaLinha });
                 } else {
                   soltas.push(frase(t.torre));
@@ -917,7 +936,7 @@ window.SIPAV = window.SIPAV || {};
       if (!torre) {
         var mov = movimentoDaAnotacao(b.torreTexto);
         if (mov) {
-          movimentosBrutos.push({ tipo: mov.tipo, obs: mov.obs, data: b.data, encNomes: b.encNomes });
+          movimentosBrutos.push({ tipo: mov.tipo, obs: mov.obs, destino: mov.destino, data: b.data, encNomes: b.encNomes });
           return;
         }
         if (ehAnotacao.test(b.torreTexto)) {
@@ -962,10 +981,13 @@ window.SIPAV = window.SIPAV || {};
         else if (!equipe.some(function (x) { return x.id === e.id; })) equipe.push(e);
       });
       if (faltou) return;
-      var chave = [b.tipo, b.data, b.obs, equipe.map(function (e) { return e.id; }).sort().join('+')].join('|');
+      // Mudança de trecho sem encarregado não tem quem mudou: fica como o texto da planilha
+      var tipo = b.tipo, obs = b.obs;
+      if (tipo === 'MUDANCA_TRECHO' && !equipe.length) { tipo = 'OUTRO'; obs = 'Mudança para ' + b.destino; }
+      var chave = [tipo, b.data, obs, b.destino || '', equipe.map(function (e) { return e.id; }).sort().join('+')].join('|');
       if (movimentos[chave]) return;
       movimentos[chave] = {
-        tipo: b.tipo, data: b.data, observacao: b.obs,
+        tipo: tipo, data: b.data, observacao: obs, destinoTexto: tipo === 'MUDANCA_TRECHO' ? b.destino : null,
         encarregados: equipe.map(function (e) { return e.nome; }),
         encarregadoId: equipe[0] ? equipe[0].id : null,
         encarregado2Id: equipe[1] ? equipe[1].id : null
@@ -1127,6 +1149,7 @@ window.SIPAV = window.SIPAV || {};
         .sort(function (a, b) { return a.data < b.data ? -1 : a.data > b.data ? 1 : 0; }),
       problemas: problemas,
       resumo: {
+        portico: porticoSoltos,
         itensLidos: Object.keys(mapa.achados).length,
         celulas: brutas.length,
         tortos: mapa.tortos.length

@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v134 · 2026-10-08';
+  var VERSAO = 'v135 · 2026-10-08';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -8244,6 +8244,7 @@ window.SIPAV = window.SIPAV || {};
         }
         importacaoIsa = { arquivo: arquivo.name, datas: r.datas, registros: r.registros,
                           movimentos: r.movimentos || [], naoReconhecidos: r.naoReconhecidos || [],
+                          portico: (r.resumo && r.resumo.portico) || 0,
                           problemas: r.problemas, resumo: r.resumo };
 
         var fim = ui.iso(ui.somarDias(ui.paraData(r.datas.s1), 13));
@@ -8259,6 +8260,8 @@ window.SIPAV = window.SIPAV || {};
         importacaoIsa.registros.forEach(function (x) {
           x.existe = !!ja[[x.torreId, x.atividadeId, x.data, x.encarregadoId || ''].join('|')];
         });
+
+        resolverMudancasDaIsa(importacaoIsa.movimentos);
 
         // Os dias sem atividade que já estão registrados não se repetem
         var jaMov = {};
@@ -8319,6 +8322,65 @@ window.SIPAV = window.SIPAV || {};
     processarImportacaoIsa();
   }
 
+  /**
+   * "MUDANÇA PARA IGARITÉ": o canteiro de destino é o que tem esse nome; o de origem,
+   * o outro canteiro que atende este trecho, quando é um só. Sem os dois, não dá para
+   * registrar a mudança de trecho: fica como outro motivo, com o texto, e a prévia
+   * deixa escolher de onde.
+   */
+  function resolverMudancasDaIsa(movimentos) {
+    var canteiros = E.canteiros || [];
+    var doTrecho = canteiros.filter(function (c) { return (c.trechos || []).indexOf(E.trechoAtual.id) !== -1; });
+
+    movimentos.forEach(function (x) {
+      if (!x.destinoTexto) return;
+      var alvo = normalizar(x.destinoTexto);
+      var destino = canteiros.filter(function (c) { return normalizar(c.nome) === alvo; })[0] ||
+        canteiros.filter(function (c) {
+          var n = normalizar(c.nome);
+          return n.indexOf(alvo) !== -1 || alvo.indexOf(n) !== -1;
+        })[0];
+
+      x.canteiroDestinoId = destino ? destino.id : null;
+      var origens = doTrecho.filter(function (c) { return !destino || c.id !== destino.id; });
+      x.canteiroOrigemId = destino && origens.length === 1 ? origens[0].id : null;
+      aplicarOrigemDaMudanca(x);
+    });
+  }
+
+  /** Mudança de trecho se há os dois canteiros; senão, outro motivo com o texto. */
+  function aplicarOrigemDaMudanca(x) {
+    if (x.canteiroDestinoId && x.canteiroOrigemId && x.canteiroOrigemId !== x.canteiroDestinoId) {
+      x.tipo = 'MUDANCA_TRECHO';
+      x.observacao = '';
+    } else {
+      x.tipo = 'OUTRO';
+      x.observacao = 'Mudança para ' + x.destinoTexto;
+    }
+  }
+
+  function escolherOrigemDaMudancaIsa(i, id) {
+    var x = importacaoIsa.movimentos[i];
+    x.canteiroOrigemId = id || null;
+    aplicarOrigemDaMudanca(x);
+    mostrarPreviaIsa();
+  }
+
+  /** Cadastra o PÓRTICO como torre do trecho, no começo da linha, e lê a planilha de novo. */
+  function cadastrarPorticoDaIsa() {
+    var menor = E.torres.reduce(function (m, t) { return Math.min(m, Number(t.ordem) || 0); }, 0);
+    ui.processando('Cadastrando o pórtico…');
+    db.importarTorres(E.trechoAtual.id, [{ identificador: 'PÓRTICO', km: 0, ordem: menor - 1 }])
+      .then(function () { return db.torres(E.trechoAtual.id); })
+      .then(function (torres) {
+        E.torres = torres;
+        ui.pronto();
+        ui.avisar('Pórtico cadastrado como torre.', 'sucesso');
+        processarImportacaoIsa();
+      })
+      .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro', 6000); });
+  }
+
   function mostrarPreviaIsa() {
     var imp = importacaoIsa;
     if (!imp) return;
@@ -8356,6 +8418,18 @@ window.SIPAV = window.SIPAV || {};
           '<p class="text-sm font-semibold text-rose-800">Parece a planilha de outro trecho</p>' +
           '<p class="text-xs text-rose-800 mt-1">Muitas torres da planilha não existem em ' +
             esc(E.trechoAtual.nome) + '. Confira o trecho que está aberto.</p>' +
+        '</div>';
+    }
+
+    // Pórtico com programação na planilha, mas sem ser uma torre do trecho: sem ele
+    // cadastrado, vira só comentário nas torres do lado
+    if (imp.portico) {
+      corpo +=
+        '<div class="rounded-lg border border-amber-300 bg-amber-50 p-3 space-y-2">' +
+          '<p class="text-sm font-semibold text-amber-900">Pórtico na planilha (' + imp.portico + ' lançamento(s))</p>' +
+          '<p class="text-xs text-amber-800">O trecho não tem o pórtico cadastrado, então ele entrou só como comentário ' +
+            'nas torres ao lado. Cadastrado como torre, ele vira um card como as outras e recebe as programações.</p>' +
+          '<button type="button" class="btn-secundario" onclick="SIPAV.app.cadastrarPorticoDaIsa()">Cadastrar PÓRTICO como torre</button>' +
         '</div>';
     }
 
@@ -8446,11 +8520,25 @@ window.SIPAV = window.SIPAV || {};
           '<div class="resumo-enc-lista barra-fina" style="max-height:10rem">' +
             movCriar.map(function (x) {
               var titulo = (render.TIPOS_DE_MOVIMENTACAO || []).filter(function (k) { return k.tipo === x.tipo; })[0];
+              var nomeC = function (id) { var c = E.canteiros.filter(function (k) { return k.id === id; })[0]; return c ? c.nome : '?'; };
+              var iMov = imp.movimentos.indexOf(x);
+              var rota = '';
+              if (x.destinoTexto) {
+                if (x.tipo === 'MUDANCA_TRECHO') rota = ' · ' + esc(nomeC(x.canteiroOrigemId)) + ' → ' + esc(nomeC(x.canteiroDestinoId));
+                else if (x.canteiroDestinoId) {
+                  rota = ' <select class="campo" style="display:inline;width:auto;padding:.125rem .25rem" ' +
+                           'onchange="SIPAV.app.escolherOrigemDaMudancaIsa(' + iMov + ', this.value)">' +
+                           '<option value="">De onde? (sem escolha, fica como outro motivo)</option>' +
+                           E.canteiros.filter(function (c) { return c.id !== x.canteiroDestinoId; }).map(function (c) {
+                             return '<option value="' + c.id + '">De ' + esc(c.nome) + '</option>';
+                           }).join('') + '</select>';
+                }
+              }
               return '<div class="resumo-enc-linha">' +
                 '<span class="resumo-enc-data">' + esc(ui.dataCurta(x.data)) +
                   '<b class="' + (ui.fimDeSemana(x.data) ? 'fim-de-semana' : '') + '">' +
                     esc(ui.diaDaSemana(x.data).slice(0, 3)) + '</b></span>' +
-                '<span><strong>' + esc(titulo ? titulo.titulo : x.tipo) + '</strong>' +
+                '<span><strong>' + esc(titulo ? titulo.titulo : x.tipo) + '</strong>' + rota +
                   (x.observacao ? ' · ' + esc(x.observacao) : '') +
                   ' <em style="color:var(--texto-fraco)">' +
                     (x.encarregados.length ? esc(x.encarregados.join(' + ')) : 'sem encarregado') +
@@ -8551,7 +8639,9 @@ window.SIPAV = window.SIPAV || {};
         return db.salvarMovimentacao({
           tipo: x.tipo, data: x.data,
           encarregadoId: x.encarregadoId, encarregado2Id: x.encarregado2Id,
-          trechoId: E.trechoAtual.id, observacao: x.observacao
+          trechoId: E.trechoAtual.id, observacao: x.observacao,
+          canteiroOrigemId: x.tipo === 'MUDANCA_TRECHO' ? x.canteiroOrigemId : '',
+          canteiroDestinoId: x.tipo === 'MUDANCA_TRECHO' ? x.canteiroDestinoId : ''
         })
           .then(function (nova) { if (nova && nova.id) ids.push(nova.id); })
           .catch(function (e) { falhou.push({ registro: x, motivo: e.message }); });
@@ -9046,6 +9136,8 @@ window.SIPAV = window.SIPAV || {};
     abrirRelatorioIsa: abrirRelatorioIsa,
     abrirImportarIsa: abrirImportarIsa,
     associarEncarregadoIsa: associarEncarregadoIsa,
+    escolherOrigemDaMudancaIsa: escolherOrigemDaMudancaIsa,
+    cadastrarPorticoDaIsa: cadastrarPorticoDaIsa,
     pedirNovoEncarregadoIsa: pedirNovoEncarregadoIsa,
     cadastrarEncarregadoDaIsa: cadastrarEncarregadoDaIsa,
     abrirPlanejamentos: abrirPlanejamentos,
