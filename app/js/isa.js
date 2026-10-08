@@ -880,6 +880,20 @@ window.SIPAV = window.SIPAV || {};
     var brutas = [];
     var encDesconhecidos = {}, torresDesconhecidas = {};
 
+    // O que a planilha diz de cada nome que não foi reconhecido: em que atividades
+    // aparece, com quem, em que dias e em que torres. É o que ajuda a decidir qual
+    // dos encarregados do SIPAV ele é.
+    var contextoDe = {};
+    function anotarContexto(nome, b, atividade) {
+      var k = norm(nome);
+      var c = contextoDe[k] = contextoDe[k] || { atividades: {}, parceiros: {}, dias: [], torres: [] };
+      c.atividades[atividade] = (c.atividades[atividade] || 0) + 1;
+      b.encNomes.forEach(function (n) { if (norm(n) !== k) c.parceiros[n] = (c.parceiros[n] || 0) + 1; });
+      if (c.dias.indexOf(b.data) === -1) c.dias.push(b.data);
+      if (b.torreTexto && !ehPortico(b.torreTexto) && c.torres.length < 5 && c.torres.indexOf(b.torreTexto) === -1) {
+        c.torres.push(b.torreTexto);
+      }
+    }
     Object.keys(mapa.achados).forEach(function (item) {
       ['prog1', 'prog2'].forEach(function (semana) {
         var linha = mapa.achados[item][semana];
@@ -1052,7 +1066,10 @@ window.SIPAV = window.SIPAV || {};
       var equipe = [], faltou = false;
       b.encNomes.forEach(function (nome) {
         var e = acharEncarregado(nome);
-        if (!e) { encDesconhecidos[nome] = (encDesconhecidos[nome] || 0) + 1; faltou = true; }
+        if (!e) {
+          encDesconhecidos[nome] = (encDesconhecidos[nome] || 0) + 1; faltou = true;
+          anotarContexto(nome, b, atividadesDoItem(b.item)[0] || rotuloDoItem(b.item));
+        }
         else if (!equipe.some(function (x) { return x.id === e.id; })) equipe.push(e);
       });
       if (faltou) return;
@@ -1077,7 +1094,10 @@ window.SIPAV = window.SIPAV || {};
       var equipe = [], faltou = false;
       b.encNomes.forEach(function (nome) {
         var e = acharEncarregado(nome);
-        if (!e) { encDesconhecidos[nome] = (encDesconhecidos[nome] || 0) + 1; faltou = true; }
+        if (!e) {
+          encDesconhecidos[nome] = (encDesconhecidos[nome] || 0) + 1; faltou = true;
+          anotarContexto(nome, b, 'Dia sem atividade');
+        }
         else if (!equipe.some(function (x) { return x.id === e.id; })) equipe.push(e);
       });
       if (faltou) return;
@@ -1120,6 +1140,16 @@ window.SIPAV = window.SIPAV || {};
       var k = norm(nome);
       var x = naoReconhecidos[k] = naoReconhecidos[k] || { chave: k, nome: nome, qtd: 0, candidatos: candidatosDe[k] || [] };
       x.qtd += encDesconhecidos[nome];
+      var c = contextoDe[k];
+      if (c) {
+        x.contexto = {
+          atividades: Object.keys(c.atividades).map(function (a) { return { nome: a, qtd: c.atividades[a] }; })
+            .sort(function (a, b) { return b.qtd - a.qtd; }),
+          parceiros: Object.keys(c.parceiros),
+          primeiro: c.dias.slice().sort()[0], ultimo: c.dias.slice().sort().slice(-1)[0],
+          torres: c.torres
+        };
+      }
     });
 
     Object.keys(naoReconhecidos).sort().forEach(function (k) {

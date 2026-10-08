@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v138 · 2026-10-08';
+  var VERSAO = 'v139 · 2026-10-08';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -8174,6 +8174,7 @@ window.SIPAV = window.SIPAV || {};
     importacaoIsaApelidos = {};
     importacaoIsaRotulos = {};
     importacaoIsaNovo = {};
+    historicoDosEncarregados = null;
     if (somenteConsulta()) return;
     if (E.perfil && E.perfil.papel === 'LEITURA') {
       ui.avisar('Seu perfil só consulta. Quem programa é planejamento ou supervisor.', 'alerta');
@@ -8224,6 +8225,40 @@ window.SIPAV = window.SIPAV || {};
     processarImportacaoIsa();
   }
 
+  var historicoDosEncarregados = null;   // encarregado → [{nome, qtd}] do que já apontou neste trecho
+
+  /**
+   * O que cada encarregado já fez neste trecho, pelos apontamentos de campo. Ajuda a
+   * decidir qual "Antônio" da planilha é qual: quem faz lançamento de cabo, quem faz
+   * revisão. Se não der para ler, a prévia segue sem essa dica.
+   */
+  function carregarHistoricoDosEncarregados() {
+    if (historicoDosEncarregados) return Promise.resolve();
+    return db.execucoes({ trechoId: E.trechoAtual.id })
+      .then(function (execs) {
+        var porEnc = {};
+        execs.forEach(function (x) {
+          if (!x.encarregado_id) return;
+          var atv = E.atividades.filter(function (a) { return a.id === x.atividade_id; })[0];
+          if (!atv) return;
+          var m = porEnc[x.encarregado_id] = porEnc[x.encarregado_id] || {};
+          m[atv.nome] = (m[atv.nome] || 0) + 1;
+        });
+        historicoDosEncarregados = {};
+        Object.keys(porEnc).forEach(function (id) {
+          historicoDosEncarregados[id] = Object.keys(porEnc[id])
+            .map(function (n) { return { nome: n, qtd: porEnc[id][n] }; })
+            .sort(function (a, b) { return b.qtd - a.qtd; });
+        });
+      })
+      .catch(function () { historicoDosEncarregados = {}; });
+  }
+
+  function textoDasAtividades(lista, quantas) {
+    return lista.slice(0, quantas).map(function (a) { return a.nome + ' (' + a.qtd + ')'; }).join(', ') +
+           (lista.length > quantas ? '…' : '');
+  }
+
   /** Lê a planilha de novo, com o que foi escolhido na prévia para os nomes não reconhecidos. */
   function processarImportacaoIsa() {
     var arquivo = importacaoIsaArquivoObj;
@@ -8232,9 +8267,11 @@ window.SIPAV = window.SIPAV || {};
     ui.fecharModal('modalGenerico');
     ui.processando('Lendo a planilha…');
 
-    SIPAV.isa.interpretar(arquivo, {
-      torres: E.torres, encarregados: E.encarregados, atividades: E.atividades, segundaS1: segunda,
-      apelidos: importacaoIsaApelidos
+    carregarHistoricoDosEncarregados().then(function () {
+      return SIPAV.isa.interpretar(arquivo, {
+        torres: E.torres, encarregados: E.encarregados, atividades: E.atividades, segundaS1: segunda,
+        apelidos: importacaoIsaApelidos
+      });
     })
       .then(function (r) {
         if (!r.datas.s1) {
@@ -8311,6 +8348,18 @@ window.SIPAV = window.SIPAV || {};
         });
       })
       .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro', 6000); });
+  }
+
+  /** O que a planilha diz desse nome, para ajudar a escolher quem ele é. */
+  function contextoDoNomeIsa(x) {
+    var c = x.contexto;
+    if (!c) return '';
+    var partes = [];
+    if (c.atividades && c.atividades.length) partes.push('<strong>Na planilha:</strong> ' + esc(textoDasAtividades(c.atividades, 5)));
+    if (c.parceiros && c.parceiros.length) partes.push('com ' + esc(c.parceiros.slice(0, 4).join(', ')));
+    if (c.primeiro) partes.push(esc(ui.dataCurta(c.primeiro)) + (c.ultimo && c.ultimo !== c.primeiro ? ' a ' + esc(ui.dataCurta(c.ultimo)) : ''));
+    if (c.torres && c.torres.length) partes.push('torres ' + esc(c.torres.join(', ')) + (x.qtd > c.torres.length ? '…' : ''));
+    return '<p class="text-xs" style="color:var(--texto-suave)">' + partes.join(' · ') + '</p>';
   }
 
   function associarEncarregadoIsa(chave, id) {
@@ -8519,6 +8568,7 @@ window.SIPAV = window.SIPAV || {};
           '<p class="text-sm font-semibold text-amber-900">Encarregados que não reconheci</p>' +
           '<p class="text-xs text-amber-800">Escolha quem é cada um. Sem escolha, os lançamentos dele ficam de fora.</p>' +
           imp.naoReconhecidos.map(function (x, n) {
+            return '<div class="space-y-1">' + (function () {
             // Cadastrar um encarregado novo, com o nome que a pessoa quiser
             if (importacaoIsaNovo[x.chave]) {
               return '<div class="flex items-center gap-2 flex-wrap">' +
@@ -8536,8 +8586,11 @@ window.SIPAV = window.SIPAV || {};
             var candidatos = x.candidatos.map(function (c) { return c.id; });
             var opcoes = '<option value="">Deixar de fora</option>' +
               porNome.map(function (e) {
-                return '<option value="' + e.id + '">' + esc(e.nome) +
-                       (candidatos.indexOf(e.id) !== -1 ? ' (parecido)' : '') + '</option>';
+                var hist = (historicoDosEncarregados || {})[e.id];
+                var dica = candidatos.indexOf(e.id) !== -1
+                  ? ' (parecido)' + (hist ? ' — já fez: ' + textoDasAtividades(hist, 3) : ' — sem apontamento neste trecho')
+                  : '';
+                return '<option value="' + e.id + '">' + esc(e.nome) + esc(dica) + '</option>';
               }).join('');
             return '<div class="flex items-center gap-2 flex-wrap">' +
               '<span class="text-xs font-semibold" style="min-width:8rem">' + esc(x.nome) +
@@ -8547,6 +8600,7 @@ window.SIPAV = window.SIPAV || {};
                 opcoes + '</select>' +
               '<button type="button" class="btn-secundario" ' +
                       'onclick="SIPAV.app.pedirNovoEncarregadoIsa(\'' + esc(x.chave) + '\', true)">+ Novo</button></div>';
+            })() + contextoDoNomeIsa(x) + '</div>';
           }).join('') +
         '</div>';
     }
