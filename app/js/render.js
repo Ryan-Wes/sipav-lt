@@ -1277,13 +1277,12 @@ window.SIPAV = window.SIPAV || {};
       var porSemana = agrupar(emOrdemDeDataETorre(itens, movsPorEnc.mapa[nome]),
         function (e) { return ui.iso(ui.segundaDaSemana(ui.paraData(e.data))); });
 
-      // Aberto pelo alerta e ainda sem nada: as semanas do período, em branco
+      // Todas as semanas do período aparecem, com ou sem nada nelas: o semanal e o quinzenal
+      // sempre lá, e o + de cada dia para lançar onde estiver vazio
       var estaAberto = abertos.indexOf(nome) !== -1;
-      if (estaAberto) {
-        segundasDoPeriodo().forEach(function (s) {
-          if (!porSemana.mapa[s]) { porSemana.mapa[s] = []; porSemana.ordem.push(s); }
-        });
-      }
+      segundasDoPeriodo().forEach(function (s) {
+        if (!porSemana.mapa[s]) { porSemana.mapa[s] = []; porSemana.ordem.push(s); }
+      });
 
       // As segundas-feiras em ordem, sempre
       var corpo = porSemana.ordem.slice().sort().map(function (segunda) {
