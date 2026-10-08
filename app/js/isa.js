@@ -1324,6 +1324,7 @@ window.SIPAV = window.SIPAV || {};
           encarregado2Id: grupo.encs[1] ? grupo.encs[1].id : null,
           encarregados: grupo.encs.map(function (e) { return e.nome; }),
           percentual: primeiro.percentual != null ? primeiro.percentual : 100,
+          explicito: primeiro.percentual != null,
           cabo: cabo || null,
           observacao: observacaoDasNotas(atv.nome, notas),
           itens: itensUsados.slice()
@@ -1386,6 +1387,8 @@ window.SIPAV = window.SIPAV || {};
         return a.torre.localeCompare(b.torre, 'pt-BR', { numeric: true });
       });
 
+    dividirPercentuais(lista);
+
     return {
       datas: { s1: lidas.s1, s2: lidas.s2, origem: lidas.origem },
       registros: lista,
@@ -1400,6 +1403,47 @@ window.SIPAV = window.SIPAV || {};
         tortos: mapa.tortos.length
       }
     };
+  }
+
+  /**
+   * Uma atividade numa torre que aparece em mais de um dia, ou com mais de um encarregado,
+   * não é feita inteira em cada um: 100% no dia 1 e 100% no dia 2 não existe. A torre é
+   * dividida em partes iguais (dois dias, 50% e 50%; três, 33,33, 33,33 e 33,34, para a
+   * soma fechar 100). Se a planilha já traz um percentual, vale o dela, e as outras
+   * dividem o que sobrou.
+   *
+   * Fora da regra só a REVISÃO: ela volta à torre para a retirada de flambagem e a de
+   * pendências, e cada visita é uma etapa, não uma fatia.
+   * Cabo diferente é serviço diferente: o para-raio e o OPGW não se dividem entre si.
+   */
+  var SEM_DIVISAO = /^revisao/;
+
+  function dividirPercentuais(lista) {
+    var grupos = {};
+    lista.forEach(function (r) {
+      if (SEM_DIVISAO.test(norm(r.atividade))) return;
+      var k = r.torreId + '|' + r.atividadeId + '|' + (r.cabo || '');
+      (grupos[k] = grupos[k] || []).push(r);
+    });
+
+    Object.keys(grupos).forEach(function (k) {
+      var g = grupos[k];
+      if (g.length < 2) return;
+
+      var livres = g.filter(function (r) { return !r.explicito; });
+      if (!livres.length) return;
+
+      var fixo = g.filter(function (r) { return r.explicito; })
+        .reduce(function (s, r) { return s + r.percentual; }, 0);
+      var sobra = Math.round((100 - fixo) * 100) / 100;
+      if (sobra <= 0) return;
+
+      livres.sort(function (a, b) { return a.data < b.data ? -1 : a.data > b.data ? 1 : 0; });
+      var parte = Math.floor(sobra * 100 / livres.length) / 100;
+      livres.forEach(function (r, i) {
+        r.percentual = i < livres.length - 1 ? parte : Math.round((sobra - parte * (livres.length - 1)) * 100) / 100;
+      });
+    });
   }
 
   /**

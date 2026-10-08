@@ -1165,6 +1165,11 @@ window.SIPAV = window.SIPAV || {};
     if (e && E.encarregadosAbertos) delete E.encarregadosAbertos[e.nome];
     tudo();
   }
+  /** O aviso de quem falta e o botão de lançar, na mesma linha. */
+  function topoDoEncarregado(aviso) {
+    return '<div class="linha-topo-enc">' + aviso + barraLancamento() + '</div>';
+  }
+
   function renderPorEncarregado() {
     var lista = programacoesVisiveis();
     var movs = movimentacoesVisiveis();
@@ -1176,7 +1181,7 @@ window.SIPAV = window.SIPAV || {};
     var avisoFaltam = alertaSemProgramacao(comProg, comMov);
 
     if (!lista.length && !movs.length) {
-      cont.innerHTML = barraLancamento() + avisoFaltam + vazio('Nenhuma atividade programada ' + (E.escopo === 'todos' ? 'no período' : 'neste trecho'));
+      cont.innerHTML = topoDoEncarregado(avisoFaltam) + vazio('Nenhuma atividade programada ' + (E.escopo === 'todos' ? 'no período' : 'neste trecho'));
       return;
     }
 
@@ -1257,7 +1262,7 @@ window.SIPAV = window.SIPAV || {};
       return a.localeCompare(b, 'pt-BR');
     });
 
-    cont.innerHTML = barraLancamento() + avisoFaltam + (lista.length ? tabela : '') + nomesDosBlocos.map(function (nome) {
+    cont.innerHTML = topoDoEncarregado(avisoFaltam) + (lista.length ? tabela : '') + nomesDosBlocos.map(function (nome) {
       var itens = g.mapa[nome] || [];
       var datas = {};
       itens.forEach(function (p) { datas[p.data] = true; });
