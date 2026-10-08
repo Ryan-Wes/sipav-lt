@@ -16,6 +16,10 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 08/10/2026
 
+### Histórico: alteração em massa vira um cartão — [WR]
+
+Importar mil programações enchia o painel de *Últimas alterações* com mil linhas. As alterações de mesma ação e mesma pessoa, cada uma até 3 minutos depois da anterior, e só quando passam de 3, viram um cartão: *Wesley programou 935 programações de uma vez*, com a origem (a importação da ISA e o arquivo), as datas, as torres e o trecho, e a lista inteira dentro, fechada. O banco continua gravando uma linha por alteração, e o painel passa a carregar as 2.000 últimas. Alteração feita direto no banco (SQL) aparece como *Direto no banco*, em vez de *desconhecido*.
+
 ### Painéis de todos os trechos, + por dia e quem falta — [WR]
 
 Um encarregado pode passar uma semana num trecho e a outra em outro, e olhando só um trecho os dias dele pareciam vazios sem estarem. As visões **Por Data, Por Encarregado, Por Atividade e Dias sem atividade** passam a começar com **Todos os trechos**, com a opção **Só este trecho** ao lado dos filtros (a escolha fica guardada no navegador). Cada programação de outro trecho leva o nome do trecho. A grade geral e o planejamento salvo continuam sendo do trecho aberto. Limites: abrir ou editar uma torre de outro trecho pede para trocar de trecho antes, e o ✓ de feito só aparece para o trecho aberto.

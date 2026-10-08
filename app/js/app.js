@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v147 · 2026-10-08';
+  var VERSAO = 'v148 · 2026-10-08';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -2800,6 +2800,114 @@ window.SIPAV = window.SIPAV || {};
       '</div>';
   }
 
+  /**
+   * Muita alteração de uma vez (uma importação de mil programações, um ajuste em massa)
+   * vira um cartão só, em vez de mil linhas que entopem o painel: "Wesley programou 935
+   * programações", com a lista dentro, fechada. O banco continua gravando uma linha por
+   * alteração; é só a forma de mostrar.
+   *
+   * Juntam-se as de mesma ação e mesma pessoa em que cada uma vem até 3 minutos depois da
+   * anterior, e só quando passam de 3. Alterações de outras pessoas no meio não quebram o
+   * grupo, e o que fica fora dele continua como linha.
+   */
+  var MINIMO_PARA_AGRUPAR = 4;
+  var JANELA_DO_GRUPO_MS = 3 * 60 * 1000;
+
+  function agruparHistorico(lista) {
+    var abertos = {}, grupos = [], dono = [];
+
+    lista.forEach(function (h, i) {
+      var chave = h.acao + '|' + (h.quem_nome || '');
+      var t = new Date(h.quando).getTime();
+      var g = abertos[chave];
+      if (!g || Math.abs(g.ultimo - t) > JANELA_DO_GRUPO_MS) {
+        g = abertos[chave] = { itens: [], ultimo: t, acao: h.acao, quem: h.quem_nome };
+        grupos.push(g);
+      }
+      g.itens.push(h);
+      g.ultimo = t;
+      dono[i] = g;
+    });
+
+    var saida = [], jaPosto = [];
+    lista.forEach(function (h, i) {
+      var g = dono[i];
+      if (g.itens.length < MINIMO_PARA_AGRUPAR) { saida.push({ item: h }); return; }
+      if (jaPosto.indexOf(g) !== -1) return;
+      jaPosto.push(g);
+      saida.push({ grupo: g });
+    });
+    return saida;
+  }
+
+  /** O cartão de um grupo: quem, o quê, quantas, de que (a importação da ISA) e a lista dentro. */
+  function cartaoDoGrupoHistorico(g, mostrarTorre) {
+    var e = ESTILO_ACAO[g.acao] || ESTILO_ACAO.ALTEROU;
+    var n = g.itens.length;
+
+    // Quem. Sem usuário é alteração feita direto no banco (SQL), e "desconhecido" confunde
+    var quem = g.quem ? '<strong>' + esc(g.quem) + '</strong>' : '<strong>Direto no banco</strong>';
+
+    // O que foi: o motivo que quase todas têm em comum diz de onde vieram
+    var motivos = {};
+    g.itens.forEach(function (h) { if (h.override_motivo) motivos[h.override_motivo] = (motivos[h.override_motivo] || 0) + 1; });
+    var principal = Object.keys(motivos).sort(function (a, b) { return motivos[b] - motivos[a]; })[0];
+    var origem = '';
+    // O motivo é o da programação, então só diz de onde ela veio quando o grupo é de criação; num ajuste em massa feito depois, diria o que não aconteceu agora
+    if (g.acao === 'CRIOU' && principal && motivos[principal] >= n * 0.8) {
+      origem = /^Importado do relat/i.test(principal)
+        ? 'Importação da planilha da ISA' + (principal.indexOf('(') !== -1 ? ' ' + principal.slice(principal.indexOf('(')) : '')
+        : principal;
+    }
+
+    // O que mudou, quando foi alteração
+    var campos = {};
+    if (g.acao === 'ALTEROU') {
+      g.itens.forEach(function (h) {
+        Object.keys(h.mudancas || {}).forEach(function (c) { campos[c] = (campos[c] || 0) + 1; });
+      });
+    }
+    var mudou = Object.keys(campos).map(function (c) { return (ROTULO_CAMPO[c] || c).toLowerCase(); });
+
+    var datas = g.itens.map(function (h) { return h.data; }).filter(Boolean).sort();
+    var torres = {}; g.itens.forEach(function (h) { if (h.torre_identificador) torres[h.torre_identificador + '|' + h.trecho_id] = true; });
+    var trechos = {}; g.itens.forEach(function (h) { if (h.trecho_id) trechos[h.trecho_id] = true; });
+    var nomesTrechos = Object.keys(trechos).map(function (id) {
+      var tr = (E.trechos || []).filter(function (x) { return x.id === id; })[0]; return tr ? tr.nome : null;
+    }).filter(Boolean);
+
+    var resumo = [];
+    if (origem) resumo.push(esc(origem));
+    if (mudou.length) resumo.push('mudou ' + esc(mudou.join(', ')));
+    if (datas.length) resumo.push('datas de ' + esc(ui.dataCurta(datas[0])) + (datas[datas.length - 1] !== datas[0] ? ' a ' + esc(ui.dataCurta(datas[datas.length - 1])) : ''));
+    resumo.push(Object.keys(torres).length + ' torres');
+    if (nomesTrechos.length) resumo.push(esc(nomesTrechos.join(' · ')));
+
+    return '<details class="hist-grupo">' +
+      '<summary class="flex gap-3 rounded-lg border border-slate-200 px-3 py-2" style="cursor:pointer;list-style:none">' +
+        '<span class="w-6 h-6 rounded-full shrink-0 flex items-center justify-center mt-0.5" ' +
+              'style="background:' + e.cor + '22;color:' + e.cor + '">' +
+          '<i data-lucide="layers" class="w-3 h-3"></i></span>' +
+        '<div class="flex-1 min-w-0">' +
+          '<p class="text-sm text-slate-700">' + quem + ' ' + e.verbo + ' <strong>' + n + ' programações</strong> de uma vez</p>' +
+          '<p class="text-xs text-slate-500 mt-0.5">' + resumo.join(' · ') + '</p>' +
+        '</div>' +
+        '<span class="text-[11px] text-slate-400 shrink-0 whitespace-nowrap mt-0.5">' +
+          esc(ui.quandoRelativo(g.itens[0].quando)) + ' <i data-lucide="chevron-down" class="w-3 h-3" style="display:inline;vertical-align:-2px"></i></span>' +
+      '</summary>' +
+      '<div class="space-y-1.5 mt-1.5 ml-4" style="max-height:18rem;overflow-y:auto">' +
+        g.itens.map(function (h) { return linhaHistorico(h, mostrarTorre); }).join('') +
+      '</div>' +
+    '</details>';
+  }
+
+  /** As linhas do histórico, com as alterações em massa juntas num cartão. */
+  function corpoDoHistorico(lista, mostrarTorre) {
+    return agruparHistorico(lista).map(function (x) {
+      return x.grupo ? cartaoDoGrupoHistorico(x.grupo, mostrarTorre) : linhaHistorico(x.item, mostrarTorre);
+    }).join('');
+  }
+
   function montarHistorico(lista, titulo, mostrarTorre, comFiltros) {
     var filtros = '';
 
@@ -2839,9 +2947,7 @@ window.SIPAV = window.SIPAV || {};
     }
 
     var corpo = lista.length
-      ? '<div id="histLista" class="space-y-1.5">' +
-          lista.map(function (h) { return linhaHistorico(h, mostrarTorre); }).join('') +
-        '</div>'
+      ? '<div id="histLista" class="space-y-1.5">' + corpoDoHistorico(lista, mostrarTorre) + '</div>'
       : '<div id="histLista"><p class="text-sm text-slate-400 italic text-center py-8">' +
           'Nenhuma alteração registrada ainda.</p></div>';
 
@@ -2882,7 +2988,7 @@ window.SIPAV = window.SIPAV || {};
 
   function abrirHistoricoDoTrecho() {
     ui.processando('Carregando histórico…');
-    db.historicoDoTrecho(null, 300)
+    db.historicoDoTrecho(null, 2000)
       .then(function (lista) {
         ui.pronto();
         historicoCarregado = lista;
@@ -2903,7 +3009,7 @@ window.SIPAV = window.SIPAV || {};
     });
 
     $('histLista').innerHTML = lista.length
-      ? lista.map(function (h) { return linhaHistorico(h, true); }).join('')
+      ? corpoDoHistorico(lista, true)
       : '<p class="text-sm text-slate-400 italic text-center py-8">' +
         'Nenhuma alteração com esses filtros.</p>';
 
