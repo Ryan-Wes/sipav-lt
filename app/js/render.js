@@ -634,7 +634,7 @@ window.SIPAV = window.SIPAV || {};
    */
   var ICONE_MOVIMENTACAO = {
     MUDANCA_TRECHO: 'arrow-right-left', MUDANCA_MAQUINA: 'truck',
-    FOLGA_CAMPO: 'coffee', OUTRO: 'ban'
+    FOLGA_CAMPO: 'coffee', FERIADO: 'flag', OUTRO: 'ban'
   };
 
   /** Os tipos, com o nome que a obra usa, na ordem em que aparecem. */
@@ -642,6 +642,7 @@ window.SIPAV = window.SIPAV || {};
     { tipo: 'MUDANCA_TRECHO',  titulo: 'Mudança de trecho (encarregado)' },
     { tipo: 'MUDANCA_MAQUINA', titulo: 'Deslocamento de máquina' },
     { tipo: 'FOLGA_CAMPO',     titulo: 'Folga de campo' },
+    { tipo: 'FERIADO',         titulo: 'Feriado (ninguém programa)' },
     { tipo: 'OUTRO',           titulo: 'Outro motivo' }
   ];
 
@@ -683,6 +684,13 @@ window.SIPAV = window.SIPAV || {};
     return !!(m.canteiro_destino_id && canteiroServeOTrecho(m.canteiro_destino_id));
   }
 
+  /** O feriado registrado para o dia neste trecho, ou nulo. */
+  function feriadoDoDia(iso) {
+    return (E.movimentacoes || []).filter(function (m) {
+      return m.tipo === 'FERIADO' && m.data === iso && movimentacaoDoTrecho(m);
+    })[0] || null;
+  }
+
   /** O dia em que ela é desenhada. É sempre um dia só. */
   function diaDaMovimentacao(m) {
     return m.data;
@@ -716,6 +724,10 @@ window.SIPAV = window.SIPAV || {};
     // observação, se alguém quis dizer qual, vem junto.
     if (m.tipo === 'MUDANCA_MAQUINA') {
       return 'Deslocamento de máquina' + (m.observacao ? ' · ' + m.observacao : '');
+    }
+
+    if (m.tipo === 'FERIADO') {
+      return 'Feriado' + (m.observacao ? ' · ' + m.observacao : '');
     }
 
     if (m.tipo === 'FOLGA_CAMPO') {
@@ -892,7 +904,7 @@ window.SIPAV = window.SIPAV || {};
             // A data esta no titulo do bloco, entao sai do chip. O encarregado
             // desce para a segunda linha: lado a lado, o nome da atividade quebra
             // em tres linhas e a grade perde o alinhamento.
-            return blocoQuadrante(ui.dataLonga(data), null, progsPorDia.mapa[data] || [],
+            return blocoQuadrante(ui.dataLonga(data) + (feriadoDoDia(data) ? ' · FERIADO' : ''), null, progsPorDia.mapa[data] || [],
               { torre: true, data: false, atividade: true, encarregado: true, empilhado: true,
                 porAtividade: true, movs: movsPorDia.mapa[data] || [] });
           }).join('') +
@@ -938,10 +950,12 @@ window.SIPAV = window.SIPAV || {};
         var doDia = eventos.filter(function (e) { return e.data === iso; });
         var fds = ui.fimDeSemana(iso);
 
-        return '<div class="dia-col' + (doDia.length ? '' : ' dia-col-vazia') + '">' +
+        var feriado = feriadoDoDia(iso);
+        return '<div class="dia-col' + (doDia.length ? '' : ' dia-col-vazia') + (feriado ? ' dia-feriado' : '') + '">' +
                  '<div class="dia-col-cab' + (fds ? ' fim-de-semana' : '') + '">' +
                    '<b>' + esc(ui.diaDaSemana(iso).slice(0, 3).toUpperCase()) + '</b>' +
                    '<span>' + esc(ui.dataCurta(iso)) + '</span>' +
+                   (feriado ? '<em class="rotulo-feriado">FERIADO</em>' : '') +
                  '</div>' +
                  '<div class="dia-col-corpo">' +
                    doDia.map(function (e) {
@@ -1231,7 +1245,7 @@ window.SIPAV = window.SIPAV || {};
             : esc(o.nome);
           return '<tr><td class="px-2 py-1.5 font-medium">' + nome + '</td>' +
             celula(o.MUDANCA_TRECHO) + celula(o.MUDANCA_MAQUINA) + celula(o.FOLGA_CAMPO) +
-            celula(o.OUTRO) + celula(o.total) + '</tr>';
+            celula((o.OUTRO || 0) + (o.FERIADO || 0)) + celula(o.total) + '</tr>';
         }).join('') +
       '</tbody></table></div>';
 
@@ -1365,6 +1379,7 @@ window.SIPAV = window.SIPAV || {};
   window.SIPAV.render = {
     tudo: tudo,
     filtrarMovimentacoes: filtrarMovimentacoes,
+    feriadoDoDia: feriadoDoDia,
     TIPOS_DE_MOVIMENTACAO: TIPOS_DE_MOVIMENTACAO,
     encarregadosDe: encarregadosDe,
     escondida: escondida,

@@ -1085,7 +1085,7 @@ window.SIPAV = window.SIPAV || {};
       // "movimentacao" e seria tomada por "tabela inexistente"
       if (r.error && /invalid input value for enum/i.test(r.error.message || '')) {
         throw new Error('O banco ainda não conhece este tipo de registro. ' +
-                        'Falta aplicar a migração 43 (db/43-folga-de-campo.sql).');
+                        'Falta aplicar a migração 43 (folga de campo) ou a 47 (feriado), em db/.');
       }
       if (semTabelaMovimentacao(r.error)) {
         throw new Error('A tabela de dias sem atividade ainda não existe no banco. ' +

@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v133 · 2026-10-07';
+  var VERSAO = 'v134 · 2026-10-08';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -1489,8 +1489,9 @@ window.SIPAV = window.SIPAV || {};
     if (!iso) { campo.textContent = ''; campo.className = 'dia-semana'; return; }
 
     var domingo = ui.paraData(iso).getDay() === 0;
-    campo.textContent = ui.diaDaSemana(iso) + (domingo ? ' · DSR na planilha' : '');
-    campo.className = 'dia-semana' + (ui.fimDeSemana(iso) ? ' fim-de-semana' : '');
+    campo.textContent = ui.diaDaSemana(iso) + (domingo ? ' · DSR na planilha' : '') +
+                        (render.feriadoDoDia(iso) ? ' · FERIADO' : '');
+    campo.className = 'dia-semana' + (ui.fimDeSemana(iso) || render.feriadoDoDia(iso) ? ' fim-de-semana' : '');
   }
 
   function mudarData() {
@@ -3927,8 +3928,9 @@ window.SIPAV = window.SIPAV || {};
       if (!iso) { campo.textContent = ''; campo.className = 'dia-semana'; }
       else {
         var domingo = ui.paraData(iso).getDay() === 0;
-        campo.textContent = ui.diaDaSemana(iso) + (domingo ? ' · DSR na planilha' : '');
-        campo.className = 'dia-semana' + (ui.fimDeSemana(iso) ? ' fim-de-semana' : '');
+        campo.textContent = ui.diaDaSemana(iso) + (domingo ? ' · DSR na planilha' : '') +
+                            (render.feriadoDoDia(iso) ? ' · FERIADO' : '');
+        campo.className = 'dia-semana' + (ui.fimDeSemana(iso) || render.feriadoDoDia(iso) ? ' fim-de-semana' : '');
       }
     }
     renderLoteEscolhidas();
@@ -6507,6 +6509,7 @@ window.SIPAV = window.SIPAV || {};
             '<option value="MUDANCA_TRECHO">Mudança de trecho (encarregado)</option>' +
             '<option value="MUDANCA_MAQUINA">Deslocamento de máquina</option>' +
             '<option value="FOLGA_CAMPO">Folga de campo</option>' +
+            '<option value="FERIADO">Feriado (ninguém programa)</option>' +
             '<option value="OUTRO">Outro motivo (dia sem atividade)</option>' +
           '</select></div>' +
 
@@ -6599,6 +6602,8 @@ window.SIPAV = window.SIPAV || {};
     var tipo = $('movTipo').value;
 
     $('movBlocoCanteiros').classList.toggle('hidden', tipo !== 'MUDANCA_TRECHO');
+    // Feriado é do dia, não de uma equipe
+    $('movBlocoEnc').classList.toggle('hidden', tipo === 'FERIADO');
 
     $('movRotuloEnc').textContent = tipo === 'MUDANCA_TRECHO'
       ? 'Encarregado' : 'Encarregado (opcional)';
@@ -6610,6 +6615,7 @@ window.SIPAV = window.SIPAV || {};
       ? 'Ex.: chuva, falta de material, feriado local'
       : tipo === 'MUDANCA_MAQUINA' ? 'Ex.: escavadeira PC200'
       : tipo === 'FOLGA_CAMPO' ? 'Ex.: equipe toda, ou só parte dela'
+      : tipo === 'FERIADO' ? 'Ex.: Nossa Senhora Aparecida'
       : 'Ex.: sai depois do almoço';
   }
 
@@ -6654,7 +6660,7 @@ window.SIPAV = window.SIPAV || {};
     var tipo = $('movTipo').value;
     var data = $('movData').value;
     var obs = $('movObs').value.trim();
-    var nomeEnc = $('movEncarregado').value.trim();
+    var nomeEnc = tipo === 'FERIADO' ? '' : $('movEncarregado').value.trim();
 
     function recusar(texto, campo) {
       ui.avisar(texto, 'alerta', 6000);
@@ -6682,7 +6688,7 @@ window.SIPAV = window.SIPAV || {};
     }
 
     // O segundo, igual ao primeiro: tem que ser alguém da lista, e outra pessoa
-    var nomeEnc2 = $('movEncarregado2').value.trim();
+    var nomeEnc2 = tipo === 'FERIADO' ? '' : $('movEncarregado2').value.trim();
     var enc2 = null;
     if (nomeEnc2) {
       enc2 = E.encarregados.find(function (e) { return normalizar(e.nome) === normalizar(nomeEnc2); });
@@ -6710,7 +6716,9 @@ window.SIPAV = window.SIPAV || {};
     // Deslocamento de máquina não entra: ele só liga o registro ao encarregado, e
     // a máquina mudar de lugar não impede ninguém de trabalhar.
     var envolvidos = [enc, enc2].filter(Boolean);
-    var choque = (envolvidos.length && tipo !== 'MUDANCA_MAQUINA')
+    var choque = tipo === 'FERIADO'
+      ? E.programacoes.filter(function (p) { return datas.indexOf(p.data) !== -1; })
+      : (envolvidos.length && tipo !== 'MUDANCA_MAQUINA')
       ? E.programacoes.filter(function (p) {
           return datas.indexOf(p.data) !== -1 && render.encarregadosDe(p).some(function (e) {
             return envolvidos.some(function (x) { return x.id === e.id; });
@@ -6745,7 +6753,7 @@ window.SIPAV = window.SIPAV || {};
 
     var seguir = choque.length
       ? ui.confirmar('Já tem atividade nesse dia',
-          envolvidos.map(function (x) { return x.nome; }).join(' e ') + ' tem ' + choque.length +
+          (tipo === 'FERIADO' ? 'Há' : envolvidos.map(function (x) { return x.nome; }).join(' e ') + ' tem') + ' ' + choque.length +
           ' atividade(s) programada(s) em ' +
           (datas.length > 1 ? 'dias entre ' + ui.dataCurta(data) + ' e ' + ui.dataCurta(ate) : ui.dataCurta(data)) + ' (' + choque.slice(0, 3).map(function (p) {
             return p.torre ? p.torre.identificador : '?';
@@ -8152,6 +8160,7 @@ window.SIPAV = window.SIPAV || {};
    * estamos) e PROG. 2 é a quinzenal (a seguinte), que é como a obra a preenche
    * toda sexta. O que já está no SIPAV não é duplicado.
    */
+  var importacaoIsaNovo = {};       // nomes em que a pessoa pediu para cadastrar um encarregado novo
   var importacaoIsaApelidos = {};   // nome da planilha → id do encarregado, escolhido na prévia
   var importacaoIsaRotulos = {};    // e o nome como veio na planilha, para mostrar
   var importacaoIsaArquivoObj = null;
@@ -8165,6 +8174,7 @@ window.SIPAV = window.SIPAV || {};
     if (!E.trechoAtual) return;
     importacaoIsaApelidos = {};
     importacaoIsaRotulos = {};
+    importacaoIsaNovo = {};
     if (somenteConsulta()) return;
     if (E.perfil && E.perfil.papel === 'LEITURA') {
       ui.avisar('Seu perfil só consulta. Quem programa é planejamento ou supervisor.', 'alerta');
@@ -8265,6 +8275,42 @@ window.SIPAV = window.SIPAV || {};
       .catch(function (e) { ui.pronto(); ui.avisar(e.message || 'Falha ao ler a planilha', 'erro', 8000); });
   }
 
+  /** "ANTONIO JOSE" → "Antonio Jose", como ponto de partida para o nome a cadastrar. */
+  function nomeComoPessoa(nome) {
+    return String(nome).trim().toLowerCase().replace(/(^|\s)(\S)/g, function (m, a, b) { return a + b.toUpperCase(); });
+  }
+
+  function pedirNovoEncarregadoIsa(chave, sim) {
+    if (sim) importacaoIsaNovo[chave] = true; else delete importacaoIsaNovo[chave];
+    mostrarPreviaIsa();
+  }
+
+  /** Cadastra o encarregado com o nome digitado e já o usa na leitura. */
+  function cadastrarEncarregadoDaIsa(chave, n) {
+    var campo = $('isaNovoEnc' + n);
+    var nome = campo ? campo.value.trim() : '';
+    if (!nome) { ui.avisar('Escreva o nome do encarregado.', 'alerta'); return; }
+
+    var igual = E.encarregados.filter(function (e) { return normalizar(e.nome) === normalizar(nome); })[0];
+    if (igual) { ui.avisar('Já existe "' + igual.nome + '". Escolha ele na lista.', 'alerta'); return; }
+
+    var x = (importacaoIsa ? importacaoIsa.naoReconhecidos : []).filter(function (r) { return r.chave === chave; })[0];
+    ui.processando('Cadastrando…');
+    db.salvarEncarregado(nome)
+      .then(function (novo) {
+        return db.encarregados().then(function (lista) {
+          E.encarregados = lista;
+          importacaoIsaApelidos[chave] = novo.id;
+          importacaoIsaRotulos[chave] = x ? x.nome : chave;
+          delete importacaoIsaNovo[chave];
+          ui.pronto();
+          ui.avisar('Encarregado cadastrado.', 'sucesso');
+          processarImportacaoIsa();
+        });
+      })
+      .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro', 6000); });
+  }
+
   function associarEncarregadoIsa(chave, id) {
     if (!id) return;
     var x = (importacaoIsa ? importacaoIsa.naoReconhecidos : []).filter(function (n) { return n.chave === chave; })[0];
@@ -8320,7 +8366,20 @@ window.SIPAV = window.SIPAV || {};
         '<div class="rounded-lg border border-amber-300 bg-amber-50 p-3 space-y-2">' +
           '<p class="text-sm font-semibold text-amber-900">Encarregados que não reconheci</p>' +
           '<p class="text-xs text-amber-800">Escolha quem é cada um. Sem escolha, os lançamentos dele ficam de fora.</p>' +
-          imp.naoReconhecidos.map(function (x) {
+          imp.naoReconhecidos.map(function (x, n) {
+            // Cadastrar um encarregado novo, com o nome que a pessoa quiser
+            if (importacaoIsaNovo[x.chave]) {
+              return '<div class="flex items-center gap-2 flex-wrap">' +
+                '<span class="text-xs font-semibold" style="min-width:8rem">' + esc(x.nome) +
+                  ' <em style="font-weight:400">· ' + x.qtd + '</em></span>' +
+                '<input id="isaNovoEnc' + n + '" class="campo" style="flex:1;min-width:10rem" autocomplete="off" ' +
+                       'value="' + esc(nomeComoPessoa(x.nome)) + '" placeholder="Nome completo">' +
+                '<button type="button" class="btn-primario" ' +
+                        'onclick="SIPAV.app.cadastrarEncarregadoDaIsa(\'' + esc(x.chave) + '\', ' + n + ')">Cadastrar e usar</button>' +
+                '<button type="button" class="btn-secundario" ' +
+                        'onclick="SIPAV.app.pedirNovoEncarregadoIsa(\'' + esc(x.chave) + '\', false)">Cancelar</button>' +
+              '</div>';
+            }
             var porNome = E.encarregados.slice().sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); });
             var candidatos = x.candidatos.map(function (c) { return c.id; });
             var opcoes = '<option value="">Deixar de fora</option>' +
@@ -8333,7 +8392,9 @@ window.SIPAV = window.SIPAV || {};
                 ' <em style="font-weight:400">· ' + x.qtd + '</em></span>' +
               '<select class="campo" style="flex:1;min-width:10rem" ' +
                       'onchange="SIPAV.app.associarEncarregadoIsa(\'' + esc(x.chave) + '\', this.value)">' +
-                opcoes + '</select></div>';
+                opcoes + '</select>' +
+              '<button type="button" class="btn-secundario" ' +
+                      'onclick="SIPAV.app.pedirNovoEncarregadoIsa(\'' + esc(x.chave) + '\', true)">+ Novo</button></div>';
           }).join('') +
         '</div>';
     }
@@ -8985,6 +9046,8 @@ window.SIPAV = window.SIPAV || {};
     abrirRelatorioIsa: abrirRelatorioIsa,
     abrirImportarIsa: abrirImportarIsa,
     associarEncarregadoIsa: associarEncarregadoIsa,
+    pedirNovoEncarregadoIsa: pedirNovoEncarregadoIsa,
+    cadastrarEncarregadoDaIsa: cadastrarEncarregadoDaIsa,
     abrirPlanejamentos: abrirPlanejamentos,
     previaDoPlano: previaDoPlano,
     salvarPlanejamentoAtual: salvarPlanejamentoAtual,

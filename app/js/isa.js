@@ -638,6 +638,19 @@ window.SIPAV = window.SIPAV || {};
     return partes.map(function (p) { return p.trim(); }).filter(Boolean);
   }
 
+  /**
+   * Texto de anotação da planilha como frase: "IÇAMENTO DE CADEIA" → "Içamento de
+   * cadeia", "FASE B - PORTICO" → "Fase B - pórtico".
+   */
+  function frase(texto) {
+    var s = String(texto).trim().replace(/\s+/g, ' ').toLowerCase().replace(/\bportico\b/g, 'pórtico');
+    // "FASE B - PORTICO" é o pórtico, na fase B: o que é vem primeiro, a fase depois
+    var fase = /^fase ([a-c](?:\s*,\s*[a-c])*)\s+-\s+(.+)$/.exec(s);
+    if (fase) s = fase[2] + ' · Fase ' + fase[1].toUpperCase();
+    else s = s.replace(/\bfase ([a-c](?:\s*,\s*[a-c])*)\b/g, function (m, l) { return 'fase ' + l.toUpperCase(); });
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  }
+
   /** "61/1 (50% · RETIRADA DE FLAMBAGEM)" → {torre, percentual, notas} */
   function interpretarToken(token) {
     var m = /^([^(]*?)\s*(?:\(([^)]*)\))?\s*$/.exec(token);
@@ -645,6 +658,9 @@ window.SIPAV = window.SIPAV || {};
     var dentro = m && m[2] ? m[2] : '';
 
     var percentual = null, notas = [];
+    if (/^fase\s+[a-c](\s*,\s*[a-c])*$/i.test(dentro.trim())) {
+      return { torre: torre, percentual: null, notas: [frase(dentro.trim())] };
+    }
     dentro.split(/[·+;]|,\s*/).forEach(function (parte) {
       parte = parte.trim();
       if (!parte) return;
@@ -703,6 +719,26 @@ window.SIPAV = window.SIPAV || {};
       return nomes;
     }
 
+    /**
+     * Um pedaço de célula com cara de torre (tem "n/n"): as torres que ele nomeia e os
+     * rótulos que carrega. "0/2 A 8/1 FASE B" são as torres entre as duas pontas, com
+     * "Fase B" de comentário; "IÇAMENTO DE CADEIA - 0/2" é a torre 0/2, com o comentário.
+     * Sem "n/n" não é torre: devolve nulo.
+     */
+    function lerTorreDoToken(t) {
+      var texto = t.torre, rotulos = [];
+      if (!/\d+\/\d+/.test(texto)) return null;
+
+      var fase = /^(.*\S)\s+(fase\s+[a-c])$/i.exec(texto);
+      if (fase) { texto = fase[1]; rotulos.push(frase(fase[2])); }
+
+      var rot = /^(.+?)\s+-\s+(\S+)$/.exec(texto);
+      if (rot && !/\d+\/\d+/.test(rot[1]) && /^\d+\/\d+$/.test(rot[2])) {
+        texto = rot[2]; rotulos.push(frase(rot[1]));
+      }
+      return { nomes: faixaDeTorres(texto) || [texto], rotulos: rotulos };
+    }
+
     /** "PAULO / RAIMUNDO" são dois; a aspa que sobra no começo é de digitação. */
     function nomesDaEquipe(texto) {
       return String(texto).replace(/^['"’`´]+/, '').split('/')
@@ -723,6 +759,7 @@ window.SIPAV = window.SIPAV || {};
     function movimentoDaAnotacao(texto) {
       var n = norm(texto);
       if (/^folga( de campo)?$/.test(n)) return { tipo: 'FOLGA_CAMPO', obs: '' };
+      if (/^feriado$/.test(n)) return { tipo: 'FERIADO', obs: '' };
       if (/^mudanca de maquina$/.test(n)) return { tipo: 'MUDANCA_MAQUINA', obs: '' };
       var m = /^mudan[cç]a para\s+(.+)$/i.exec(texto.trim());
       if (m) {
@@ -787,17 +824,50 @@ window.SIPAV = window.SIPAV || {};
               return;
             }
 
+            // Uma linha da célula é uma equipe. Dentro dela há torres e, às vezes,
+            // anotações ("PORTICO", "FASE B - PORTICO"). A anotação junto de torres vira
+            // comentário nelas; sozinha, é um dia sem atividade da equipe.
+            var dataDoDia = ui.iso(ui.somarDias(ui.paraData(segunda), dia));
+            var equipeDaLinha = nomeEnc && !semTexto(nomeEnc) ? nomesDaEquipe(nomeEnc) : [];
+            var daLinha = [], soltas = [];
+
             dividirNaVirgula(l).forEach(function (token) {
               var t = interpretarToken(token);
-              (faixaDeTorres(t.torre) || [t.torre]).forEach(function (nomeTorre) {
-                brutas.push({
-                  item: item, semana: semana, dia: dia,
-                  data: ui.iso(ui.somarDias(ui.paraData(segunda), dia)),
-                  encNomes: nomeEnc && !semTexto(nomeEnc) ? nomesDaEquipe(nomeEnc) : [],
-                  torreTexto: nomeTorre, percentual: t.percentual, notas: t.notas
+              var lida = lerTorreDoToken(t);
+
+              if (!lida) {
+                var mov = movimentoDaAnotacao(t.torre);
+                if (mov) {
+                  movimentosBrutos.push({ tipo: mov.tipo, obs: mov.obs, data: dataDoDia,
+                                          encNomes: mov.tipo === 'FERIADO' ? [] : equipeDaLinha });
+                } else {
+                  soltas.push(frase(t.torre));
+                }
+                return;
+              }
+
+              lida.nomes.forEach(function (nomeTorre) {
+                daLinha.push({
+                  item: item, semana: semana, dia: dia, data: dataDoDia,
+                  encNomes: equipeDaLinha,
+                  torreTexto: nomeTorre, percentual: t.percentual,
+                  notas: t.notas.concat(lida.rotulos)
                 });
               });
             });
+
+            if (soltas.length && daLinha.length) {
+              daLinha.forEach(function (b) {
+                soltas.forEach(function (s) { if (b.notas.indexOf(s) === -1) b.notas.push(s); });
+              });
+            } else if (soltas.length) {
+              var atividadeDoItem = atividadesDoItem(item)[0] || rotuloDoItem(item);
+              soltas.forEach(function (s) {
+                movimentosBrutos.push({ tipo: 'OUTRO', obs: s + ' · ' + frase(atividadeDoItem),
+                                        data: dataDoDia, encNomes: equipeDaLinha });
+              });
+            }
+            daLinha.forEach(function (b) { brutas.push(b); });
           });
         }
       });
@@ -805,8 +875,45 @@ window.SIPAV = window.SIPAV || {};
 
     // ---- 2. Resolve torre e encarregado ----
     var porItem = {};      // torre|data|item → {torre, data, item, encs:[], pct, notas}
+
+    // Torre que o trecho não tem ("16/2") mas existe com outro sufixo ("16/1"): se a
+    // vizinha não está programada na mesma atividade, foi erro de digitação e vale a
+    // vizinha. Se já está, quem lançou achou que havia uma 16/2 e programou outra coisa:
+    // não entra. Só vale com uma vizinha só; com duas, não se adivinha.
+    var usadas = {};
+    brutas.forEach(function (b) {
+      var t = torres[norm(b.torreTexto)];
+      if (t) (usadas[b.item] = usadas[b.item] || {})[t.torre_id] = true;
+    });
+    var assumidas = {}, recusadas = {};
+
+    function vizinhaDaTorre(b) {
+      var m = /^(\d+)\/\d+$/.exec(b.torreTexto.trim());
+      if (!m) return null;
+      var vizinhas = (ctx.torres || []).filter(function (t) { return t.identificador.indexOf(m[1] + '/') === 0; });
+      if (vizinhas.length !== 1) return null;
+
+      var v = vizinhas[0];
+      var chave = b.torreTexto.trim() + '|' + v.identificador + '|' + b.item;
+      var info = { de: b.torreTexto.trim(), para: v.identificador, item: (atividadesDoItem(b.item)[0] || rotuloDoItem(b.item)) + ' (' + b.item + ')', n: 0 };
+      if (usadas[b.item] && usadas[b.item][v.torre_id]) {
+        recusadas[chave] = recusadas[chave] || info;
+        recusadas[chave].n++;
+        return 'recusada';
+      }
+      assumidas[chave] = assumidas[chave] || info;
+      assumidas[chave].n++;
+      (usadas[b.item] = usadas[b.item] || {})[v.torre_id] = true;
+      return v;
+    }
+
     brutas.forEach(function (b) {
       var torre = torres[norm(b.torreTexto)];
+      if (!torre) {
+        var viz = vizinhaDaTorre(b);
+        if (viz === 'recusada') return;
+        if (viz) torre = viz;
+      }
       if (!torre) {
         var mov = movimentoDaAnotacao(b.torreTexto);
         if (mov) {
@@ -830,7 +937,10 @@ window.SIPAV = window.SIPAV || {};
         else if (!equipe.some(function (x) { return x.id === e.id; })) equipe.push(e);
       });
       if (faltou) return;
-      var chave = torre.torre_id + '|' + b.data + '|' + b.item;
+      // Uma torre nas linhas de dois encarregados avulsos é um serviço com os dois (DEC-22);
+      // duas duplas na mesma torre são duas equipes, e não se fundem
+      var chave = torre.torre_id + '|' + b.data + '|' + b.item +
+        (equipe.length > 1 ? '|' + equipe.map(function (e) { return e.id; }).sort().join('+') : '');
       var x = porItem[chave] = porItem[chave] || {
         torre: torre, data: b.data, item: b.item, encs: [], percentual: null, notas: []
       };
@@ -862,6 +972,16 @@ window.SIPAV = window.SIPAV || {};
       };
     });
 
+    Object.keys(assumidas).sort().forEach(function (k) {
+      var a = assumidas[k];
+      problema('assumida', 'Torre ' + a.de + ' não existe: assumi ' + a.para + ' como erro de digitação, em "' +
+               a.item + '" (' + a.n + ' lançamento(s)). Confira.');
+    });
+    Object.keys(recusadas).sort().forEach(function (k) {
+      var a = recusadas[k];
+      problema('torre', 'Torre ' + a.de + ' não existe, e a ' + a.para + ' já está programada em "' + a.item +
+               '": quem lançou deve ter achado que havia uma ' + a.de + '. Não entrou (' + a.n + ').');
+    });
     var avulsas = Object.keys(anotacoes);
     if (avulsas.length) {
       problema('texto', 'Anotações da planilha que não são torre, ficaram de fora: ' +

@@ -1486,3 +1486,11 @@ html.dark .banner-planejando .banner-historico-titulo { color: #38BDF8; }
 .tabela-mov a { color: var(--acento); text-decoration: underline; text-decoration-style: dotted; }
 .tabela-mov .linha-clicavel { cursor: pointer; }
 .tabela-mov .linha-clicavel:hover { background: var(--superficie-2); }.tabela-mov-resumo th:not(:first-child), .tabela-mov-resumo td:not(:first-child) { text-align: center; }
+
+/* Feriado: o dia fica marcado para ninguém programar nele */
+.dia-col.dia-feriado { background: rgba(225,29,72,.07); }
+.rotulo-feriado {
+  display: block; font-style: normal; font-size: .5625rem; font-weight: 800;
+  letter-spacing: .04em; color: #E11D48;
+}
+.aviso-feriado { color: #E11D48; font-weight: 700; }

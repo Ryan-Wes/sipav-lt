@@ -14,6 +14,18 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ---
 
+## 08/10/2026
+
+### Feriado marcado no calendário — [WR]
+
+A planilha da ISA traz FERIADO nas células, e a obra precisa saber que naquele dia não se programa. Entrou como um quinto tipo de dia sem atividade (`db/47`), do trecho e sem encarregado, que se registra pela janela de **Dias sem atividade** (com *Até o dia*) ou vem da importação. Os painéis marcam o dia (**FERIADO** no título do dia em Por Data e na coluna do dia em Por Encarregado), a data de lançamento mostra  · FERIADO, e registrar feriado num dia com programação pergunta antes. Não bloqueia programar: avisa.
+
+### Importação: anotações, torres digitadas errado e encarregado novo — [WR]
+
+Regras em [04-relatorio-isa](04-relatorio-isa.md), DEC-25. Na prévia, o nome de encarregado que o SIPAV não conhece ganhou o botão **+ Novo**: abre o nome para editar e cadastra na hora, e a leitura continua com ele.
+
+---
+
 ## 07/10/2026
 
 ### Importar da ISA grava como está na planilha — [WR]
