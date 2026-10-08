@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v139 · 2026-10-08';
+  var VERSAO = 'v140 · 2026-10-08';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -8333,14 +8333,14 @@ window.SIPAV = window.SIPAV || {};
     var igual = E.encarregados.filter(function (e) { return normalizar(e.nome) === normalizar(nome); })[0];
     if (igual) { ui.avisar('Já existe "' + igual.nome + '". Escolha ele na lista.', 'alerta'); return; }
 
-    var x = (importacaoIsa ? importacaoIsa.naoReconhecidos : []).filter(function (r) { return r.chave === chave; })[0];
+    var rotulo = rotuloDaChaveIsa(chave);
     ui.processando('Cadastrando…');
     db.salvarEncarregado(nome)
       .then(function (novo) {
         return db.encarregados().then(function (lista) {
           E.encarregados = lista;
           importacaoIsaApelidos[chave] = novo.id;
-          importacaoIsaRotulos[chave] = x ? x.nome : chave;
+          importacaoIsaRotulos[chave] = rotulo;
           delete importacaoIsaNovo[chave];
           ui.pronto();
           ui.avisar('Encarregado cadastrado.', 'sucesso');
@@ -8350,23 +8350,69 @@ window.SIPAV = window.SIPAV || {};
       .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro', 6000); });
   }
 
+  /**
+   * Uma linha de escolha: o nome (ou o nome numa atividade), a lista de encarregados com
+   * o que cada parecido já fez, e o botão de cadastrar um novo. `chave` é a do nome, ou a
+   * do nome na atividade.
+   */
+  function linhaDeEscolhaIsa(x, chave, rotulo, n, atividade) {
+    if (importacaoIsaNovo[chave]) {
+      return '<div class="flex items-center gap-2 flex-wrap">' +
+        '<span class="text-xs font-semibold" style="min-width:8rem">' + rotulo + '</span>' +
+        '<input id="isaNovoEnc' + n + '" class="campo" style="flex:1;min-width:10rem" autocomplete="off" ' +
+               'value="' + esc(nomeComoPessoa(x.nome)) + '" placeholder="Nome completo">' +
+        '<button type="button" class="btn-primario" ' +
+                'onclick="SIPAV.app.cadastrarEncarregadoDaIsa(\'' + esc(chave) + '\', ' + n + ')">Cadastrar e usar</button>' +
+        '<button type="button" class="btn-secundario" ' +
+                'onclick="SIPAV.app.pedirNovoEncarregadoIsa(\'' + esc(chave) + '\', false)">Cancelar</button>' +
+      '</div>';
+    }
+
+    var porNome = E.encarregados.slice().sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); });
+    var candidatos = x.candidatos.map(function (c) { return c.id; });
+    var opcoes = '<option value="">Deixar de fora</option>' +
+      porNome.map(function (e) {
+        var hist = (historicoDosEncarregados || {})[e.id];
+        var dica = candidatos.indexOf(e.id) !== -1
+          ? ' (parecido)' + (hist ? ' — já fez: ' + textoDasAtividades(hist, 3) : ' — sem apontamento neste trecho')
+          : '';
+        return '<option value="' + e.id + '">' + esc(e.nome) + esc(dica) + '</option>';
+      }).join('');
+
+    return '<div class="flex items-center gap-2 flex-wrap">' +
+      '<span class="text-xs font-semibold" style="min-width:8rem">' + rotulo + '</span>' +
+      '<select class="campo" style="flex:1;min-width:10rem" ' +
+              'onchange="SIPAV.app.associarEncarregadoIsa(\'' + esc(chave) + '\', this.value)">' + opcoes + '</select>' +
+      '<button type="button" class="btn-secundario" ' +
+              'onclick="SIPAV.app.pedirNovoEncarregadoIsa(\'' + esc(chave) + '\', true)">+ Novo</button></div>';
+  }
+
   /** O que a planilha diz desse nome, para ajudar a escolher quem ele é. */
-  function contextoDoNomeIsa(x) {
+  function contextoDoNomeIsa(x, semAtividades) {
     var c = x.contexto;
     if (!c) return '';
     var partes = [];
-    if (c.atividades && c.atividades.length) partes.push('<strong>Na planilha:</strong> ' + esc(textoDasAtividades(c.atividades, 5)));
+    if (!semAtividades && c.atividades && c.atividades.length) partes.push('<strong>Na planilha:</strong> ' + esc(textoDasAtividades(c.atividades, 5)));
     if (c.parceiros && c.parceiros.length) partes.push('com ' + esc(c.parceiros.slice(0, 4).join(', ')));
     if (c.primeiro) partes.push(esc(ui.dataCurta(c.primeiro)) + (c.ultimo && c.ultimo !== c.primeiro ? ' a ' + esc(ui.dataCurta(c.ultimo)) : ''));
     if (c.torres && c.torres.length) partes.push('torres ' + esc(c.torres.join(', ')) + (x.qtd > c.torres.length ? '…' : ''));
     return '<p class="text-xs" style="color:var(--texto-suave)">' + partes.join(' · ') + '</p>';
   }
 
+  /** "BENEDITO" ou, quando a escolha é por atividade, "BENEDITO (LANÇAMENTO DO CABO OPGW/PR)". */
+  function rotuloDaChaveIsa(chave) {
+    var base = String(chave).split('|')[0];
+    var x = (importacaoIsa ? importacaoIsa.naoReconhecidos : []).filter(function (n) { return n.chave === base; })[0];
+    if (!x) return chave;
+    if (chave === base) return x.nome;
+    var atv = ((x.contexto && x.contexto.atividades) || []).filter(function (a) { return a.chave === chave; })[0];
+    return x.nome + (atv ? ' (' + atv.nome + ')' : '');
+  }
+
   function associarEncarregadoIsa(chave, id) {
     if (!id) return;
-    var x = (importacaoIsa ? importacaoIsa.naoReconhecidos : []).filter(function (n) { return n.chave === chave; })[0];
     importacaoIsaApelidos[chave] = id;
-    importacaoIsaRotulos[chave] = x ? x.nome : chave;
+    importacaoIsaRotulos[chave] = rotuloDaChaveIsa(chave);
     processarImportacaoIsa();
   }
 
@@ -8561,50 +8607,35 @@ window.SIPAV = window.SIPAV || {};
         '</div>';
     }
     // Nome que o SIPAV não sabe de quem é: escolhe-se aqui, em vez de cadastrar e
-    // voltar. Vale só para esta leitura.
+    // voltar. Vale só para esta leitura. Quando o mesmo nome aparece em mais de uma
+    // atividade, escolhe-se por atividade: o Benedito do piloto do condutor pode não ser
+    // o do OPGW.
     if ((imp.naoReconhecidos || []).length) {
+      var contadorDeLinhas = 0;
       corpo +=
-        '<div class="rounded-lg border border-amber-300 bg-amber-50 p-3 space-y-2">' +
+        '<div class="rounded-lg border border-amber-300 bg-amber-50 p-3 space-y-3">' +
           '<p class="text-sm font-semibold text-amber-900">Encarregados que não reconheci</p>' +
           '<p class="text-xs text-amber-800">Escolha quem é cada um. Sem escolha, os lançamentos dele ficam de fora.</p>' +
-          imp.naoReconhecidos.map(function (x, n) {
-            return '<div class="space-y-1">' + (function () {
-            // Cadastrar um encarregado novo, com o nome que a pessoa quiser
-            if (importacaoIsaNovo[x.chave]) {
-              return '<div class="flex items-center gap-2 flex-wrap">' +
-                '<span class="text-xs font-semibold" style="min-width:8rem">' + esc(x.nome) +
-                  ' <em style="font-weight:400">· ' + x.qtd + '</em></span>' +
-                '<input id="isaNovoEnc' + n + '" class="campo" style="flex:1;min-width:10rem" autocomplete="off" ' +
-                       'value="' + esc(nomeComoPessoa(x.nome)) + '" placeholder="Nome completo">' +
-                '<button type="button" class="btn-primario" ' +
-                        'onclick="SIPAV.app.cadastrarEncarregadoDaIsa(\'' + esc(x.chave) + '\', ' + n + ')">Cadastrar e usar</button>' +
-                '<button type="button" class="btn-secundario" ' +
-                        'onclick="SIPAV.app.pedirNovoEncarregadoIsa(\'' + esc(x.chave) + '\', false)">Cancelar</button>' +
-              '</div>';
+          imp.naoReconhecidos.map(function (x) {
+            var atividades = (x.contexto && x.contexto.atividades) || [];
+            var porAtividade = atividades.length > 1;
+
+            if (!porAtividade) {
+              return '<div class="space-y-1">' +
+                linhaDeEscolhaIsa(x, x.chave, esc(x.nome) + ' <em style="font-weight:400">· ' + x.qtd + '</em>', contadorDeLinhas++, atividades[0] ? atividades[0].nome : null) +
+                contextoDoNomeIsa(x) + '</div>';
             }
-            var porNome = E.encarregados.slice().sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); });
-            var candidatos = x.candidatos.map(function (c) { return c.id; });
-            var opcoes = '<option value="">Deixar de fora</option>' +
-              porNome.map(function (e) {
-                var hist = (historicoDosEncarregados || {})[e.id];
-                var dica = candidatos.indexOf(e.id) !== -1
-                  ? ' (parecido)' + (hist ? ' — já fez: ' + textoDasAtividades(hist, 3) : ' — sem apontamento neste trecho')
-                  : '';
-                return '<option value="' + e.id + '">' + esc(e.nome) + esc(dica) + '</option>';
-              }).join('');
-            return '<div class="flex items-center gap-2 flex-wrap">' +
-              '<span class="text-xs font-semibold" style="min-width:8rem">' + esc(x.nome) +
-                ' <em style="font-weight:400">· ' + x.qtd + '</em></span>' +
-              '<select class="campo" style="flex:1;min-width:10rem" ' +
-                      'onchange="SIPAV.app.associarEncarregadoIsa(\'' + esc(x.chave) + '\', this.value)">' +
-                opcoes + '</select>' +
-              '<button type="button" class="btn-secundario" ' +
-                      'onclick="SIPAV.app.pedirNovoEncarregadoIsa(\'' + esc(x.chave) + '\', true)">+ Novo</button></div>';
-            })() + contextoDoNomeIsa(x) + '</div>';
+            return '<div class="space-y-1">' +
+              '<p class="text-xs font-semibold">' + esc(x.nome) + ' <em style="font-weight:400">· ' + x.qtd +
+                ' — aparece em ' + atividades.length + ' atividades; escolha em cada uma</em></p>' +
+              contextoDoNomeIsa(x, true) +
+              atividades.map(function (atv) {
+                return linhaDeEscolhaIsa(x, atv.chave, esc(atv.nome) + ' <em style="font-weight:400">· ' + atv.qtd + '</em>', contadorDeLinhas++, atv.nome);
+              }).join('') +
+            '</div>';
           }).join('') +
         '</div>';
     }
-
     var ligados = Object.keys(importacaoIsaApelidos);
     if (ligados.length) {
       corpo += '<p class="text-xs" style="color:var(--texto-fraco)">Associados nesta leitura: ' +

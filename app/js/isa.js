@@ -852,10 +852,17 @@ window.SIPAV = window.SIPAV || {};
     var apelidos = ctx.apelidos || {};
     var candidatosDe = {};
 
-    function acharEncarregado(nome) {
+    // O mesmo nome da planilha pode ser pessoas diferentes em atividades diferentes (o
+    // Benedito do piloto do condutor e o do OPGW): a escolha vale para o nome em todas as
+    // atividades, ou só para o nome numa atividade ("benedito|lancamento do piloto...").
+    function acharEncarregado(nome, atividade) {
       var k = norm(nome);
       var lista = ctx.encarregados || [];
+      var ka = atividade ? k + '|' + norm(atividade) : null;
 
+      if (ka && ka in apelidos) {
+        return lista.filter(function (e) { return e.id === apelidos[ka]; })[0] || null;
+      }
       if (k in apelidos) {
         return lista.filter(function (e) { return e.id === apelidos[k]; })[0] || null;
       }
@@ -1065,10 +1072,11 @@ window.SIPAV = window.SIPAV || {};
       // A equipe da célula: um nome, ou dois ("A / B") que fazem juntos
       var equipe = [], faltou = false;
       b.encNomes.forEach(function (nome) {
-        var e = acharEncarregado(nome);
+        var atividadeDoNome = atividadesDoItem(b.item)[0] || rotuloDoItem(b.item);
+        var e = acharEncarregado(nome, atividadeDoNome);
         if (!e) {
           encDesconhecidos[nome] = (encDesconhecidos[nome] || 0) + 1; faltou = true;
-          anotarContexto(nome, b, atividadesDoItem(b.item)[0] || rotuloDoItem(b.item));
+          anotarContexto(nome, b, atividadeDoNome);
         }
         else if (!equipe.some(function (x) { return x.id === e.id; })) equipe.push(e);
       });
@@ -1093,7 +1101,7 @@ window.SIPAV = window.SIPAV || {};
     movimentosBrutos.forEach(function (b) {
       var equipe = [], faltou = false;
       b.encNomes.forEach(function (nome) {
-        var e = acharEncarregado(nome);
+        var e = acharEncarregado(nome, 'Dia sem atividade');
         if (!e) {
           encDesconhecidos[nome] = (encDesconhecidos[nome] || 0) + 1; faltou = true;
           anotarContexto(nome, b, 'Dia sem atividade');
@@ -1143,7 +1151,7 @@ window.SIPAV = window.SIPAV || {};
       var c = contextoDe[k];
       if (c) {
         x.contexto = {
-          atividades: Object.keys(c.atividades).map(function (a) { return { nome: a, qtd: c.atividades[a] }; })
+          atividades: Object.keys(c.atividades).map(function (a) { return { nome: a, qtd: c.atividades[a], chave: k + '|' + norm(a) }; })
             .sort(function (a, b) { return b.qtd - a.qtd; }),
           parceiros: Object.keys(c.parceiros),
           primeiro: c.dias.slice().sort()[0], ultimo: c.dias.slice().sort().slice(-1)[0],
