@@ -171,8 +171,14 @@ window.SIPAV = window.SIPAV || {};
     return ehSerra(texto) ? 'mountain' : 'sticky-note';
   }
 
+  /** O pórtico é uma torre cadastrada com o nome "PÓRTICO…": é a ponta da linha, não uma torre a montar. */
+  function ehPortico(torre) {
+    return String(torre.identificador || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase().indexOf('portico') === 0;
+  }
+
   function cartaoTorre(torre) {
-    // A view torre_situacao expõe a chave como torre_id, não id.
+    if (ehPortico(torre)) return cartaoPortico(torre);    // A view torre_situacao expõe a chave como torre_id, não id.
     //
     // Só o que ainda é plano: a programação cuja atividade já foi concluída em
     // campo virou o estágio da torre, que está no topo do cartão. Mostrar as duas
@@ -299,6 +305,68 @@ window.SIPAV = window.SIPAV || {};
               (corEstado || 'var(--borda-forte)') + '"></span>' +
             esc(estado) +
           '</span>' +
+        '</span>' +
+        lista +
+      '</div>';
+  }
+
+  /**
+   * O pórtico não é montado: já está pronto. Por isso o cartão não tem estágio, nem
+   * cor de estado, nem estrutura. Tem o ícone da energia e a ponta da linha em que fica.
+   * Recebe programação como uma torre (lançamento de cabo, ancoragem), e a lista dela
+   * aparece embaixo.
+   */
+  function cartaoPortico(torre) {
+    var progs = programacoesDaTorre(torre.torre_id).filter(function (p) {
+      return !refletidaNoEstagio(p) && !escondida(p);
+    });
+    var classes = ['cartao-torre', 'cartao-portico'];
+    if (E.modoSelecao && E.selecionadas[torre.torre_id]) classes.push('cartao-selecionado');
+    if (progs.length) classes.push('cartao-programado');
+
+    var id = String(torre.identificador).toUpperCase();
+    var ponta = /FINAL|FIM/.test(id) ? 'Fim da linha' : /INICIAL|INICIO|INÍCIO/.test(id) ? 'Início da linha' : 'Ponta da linha';
+
+    var ordenadas = progs.slice().sort(function (a, b) {
+      if (a.data !== b.data) return a.data < b.data ? -1 : 1;
+      var oa = a.atividade ? a.atividade.ordem_execucao : 9999;
+      var ob = b.atividade ? b.atividade.ordem_execucao : 9999;
+      return oa - ob;
+    });
+
+    var lista = ordenadas.length
+      ? '<div class="lista-prog">' + ordenadas.map(function (p) {
+          var cor = p.atividade ? p.atividade.cor_fundo : '#94A3B8';
+          return '<span class="item-prog">' +
+            '<span class="ponto-atividade" style="background:' + cor + ';margin-top:.25rem"></span>' +
+            '<span class="flex-1">' +
+              '<span class="data">' + ui.dataCurta(p.data) +
+                '<b class="dia-curto' + (ui.fimDeSemana(p.data) ? ' fim-de-semana' : '') + '">' +
+                  esc(ui.diaDaSemana(p.data).slice(0, 3)) + '</b>' +
+              '</span> ' +
+              esc(p.atividade ? p.atividade.nome : '—') +
+              marcaFeito(p) +
+              '<span class="parcial' + (Number(p.percentual) >= 100 ? ' cheio' : '') + '">' + rotuloParcial(p) + '</span>' +
+              (p.encarregado ? '<span class="encarregado">' + esc(nomesDosEncarregados(p)) + '</span>' : '') +
+              (p.observacao ? '<span class="encarregado">' + esc(p.observacao) + '</span>' : '') +
+            '</span>' +
+          '</span>';
+        }).join('') + '</div>'
+      : '';
+
+    var selo = ordenadas.length
+      ? '<span class="selo-prog" title="' + ordenadas.length + ' programada(s)">' +
+          '<i data-lucide="calendar-check" style="width:10px;height:10px"></i>' + ordenadas.length + '</span>'
+      : '';
+
+    return '<div class="' + classes.join(' ') + '" data-torre="' + torre.torre_id + '" ' +
+           'onclick="SIPAV.app.abrirTorre(\'' + torre.torre_id + '\')" ' +
+           'title="' + esc(torre.identificador) + ' — ' + ponta + '. Já está pronto: não tem estágio.">' +
+        selo +
+        '<span class="identidade">' +
+          '<span class="icone-portico"><i data-lucide="zap" style="width:18px;height:18px"></i></span>' +
+          '<span class="identificador">PÓRTICO</span>' +
+          '<span class="legenda">' + ponta + '</span>' +
         '</span>' +
         lista +
       '</div>';
@@ -1344,12 +1412,12 @@ window.SIPAV = window.SIPAV || {};
     // torre programada fora do recorte não parecer perdida, mas esse caso já
     // tem aviso próprio na hora de gravar.
     $('resumoEstatisticas').innerHTML =
-      '<span style="opacity:.75">' + E.torres.length + ' torres · </span>' +
+      '<span style="opacity:.75">' + E.torres.filter(function (t) { return !ehPortico(t); }).length + ' torres · </span>' +
       '<strong>' + qtd + ' programadas</strong>' +
       '<span style="opacity:.75"> · ' + ui.km(kmProgramado) + ' km</span>';
 
     $('resumoEstatisticas').title =
-      E.torres.length + ' torres · ' + qtd + ' programadas · ' +
+      E.torres.filter(function (t) { return !ehPortico(t); }).length + ' torres · ' + qtd + ' programadas · ' +
       ui.km(kmProgramado) + ' km · ' + ui.rotuloPeriodo(E.periodo.de, E.periodo.ate);
   }
 
@@ -1386,6 +1454,7 @@ window.SIPAV = window.SIPAV || {};
     TIPOS_DE_MOVIMENTACAO: TIPOS_DE_MOVIMENTACAO,
     encarregadosDe: encarregadosDe,
     escondida: escondida,
+    ehPortico: ehPortico,
     iconeDaObservacao: iconeDaObservacao,
     ehSerra: ehSerra,
     movimentacaoDoTrecho: movimentacaoDoTrecho,

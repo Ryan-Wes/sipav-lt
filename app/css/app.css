@@ -1494,3 +1494,19 @@ html.dark .banner-planejando .banner-historico-titulo { color: #38BDF8; }
   letter-spacing: .04em; color: #E11D48;
 }
 .aviso-feriado { color: #E11D48; font-weight: 700; }
+/* Pórtico: já está pronto, então não tem estágio. Contorno tracejado e o raio no
+   lugar do ponto de estado, para se distinguir das torres sem destoar do resto. */
+.cartao-portico {
+  border: 1.5px dashed rgba(249,115,22,.55);
+  border-top: 1.5px dashed rgba(249,115,22,.55);
+  background: rgba(249,115,22,.05);
+  min-height: 0;
+}
+.cartao-portico:hover { border-color: var(--acento); background: rgba(249,115,22,.09); }
+.cartao-portico .identificador { font-size: .8125rem; letter-spacing: .12em; color: var(--acento); }
+.cartao-portico .legenda { text-transform: uppercase; letter-spacing: .06em; font-size: .625rem; font-weight: 700; }
+.icone-portico {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; border-radius: 999px;
+  background: rgba(249,115,22,.14); color: var(--acento);
+}
