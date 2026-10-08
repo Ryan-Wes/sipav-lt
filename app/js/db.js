@@ -44,7 +44,8 @@ window.SIPAV = window.SIPAV || {};
       if (/programacao_sem_duplicata/.test(msg)) {
         return new SipavErro(
           'Este encarregado já está nesta atividade, nesta torre e nesta data. ' +
-          'Para dividir o serviço, escolha outro encarregado.', erro);
+          'Para dividir o serviço, escolha outro encarregado. Se são cabos diferentes ' +
+          '(para-raio e OPGW), falta aplicar a migração 49.', erro);
       }
       if (msg.indexOf('programacao') !== -1) {
         return new SipavErro('Essa atividade já está programada para esta torre nesta data.', erro);

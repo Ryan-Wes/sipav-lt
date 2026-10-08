@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v141 · 2026-10-08';
+  var VERSAO = 'v142 · 2026-10-08';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -7953,7 +7953,7 @@ window.SIPAV = window.SIPAV || {};
     var ja = {};
     c.vivas.forEach(function (p) {
       if (!p.torre || !p.atividade) return;
-      ja[[p.torre.id, p.atividade.id, p.data, p.encarregado ? p.encarregado.id : ''].join('|')] = true;
+      ja[[p.torre.id, p.atividade.id, p.data, p.encarregado ? p.encarregado.id : '', p.cabo || ''].join('|')] = true;
     });
 
     c.itens = c.av.itens.filter(function (it) {
@@ -7962,7 +7962,7 @@ window.SIPAV = window.SIPAV || {};
       return true;
     }).map(function (it) {
       var nova = ui.iso(ui.somarDias(ui.paraData(it.p.data), desloc));
-      var existe = !!ja[[it.p.torre.id, it.p.atividade.id, nova, it.p.encarregado ? it.p.encarregado.id : ''].join('|')];
+      var existe = !!ja[[it.p.torre.id, it.p.atividade.id, nova, it.p.encarregado ? it.p.encarregado.id : '', it.p.cabo || ''].join('|')];
       return { it: it, nova: nova, existe: existe };
     });
 
@@ -8294,10 +8294,10 @@ window.SIPAV = window.SIPAV || {};
         // torre, atividade, data e encarregado
         var ja = {};
         existentes.forEach(function (p) {
-          ja[[p.torre.id, p.atividade ? p.atividade.id : '', p.data, p.encarregado ? p.encarregado.id : ''].join('|')] = true;
+          ja[[p.torre.id, p.atividade ? p.atividade.id : '', p.data, p.encarregado ? p.encarregado.id : '', p.cabo || ''].join('|')] = true;
         });
         importacaoIsa.registros.forEach(function (x) {
-          x.existe = !!ja[[x.torreId, x.atividadeId, x.data, x.encarregadoId || ''].join('|')];
+          x.existe = !!ja[[x.torreId, x.atividadeId, x.data, x.encarregadoId || '', x.cabo || ''].join('|')];
         });
 
         resolverMudancasDaIsa(importacaoIsa.movimentos);
