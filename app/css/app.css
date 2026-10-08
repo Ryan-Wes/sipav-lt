@@ -1579,3 +1579,10 @@ details.alerta-sem-prog > .alerta-sem-prog-nomes { margin: 0; padding: .25rem .8
 details.hist-grupo > summary::-webkit-details-marker { display: none; }
 details.hist-grupo[open] > summary .lucide-chevron-down { transform: rotate(180deg); }
 details.hist-grupo > summary:hover { border-color: var(--borda-forte); }
+/* Pórtico: o raio no canto de cima, na linha do selo, e o nome centrado no cartão */
+.cartao-portico .icone-portico {
+  position: absolute; top: .5rem; left: .5rem;
+  width: 22px; height: 22px; border-radius: 999px;
+}
+.cartao-portico-vazio { justify-content: center; }
+.cartao-portico-vazio .identidade { align-items: center; text-align: center; }

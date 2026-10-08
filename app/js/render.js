@@ -353,7 +353,7 @@ window.SIPAV = window.SIPAV || {};
     });
     var classes = ['cartao-torre', 'cartao-portico'];
     if (E.modoSelecao && E.selecionadas[torre.torre_id]) classes.push('cartao-selecionado');
-    if (progs.length) classes.push('cartao-programado');
+    if (progs.length) classes.push('cartao-programado'); else classes.push('cartao-portico-vazio');
 
     var id = String(torre.identificador).toUpperCase();
     var ponta = /FINAL|FIM/.test(id) ? 'Fim da linha' : /INICIAL|INICIO|INÍCIO/.test(id) ? 'Início da linha' : 'Ponta da linha';
@@ -394,8 +394,9 @@ window.SIPAV = window.SIPAV || {};
            'onclick="SIPAV.app.abrirTorre(\'' + torre.torre_id + '\')" ' +
            'title="' + esc(torre.identificador) + ' — ' + ponta + '. Já está pronto: não tem estágio.">' +
         selo +
+        // O raio fica no canto de cima, na linha do selo das programações
+        '<span class="icone-portico"><i data-lucide="zap" style="width:14px;height:14px"></i></span>' +
         '<span class="identidade">' +
-          '<span class="icone-portico"><i data-lucide="zap" style="width:18px;height:18px"></i></span>' +
           '<span class="identificador">PÓRTICO</span>' +
           '<span class="legenda">' + ponta + '</span>' +
         '</span>' +
