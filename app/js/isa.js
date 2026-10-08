@@ -984,10 +984,19 @@ window.SIPAV = window.SIPAV || {};
                   if (b.ehPortico) return;
                   pt.rotulos.forEach(function (r) { if (b.notas.indexOf(r) === -1) b.notas.push(r); });
                 });
-                // Lançamento de cabo "PORTICO, 0/2" é do pórtico até a torre: o cabo passa pelas
-                // do meio (a 0/1), e não dá para lançar do pórtico à 0/2 pulando uma. Vale para o
-                // lançamento do cabo em si (x.x.3), não para a ancoragem nem o nivelamento.
-                if (/^4\.(?:1|2|2D|2E|3)\.3$/.test(item)) {
+                // "PORTICO, 0/2" no lançamento do cabo (x.x.3) e no nivelamento (x.x.4) é do pórtico até a
+                // torre: o cabo passa pelas do meio (a 0/1), e não dá para lançar nem nivelar do pórtico à
+                // 0/2 pulando uma. A ancoragem fica de fora: é só nas pontas.
+                var noSpan = /^4\.(?:1|2|2D|2E|3)\.[34]$/.test(item);
+                // O que a torre diz de si (Fase A, B, C) vale para o trecho todo, pórtico incluído
+                var notasDoSpan = pt.rotulos.slice();
+                if (noSpan) {
+                  daLinha.forEach(function (b) {
+                    if (b.ehPortico) return;
+                    b.notas.forEach(function (n) { if (/^fase\b/i.test(n) && notasDoSpan.indexOf(n) === -1) notasDoSpan.push(n); });
+                  });
+                }
+                if (noSpan) {
                   var posDaLinha = daLinha.filter(function (b) { return !ehPortico(b.torreTexto); })
                     .map(function (b) { return posicaoDaTorre[norm(b.torreTexto)]; })
                     .filter(function (q) { return q !== undefined; });
@@ -999,12 +1008,12 @@ window.SIPAV = window.SIPAV || {};
                       if (!meio || ehPortico(meio.identificador)) continue;
                       if (daLinha.some(function (b) { return norm(b.torreTexto) === norm(meio.identificador); })) continue;
                       daLinha.push({ item: item, semana: semana, dia: dia, data: dataDoDia, encNomes: equipeDaLinha,
-                                     torreTexto: meio.identificador, percentual: null, notas: pt.rotulos.slice() });
+                                     torreTexto: meio.identificador, percentual: null, notas: notasDoSpan.slice() });
                     }
                   }
                 }
                 daLinha.push({ item: item, semana: semana, dia: dia, data: dataDoDia, encNomes: equipeDaLinha,
-                               torreTexto: cand.torre.identificador, percentual: null, notas: pt.rotulos.slice(), ehPortico: true });
+                               torreTexto: cand.torre.identificador, percentual: null, notas: notasDoSpan.slice(), ehPortico: true });
               } else if (ladoDaLinha) {
                 porticoFaltando[ladoDaLinha]++;
                 soltas.push(frase(pt.texto));
