@@ -745,15 +745,35 @@ window.SIPAV = window.SIPAV || {};
 
     // A ordem em que as torres vêm é a da linha (o banco devolve por `ordem`):
     // é por ela que "0/2 A 5/1" vira a lista de torres do meio
-    // O pórtico é um card como as torres, se o trecho o tiver cadastrado (torre "PÓRTICO")
-    var porticoDoTrecho = (ctx.torres || []).filter(function (t) { return norm(t.identificador) === 'portico'; })[0];
-    var porticoSoltos = 0;
-
     var posicaoDaTorre = {};
     (ctx.torres || []).forEach(function (t, i) {
       var k = norm(t.identificador);
       if (!(k in posicaoDaTorre)) posicaoDaTorre[k] = i;
     });
+
+    // O pórtico é um card como as torres, se o trecho o tiver cadastrado. Pode ter os
+    // dois (um na ponta de cada lado da linha), um só, ou nenhum: há trechos que pegam
+    // uma parte da linha que começa no pórtico e não termina em outro. Qual é qual vem
+    // da posição: antes da metade das torres é o do começo, depois é o do fim.
+    function ehPortico(nome) { return /^portico/.test(norm(nome)); }
+    var porticos = [], posReais = [];
+    (ctx.torres || []).forEach(function (t, i) {
+      if (ehPortico(t.identificador)) porticos.push({ torre: t, pos: i }); else posReais.push(i);
+    });
+    var meioDaLinha = posReais.length ? (Math.min.apply(null, posReais) + Math.max.apply(null, posReais)) / 2 : 0;
+    porticos.forEach(function (p) { p.lado = p.pos < meioDaLinha ? 'inicio' : 'fim'; });
+    var porticoFaltando = { inicio: 0, fim: 0, indefinido: 0 };
+    var pendentesPortico = [];
+
+    /** De que ponta da linha são essas torres: a média da posição, antes ou depois da metade. */
+    function ladoDasTorres(nomes) {
+      var pos = nomes.filter(function (n) { return !ehPortico(n); })
+        .map(function (n) { return posicaoDaTorre[norm(n)]; })
+        .filter(function (p) { return p !== undefined; });
+      if (!pos.length) return null;
+      var media = pos.reduce(function (s, p) { return s + p; }, 0) / pos.length;
+      return media < meioDaLinha ? 'inicio' : 'fim';
+    }
 
     /**
      * "49/2 à 59/2", "0/2 A 5/1": de uma torre a outra, as duas incluídas. É como a
@@ -783,11 +803,8 @@ window.SIPAV = window.SIPAV || {};
       var fasePortico = /^fase\s+([a-c])\s+-\s+(.+)$/i.exec(texto);
       var restoPortico = fasePortico ? fasePortico[2] : texto;
       if (norm(restoPortico) === 'portico') {
-        if (porticoDoTrecho) {
-          return { nomes: [porticoDoTrecho.identificador],
-                   rotulos: fasePortico ? ['Fase ' + fasePortico[1].toUpperCase()] : [] };
-        }
-        porticoSoltos++;
+        return { portico: true, texto: texto,
+                 rotulos: fasePortico ? ['Fase ' + fasePortico[1].toUpperCase()] : [] };
       }
 
       if (!/\d+\/\d+/.test(texto)) return null;
@@ -892,11 +909,13 @@ window.SIPAV = window.SIPAV || {};
             // comentário nelas; sozinha, é um dia sem atividade da equipe.
             var dataDoDia = ui.iso(ui.somarDias(ui.paraData(segunda), dia));
             var equipeDaLinha = nomeEnc && !semTexto(nomeEnc) ? nomesDaEquipe(nomeEnc) : [];
-            var daLinha = [], soltas = [];
+            var daLinha = [], soltas = [], porticosDaLinha = [];
 
             dividirNaVirgula(l).forEach(function (token) {
               var t = interpretarToken(token);
               var lida = lerTorreDoToken(t);
+
+              if (lida && lida.portico) { porticosDaLinha.push(lida); return; }
 
               if (!lida) {
                 var mov = movimentoDaAnotacao(t.torre);
@@ -919,8 +938,24 @@ window.SIPAV = window.SIPAV || {};
               });
             });
 
+            // O pórtico da ponta de onde ficam as torres da linha. Sem torres na linha,
+            // decide-se depois, pelas outras torres da mesma equipe no mesmo dia.
+            var ladoDaLinha = daLinha.length ? ladoDasTorres(daLinha.map(function (b) { return b.torreTexto; })) : null;
+            porticosDaLinha.forEach(function (pt) {
+              var cand = ladoDaLinha ? porticos.filter(function (p) { return p.lado === ladoDaLinha; })[0] : null;
+              if (cand) {
+                daLinha.push({ item: item, semana: semana, dia: dia, data: dataDoDia, encNomes: equipeDaLinha,
+                               torreTexto: cand.torre.identificador, percentual: null, notas: pt.rotulos.slice(), ehPortico: true });
+              } else if (ladoDaLinha) {
+                porticoFaltando[ladoDaLinha]++;
+                soltas.push(frase(pt.texto));
+              } else {
+                pendentesPortico.push({ item: item, semana: semana, dia: dia, data: dataDoDia, encNomes: equipeDaLinha, pt: pt });
+              }
+            });
+
             if (soltas.length && daLinha.length) {
-              daLinha.forEach(function (b) {
+              daLinha.filter(function (b) { return !b.ehPortico; }).forEach(function (b) {
                 soltas.forEach(function (s) { if (b.notas.indexOf(s) === -1) b.notas.push(s); });
               });
             } else if (soltas.length) {
@@ -934,6 +969,27 @@ window.SIPAV = window.SIPAV || {};
           });
         }
       });
+    });
+
+    // Pórtico sozinho na linha: o lado vem das outras torres da mesma equipe no mesmo dia
+    pendentesPortico.forEach(function (pp) {
+      // A mesma equipe, ou alguém dela, no mesmo dia
+      var mesmas = brutas.filter(function (b) {
+        return b.data === pp.data && !ehPortico(b.torreTexto) &&
+               b.encNomes.some(function (n) { return pp.encNomes.indexOf(n) !== -1; });
+      });
+      var lado = ladoDasTorres(mesmas.map(function (b) { return b.torreTexto; }));
+      var cand = lado ? porticos.filter(function (p) { return p.lado === lado; })[0] : null;
+
+      if (cand) {
+        brutas.push({ item: pp.item, semana: pp.semana, dia: pp.dia, data: pp.data, encNomes: pp.encNomes,
+                      torreTexto: cand.torre.identificador, percentual: null, notas: pp.pt.rotulos.slice(), ehPortico: true });
+      } else {
+        porticoFaltando[lado || 'indefinido']++;
+        var atividadeDoPortico = atividadesDoItem(pp.item)[0] || rotuloDoItem(pp.item);
+        movimentosBrutos.push({ tipo: 'OUTRO', obs: frase(pp.pt.texto) + ' · ' + frase(atividadeDoPortico),
+                                data: pp.data, encNomes: pp.encNomes });
+      }
     });
 
     // ---- 2. Resolve torre e encarregado ----
@@ -1193,7 +1249,7 @@ window.SIPAV = window.SIPAV || {};
         .sort(function (a, b) { return a.data < b.data ? -1 : a.data > b.data ? 1 : 0; }),
       problemas: problemas,
       resumo: {
-        portico: porticoSoltos,
+        porticoFaltando: porticoFaltando,
         itensLidos: Object.keys(mapa.achados).length,
         celulas: brutas.length,
         tortos: mapa.tortos.length

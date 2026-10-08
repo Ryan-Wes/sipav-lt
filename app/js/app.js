@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v136 · 2026-10-08';
+  var VERSAO = 'v137 · 2026-10-08';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -8243,7 +8243,7 @@ window.SIPAV = window.SIPAV || {};
         }
         importacaoIsa = { arquivo: arquivo.name, datas: r.datas, registros: r.registros,
                           movimentos: r.movimentos || [], naoReconhecidos: r.naoReconhecidos || [],
-                          portico: (r.resumo && r.resumo.portico) || 0,
+                          porticoFaltando: (r.resumo && r.resumo.porticoFaltando) || { inicio: 0, fim: 0, indefinido: 0 },
                           problemas: r.problemas, resumo: r.resumo };
 
         var fim = ui.iso(ui.somarDias(ui.paraData(r.datas.s1), 13));
@@ -8344,21 +8344,110 @@ window.SIPAV = window.SIPAV || {};
       else { x.tipo = 'OUTRO'; x.observacao = 'Mudança para ' + x.destinoTexto; }
     });
   }
-  /** Cadastra o PÓRTICO como torre do trecho, no começo da linha, e lê a planilha de novo. */
-  function cadastrarPorticoDaIsa() {
-    var menor = E.torres.reduce(function (m, t) { return Math.min(m, Number(t.ordem) || 0); }, 0);
+  /* ------------------------------------------------------------ Pórtico ---- */
+
+  var NOME_DO_PORTICO = { inicio: 'PÓRTICO INICIAL', fim: 'PÓRTICO FINAL' };
+
+  /**
+   * Os pórticos que o trecho tem, como cards na linha: o do começo e o do fim. Cada um
+   * é opcional: há trechos que pegam uma parte da linha que começa no pórtico e não
+   * termina em outro. Qual é qual vem da posição, antes ou depois da metade das torres.
+   */
+  function porticosDoTrecho() {
+    var reais = [], porticos = [];
+    (E.torres || []).forEach(function (t, i) {
+      if (/^portico/.test(normalizar(t.identificador))) porticos.push({ torre: t, pos: i });
+      else reais.push(i);
+    });
+    var meio = reais.length ? (Math.min.apply(null, reais) + Math.max.apply(null, reais)) / 2 : 0;
+    var r = { inicio: null, fim: null };
+    porticos.forEach(function (p) { r[p.pos < meio ? 'inicio' : 'fim'] = p.torre; });
+    return r;
+  }
+
+  function recarregarTorresDoTrecho() {
+    return db.torres(E.trechoAtual.id).then(function (torres) {
+      E.torres = torres;
+      render.tudo();
+    });
+  }
+
+  /** Cadastra o pórtico do começo ou do fim da linha como uma torre sem km. */
+  function adicionarPortico(lado) {
+    if (!podeEditarTorre()) { ui.avisar('Só administração e planejamento cadastram torre.', 'alerta'); return Promise.resolve(); }
+    if (porticosDoTrecho()[lado]) return Promise.resolve();
+
+    var ordens = (E.torres || []).map(function (t) { return Number(t.ordem) || 0; });
+    var ordem = lado === 'inicio' ? Math.min.apply(null, ordens.concat([0])) - 1
+                                  : Math.max.apply(null, ordens.concat([0])) + 1;
     ui.processando('Cadastrando o pórtico…');
-    db.importarTorres(E.trechoAtual.id, [{ identificador: 'PÓRTICO', km: 0, ordem: menor - 1 }])
-      .then(function () { return db.torres(E.trechoAtual.id); })
-      .then(function (torres) {
-        E.torres = torres;
-        ui.pronto();
-        ui.avisar('Pórtico cadastrado como torre.', 'sucesso');
-        processarImportacaoIsa();
-      })
+    return db.importarTorres(E.trechoAtual.id, [{ identificador: NOME_DO_PORTICO[lado], km: 0, ordem: ordem }])
+      .then(recarregarTorresDoTrecho)
+      .then(function () { ui.pronto(); ui.avisar('Pórtico cadastrado.', 'sucesso'); });
+  }
+
+  /** Cadastra o pórtico a partir da prévia da importação e lê a planilha de novo. */
+  function cadastrarPorticoDaIsa(lado) {
+    adicionarPortico(lado)
+      .then(function () { processarImportacaoIsa(); })
       .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro', 6000); });
   }
 
+  /** Cadastros → Pórtico do trecho: ligar e desligar o do começo e o do fim. */
+  function abrirPorticos() {
+    if (!E.trechoAtual) return;
+    var p = porticosDoTrecho();
+    var pode = podeEditarTorre();
+
+    function linha(lado, titulo) {
+      var t = p[lado];
+      return '<div class="flex items-center justify-between gap-3" ' +
+                  'style="border:1px solid var(--borda);border-radius:.5rem;padding:.625rem .75rem">' +
+        '<div><p class="text-sm font-semibold">' + titulo + '</p>' +
+          '<p class="text-xs" style="color:var(--texto-fraco)">' +
+            (t ? 'Cadastrado como <strong>' + esc(t.identificador) + '</strong>.' : 'O trecho não tem.') + '</p></div>' +
+        (pode
+          ? (t ? '<button type="button" class="btn-secundario btn-secundario-perigo" ' +
+                         'onclick="SIPAV.app.removerPortico(\'' + lado + '\')">Remover</button>'
+               : '<button type="button" class="btn-primario" ' +
+                         'onclick="SIPAV.app.adicionarPorticoDoCadastro(\'' + lado + '\')">Adicionar</button>')
+          : '') +
+      '</div>';
+    }
+
+    ui.modalGenerico({
+      titulo: 'Pórtico — ' + E.trechoAtual.nome,
+      corpoHtml:
+        '<div class="space-y-3">' +
+          '<p class="text-xs" style="color:var(--texto-suave)">O pórtico aparece como um card na linha, ' +
+            'no começo ou no fim, e recebe programação como uma torre. Alguns trechos pegam uma parte da ' +
+            'linha que começa no pórtico e não termina em outro: por isso cada ponta é opcional.</p>' +
+          linha('inicio', 'Pórtico do começo da linha') +
+          linha('fim', 'Pórtico do fim da linha') +
+        '</div>',
+      botoes: [{ rotulo: 'Fechar', classe: 'btn-secundario' }]
+    });
+  }
+
+  function adicionarPorticoDoCadastro(lado) {
+    adicionarPortico(lado).then(abrirPorticos)
+      .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro', 6000); });
+  }
+
+  function removerPortico(lado) {
+    var torre = porticosDoTrecho()[lado];
+    if (!torre) return;
+    ui.confirmar('Remover o ' + torre.identificador,
+      'Tira o pórtico da linha. Só sai se não tiver programação nem apontamento.', 'Remover')
+      .then(function (sim) {
+        if (!sim) return;
+        ui.processando('Removendo…');
+        return db.removerTorreVazia(torre.torre_id)
+          .then(recarregarTorresDoTrecho)
+          .then(function () { ui.pronto(); ui.avisar('Pórtico removido.', 'sucesso'); abrirPorticos(); });
+      })
+      .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro', 7000); });
+  }
   function mostrarPreviaIsa() {
     var imp = importacaoIsa;
     if (!imp) return;
@@ -8400,17 +8489,28 @@ window.SIPAV = window.SIPAV || {};
     }
 
     // Pórtico com programação na planilha, mas sem ser uma torre do trecho: sem ele
-    // cadastrado, vira só comentário nas torres do lado
-    if (imp.portico) {
+    // cadastrado, vira só comentário nas torres do lado. Cada ponta é opcional.
+    var pf = imp.porticoFaltando || {};
+    var botoesPortico = [];
+    if (pf.inicio || pf.indefinido) botoesPortico.push(['inicio', 'Cadastrar o pórtico do começo' + (pf.inicio ? ' (' + pf.inicio + ')' : '')]);
+    if (pf.fim || pf.indefinido) botoesPortico.push(['fim', 'Cadastrar o pórtico do fim' + (pf.fim ? ' (' + pf.fim + ')' : '')]);
+    if (botoesPortico.length) {
       corpo +=
         '<div class="rounded-lg border border-amber-300 bg-amber-50 p-3 space-y-2">' +
-          '<p class="text-sm font-semibold text-amber-900">Pórtico na planilha (' + imp.portico + ' lançamento(s))</p>' +
-          '<p class="text-xs text-amber-800">O trecho não tem o pórtico cadastrado, então ele entrou só como comentário ' +
-            'nas torres ao lado. Cadastrado como torre, ele vira um card como as outras e recebe as programações.</p>' +
-          '<button type="button" class="btn-secundario" onclick="SIPAV.app.cadastrarPorticoDaIsa()">Cadastrar PÓRTICO como torre</button>' +
+          '<p class="text-sm font-semibold text-amber-900">Pórtico na planilha</p>' +
+          '<p class="text-xs text-amber-800">O trecho não tem ' +
+            (pf.inicio && !pf.fim && !pf.indefinido ? 'o pórtico do começo' :
+             pf.fim && !pf.inicio && !pf.indefinido ? 'o pórtico do fim' : 'o pórtico cadastrado') +
+            ', então o que a planilha diz dele entrou como comentário nas torres ao lado. Cadastrado, ele vira um ' +
+            'card como as outras torres e recebe as programações. Cadastre só a ponta que o seu trecho tem: ' +
+            'há trechos que começam no pórtico e não terminam em outro.</p>' +
+          '<div class="flex gap-2 flex-wrap">' +
+            botoesPortico.map(function (b) {
+              return '<button type="button" class="btn-secundario" onclick="SIPAV.app.cadastrarPorticoDaIsa(\'' + b[0] + '\')">' + b[1] + '</button>';
+            }).join('') +
+          '</div>' +
         '</div>';
     }
-
     // Nome que o SIPAV não sabe de quem é: escolhe-se aqui, em vez de cadastrar e
     // voltar. Vale só para esta leitura.
     if ((imp.naoReconhecidos || []).length) {
@@ -9102,6 +9202,9 @@ window.SIPAV = window.SIPAV || {};
     abrirImportarIsa: abrirImportarIsa,
     associarEncarregadoIsa: associarEncarregadoIsa,
     cadastrarPorticoDaIsa: cadastrarPorticoDaIsa,
+    abrirPorticos: abrirPorticos,
+    adicionarPorticoDoCadastro: adicionarPorticoDoCadastro,
+    removerPortico: removerPortico,
     pedirNovoEncarregadoIsa: pedirNovoEncarregadoIsa,
     cadastrarEncarregadoDaIsa: cadastrarEncarregadoDaIsa,
     abrirPlanejamentos: abrirPlanejamentos,

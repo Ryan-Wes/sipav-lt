@@ -874,6 +874,31 @@ window.SIPAV = window.SIPAV || {};
       .then(function (r) { return ok(r, 'Falha ao importar torres'); });
   }
 
+  /**
+   * Tira uma torre que não tem nada: nem programação, nem apontamento. As duas
+   * tabelas apagam junto com a torre (on delete cascade), então a conferência vem antes.
+   * Serve para o pórtico cadastrado por engano.
+   */
+  function removerTorreVazia(torreId) {
+    function contar(tabela) {
+      return cliente().from(tabela).select('id', { count: 'exact', head: true }).eq('torre_id', torreId)
+        .then(function (r) {
+          if (r.error) throw traduzErro(r.error, 'Falha ao conferir a torre');
+          return r.count || 0;
+        });
+    }
+    return Promise.all([contar('programacao'), contar('execucao')]).then(function (n) {
+      if (n[0] || n[1]) {
+        throw new Error('Esta torre tem ' + n[0] + ' programação(ões) e ' + n[1] + ' apontamento(s). ' +
+                        'Tire-os antes de remover.');
+      }
+      return cliente().from('torre').delete().eq('id', torreId).then(function (r) {
+        if (r.error) throw traduzErro(r.error, 'Falha ao remover a torre');
+        return true;
+      });
+    });
+  }
+
   /* ======================================================================== */
   /* APONTAMENTO DO EXECUTADO                                                 */
   /* ======================================================================== */
@@ -1508,6 +1533,7 @@ window.SIPAV = window.SIPAV || {};
     salvarDependencias: salvarDependencias,
     reordenarAtividades: reordenarAtividades,
     importarTorres: importarTorres,
+    removerTorreVazia: removerTorreVazia,
     planejamentosSalvos: planejamentosSalvos,
     planejamentoSalvo: planejamentoSalvo,
     salvarPlanejamentoSemanal: salvarPlanejamentoSemanal,
