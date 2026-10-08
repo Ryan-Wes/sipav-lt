@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v149 · 2026-10-08';
+  var VERSAO = 'v150 · 2026-10-08';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -8946,9 +8946,12 @@ window.SIPAV = window.SIPAV || {};
    * própria planilha traz (escavação na segunda, concretagem na quarta) entra na
    * ordem certa. O que ainda assim for recusado volta num relato, com o motivo.
    */
+  var gravandoIsa = false;   // a importação está gravando: um segundo clique não pode começar outra
+
   function gravarImportacaoIsa() {
     var imp = importacaoIsa;
     if (!imp) return;
+    if (gravandoIsa) { ui.avisar('A importação já está gravando. Espere terminar.', 'alerta'); return; }
 
     if (escolhasPendentesIsa().length) {
       ui.avisar('Você escolheu encarregados e ainda não aplicou. Clique em Aplicar escolhas, confira e programe.', 'alerta', 7000);
@@ -8974,6 +8977,7 @@ window.SIPAV = window.SIPAV || {};
       return ordemDaAtividade(a.atividadeId) - ordemDaAtividade(b.atividadeId);
     });
 
+    gravandoIsa = true;
     ui.processando('Programando ' + tarefas.length + ' lançamento(s)…');
     var liberar = !!($('isaImpLiberar') && $('isaImpLiberar').checked);
     criarRegistrosDaIsa(tarefas, liberar ? 'Importado do relatório da ISA (' + imp.arquivo + ')' : null)
@@ -8983,12 +8987,13 @@ window.SIPAV = window.SIPAV || {};
           loteUltimoLote = r.ids;
           loteUltimasMovs = m.ids;
           return recarregarProgramacoes().then(function () {
+            gravandoIsa = false;
             ui.pronto();
             relatarImportacaoIsa(r.ok, r.falhou, m);
           });
         });
       })
-      .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro'); });
+      .catch(function (e) { gravandoIsa = false; ui.pronto(); ui.avisar(e.message, 'erro'); });
   }
 
   /** Registra os dias sem atividade lidos da planilha. Devolve os ids e o que não entrou. */
@@ -9092,6 +9097,7 @@ window.SIPAV = window.SIPAV || {};
   }
 
   function forcarImportacaoIsa() {
+    if (gravandoIsa) { ui.avisar('A importação já está gravando. Espere terminar.', 'alerta'); return; }
     var motivo = $('isaImpMotivo') ? $('isaImpMotivo').value.trim() : '';
     if (!motivo) {
       ui.avisar('Escreva o motivo para programar fora da sequência.', 'alerta');
@@ -9104,13 +9110,14 @@ window.SIPAV = window.SIPAV || {};
       return ordemDaAtividade(a.atividadeId) - ordemDaAtividade(b.atividadeId);
     });
 
+    gravandoIsa = true;
     ui.processando('Programando ' + tarefas.length + ' lançamento(s)…');
     criarRegistrosDaIsa(tarefas, motivo)
       .then(function (r) {
         loteUltimoLote = loteUltimoLote.concat(r.ids);
-        return recarregarProgramacoes().then(function () { ui.pronto(); relatarImportacaoIsa(r.ok, r.falhou); });
+        return recarregarProgramacoes().then(function () { gravandoIsa = false; ui.pronto(); relatarImportacaoIsa(r.ok, r.falhou); });
       })
-      .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro'); });
+      .catch(function (e) { gravandoIsa = false; ui.pronto(); ui.avisar(e.message, 'erro'); });
   }
 
   /* --------------------------------------------- Relatório da ISA -------- */

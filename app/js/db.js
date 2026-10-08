@@ -44,8 +44,7 @@ window.SIPAV = window.SIPAV || {};
       if (/programacao_sem_duplicata/.test(msg)) {
         return new SipavErro(
           'Este encarregado já está nesta atividade, nesta torre e nesta data. ' +
-          'Para dividir o serviço, escolha outro encarregado. Se são cabos diferentes ' +
-          '(para-raio e OPGW), falta aplicar a migração 49.', erro);
+          'Para dividir o serviço, escolha outro encarregado.', erro);
       }
       if (msg.indexOf('programacao') !== -1) {
         return new SipavErro('Essa atividade já está programada para esta torre nesta data.', erro);
@@ -443,7 +442,14 @@ window.SIPAV = window.SIPAV || {};
         .insert(linha)
         .select(selectProgramacao())
         .single()
-        .then(function (r) { return ok(r, 'Falha ao programar'); });
+        .then(function (r) { return ok(r, 'Falha ao programar'); })
+        .catch(function (e) {
+          // Só no lançamento de cabo a recusa pode vir da chave antiga (sem o cabo)
+          if (dados.cabo && /Este encarregado já está nesta atividade/.test(e.message || '')) {
+            e.message += ' Se o cabo é diferente do que já está lá (para-raio e OPGW), pode faltar aplicar a migração 49.';
+          }
+          throw e;
+        });
     });
   }
 
