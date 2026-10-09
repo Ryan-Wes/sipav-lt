@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v153 · 2026-10-08';
+  var VERSAO = 'v154 · 2026-10-09';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -3335,7 +3335,8 @@ window.SIPAV = window.SIPAV || {};
         // uma sequência já programada; pela grade a torre entra sem data.
         var nova = {
           torreId: t.torreId, identificador: t.identificador, atividadeId: aid,
-          data: anterior ? anterior.data : (t.data || ''),
+          // Lançando pelo + de um dia, toda torre que entra já nasce nesse dia
+          data: anterior ? anterior.data : (t.data || lotePadrao.data || ''),
           encarregadoId: t.encarregadoId || lotePadrao.encarregadoId,
           percentual: lotePadrao.percentual,
           bloqueio: null
@@ -3372,7 +3373,7 @@ window.SIPAV = window.SIPAV || {};
     var herdado = sequencia || {};
 
     dataAtividade = {};
-    lotePadrao = { encarregadoId: encarregadoId || '', percentual: percentual || 100 };
+    lotePadrao = { encarregadoId: encarregadoId || '', percentual: percentual || 100, data: opcoes.data || '' };
     loteAtividades = atividadeId ? [atividadeId] : [];
     loteLinhas = [];
     loteTorres = torres.map(function (t) {
@@ -3574,7 +3575,7 @@ window.SIPAV = window.SIPAV || {};
    * Tudo o mais é o lote de sempre: percentual, observação, segundo encarregado,
    * conferência da sequência e o motivo para o que estiver fora dela.
    */
-  function lancarPorEncarregado(encarregadoId) {
+  function lancarPorEncarregado(encarregadoId, data) {
     if (!E.trechoAtual) return;
     if (somenteConsulta()) return;
     if (E.perfil && E.perfil.papel === 'LEITURA') {
@@ -3585,13 +3586,14 @@ window.SIPAV = window.SIPAV || {};
     var e = encarregadoId && E.encarregados.find(function (x) { return x.id === encarregadoId; });
     abrirProgramacaoEmLote(null, e ? e.id : '', 100, null, [], null, {
       semTorres: true,
+      data: data || '',
       titulo: e ? 'Lançar para ' + e.nome : 'Lançar por encarregado'
     });
   }
 
   /** O + do dia no painel do encarregado: a mesma janela, já no encarregado e no dia. */
   function lancarNoDia(encarregadoId, iso) {
-    lancarPorEncarregado(encarregadoId);
+    lancarPorEncarregado(encarregadoId, iso);
     if ($('loteBase')) { $('loteBase').value = iso; mudarDataBaseLote(); }
   }
 
@@ -4106,6 +4108,8 @@ window.SIPAV = window.SIPAV || {};
         campo.className = 'dia-semana' + (ui.fimDeSemana(iso) || render.feriadoDoDia(iso) ? ' fim-de-semana' : '');
       }
     }
+    // Quem veio pelo + de um dia continua com as torres novas no dia que escolher agora
+    if (lotePadrao && lotePadrao.data) lotePadrao.data = iso;
     renderLoteEscolhidas();
   }
 
