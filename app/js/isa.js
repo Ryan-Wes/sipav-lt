@@ -724,17 +724,46 @@ window.SIPAV = window.SIPAV || {};
     return s.charAt(0).toUpperCase() + s.slice(1);
   }
 
-  /** "61/1 (50% · RETIRADA DE FLAMBAGEM)" → {torre, percentual, notas} */
+  /**
+   * "61/1 (50% · RETIRADA DE FLAMBAGEM)" → {torre, percentual, notas}
+   *
+   * O parêntese pode ter outro dentro: "73/2 (INSTALAÇÃO DE PORTEIRA (3 POR DIA))". A
+   * regex antiga parava no primeiro ")" e a torre virava o texto inteiro, que não existe.
+   * Aqui o parêntese de fora é achado contando a abertura e o fechamento.
+   */
   function interpretarToken(token) {
-    var m = /^([^(]*?)\s*(?:\(([^)]*)\))?\s*$/.exec(token);
-    var torre = (m ? m[1] : token).trim();
-    var dentro = m && m[2] ? m[2] : '';
+    var ini = token.indexOf('(');
+    var torre = (ini === -1 ? token : token.slice(0, ini)).trim();
+    var dentro = '';
+
+    if (ini !== -1) {
+      var fundo = 0, fim = -1;
+      for (var k = ini; k < token.length; k++) {
+        if (token.charAt(k) === '(') fundo++;
+        else if (token.charAt(k) === ')' && --fundo === 0) { fim = k; break; }
+      }
+      // Sobrou texto depois do parêntese: não é "torre (nota)", fica como veio
+      if (fim !== -1 && token.slice(fim + 1).trim()) return { torre: token.trim(), percentual: null, notas: [] };
+      dentro = token.slice(ini + 1, fim === -1 ? token.length : fim);
+    }
 
     var percentual = null, notas = [];
     if (/^fase\s+[a-c](\s*,\s*[a-c])*$/i.test(dentro.trim())) {
       return { torre: torre, percentual: null, notas: [frase(dentro.trim())] };
     }
-    dentro.split(/[·+;]|,\s*/).forEach(function (parte) {
+
+    // Separa por "·", "+", ";" e vírgula, mas não o que está dentro de um parêntese
+    var partes = [], atual = '', nivel = 0;
+    for (var n = 0; n < dentro.length; n++) {
+      var c = dentro.charAt(n);
+      if (c === '(') nivel++;
+      if (c === ')') nivel = Math.max(0, nivel - 1);
+      if (nivel === 0 && (c === '·' || c === '+' || c === ';' || c === ',')) { partes.push(atual); atual = ''; continue; }
+      atual += c;
+    }
+    partes.push(atual);
+
+    partes.forEach(function (parte) {
       parte = parte.trim();
       if (!parte) return;
       var p = /^(\d+(?:[.,]\d+)?)\s*%$/.exec(parte);
@@ -744,7 +773,6 @@ window.SIPAV = window.SIPAV || {};
 
     return { torre: torre, percentual: percentual, notas: notas };
   }
-
   /** O texto de uma célula, com as quebras de linha da planilha. */
   function textoDaCelula(ws, linha, col) {
     var v = valor(ws.getCell(linha, col));

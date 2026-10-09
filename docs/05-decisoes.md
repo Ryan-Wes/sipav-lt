@@ -16,6 +16,12 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 09/10/2026
 
+### Importação: parêntese dentro de parêntese — [WR]
+
+"73/2 (INSTALAÇÃO DE PORTEIRA (3 POR DIA))" saía como torre que não existe: a leitura
+parava no primeiro ")" e a torre virava o texto inteiro. Agora o parêntese de fora é
+achado contando abertura e fechamento, a torre é a 73/2 e "Instalação de porteira (3 por
+dia)" vira o comentário dela, na recuperação de acesso.
 ### Concretagem é uma atividade só — [WR]
 
 "CONCRETAGEM / TUBULÃO" vira "CONCRETAGEM" (migração 51, só o nome). Na importação,
