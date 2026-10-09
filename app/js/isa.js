@@ -89,6 +89,7 @@ window.SIPAV = window.SIPAV || {};
     // ---- Aterramento
     '2.2.1':  ['instalacao de contra peso', 'instalacao de contrapeso'],
     '2.2.3':  ['medicao de resistencia'],
+    '2.2.4':  ['complemento de cabo contrapeso'],
 
     // ---- Montagem
     '3.1.1':  ['pre montagem de torre estaiada'],
@@ -184,6 +185,11 @@ window.SIPAV = window.SIPAV || {};
 
     'ATERRAMENTO / CONTRAPESO':                 { itens: ['2.2.1'] },
     'MEDIÇÃO DE RESISTÊNCIA':                   { itens: ['2.2.3'] },
+    // O nome da planilha é "Complemento de Cabo Contrapeso", mas quem cadastrou a
+    // atividade no SIPAV pode ter escrito de outro jeito. Vale o que existir.
+    'COMPLEMENTO DE CABO CONTRAPESO':           { itens: ['2.2.4'] },
+    'COMPLEMENTO CONTRAPESO':                   { itens: ['2.2.4'] },
+    'COMPLEMENTO DE CONTRAPESO':                { itens: ['2.2.4'] },
 
     // Pré-montagem carrega a revisão em solo (DEC-7), que só existe em estaiada
     'PRÉ-MONTAGEM':                             { est: ['3.1.1', '3.1.2'], aup: ['3.2.1'] },
@@ -334,6 +340,7 @@ window.SIPAV = window.SIPAV || {};
     var achados = {};
     var duplicados = [];
     var tortos = [];
+    var ignorados = [];
     var ultima = ws.rowCount;
 
     // Título da seção em que a linha está ("4.2  LANÇAMENTO DE CABO - PARA-RAIO
@@ -351,7 +358,15 @@ window.SIPAV = window.SIPAV || {};
       if (!tarefa && /^\d+\.\d+$/.test(codigo)) { secao = nome; continue; }
 
       var item = porNome[nome];
-      if (!item) continue;
+      if (!item) {
+        // Item que o SIPAV não conhece. Guarda as linhas de programação, para a
+        // leitura avisar se alguém programou ali: calar fazia a prévia dizer "0 a
+        // programar, 0 avisos" numa planilha que tinha serviço.
+        if (tarefa === 'prog 1' || tarefa === 'prog 2') {
+          ignorados.push({ linha: r, codigo: codigo, nome: String(valor(ws.getCell(r, COL.ATIVIDADE)) || '').trim() });
+        }
+        continue;
+      }
 
       // OPGW com lado: a seção diz qual. 4.2.3 vira 4.2D.3 ou 4.2E.3.
       if (/^4\.2\.\d+$/.test(item)) {
@@ -383,7 +398,7 @@ window.SIPAV = window.SIPAV || {};
     // Planilha com OPGW dos dois lados, sem para-raio convencional
     var doisLados = Object.keys(achados).some(function (i) { return /^4\.2[DE]\./.test(i); });
 
-    return { achados: achados, duplicados: duplicados, tortos: tortos, doisLados: doisLados };
+    return { achados: achados, duplicados: duplicados, tortos: tortos, doisLados: doisLados, ignorados: ignorados };
   }
 
   /**
@@ -1238,6 +1253,35 @@ window.SIPAV = window.SIPAV || {};
       problema('torre', 'Torre ' + a.de + ' não existe, e a ' + a.para + ' já está programada em "' + a.item +
                '": quem lançou deve ter achado que havia uma ' + a.de + '. Não entrou (' + a.n + ').');
     });
+    // Programação em item que o SIPAV não importa. Dia só com FERIADO, FOLGA e afins
+    // não conta: isso já vira dia sem atividade.
+    var semItem = {};
+    (mapa.ignorados || []).forEach(function (ig) {
+      var servico = 0;
+      for (var dia = 0; dia < 7; dia++) {
+        var texto = textoDaCelula(ws, ig.linha, COL.SEGUNDA + dia);
+        if (semTexto(texto)) continue;
+        texto.split('\n').forEach(function (l) {
+          if (semTexto(l)) return;
+          dividirNaVirgula(l).forEach(function (tk) {
+            var t = interpretarToken(tk);
+            if (!movimentoDaAnotacao(t.torre)) servico++;
+          });
+        });
+      }
+      if (!servico) return;
+      var chave = (ig.codigo ? ig.codigo + ' ' : '') + ig.nome;
+      var s = semItem[chave] = semItem[chave] || { n: 0, encs: [] };
+      s.n += servico;
+      nomesDaEquipe(textoDaCelula(ws, ig.linha, COL.ENCARREGADO).replace(/\n/g, '/')).forEach(function (n) {
+        if (s.encs.indexOf(n) === -1) s.encs.push(n);
+      });
+    });
+    Object.keys(semItem).sort().forEach(function (k) {
+      var s = semItem[k];
+      problema('item', 'A planilha tem programação em "' + k + '"' + (s.encs.length ? ' (' + s.encs.join(', ') + ')' : '') +
+               ', e o SIPAV não importa esse item (' + s.n + ' lançamento(s)). Não entrou: lance na mão.');
+    });
     var avulsas = Object.keys(anotacoes);
     if (avulsas.length) {
       problema('texto', 'Anotações da planilha que não são torre, ficaram de fora: ' +
@@ -1358,7 +1402,12 @@ window.SIPAV = window.SIPAV || {};
       // genérica que vale para ela.
       var faltam = restantes.slice();
       var candidatas = {};
-      restantes.forEach(function (i) { atividadesDoItem(i).forEach(function (n) { candidatas[n] = true; }); });
+      restantes.forEach(function (i) {
+        var nomes = atividadesDoItem(i);
+        // Mais de um nome para o mesmo item: fica com os que existem no cadastro
+        var existem = nomes.filter(function (n) { return atividades[norm(n)]; });
+        (existem.length ? existem : nomes).forEach(function (n) { candidatas[n] = true; });
+      });
 
       var infos = Object.keys(candidatas).map(function (nome) {
         return { nome: nome, itens: itensDe({ atividade: { nome: nome }, cabo: null }, estrutura, false) };

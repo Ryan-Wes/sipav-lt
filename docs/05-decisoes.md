@@ -16,6 +16,18 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 09/10/2026
 
+### Importação: item que o SIPAV não conhece avisa, e o complemento de contrapeso entra — [WR]
+
+A planilha de 12/10 só tinha serviço em "2.2.4 Complemento de Cabo Contrapeso", item
+que o importador não tinha no catálogo. Ele pulava o item calado e a prévia dizia
+"0 a programar, 0 avisos". Agora o item entra no catálogo (2.2.4), e qualquer item
+fora do catálogo que tenha programação vira aviso com o nome e os encarregados, para
+eu lançar na mão. Dia com só feriado, folga e afins não conta.
+
+A atividade do SIPAV pode ter nome diferente do da planilha, então valem três grafias
+("Complemento de Cabo Contrapeso", "Complemento Contrapeso", "Complemento de
+Contrapeso"), e quando mais de um nome serve para o mesmo item o importador fica com os
+que existem no cadastro.
 ### Repetir o último traz a data; Enter confirma a janela — [WR]
 
 Na torre, "Repetir o último" agora preenche a data do último lançamento junto
