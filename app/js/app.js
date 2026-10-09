@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v157 · 2026-10-09';
+  var VERSAO = 'v158 · 2026-10-09';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -6141,7 +6141,7 @@ window.SIPAV = window.SIPAV || {};
         '<div>' +
           '<label class="rotulo">Nome</label>' +
           '<input id="atvNome" class="campo" value="' + esc(a ? a.nome : '') + '" ' +
-                 'placeholder="Ex.: CONCRETAGEM / TUBULÃO">' +
+                 'placeholder="Ex.: CONCRETAGEM">' +
           '<p class="text-xs text-slate-400 mt-1">' +
             (a
               ? 'A posição na lista muda arrastando, na lista de atividades.'

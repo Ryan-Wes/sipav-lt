@@ -16,6 +16,12 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 09/10/2026
 
+### Concretagem é uma atividade só — [WR]
+
+"CONCRETAGEM / TUBULÃO" vira "CONCRETAGEM" (migração 51, só o nome). Na importação,
+basta um dos itens de concretagem da planilha estar preenchido (estai/pé ou mastro
+central) para a torre entrar inteira, sem o aviso de "só o item 2.1.12 está
+preenchido". A importação aceita os dois nomes até a migração rodar.
 ### Importação: desforma da fundação e seccionamento de cercas viram atividades — [WR]
 
 A planilha de Campo Formoso–Barra II de 12/10 tinha programação em "Desforma

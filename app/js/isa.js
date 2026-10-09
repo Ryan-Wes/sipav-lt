@@ -183,7 +183,11 @@ window.SIPAV = window.SIPAV || {};
     'INSTALAÇÃO DE PRÉ-MOLDADOS - VIGA L':      { itens: ['2.1.10'] },
     'INSTALAÇÃO DE PRÉ-MOLDADOS - MC':          { itens: ['2.1.11'] },
     'INSTALAÇÃO DE PRÉ-MOLDADOS - MC E VIGA L': { itens: ['2.1.10', '2.1.11'] },
-    'CONCRETAGEM / TUBULÃO':                    { est: ['2.1.12', '2.1.13'], aup: ['2.1.12'] },
+    // Concretagem é uma atividade só: basta um dos itens da planilha estar preenchido
+    // (o estai/pé ou o mastro central) para a torre entrar inteira. O nome antigo
+    // fica até a migração 51 renomear.
+    'CONCRETAGEM':                              { est: ['2.1.12', '2.1.13'], aup: ['2.1.12'], basta: true },
+    'CONCRETAGEM / TUBULÃO':                    { est: ['2.1.12', '2.1.13'], aup: ['2.1.12'], basta: true },
     'REATERRO 100%':                            { est: ['2.1.16', '2.1.17'], aup: ['2.1.16'] },
     'DESFORMA FUNDAÇÃO':                        { itens: ['2.1.14'] },
     'TESTE DE ARRANCAMENTO':                    { itens: ['2.1.18'] },
@@ -1417,15 +1421,17 @@ window.SIPAV = window.SIPAV || {};
       });
 
       var infos = Object.keys(candidatas).map(function (nome) {
-        return { nome: nome, itens: itensDe({ atividade: { nome: nome }, cabo: null }, estrutura, false) };
+        return { nome: nome, basta: !!(regraDe(nome) || {}).basta, itens: itensDe({ atividade: { nome: nome }, cabo: null }, estrutura, false) };
       }).filter(function (c) { return c.itens.length; })
         .sort(function (a, b) { return (b.itens.length - a.itens.length) || (a.nome.length - b.nome.length); });
 
       infos.forEach(function (c) {
-        var inteira = c.itens.every(function (i) { return faltam.indexOf(i) !== -1; });
+        // Quando basta um item, o que estiver preenchido cobre a atividade
+        var usados = c.basta ? c.itens.filter(function (i) { return faltam.indexOf(i) !== -1; }) : c.itens;
+        var inteira = usados.length && usados.every(function (i) { return faltam.indexOf(i) !== -1; });
         if (!inteira) return;
-        guardar(c.nome, c.itens, null);
-        faltam = faltam.filter(function (i) { return c.itens.indexOf(i) === -1; });
+        guardar(c.nome, usados, null);
+        faltam = faltam.filter(function (i) { return usados.indexOf(i) === -1; });
       });
 
       // O que sobrou é parte de uma atividade (só uma das duas linhas preenchida)
