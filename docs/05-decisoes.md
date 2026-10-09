@@ -14,6 +14,21 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ---
 
+## 09/10/2026
+
+### Repetir o último traz a data; Enter confirma a janela — [WR]
+
+Na torre, "Repetir o último" agora preenche a data do último lançamento junto
+com o resto, como já fazia no lote. Quem lança uma sequência de torres quase
+sempre está no mesmo dia, e a data continua no campo para mudar antes de
+adicionar.
+
+O Enter confirma a janela aberta, do mesmo jeito que o Esc fecha: na torre
+adiciona a programação (só com o cursor num campo do formulário, e só se o
+botão estiver habilitado), na confirmação aperta o botão de confirmar e nas
+janelas com ação aperta a última ação. Janela que só tem "Fechar" não reage ao
+Enter. Ficam de fora botões, listas de busca, a observação da torre e campos de
+texto grande, que já têm o Enter deles.
 ## 08/10/2026
 
 ### Histórico: alteração em massa vira um cartão — [WR]

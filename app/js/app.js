@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v154 · 2026-10-09';
+  var VERSAO = 'v155 · 2026-10-09';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -89,6 +89,44 @@ window.SIPAV = window.SIPAV || {};
         if (cancelar) { cancelar.click(); return; }
       }
       ui.fecharModal(aberto.id);
+    });
+
+    // Enter confirma a janela aberta, do mesmo jeito que o Esc fecha. Fica de
+    // fora o que já tem Enter próprio (as listas de busca e a observação da
+    // torre) e o que não é para confirmar (botão, lista suspensa, campo de texto
+    // grande): ali o Enter continua fazendo o que sempre fez.
+    document.addEventListener('keydown', function (ev) {
+      if (ev.key !== 'Enter' || ev.defaultPrevented || ev.isComposing) return;
+      if (ev.shiftKey || ev.ctrlKey || ev.altKey || ev.metaKey) return;
+
+      var abertos = document.querySelectorAll('.modal:not(.hidden)');
+      if (!abertos.length) return;
+      var aberto = abertos[abertos.length - 1];
+
+      var alvo = ev.target;
+      var tag = alvo && alvo.tagName;
+      if (tag === 'BUTTON' || tag === 'TEXTAREA' || tag === 'SELECT' || tag === 'A') return;
+      if (alvo && alvo.closest && alvo.closest('.combo')) return;
+      if (alvo && alvo.id === 'campoObsTorre') return;
+
+      var botao = null;
+      if (aberto.id === 'modalConfirmacao') {
+        botao = $('btnConfirmar');
+      } else if (aberto.id === 'modalGenerico') {
+        // Só quando a janela tem uma ação de verdade; a que só tem "Fechar" fica
+        // quieta, para o Enter não fechar uma leitura sem querer.
+        var acoes = aberto.querySelectorAll('#genericoRodape .btn-primario, #genericoRodape .btn-perigo');
+        botao = acoes[acoes.length - 1] || null;
+      } else if (aberto.id === 'modalProgramacao') {
+        // Na torre só vale com o dedo num campo do formulário, senão um Enter
+        // solto tentaria adicionar uma programação em branco.
+        if (tag !== 'INPUT') return;
+        botao = $('btnAdicionar');
+      }
+
+      if (!botao || botao.disabled || botao.offsetParent === null) return;
+      ev.preventDefault();
+      botao.click();
     });
 
     // Arrastar pela grade marca as torres do retângulo, no modo seleção
@@ -1498,9 +1536,12 @@ window.SIPAV = window.SIPAV || {};
     if (ultimoLancamento.percentual) $('campoPercentual').value = ultimoLancamento.percentual;
     if (ultimoLancamento.cabo) $('campoCabo').value = ultimoLancamento.cabo;
 
-    // A data não vem junto: é ela que muda de uma torre para a outra, e é o
-    // único campo que eu realmente tenho que pensar a cada lançamento.
+    // A data vem junto, como no lote: quem lança uma sequência de torres quase
+    // sempre está no mesmo dia, e refazer a data a cada torre era o que dava
+    // trabalho. Ela continua à vista no campo para mudar antes de adicionar.
+    if (ultimoLancamento.data) $('campoData').value = ultimoLancamento.data;
     mudarAtividade();
+    mudarData();
     $('campoData').focus();
   }
 
