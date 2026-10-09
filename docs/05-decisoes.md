@@ -16,6 +16,16 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 09/10/2026
 
+### Importação: desforma da fundação e seccionamento de cercas viram atividades — [WR]
+
+A planilha de Campo Formoso–Barra II de 12/10 tinha programação em "Desforma
+Fundação" e "Seccionamento e Aterramento de Cercas", que o SIPAV não tinha. Viram
+atividades (migração 50), condicionais e sem dependência, e entram no catálogo da ISA
+como 2.1.14 e 2.2.5. A planilha de 12/10 tem um item só de desforma, então a
+atividade é uma só, e não a divisão estai/mastro central das planilhas antigas.
+
+"Fundação 100% concluída" fica de fora de propósito: só repete o reaterro. A leitura
+pula essa linha sem avisar.
 ### Importação: item que o SIPAV não conhece avisa, e o complemento de contrapeso entra — [WR]
 
 A planilha de 12/10 só tinha serviço em "2.2.4 Complemento de Cabo Contrapeso", item

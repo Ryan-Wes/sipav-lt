@@ -78,6 +78,9 @@ window.SIPAV = window.SIPAV || {};
                'concretagem in loco fundacao estai pe',
                'preparacao concretagem in loco fundacao'],
     '2.1.13': ['concretagem in loco fundacao mastro central'],
+    // Desforma: a planilha de 12/10 tem um item só, "Desforma Fundação". As
+    // anteriores separavam estai/pé de mastro central (2.1.14 e 2.1.15 da ISA).
+    '2.1.14': ['desforma fundacao', 'desforma fundacao estai pe', 'desforma fundacao estai'],
     '2.1.16': ['reaterro fundacao estai pe', 'reaterro fundacao estai', 'reaterro fundacao'],
     '2.1.17': ['reaterro fundacao mastro central'],
     '2.1.18': ['ensaio de arrancamento fundacao estai', 'ensaio de arrancamento fundacao',
@@ -90,6 +93,7 @@ window.SIPAV = window.SIPAV || {};
     '2.2.1':  ['instalacao de contra peso', 'instalacao de contrapeso'],
     '2.2.3':  ['medicao de resistencia'],
     '2.2.4':  ['complemento de cabo contrapeso'],
+    '2.2.5':  ['seccionamento e aterramento de cercas', 'seccionamento de cercas'],
 
     // ---- Montagem
     '3.1.1':  ['pre montagem de torre estaiada'],
@@ -181,10 +185,12 @@ window.SIPAV = window.SIPAV || {};
     'INSTALAÇÃO DE PRÉ-MOLDADOS - MC E VIGA L': { itens: ['2.1.10', '2.1.11'] },
     'CONCRETAGEM / TUBULÃO':                    { est: ['2.1.12', '2.1.13'], aup: ['2.1.12'] },
     'REATERRO 100%':                            { est: ['2.1.16', '2.1.17'], aup: ['2.1.16'] },
+    'DESFORMA FUNDAÇÃO':                        { itens: ['2.1.14'] },
     'TESTE DE ARRANCAMENTO':                    { itens: ['2.1.18'] },
 
     'ATERRAMENTO / CONTRAPESO':                 { itens: ['2.2.1'] },
     'MEDIÇÃO DE RESISTÊNCIA':                   { itens: ['2.2.3'] },
+    'SECCIONAMENTO E ATERRAMENTO DE CERCAS':    { itens: ['2.2.5'] },
     // O nome da planilha é "Complemento de Cabo Contrapeso", mas quem cadastrou a
     // atividade no SIPAV pode ter escrito de outro jeito. Vale o que existir.
     'COMPLEMENTO DE CABO CONTRAPESO':           { itens: ['2.2.4'] },
@@ -362,7 +368,8 @@ window.SIPAV = window.SIPAV || {};
         // Item que o SIPAV não conhece. Guarda as linhas de programação, para a
         // leitura avisar se alguém programou ali: calar fazia a prévia dizer "0 a
         // programar, 0 avisos" numa planilha que tinha serviço.
-        if (tarefa === 'prog 1' || tarefa === 'prog 2') {
+        // "Fundação 100% concluída" só repete o reaterro: não tem o que programar nela
+        if ((tarefa === 'prog 1' || tarefa === 'prog 2') && !/^fundacao 100/.test(nome)) {
           ignorados.push({ linha: r, codigo: codigo, nome: String(valor(ws.getCell(r, COL.ATIVIDADE)) || '').trim() });
         }
         continue;
