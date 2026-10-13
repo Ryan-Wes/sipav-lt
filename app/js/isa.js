@@ -351,6 +351,7 @@ window.SIPAV = window.SIPAV || {};
     var duplicados = [];
     var tortos = [];
     var ignorados = [];
+    var porFrente = [];            // linhas do layout novo, por frente de serviço
     var ultima = ws.rowCount;
 
     // Título da seção em que a linha está ("4.2  LANÇAMENTO DE CABO - PARA-RAIO
@@ -366,6 +367,14 @@ window.SIPAV = window.SIPAV || {};
       var tarefa = norm(valor(ws.getCell(r, COL.TAREFA)));
       var codigo = String(valor(ws.getCell(r, COL.ITEM)) || '').trim();
       if (!tarefa && /^\d+\.\d+$/.test(codigo)) { secao = nome; continue; }
+
+      // Layout novo (REV01 de 12/10): em vez de PROG. 1 e PROG. 2, o bloco do item tem
+      // "Primeira semana" e "Segunda semana" e uma linha por frente (Barra, Igarité…).
+      // O SIPAV ainda não lê isso: guarda para avisar, e não deixar passar calado.
+      if (/^(primeira|segunda) semana$/.test(tarefa)) {
+        porFrente.push({ linha: r, codigo: codigo, nome: String(valor(ws.getCell(r, COL.ATIVIDADE)) || '').trim() });
+        continue;
+      }
 
       var item = porNome[nome];
       if (!item) {
@@ -409,7 +418,7 @@ window.SIPAV = window.SIPAV || {};
     // Planilha com OPGW dos dois lados, sem para-raio convencional
     var doisLados = Object.keys(achados).some(function (i) { return /^4\.2[DE]\./.test(i); });
 
-    return { achados: achados, duplicados: duplicados, tortos: tortos, doisLados: doisLados, ignorados: ignorados };
+    return { achados: achados, duplicados: duplicados, tortos: tortos, doisLados: doisLados, ignorados: ignorados, porFrente: porFrente };
   }
 
   /**
@@ -1321,6 +1330,29 @@ window.SIPAV = window.SIPAV || {};
       problema('item', 'A planilha tem programação em "' + k + '"' + (s.encs.length ? ' (' + s.encs.join(', ') + ')' : '') +
                ', e o SIPAV não importa esse item (' + s.n + ' lançamento(s)). Não entrou: lance na mão.');
     });
+    // Layout por frente com serviço escrito: não é lido, e isso tem que aparecer
+    var frentes = {};
+    (mapa.porFrente || []).forEach(function (pf) {
+      var n = 0;
+      for (var dia = 0; dia < 7; dia++) {
+        var texto = textoDaCelula(ws, pf.linha, COL.SEGUNDA + dia);
+        if (semTexto(texto)) continue;
+        texto.split('\n').forEach(function (l) {
+          dividirNaVirgula(l).forEach(function (tk) {
+            if (!semTexto(tk) && !movimentoDaAnotacao(interpretarToken(tk).torre)) n++;
+          });
+        });
+      }
+      if (!n) return;
+      var chave = (pf.codigo ? pf.codigo + ' ' : '') + pf.nome;
+      frentes[chave] = (frentes[chave] || 0) + 1;
+    });
+    var itensFrente = Object.keys(frentes).sort();
+    if (itensFrente.length) {
+      problema('layout', 'A planilha tem programação no layout novo, por frente de serviço, que o SIPAV ainda não lê, em ' +
+               itensFrente.length + ' item(ns): ' + itensFrente.slice(0, 6).join(' · ') +
+               (itensFrente.length > 6 ? ' · …' : '') + '. Não entrou: lance na mão.');
+    }
     var avulsas = Object.keys(anotacoes);
     if (avulsas.length) {
       problema('texto', 'Anotações da planilha que não são torre, ficaram de fora: ' +

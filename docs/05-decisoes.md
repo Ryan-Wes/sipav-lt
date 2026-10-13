@@ -14,6 +14,21 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ---
 
+## 13/10/2026
+
+### REV01 do gerente: layout por frente de serviço — [WR]
+
+O gerente reorganizou as planilhas de 12/10 (REV01). A aba, as colunas, o cabeçalho e as
+datas são os de sempre, e as fórmulas sobrevivem à exportação (conferi a contagem antes e
+depois nas quatro). A mudança está nos blocos de cada item: em vez de EXEC., PROG. 1 e
+PROG. 2, vários itens têm EXECUTADO, "Primeira semana" e "Segunda semana", e uma linha
+por frente (Barra, Igarité, Wanderley; em Campo Formoso–Barra II: Barra, Itajubaquara,
+Central, Umburanas, Laje dos Negros). A programação passou a ser dividida por frente.
+
+O que existia continua funcionando nos itens que ficaram no layout antigo. Os itens no
+layout novo ainda não são lidos nem escritos pelo SIPAV: até decidirmos como tratar a
+frente, a leitura avisa ("layout novo, por frente de serviço, que o SIPAV ainda não lê")
+em vez de dizer "0 a programar" calada.
 ## 09/10/2026
 
 ### Importação: parêntese dentro de parêntese — [WR]
