@@ -929,6 +929,9 @@ window.SIPAV = window.SIPAV || {};
                  rotulos: fasePortico ? ['Fase ' + fasePortico[1].toUpperCase()] : [] };
       }
 
+      // "73-1" é a 73/1 digitada com hífen
+      texto = texto.replace(/^(\d+)\s*-\s*(\d+)$/, '$1/$2');
+
       if (!/\d+\/\d+/.test(texto)) return null;
 
       var fase = /^(.*\S)\s+(fase\s+[a-c])$/i.exec(texto);
@@ -1172,6 +1175,8 @@ window.SIPAV = window.SIPAV || {};
                 if (lida && lida.portico) { porticosDaLinha.push(lida); return; }
 
                 if (!lida) {
+                  // "ATIVIDADE CONCLUÍDA" avisa que o serviço acabou: não é dia sem atividade
+                  if (/^atividade conclu[ií]da$/.test(norm(t.torre))) return;
                   var mov = movimentoDaAnotacao(t.torre);
                   if (mov) {
                     movimentosBrutos.push({ tipo: mov.tipo, obs: mov.obs, destino: mov.destino, data: dataDoDia,

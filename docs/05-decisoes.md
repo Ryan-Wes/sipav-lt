@@ -16,6 +16,13 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 13/10/2026
 
+### Importação: "atividade concluída" e torre com hífen — [WR]
+
+Na Buritirama–Barra II o texto "ATIVIDADE CONCLUIDA", escrito no dia em que o lançamento do
+condutor terminou, entrava como dia sem atividade de "outro motivo" no cartão do
+encarregado. É um aviso de que o serviço acabou, não uma parada: a leitura agora o ignora.
+Também "73-1" e "52-1" (torre digitada com hífen) entravam como texto solto, também como
+dia sem atividade; agora valem como 73/1 e 52/1.
 ### REV01 do gerente: layout por frente de serviço — [WR]
 
 O gerente reorganizou as planilhas de 12/10 (REV01). A aba, as colunas, o cabeçalho e as
