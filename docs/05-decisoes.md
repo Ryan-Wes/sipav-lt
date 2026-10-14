@@ -24,15 +24,21 @@ Agora, quando a linha da planilha não diz quem faz (frente sem nome, ou sem enc
 também conta como já programada se a torre, a atividade e o dia já têm programação, com
 qualquer encarregado: sem isso, a frente sem nome criaria uma segunda linha por cima da que
 alguém programou na mão, e a única diferença seria o nome.
-### Etiqueta do trecho com a cor da planilha — [WR]
+### Etiqueta do trecho e cartão da semana do encarregado — [WR]
 
-A etiqueta do trecho nas programações (quando a tela mostra mais de um trecho) usa a mesma
-cor das etiquetas da planilha da ISA, só no contorno e na letra, com o fundo transparente:
-Buritirama–Barra azul (#01B0F1), Barra–Correntina amarelo (#FFFF00), Campo Formoso–Barra rosa
-(#C64DAA) e Juazeiro–Campo Formoso verde (#4BA750). O texto é a sigla (BRT-BRR, BRR-CRN, CAF-BRR, JZT-CAF);
-o nome inteiro fica no title da etiqueta. No tema claro o amarelo vira #A89A00,
-porque o amarelo puro some no branco. A cor vem do nome do trecho; trecho com outro nome
-fica com a cor padrão.
+A etiqueta do trecho nas programações (quando a tela mostra mais de um trecho) é a sigla
+(BRT-BRR, BRR-CRN, CAF-BRR, JZT-CAF) em contorno e letra, com o fundo transparente, no tom das
+etiquetas da planilha da ISA mais escuro e menos vivo, para combinar com a paleta do sistema:
+azul #35A6DB, amarelo #D2C13F, rosa #BB5BA5 e verde #58A65E (borda a 55% de opacidade). No
+tema claro entram versões mais escuras (#0A7BAB, #857600, #963F81, #2E7A35). A cor vem do nome do
+trecho, e o nome inteiro fica no title.
+
+No cartão da semana do encarregado a ordem é sempre a mesma: o número da torre numa linha, a
+pastilha da atividade sozinha na linha de baixo, e embaixo a etiqueta do trecho com o
+percentual. Antes, com nome curto (Montagem, Reaterro) a pastilha subia para a linha do número.
+O nome tem que caber numa linha só: "Lançamento do piloto do condutor" aparece como
+"Lançamento do piloto cond." nesse cartão, e o que ainda não couber (pré-comissionamento de
+cabos / estrutura, por exemplo) tem a letra encolhida até um mínimo de 7px.
 ### Sinalização em três atividades — [WR]
 
 A planilha tem três itens de sinalização (estais, avifauna, placas), e cada um é um serviço.

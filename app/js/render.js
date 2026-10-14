@@ -192,6 +192,16 @@ window.SIPAV = window.SIPAV || {};
     return nome.replace(/OPGW\s*\/\s*(?:PARA-RAIO|PR)\b|PARA-RAIO\s*\/\s*OPGW/i, rotuloDoCabo(p.cabo));
   }
 
+  /**
+   * Nome mais curto para os cartões estreitos (a semana do encarregado em colunas de dia),
+   * onde a pastilha da atividade fica numa linha só. O resto se ajusta pelo tamanho da letra.
+   */
+  var NOMES_CURTOS = {
+    'LANÇAMENTO DO PILOTO DO CONDUTOR': 'LANÇAMENTO DO PILOTO COND.'
+  };
+
+  function nomeCurto(nome) { return NOMES_CURTOS[nome] || nome; }
+
   function tagCabo(p) {
     if (!p.cabo) return '';
     // Já está no nome da atividade: a etiqueta repetiria
@@ -432,8 +442,8 @@ window.SIPAV = window.SIPAV || {};
     var pastilha = op.atividade === false
       // Sem a pastilha da atividade, um ponto mantém a cor presente
       ? '<span class="ponto-atividade" style="background:' + cor + '"></span>'
-      : '<span class="chip-atividade" style="background:' + cor + ';color:' +
-          ui.corDoTexto(cor) + '">' + esc(nomeExibido(p)) + '</span>';
+      : '<span class="chip-atividade" title="' + esc(nomeExibido(p)) + '" style="background:' + cor + ';color:' +
+          ui.corDoTexto(cor) + '">' + esc(op.curto ? nomeCurto(nomeExibido(p)) : nomeExibido(p)) + '</span>';
 
     var alerta = p.override_motivo
       ? '<i data-lucide="alert-triangle" class="w-3 h-3 text-amber-500 shrink-0" ' +
@@ -736,17 +746,18 @@ window.SIPAV = window.SIPAV || {};
   }
 
   /**
-   * A sigla e a cor de cada trecho, as mesmas das etiquetas da planilha da ISA (BRT-BRR, BRR-CRN,
-   * CAF-BRR, JZT-CAF), para reconhecer de relance. O nome inteiro fica no title da etiqueta. A etiqueta é só o contorno e a letra nessa
-   * cor, com o fundo transparente. No tema claro o amarelo some no branco, então ele ganha uma
-   * versão mais escura (`clara`). Vem do nome do trecho: Juazeiro vem antes de Campo Formoso
-   * porque o nome de um contém o do outro. Trecho de outro nome fica com a cor padrão.
-   */
-  var CORES_DOS_TRECHOS = [
-    { quando: /correntina/,   sigla: 'BRR-CRN', cor: '#FFFF00', clara: '#A89A00' },
-    { quando: /buritirama/,   sigla: 'BRT-BRR', cor: '#01B0F1' },
-    { quando: /juazeiro/,     sigla: 'JZT-CAF', cor: '#4BA750' },
-    { quando: /campo formoso/, sigla: 'CAF-BRR', cor: '#C64DAA' }
+   * A sigla e a cor de cada trecho, no tom das etiquetas da planilha da ISA (BRT-BRR, BRR-CRN,
+   * CAF-BRR, JZT-CAF), para reconhecer de relance. A etiqueta é só contorno e letra, com o
+   * fundo transparente, e as cores são as da planilha mais escuras e menos vivas, para
+   * combinar com a paleta do sistema. No tema claro entra a versão `clara`, mais escura, que
+   * aguenta o fundo branco. Vem do nome do trecho: Juazeiro vem antes de Campo Formoso porque o
+   * nome de um contém o do outro. Trecho de outro nome fica com a cor padrão. O nome inteiro
+   * fica no title da etiqueta.
+   */  var CORES_DOS_TRECHOS = [
+    { quando: /correntina/,   sigla: 'BRR-CRN', cor: '#D2C13F', clara: '#857600' },
+    { quando: /buritirama/,   sigla: 'BRT-BRR', cor: '#35A6DB', clara: '#0A7BAB' },
+    { quando: /juazeiro/,     sigla: 'JZT-CAF', cor: '#58A65E', clara: '#2E7A35' },
+    { quando: /campo formoso/, sigla: 'CAF-BRR', cor: '#BB5BA5', clara: '#963F81' }
   ];
   function corDoTrecho(nome) {
     var n = String(nome || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
@@ -1106,7 +1117,7 @@ window.SIPAV = window.SIPAV || {};
                      return e.m
                        ? cartaoMovimentacao(e.m, false, nome, true)
                        : chipProgramacao(e.p, { torre: true, data: false, atividade: true,
-                                                encarregado: false, empilhado: true,
+                                                encarregado: false, empilhado: true, curto: true,
                                                 doEncarregado: nome });
                    }).join('') +
                    // O + no fim do dia: lança uma atividade para este encarregado neste dia,
@@ -1624,7 +1635,32 @@ window.SIPAV = window.SIPAV || {};
     VISOES[E.aba].fn();
     renderEstatisticas();
     ui.icones();
+    ajustarPastilhas();
   }
+
+  /**
+   * Na semana do encarregado a pastilha da atividade fica sozinha numa linha, abaixo do número
+   * da torre, e o nome tem que caber nela: o que não cabe encolhe a letra, até um mínimo.
+   */
+  function ajustarPastilhas() {
+    Array.prototype.forEach.call(document.querySelectorAll('.dia-col .chip-atividade'), function (el) {
+      el.style.fontSize = '';
+      if (el.scrollWidth <= el.clientWidth + 0.5) return;
+      var tam = parseFloat(getComputedStyle(el).fontSize) || 10;
+      while (el.scrollWidth > el.clientWidth + 0.5 && tam > 7) {
+        tam -= 0.5;
+        el.style.fontSize = tam + 'px';
+      }
+    });
+  }
+
+  // A largura das colunas muda com a janela, e a letra se ajusta de novo. Também quando a fonte chega.
+  var refazAjuste = null;
+  window.addEventListener('resize', function () {
+    clearTimeout(refazAjuste);
+    refazAjuste = setTimeout(ajustarPastilhas, 120);
+  });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(ajustarPastilhas);
 
   window.SIPAV.render = {
     tudo: tudo,
@@ -1642,6 +1678,7 @@ window.SIPAV = window.SIPAV || {};
     ehSerra: ehSerra,
     movimentacaoDoTrecho: movimentacaoDoTrecho,
     tagTrecho: tagTrecho,
+    ajustarPastilhas: ajustarPastilhas,
     textoDaMovimentacao: textoDaMovimentacao,
     nomesDosEncarregados: nomesDosEncarregados,
     programacoesDaTorre: programacoesDaTorre,

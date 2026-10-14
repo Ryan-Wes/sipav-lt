@@ -1412,6 +1412,11 @@ button.obs-existente:hover { background: var(--superficie-3); }
 .dia-col .chip-prog { padding: .3125rem .4375rem; }
 .dia-col .chip-prog .chip-atividade { flex: 1 1 auto; min-width: 0; overflow-wrap: break-word; }
 .dia-col .chip-prog.empilhado .chip-linha { flex-wrap: wrap; row-gap: .1875rem; }
+/* A atividade sempre numa linha só, abaixo do número da torre, mesmo quando o nome é curto;
+   o nome que não cabe tem a letra encolhida por render.ajustarPastilhas */
+.dia-col .chip-prog.empilhado .chip-atividade {
+  flex: 1 0 100%; white-space: nowrap; overflow: hidden; text-overflow: clip;
+}
 .dia-col .chip-mov-card { flex-direction: column; align-items: flex-start; gap: .125rem; }
 
 /* Tela estreita: os dias empilham, um embaixo do outro, e os vazios somem */
@@ -1554,8 +1559,15 @@ button.chip-sem-prog:hover { border-color: var(--acento); color: var(--acento); 
   color: #0D9488; background: rgba(13,148,136,.12); border: 1px solid rgba(13,148,136,.4);
 }
 /* Com a cor do trecho: só o contorno e a letra, fundo transparente */
-.tag-trecho[style*="--tag-cor"] { color: var(--tag-cor); background: transparent; border-color: var(--tag-cor); }
-html:not(.dark) .tag-trecho[style*="--tag-cor"] { color: var(--tag-cor-clara, var(--tag-cor)); border-color: var(--tag-cor-clara, var(--tag-cor)); }
+.tag-trecho[style*="--tag-cor"] {
+  color: var(--tag-cor); background: transparent;
+  border-color: var(--tag-cor); border-color: color-mix(in srgb, var(--tag-cor) 55%, transparent);
+}
+html:not(.dark) .tag-trecho[style*="--tag-cor"] {
+  color: var(--tag-cor-clara, var(--tag-cor));
+  border-color: var(--tag-cor-clara, var(--tag-cor));
+  border-color: color-mix(in srgb, var(--tag-cor-clara, var(--tag-cor)) 55%, transparent);
+}
 /* O alerta de quem está sem programação: uma linha cortada, e a seta abre a lista inteira */
 details.alerta-sem-prog { padding: 0; }
 details.alerta-sem-prog > summary {
