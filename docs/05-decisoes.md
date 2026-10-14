@@ -21,14 +21,27 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 O gerente reorganizou as planilhas de 12/10 (REV01). A aba, as colunas, o cabeçalho e as
 datas são os de sempre, e as fórmulas sobrevivem à exportação (conferi a contagem antes e
 depois nas quatro). A mudança está nos blocos de cada item: em vez de EXEC., PROG. 1 e
-PROG. 2, vários itens têm EXECUTADO, "Primeira semana" e "Segunda semana", e uma linha
-por frente (Barra, Igarité, Wanderley; em Campo Formoso–Barra II: Barra, Itajubaquara,
-Central, Umburanas, Laje dos Negros). A programação passou a ser dividida por frente.
+PROG. 2, vários itens têm EXECUTADO, "Primeira semana", uma linha por frente (Barra,
+Igarité, Wanderley; na Campo Formoso–Barra II: Barra, Itajubaquara, Central, Umburanas,
+Laje dos Negros), "Segunda semana" e as frentes de novo.
 
-O que existia continua funcionando nos itens que ficaram no layout antigo. Os itens no
-layout novo ainda não são lidos nem escritos pelo SIPAV: até decidirmos como tratar a
-frente, a leitura avisa ("layout novo, por frente de serviço, que o SIPAV ainda não lê")
-em vez de dizer "0 a programar" calada.
+**Importação.** Lê os dois layouts. No novo, cada frente com serviço é lida pela própria
+linha, e o encarregado vem nela. A linha "Primeira/Segunda semana" só é lida quando
+nenhuma frente tem serviço, porque, quando tem, ela é a soma das frentes (uma fórmula que
+cola os textos) e leria tudo duas vezes. Na Correntina isso passou de 5 para 376
+programações; na Buritirama–Barra II, de 0 para 123.
+
+**O que ainda não entra, e avisa.** Frente com torres e sem encarregado, quando o nome só
+aparece na linha da semana. É o caso da Campo Formoso–Barra II, onde a linha da semana
+traz uma equipe de seis nomes juntos e o SIPAV só guarda dois encarregados por
+programação. Também avisa os itens que o SIPAV não importa (empacadura, praça para
+lançamento, amortecimento, descida do cabo, caixa de emenda, comissionamento).
+
+**Exportação.** Continua escrevendo só no layout antigo: os itens no layout novo saem
+como "não achados" no relato. A frente ainda não é escrita.
+
+Pendente do gerente: se as frentes são os canteiros, quem é o encarregado de cada frente
+e se esse layout é o padrão daqui para frente.
 ## 09/10/2026
 
 ### Importação: parêntese dentro de parêntese — [WR]

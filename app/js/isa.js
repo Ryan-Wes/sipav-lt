@@ -351,7 +351,7 @@ window.SIPAV = window.SIPAV || {};
     var duplicados = [];
     var tortos = [];
     var ignorados = [];
-    var porFrente = [];            // linhas do layout novo, por frente de serviço
+    var achadosFrente = {};        // itens no layout novo, por frente de serviço
     var ultima = ws.rowCount;
 
     // Título da seção em que a linha está ("4.2  LANÇAMENTO DE CABO - PARA-RAIO
@@ -359,6 +359,26 @@ window.SIPAV = window.SIPAV || {};
     // Campo Formoso as duas seções têm as mesmas linhas, com os mesmos nomes e a
     // mesma numeração, e o título é a única coisa que as separa.
     var secao = '';
+
+    /**
+     * Layout novo (REV01 de 12/10): em vez de EXEC., PROG. 1 e PROG. 2, o bloco do item
+     * tem EXECUTADO, "Primeira semana", uma linha por frente (Barra, Igarité, Wanderley…),
+     * "Segunda semana" e outra vez as frentes. Devolve as linhas de cada semana.
+     */
+    function blocoPorFrente(r, nomeDoItem) {
+      var bloco = { linhaItem: r, prog1: { agregada: null, frentes: [] }, prog2: { agregada: null, frentes: [] } };
+      var semana = null;
+      for (var q = r + 1; q <= ultima; q++) {
+        if (norm(valor(ws.getCell(q, COL.ATIVIDADE))) !== nomeDoItem) break;
+        var tq = norm(valor(ws.getCell(q, COL.TAREFA)));
+        if (tq === 'executado' || tq === 'exec') break;
+        if (tq === 'primeira semana') { semana = 'prog1'; bloco.prog1.agregada = q; continue; }
+        if (tq === 'segunda semana') { semana = 'prog2'; bloco.prog2.agregada = q; continue; }
+        if (!semana) continue;
+        bloco[semana].frentes.push({ linha: q, frente: String(valor(ws.getCell(q, COL.TAREFA)) || '').trim() });
+      }
+      return bloco;
+    }
 
     for (var r = 13; r <= ultima; r++) {
       var nome = norm(valor(ws.getCell(r, COL.ATIVIDADE)));
@@ -368,22 +388,22 @@ window.SIPAV = window.SIPAV || {};
       var codigo = String(valor(ws.getCell(r, COL.ITEM)) || '').trim();
       if (!tarefa && /^\d+\.\d+$/.test(codigo)) { secao = nome; continue; }
 
-      // Layout novo (REV01 de 12/10): em vez de PROG. 1 e PROG. 2, o bloco do item tem
-      // "Primeira semana" e "Segunda semana" e uma linha por frente (Barra, Igarité…).
-      // O SIPAV ainda não lê isso: guarda para avisar, e não deixar passar calado.
-      if (/^(primeira|segunda) semana$/.test(tarefa)) {
-        porFrente.push({ linha: r, codigo: codigo, nome: String(valor(ws.getCell(r, COL.ATIVIDADE)) || '').trim() });
-        continue;
-      }
-
       var item = porNome[nome];
       if (!item) {
         // Item que o SIPAV não conhece. Guarda as linhas de programação, para a
         // leitura avisar se alguém programou ali: calar fazia a prévia dizer "0 a
         // programar, 0 avisos" numa planilha que tinha serviço.
         // "Fundação 100% concluída" só repete o reaterro: não tem o que programar nela
+        var nomeCru = String(valor(ws.getCell(r, COL.ATIVIDADE)) || '').trim();
         if ((tarefa === 'prog 1' || tarefa === 'prog 2') && !/^fundacao 100/.test(nome)) {
-          ignorados.push({ linha: r, codigo: codigo, nome: String(valor(ws.getCell(r, COL.ATIVIDADE)) || '').trim() });
+          ignorados.push({ linhas: [r], codigo: codigo, nome: nomeCru });
+        } else if (tarefa === 'executado' && !/^fundacao 100/.test(nome)) {
+          var semItem = blocoPorFrente(r, nome), linhasDoBloco = [];
+          ['prog1', 'prog2'].forEach(function (s) {
+            if (semItem[s].agregada) linhasDoBloco.push(semItem[s].agregada);
+            semItem[s].frentes.forEach(function (fr) { linhasDoBloco.push(fr.linha); });
+          });
+          ignorados.push({ linhas: linhasDoBloco, codigo: codigo, nome: nomeCru });
         }
         continue;
       }
@@ -400,6 +420,11 @@ window.SIPAV = window.SIPAV || {};
       // programação do OPGW iria parar nas linhas das bandolas.
       // O nome se repete nas três linhas do bloco; o que as distingue é a
       // coluna TAREFA.
+      if (tarefa === 'executado') {
+        if (achadosFrente[item]) { duplicados.push({ item: item, linha: r }); continue; }
+        achadosFrente[item] = blocoPorFrente(r, nome);
+        continue;
+      }
       if (norm(valor(ws.getCell(r, COL.TAREFA))) !== 'exec') continue;
 
       if (achados[item]) { duplicados.push({ item: item, linha: r }); continue; }
@@ -416,9 +441,9 @@ window.SIPAV = window.SIPAV || {};
     }
 
     // Planilha com OPGW dos dois lados, sem para-raio convencional
-    var doisLados = Object.keys(achados).some(function (i) { return /^4\.2[DE]\./.test(i); });
+    var doisLados = Object.keys(achados).concat(Object.keys(achadosFrente)).some(function (i) { return /^4\.2[DE]\./.test(i); });
 
-    return { achados: achados, duplicados: duplicados, tortos: tortos, doisLados: doisLados, ignorados: ignorados, porFrente: porFrente };
+    return { achados: achados, duplicados: duplicados, tortos: tortos, doisLados: doisLados, ignorados: ignorados, achadosFrente: achadosFrente };
   }
 
   /**
@@ -978,127 +1003,181 @@ window.SIPAV = window.SIPAV || {};
         c.torres.push(b.torreTexto);
       }
     }
+    // O que ler: as linhas PROG. 1 e PROG. 2 do layout antigo e, no layout por frente,
+    // as linhas de cada frente. A frente que tem serviço escrito é lida pela própria linha
+    // (o encarregado vem nela). A linha "Primeira/Segunda semana" só entra quando nenhuma
+    // frente tem serviço, porque, quando tem, ela é a soma das frentes e leria tudo duas vezes.
+    function temConteudo(linha) {
+      for (var d = 0; d < 7; d++) { if (!semTexto(textoDaCelula(ws, linha, COL.SEGUNDA + d))) return true; }
+      return false;
+    }
+    function temServico(linha) {
+      for (var d = 0; d < 7; d++) {
+        var tx = textoDaCelula(ws, linha, COL.SEGUNDA + d);
+        if (semTexto(tx)) continue;
+        var achou = false;
+        tx.split('\n').forEach(function (l) {
+          if (semTexto(l)) return;
+          dividirNaVirgula(l).forEach(function (tk) {
+            if (!semTexto(tk) && !movimentoDaAnotacao(interpretarToken(tk).torre)) achou = true;
+          });
+        });
+        if (achou) return true;
+      }
+      return false;
+    }
+    var leituras = {};
+    function ler(item, semana, linha) {
+      var l = leituras[item] = leituras[item] || { prog1: [], prog2: [] };
+      l[semana].push(linha);
+    }
     Object.keys(mapa.achados).forEach(function (item) {
+      ['prog1', 'prog2'].forEach(function (semana) { ler(item, semana, mapa.achados[item][semana]); });
+    });
+    var semEncarregadoNaFrente = {};
+    Object.keys(mapa.achadosFrente || {}).forEach(function (item) {
       ['prog1', 'prog2'].forEach(function (semana) {
-        var linha = mapa.achados[item][semana];
+        var sem = mapa.achadosFrente[item][semana];
+        var comConteudo = sem.frentes.filter(function (fr) { return temConteudo(fr.linha); });
+        if (!comConteudo.length) {
+          if (sem.agregada && temConteudo(sem.agregada)) ler(item, semana, sem.agregada);
+          return;
+        }
+        var encDaSoma = sem.agregada && !semTexto(textoDaCelula(ws, sem.agregada, COL.ENCARREGADO));
+        comConteudo.forEach(function (fr) {
+          // Frente com torre mas sem encarregado, e a soma tem os nomes: não dá para saber
+          // quem faz o quê. Fica de fora, com aviso, em vez de entrar sem ninguém.
+          if (semTexto(textoDaCelula(ws, fr.linha, COL.ENCARREGADO)) && encDaSoma && temServico(fr.linha)) {
+            semEncarregadoNaFrente[item] = (semEncarregadoNaFrente[item] || 0) + 1;
+            return;
+          }
+          ler(item, semana, fr.linha);
+        });
+      });
+    });
+
+    Object.keys(leituras).forEach(function (item) {
+      ['prog1', 'prog2'].forEach(function (semana) {
         var segunda = semana === 'prog1' ? lidas.s1 : lidas.s2;
         if (!segunda) return;
+        leituras[item][semana].forEach(function (linha) {
 
-        var textoEnc = textoDaCelula(ws, linha, COL.ENCARREGADO);
-        var nomes = semTexto(textoEnc) ? [] : textoEnc.split('\n').map(function (n) { return n.trim(); });
+          var textoEnc = textoDaCelula(ws, linha, COL.ENCARREGADO);
+          var nomes = semTexto(textoEnc) ? [] : textoEnc.split('\n').map(function (n) { return n.trim(); });
 
-        for (var dia = 0; dia < 7; dia++) {
-          var texto = textoDaCelula(ws, linha, COL.SEGUNDA + dia);
-          if (semTexto(texto)) continue;
+          for (var dia = 0; dia < 7; dia++) {
+            var texto = textoDaCelula(ws, linha, COL.SEGUNDA + dia);
+            if (semTexto(texto)) continue;
 
-          var linhas = texto.split('\n').map(function (l) { return l.trim(); });
-          linhas.forEach(function (l, i) {
-            if (semTexto(l)) return;
+            var linhas = texto.split('\n').map(function (l) { return l.trim(); });
+            linhas.forEach(function (l, i) {
+              if (semTexto(l)) return;
 
-            var nomeEnc = nomes.length ? nomes[i] : null;
-            if (nomes.length && nomeEnc === undefined) {
-              problema('celula', 'Item ' + item + ', dia ' + ui.dataCurta(ui.iso(ui.somarDias(ui.paraData(segunda), dia))) +
-                ': tem mais linhas de torre do que encarregados. "' + l + '" ficou de fora.');
-              return;
-            }
-
-            // Uma linha da célula é uma equipe. Dentro dela há torres e, às vezes,
-            // anotações ("PORTICO", "FASE B - PORTICO"). A anotação junto de torres vira
-            // comentário nelas; sozinha, é um dia sem atividade da equipe.
-            var dataDoDia = ui.iso(ui.somarDias(ui.paraData(segunda), dia));
-            var equipeDaLinha = nomeEnc && !semTexto(nomeEnc) ? nomesDaEquipe(nomeEnc) : [];
-            var daLinha = [], soltas = [], porticosDaLinha = [];
-
-            dividirNaVirgula(l).forEach(function (token) {
-              var t = interpretarToken(token);
-              var lida = lerTorreDoToken(t);
-
-              if (lida && lida.portico) { porticosDaLinha.push(lida); return; }
-
-              if (!lida) {
-                var mov = movimentoDaAnotacao(t.torre);
-                if (mov) {
-                  movimentosBrutos.push({ tipo: mov.tipo, obs: mov.obs, destino: mov.destino, data: dataDoDia,
-                                          encNomes: mov.tipo === 'FERIADO' ? [] : equipeDaLinha });
-                } else {
-                  soltas.push(frase(t.torre));
-                }
+              var nomeEnc = nomes.length ? nomes[i] : null;
+              if (nomes.length && nomeEnc === undefined) {
+                problema('celula', 'Item ' + item + ', dia ' + ui.dataCurta(ui.iso(ui.somarDias(ui.paraData(segunda), dia))) +
+                  ': tem mais linhas de torre do que encarregados. "' + l + '" ficou de fora.');
                 return;
               }
 
-              lida.nomes.forEach(function (nomeTorre) {
-                daLinha.push({
-                  item: item, semana: semana, dia: dia, data: dataDoDia,
-                  encNomes: equipeDaLinha,
-                  torreTexto: nomeTorre, percentual: t.percentual,
-                  notas: t.notas.concat(lida.rotulos)
+              // Uma linha da célula é uma equipe. Dentro dela há torres e, às vezes,
+              // anotações ("PORTICO", "FASE B - PORTICO"). A anotação junto de torres vira
+              // comentário nelas; sozinha, é um dia sem atividade da equipe.
+              var dataDoDia = ui.iso(ui.somarDias(ui.paraData(segunda), dia));
+              var equipeDaLinha = nomeEnc && !semTexto(nomeEnc) ? nomesDaEquipe(nomeEnc) : [];
+              var daLinha = [], soltas = [], porticosDaLinha = [];
+
+              dividirNaVirgula(l).forEach(function (token) {
+                var t = interpretarToken(token);
+                var lida = lerTorreDoToken(t);
+
+                if (lida && lida.portico) { porticosDaLinha.push(lida); return; }
+
+                if (!lida) {
+                  var mov = movimentoDaAnotacao(t.torre);
+                  if (mov) {
+                    movimentosBrutos.push({ tipo: mov.tipo, obs: mov.obs, destino: mov.destino, data: dataDoDia,
+                                            encNomes: mov.tipo === 'FERIADO' ? [] : equipeDaLinha });
+                  } else {
+                    soltas.push(frase(t.torre));
+                  }
+                  return;
+                }
+
+                lida.nomes.forEach(function (nomeTorre) {
+                  daLinha.push({
+                    item: item, semana: semana, dia: dia, data: dataDoDia,
+                    encNomes: equipeDaLinha,
+                    torreTexto: nomeTorre, percentual: t.percentual,
+                    notas: t.notas.concat(lida.rotulos)
+                  });
                 });
               });
-            });
 
-            // O pórtico da ponta de onde ficam as torres da linha. Sem torres na linha,
-            // decide-se depois, pelas outras torres da mesma equipe no mesmo dia.
-            var ladoDaLinha = daLinha.length ? ladoDasTorres(daLinha.map(function (b) { return b.torreTexto; })) : null;
-            porticosDaLinha.forEach(function (pt) {
-              var cand = ladoDaLinha ? porticos.filter(function (p) { return p.lado === ladoDaLinha; })[0] : null;
-              if (cand) {
-                // A fase vale para o trecho todo, pórtico e torres da linha
-                daLinha.forEach(function (b) {
-                  if (b.ehPortico) return;
-                  pt.rotulos.forEach(function (r) { if (b.notas.indexOf(r) === -1) b.notas.push(r); });
-                });
-                // "PORTICO, 0/2" no lançamento do cabo (x.x.3) e no nivelamento (x.x.4) é do pórtico até a
-                // torre: o cabo passa pelas do meio (a 0/1), e não dá para lançar nem nivelar do pórtico à
-                // 0/2 pulando uma. A ancoragem fica de fora: é só nas pontas.
-                var noSpan = /^4\.(?:1|2|2D|2E|3)\.[34]$/.test(item);
-                // O que a torre diz de si (Fase A, B, C) vale para o trecho todo, pórtico incluído
-                var notasDoSpan = pt.rotulos.slice();
-                if (noSpan) {
+              // O pórtico da ponta de onde ficam as torres da linha. Sem torres na linha,
+              // decide-se depois, pelas outras torres da mesma equipe no mesmo dia.
+              var ladoDaLinha = daLinha.length ? ladoDasTorres(daLinha.map(function (b) { return b.torreTexto; })) : null;
+              porticosDaLinha.forEach(function (pt) {
+                var cand = ladoDaLinha ? porticos.filter(function (p) { return p.lado === ladoDaLinha; })[0] : null;
+                if (cand) {
+                  // A fase vale para o trecho todo, pórtico e torres da linha
                   daLinha.forEach(function (b) {
                     if (b.ehPortico) return;
-                    b.notas.forEach(function (n) { if (/^fase\b/i.test(n) && notasDoSpan.indexOf(n) === -1) notasDoSpan.push(n); });
+                    pt.rotulos.forEach(function (r) { if (b.notas.indexOf(r) === -1) b.notas.push(r); });
                   });
-                }
-                if (noSpan) {
-                  var posDaLinha = daLinha.filter(function (b) { return !ehPortico(b.torreTexto); })
-                    .map(function (b) { return posicaoDaTorre[norm(b.torreTexto)]; })
-                    .filter(function (q) { return q !== undefined; });
-                  if (posDaLinha.length) {
-                    var deP = cand.lado === 'inicio' ? cand.pos + 1 : Math.min.apply(null, posDaLinha);
-                    var ateP = cand.lado === 'inicio' ? Math.max.apply(null, posDaLinha) : cand.pos - 1;
-                    for (var q = deP; q <= ateP; q++) {
-                      var meio = ctx.torres[q];
-                      if (!meio || ehPortico(meio.identificador)) continue;
-                      if (daLinha.some(function (b) { return norm(b.torreTexto) === norm(meio.identificador); })) continue;
-                      daLinha.push({ item: item, semana: semana, dia: dia, data: dataDoDia, encNomes: equipeDaLinha,
-                                     torreTexto: meio.identificador, percentual: null, notas: notasDoSpan.slice() });
+                  // "PORTICO, 0/2" no lançamento do cabo (x.x.3) e no nivelamento (x.x.4) é do pórtico até a
+                  // torre: o cabo passa pelas do meio (a 0/1), e não dá para lançar nem nivelar do pórtico à
+                  // 0/2 pulando uma. A ancoragem fica de fora: é só nas pontas.
+                  var noSpan = /^4\.(?:1|2|2D|2E|3)\.[34]$/.test(item);
+                  // O que a torre diz de si (Fase A, B, C) vale para o trecho todo, pórtico incluído
+                  var notasDoSpan = pt.rotulos.slice();
+                  if (noSpan) {
+                    daLinha.forEach(function (b) {
+                      if (b.ehPortico) return;
+                      b.notas.forEach(function (n) { if (/^fase\b/i.test(n) && notasDoSpan.indexOf(n) === -1) notasDoSpan.push(n); });
+                    });
+                  }
+                  if (noSpan) {
+                    var posDaLinha = daLinha.filter(function (b) { return !ehPortico(b.torreTexto); })
+                      .map(function (b) { return posicaoDaTorre[norm(b.torreTexto)]; })
+                      .filter(function (q) { return q !== undefined; });
+                    if (posDaLinha.length) {
+                      var deP = cand.lado === 'inicio' ? cand.pos + 1 : Math.min.apply(null, posDaLinha);
+                      var ateP = cand.lado === 'inicio' ? Math.max.apply(null, posDaLinha) : cand.pos - 1;
+                      for (var q = deP; q <= ateP; q++) {
+                        var meio = ctx.torres[q];
+                        if (!meio || ehPortico(meio.identificador)) continue;
+                        if (daLinha.some(function (b) { return norm(b.torreTexto) === norm(meio.identificador); })) continue;
+                        daLinha.push({ item: item, semana: semana, dia: dia, data: dataDoDia, encNomes: equipeDaLinha,
+                                       torreTexto: meio.identificador, percentual: null, notas: notasDoSpan.slice() });
+                      }
                     }
                   }
+                  daLinha.push({ item: item, semana: semana, dia: dia, data: dataDoDia, encNomes: equipeDaLinha,
+                                 torreTexto: cand.torre.identificador, percentual: null, notas: notasDoSpan.slice(), ehPortico: true });
+                } else if (ladoDaLinha) {
+                  porticoFaltando[ladoDaLinha]++;
+                  soltas.push(frase(pt.texto));
+                } else {
+                  pendentesPortico.push({ item: item, semana: semana, dia: dia, data: dataDoDia, encNomes: equipeDaLinha, pt: pt });
                 }
-                daLinha.push({ item: item, semana: semana, dia: dia, data: dataDoDia, encNomes: equipeDaLinha,
-                               torreTexto: cand.torre.identificador, percentual: null, notas: notasDoSpan.slice(), ehPortico: true });
-              } else if (ladoDaLinha) {
-                porticoFaltando[ladoDaLinha]++;
-                soltas.push(frase(pt.texto));
-              } else {
-                pendentesPortico.push({ item: item, semana: semana, dia: dia, data: dataDoDia, encNomes: equipeDaLinha, pt: pt });
-              }
-            });
+              });
 
-            if (soltas.length && daLinha.length) {
-              daLinha.filter(function (b) { return !b.ehPortico; }).forEach(function (b) {
-                soltas.forEach(function (s) { if (b.notas.indexOf(s) === -1) b.notas.push(s); });
-              });
-            } else if (soltas.length) {
-              var atividadeDoItem = atividadesDoItem(item)[0] || rotuloDoItem(item);
-              soltas.forEach(function (s) {
-                movimentosBrutos.push({ tipo: 'OUTRO', obs: s + ' · ' + frase(atividadeDoItem),
-                                        data: dataDoDia, encNomes: equipeDaLinha });
-              });
-            }
-            daLinha.forEach(function (b) { brutas.push(b); });
-          });
-        }
+              if (soltas.length && daLinha.length) {
+                daLinha.filter(function (b) { return !b.ehPortico; }).forEach(function (b) {
+                  soltas.forEach(function (s) { if (b.notas.indexOf(s) === -1) b.notas.push(s); });
+                });
+              } else if (soltas.length) {
+                var atividadeDoItem = atividadesDoItem(item)[0] || rotuloDoItem(item);
+                soltas.forEach(function (s) {
+                  movimentosBrutos.push({ tipo: 'OUTRO', obs: s + ' · ' + frase(atividadeDoItem),
+                                          data: dataDoDia, encNomes: equipeDaLinha });
+                });
+              }
+              daLinha.forEach(function (b) { brutas.push(b); });
+            });
+          }
+        });
       });
     });
 
@@ -1305,55 +1384,31 @@ window.SIPAV = window.SIPAV || {};
     // não conta: isso já vira dia sem atividade.
     var semItem = {};
     (mapa.ignorados || []).forEach(function (ig) {
-      var servico = 0;
-      for (var dia = 0; dia < 7; dia++) {
-        var texto = textoDaCelula(ws, ig.linha, COL.SEGUNDA + dia);
-        if (semTexto(texto)) continue;
-        texto.split('\n').forEach(function (l) {
-          if (semTexto(l)) return;
-          dividirNaVirgula(l).forEach(function (tk) {
-            var t = interpretarToken(tk);
-            if (!movimentoDaAnotacao(t.torre)) servico++;
-          });
+      var servico = 0, encs = [];
+      ig.linhas.forEach(function (linha) {
+        if (temServico(linha)) servico++;
+        else return;
+        nomesDaEquipe(textoDaCelula(ws, linha, COL.ENCARREGADO).replace(/\n/g, '/')).forEach(function (n) {
+          if (encs.indexOf(n) === -1) encs.push(n);
         });
-      }
+      });
       if (!servico) return;
       var chave = (ig.codigo ? ig.codigo + ' ' : '') + ig.nome;
       var s = semItem[chave] = semItem[chave] || { n: 0, encs: [] };
       s.n += servico;
-      nomesDaEquipe(textoDaCelula(ws, ig.linha, COL.ENCARREGADO).replace(/\n/g, '/')).forEach(function (n) {
-        if (s.encs.indexOf(n) === -1) s.encs.push(n);
-      });
+      encs.forEach(function (n) { if (s.encs.indexOf(n) === -1) s.encs.push(n); });
     });
     Object.keys(semItem).sort().forEach(function (k) {
       var s = semItem[k];
       problema('item', 'A planilha tem programação em "' + k + '"' + (s.encs.length ? ' (' + s.encs.join(', ') + ')' : '') +
-               ', e o SIPAV não importa esse item (' + s.n + ' lançamento(s)). Não entrou: lance na mão.');
+               ', e o SIPAV não importa esse item (' + s.n + ' linha(s)). Não entrou: lance na mão.');
     });
-    // Layout por frente com serviço escrito: não é lido, e isso tem que aparecer
-    var frentes = {};
-    (mapa.porFrente || []).forEach(function (pf) {
-      var n = 0;
-      for (var dia = 0; dia < 7; dia++) {
-        var texto = textoDaCelula(ws, pf.linha, COL.SEGUNDA + dia);
-        if (semTexto(texto)) continue;
-        texto.split('\n').forEach(function (l) {
-          dividirNaVirgula(l).forEach(function (tk) {
-            if (!semTexto(tk) && !movimentoDaAnotacao(interpretarToken(tk).torre)) n++;
-          });
-        });
-      }
-      if (!n) return;
-      var chave = (pf.codigo ? pf.codigo + ' ' : '') + pf.nome;
-      frentes[chave] = (frentes[chave] || 0) + 1;
-    });
-    var itensFrente = Object.keys(frentes).sort();
-    if (itensFrente.length) {
-      problema('layout', 'A planilha tem programação no layout novo, por frente de serviço, que o SIPAV ainda não lê, em ' +
-               itensFrente.length + ' item(ns): ' + itensFrente.slice(0, 6).join(' · ') +
-               (itensFrente.length > 6 ? ' · …' : '') + '. Não entrou: lance na mão.');
-    }
-    var avulsas = Object.keys(anotacoes);
+    var itensSemEnc = Object.keys(semEncarregadoNaFrente).sort();
+    if (itensSemEnc.length) {
+      problema('layout', 'Em ' + itensSemEnc.length + ' item(ns) a planilha tem torres numa frente sem encarregado, e o nome só aparece ' +
+               'na linha da semana (' + itensSemEnc.slice(0, 6).map(function (i) { return rotuloDoItem(i); }).join(', ') +
+               (itensSemEnc.length > 6 ? ', …' : '') + '). Não dá para saber quem faz o quê: não entrou, lance na mão.');
+    }    var avulsas = Object.keys(anotacoes);
     if (avulsas.length) {
       problema('texto', 'Anotações da planilha que não são torre, ficaram de fora: ' +
         avulsas.sort().map(function (n) { return n + ' (' + anotacoes[n] + ')'; }).join(' · ') + '.');
