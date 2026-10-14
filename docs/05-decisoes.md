@@ -16,6 +16,11 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 13/10/2026
 
+### Sinalização: basta um dos três itens da planilha — [WR]
+
+A planilha preenche só o que foi feito (estais, avifauna ou placas), e a atividade do SIPAV
+é uma só. Como na concretagem, um item preenchido basta para a torre entrar inteira, sem o
+aviso de "só o item 4.4.2 está preenchido". Na exportação continua indo nos três.
 ### Limpar programação leva os dias sem atividade, menos o feriado — [WR]
 
 O botão "Limpar programação" do período agora também remove os dias sem atividade do trecho

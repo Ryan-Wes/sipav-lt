@@ -255,9 +255,10 @@ window.SIPAV = window.SIPAV || {};
     'INSTALAÇÃO DE JUMPER':                     { itens: ['4.3.7'] },
     'INSTALAÇÃO DE ESPAÇADORES':                { itens: ['4.3.8'] },
 
-    // Único leque que sobrou: a ISA separa em três tipos de sinalização e o
-    // campo aponta como um serviço só, então a mesma programação vai nas três
-    'INSTALAÇÃO DE SINALIZAÇÃO':                { itens: ['4.4.1', '4.4.2', '4.4.3'] }
+    // A ISA separa em três tipos de sinalização (estais, avifauna, placas) e o campo aponta como um
+    // serviço só. Na exportação a mesma programação vai nas três; na importação basta uma
+    // preenchida para a torre entrar inteira.
+    'INSTALAÇÃO DE SINALIZAÇÃO':                { itens: ['4.4.1', '4.4.2', '4.4.3'], basta: true }
   };
 
   /**
