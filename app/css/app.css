@@ -1553,6 +1553,9 @@ button.chip-sem-prog:hover { border-color: var(--acento); color: var(--acento); 
   font-size: .5625rem; font-weight: 700; letter-spacing: .02em;
   color: #0D9488; background: rgba(13,148,136,.12); border: 1px solid rgba(13,148,136,.4);
 }
+/* Com a cor do trecho: só o contorno e a letra, fundo transparente */
+.tag-trecho[style*="--tag-cor"] { color: var(--tag-cor); background: transparent; border-color: var(--tag-cor); }
+html:not(.dark) .tag-trecho[style*="--tag-cor"] { color: var(--tag-cor-clara, var(--tag-cor)); border-color: var(--tag-cor-clara, var(--tag-cor)); }
 /* O alerta de quem está sem programação: uma linha cortada, e a seta abre a lista inteira */
 details.alerta-sem-prog { padding: 0; }
 details.alerta-sem-prog > summary {

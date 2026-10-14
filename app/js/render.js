@@ -731,23 +731,23 @@ window.SIPAV = window.SIPAV || {};
     if (!tr) return '';
     var cor = corDoTrecho(tr.nome);
     return '<span class="tag-trecho" title="' + esc(tr.nome) + '"' +
-      (cor ? ' style="background:' + cor.fundo + ';color:' + cor.texto + ';border-color:' + cor.borda + '"' : '') + '>' +
+      (cor ? ' style="--tag-cor:' + cor.cor + (cor.clara ? ';--tag-cor-clara:' + cor.clara : '') + '"' : '') + '>' +
       esc(tr.nome) + '</span>';
   }
 
   /**
    * A cor de cada trecho, a mesma das etiquetas da planilha da ISA (BRT-BRR, BRR-CRN,
-   * CAF-BRR, JZR-CAF), para reconhecer de relance. Vem do nome do trecho: Juazeiro vem
-   * antes de Campo Formoso porque o nome de um contém o do outro. Trecho de outro nome
-   * fica com a cor padrão da etiqueta.
+   * CAF-BRR, JZR-CAF), para reconhecer de relance. A etiqueta é só o contorno e a letra nessa
+   * cor, com o fundo transparente. No tema claro o amarelo some no branco, então ele ganha uma
+   * versão mais escura (`clara`). Vem do nome do trecho: Juazeiro vem antes de Campo Formoso
+   * porque o nome de um contém o do outro. Trecho de outro nome fica com a cor padrão.
    */
   var CORES_DOS_TRECHOS = [
-    { quando: /correntina/,   fundo: '#FFFF00', texto: '#002060', borda: 'rgba(0,32,96,.35)' },    // BRR-CRN
-    { quando: /buritirama/,   fundo: '#01B0F1', texto: '#FFFFFF', borda: 'rgba(0,0,0,.2)' },       // BRT-BRR
-    { quando: /juazeiro/,     fundo: '#4BA750', texto: '#FFFFFF', borda: 'rgba(0,0,0,.2)' },       // JZR-CAF
-    { quando: /campo formoso/, fundo: '#C64DAA', texto: '#FFFFFF', borda: 'rgba(0,0,0,.2)' }       // CAF-BRR
+    { quando: /correntina/,   cor: '#FFFF00', clara: '#A89A00' },   // BRR-CRN
+    { quando: /buritirama/,   cor: '#01B0F1' },                      // BRT-BRR
+    { quando: /juazeiro/,     cor: '#4BA750' },                      // JZR-CAF
+    { quando: /campo formoso/, cor: '#C64DAA' }                      // CAF-BRR
   ];
-
   function corDoTrecho(nome) {
     var n = String(nome || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
     return CORES_DOS_TRECHOS.filter(function (c) { return c.quando.test(n); })[0] || null;
