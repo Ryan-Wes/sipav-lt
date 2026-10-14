@@ -16,16 +16,16 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 13/10/2026
 
-### Sinalização em três atividades; torre que não existe não se programa — [WR]
+### Sinalização em três atividades — [WR]
 
 A planilha tem três itens de sinalização (estais, avifauna, placas), e cada um é um serviço.
 A atividade "Instalação de sinalização" passa a ser a dos sinalizadores de estais (migração
 53), e nascem a do dispositivo de avifauna e a das placas, com a mesma cor de família e as
 mesmas dependências. O que já estava programado na antiga fica como estais.
 
-Torre que a planilha cita e o trecho não tem não é programada, e não se assume a vizinha
-como erro de digitação: sai o aviso "Torre X não existe neste trecho" e fim. A regra da
-vizinha ("45/2" virando "45/1") foi tirada.
+A regra da vizinha continua: torre que o trecho não tem ("45/2") mas existe com outro sufixo
+("45/1") vale como a vizinha, se ela não está programada na mesma atividade, com aviso para
+conferir. Se já está, não entra, também com aviso. Com duas vizinhas, não se adivinha.
 ### Limpar programação leva os dias sem atividade, menos o feriado — [WR]
 
 O botão "Limpar programação" do período agora também remove os dias sem atividade do trecho
