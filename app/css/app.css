@@ -1412,11 +1412,14 @@ button.obs-existente:hover { background: var(--superficie-3); }
 .dia-col .chip-prog { padding: .3125rem .4375rem; }
 .dia-col .chip-prog .chip-atividade { flex: 1 1 auto; min-width: 0; overflow-wrap: break-word; }
 .dia-col .chip-prog.empilhado .chip-linha { flex-wrap: wrap; row-gap: .1875rem; }
-/* A atividade sempre numa linha só, abaixo do número da torre, mesmo quando o nome é curto;
-   o nome que não cabe tem a letra encolhida por render.ajustarPastilhas */
-.dia-col .chip-prog.empilhado .chip-atividade {
-  flex: 1 0 100%; white-space: nowrap; overflow: hidden; text-overflow: clip;
+/* Cartão da semana do encarregado: número da torre e atividade na mesma linha, a atividade ocupando o
+   que sobra e numa linha só (o que não cabe encolhe, por render.ajustarPastilhas); o trecho e o
+   percentual na linha de baixo, nunca ao lado da atividade */
+.dia-col .chip-prog.empilhado .chip-topo { flex-wrap: nowrap; }
+.dia-col .chip-prog.empilhado .chip-topo .chip-atividade {
+  flex: 1 1 0; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: clip;
 }
+.dia-col .chip-prog.empilhado .chip-meio { padding-left: 0; }
 .dia-col .chip-mov-card { flex-direction: column; align-items: flex-start; gap: .125rem; }
 
 /* Tela estreita: os dias empilham, um embaixo do outro, e os vazios somem */

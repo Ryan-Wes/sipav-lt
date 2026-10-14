@@ -33,12 +33,12 @@ azul #35A6DB, amarelo #D2C13F, rosa #BB5BA5 e verde #58A65E (borda a 55% de opac
 tema claro entram versões mais escuras (#0A7BAB, #857600, #963F81, #2E7A35). A cor vem do nome do
 trecho, e o nome inteiro fica no title.
 
-No cartão da semana do encarregado a ordem é sempre a mesma: o número da torre numa linha, a
-pastilha da atividade sozinha na linha de baixo, e embaixo a etiqueta do trecho com o
-percentual. Antes, com nome curto (Montagem, Reaterro) a pastilha subia para a linha do número.
-O nome tem que caber numa linha só: "Lançamento do piloto do condutor" aparece como
-"Lançamento do piloto cond." nesse cartão, e o que ainda não couber (pré-comissionamento de
-cabos / estrutura, por exemplo) tem a letra encolhida até um mínimo de 7px.
+No cartão da semana do encarregado a ordem é sempre a mesma: o número da torre e a pastilha da
+atividade na primeira linha (a pastilha ocupa o que sobra e fica numa linha só), a etiqueta do
+trecho com o percentual na segunda, sempre embaixo e nunca ao lado da atividade, e o parceiro na
+terceira. Para a atividade caber ao lado do número, o nome é abreviado nesse cartão ("Lançamento do
+piloto cond.", "Pré-comissionamento", sem o "Instalação de" nos nomes compridos), e o que ainda não
+couber tem a letra encolhida até um mínimo de 7px. O nome inteiro fica no title.
 ### Sinalização em três atividades — [WR]
 
 A planilha tem três itens de sinalização (estais, avifauna, placas), e cada um é um serviço.

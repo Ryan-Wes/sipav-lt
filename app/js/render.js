@@ -194,14 +194,24 @@ window.SIPAV = window.SIPAV || {};
 
   /**
    * Nome mais curto para os cartões estreitos (a semana do encarregado em colunas de dia),
-   * onde a pastilha da atividade fica numa linha só. O resto se ajusta pelo tamanho da letra.
+   * onde a pastilha da atividade divide a linha com o número da torre. O que ainda não couber
+   * se ajusta pelo tamanho da letra.
    */
   var NOMES_CURTOS = {
-    'LANÇAMENTO DO PILOTO DO CONDUTOR': 'LANÇAMENTO DO PILOTO COND.'
+    'LANÇAMENTO DO PILOTO DO CONDUTOR': 'LANÇAMENTO DO PILOTO COND.',
+    'PRÉ COMISSIONAMENTO DE CABOS / ESTRUTURA': 'PRÉ-COMISSIONAMENTO',
+    'COMISSIONAMENTO DE CABOS / ESTRUTURA': 'COMISSIONAMENTO',
+    'INSTALAÇÃO DE PRÉ-MOLDADOS - MC E VIGA L': 'PRÉ-MOLDADOS MC E VIGA L',
+    'SUPRESSÃO DE PRAÇA DE LANÇAMENTO': 'SUPR. PRAÇA DE LANÇAMENTO',
+    'SISTEMA DE AMORTECIMENTO OPGW': 'AMORTECIMENTO OPGW'
   };
 
-  function nomeCurto(nome) { return NOMES_CURTOS[nome] || nome; }
-
+  function nomeCurto(nome) {
+    if (NOMES_CURTOS[nome]) return NOMES_CURTOS[nome];
+    // "Instalação de" só gasta espaço quando o nome já é comprido
+    if (nome.length > 24 && /^INSTALAÇÃO DE /.test(nome)) return nome.replace(/^INSTALAÇÃO DE /, '');
+    return nome;
+  }
   function tagCabo(p) {
     if (!p.cabo) return '';
     // Já está no nome da atividade: a etiqueta repetiria
@@ -505,6 +515,17 @@ window.SIPAV = window.SIPAV || {};
 
     if (!op.empilhado) {
       return abrir + marca + torre + data + pastilha + enc + parcial + alerta + lixeira + '</div>';
+    }
+
+    // Cartão estreito da semana do encarregado: o número da torre e a atividade na primeira
+    // linha, a etiqueta do trecho com o percentual sempre embaixo (nunca ao lado da atividade,
+    // mesmo com nome curto), e o parceiro na última.
+    if (op.curto) {
+      return abrir +
+        '<div class="chip-linha chip-topo">' + marca + torre + pastilha + '</div>' +
+        '<div class="chip-linha chip-meio">' + parcial + alerta + lixeira + '</div>' +
+        (enc ? '<div class="chip-linha chip-abaixo">' + enc + '</div>' : '') +
+      '</div>';
     }
 
     return abrir +
