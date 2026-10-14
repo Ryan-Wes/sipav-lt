@@ -1061,9 +1061,43 @@ window.SIPAV = window.SIPAV || {};
       return false;
     }
     var leituras = {};
-    function ler(item, semana, linha, encarregado) {
+    function ler(item, semana, linha, encarregado, grupo) {
       var l = leituras[item] = leituras[item] || { prog1: [], prog2: [] };
-      l[semana].push({ linha: linha, enc: encarregado == null ? null : encarregado });
+      l[semana].push({ linha: linha, enc: encarregado == null ? null : encarregado, grupo: grupo || null });
+    }
+
+    // Frente sem encarregado numa linha de semana com uma equipe de vários nomes: quem faz o
+    // quê muda toda semana e a planilha não diz. A prévia deixa escolher, por equipe e frente
+    // (a mesma equipe numa mesma frente costuma ser a mesma pessoa em todas as atividades), e a
+    // escolha entra aqui em ctx.apelidos, com a chave do grupo. Sem escolha, entra sem encarregado.
+    var gruposFrente = {};
+    function grupoDaFrente(item, equipe, frente) {
+      var nomes = nomesDaEquipe(equipe.replace(/\n/g, '/'));
+      var chave = 'frente|' + norm(nomes.join(' ')) + '|' + norm(frente);
+      var g = gruposFrente[chave];
+      if (!g) {
+        var cand = [];
+        nomes.forEach(function (n) {
+          var e = acharEncarregado(n, null, true);
+          if (e && cand.indexOf(e.id) === -1) cand.push(e.id);
+        });
+        g = gruposFrente[chave] = { chave: chave, equipe: nomes.join(' / '), frente: frente, atividades: {}, qtd: 0, candidatos: cand };
+      }
+      g.atividades[atividadesDoItem(item)[0] || rotuloDoItem(item)] = true;
+      return g;
+    }
+    /** O texto de encarregado da linha, com o que foi escolhido: o mesmo nome em cada linha da célula. */
+    function encarregadoDoGrupo(g, linha) {
+      var nomes = [apelidos[g.chave], apelidos[g.chave + '|2']]
+        .filter(function (id) { return id && id !== '__fora__'; })
+        .map(function (id) { return (ctx.encarregados || []).filter(function (e) { return e.id === id; })[0]; })
+        .filter(Boolean).map(function (e) { return e.nome; });
+      if (!nomes.length) return null;
+      var linhasMax = 1;
+      for (var d = 0; d < 7; d++) linhasMax = Math.max(linhasMax, textoDaCelula(ws, linha, COL.SEGUNDA + d).split('\n').length);
+      var texto = nomes.join(' / '), linhas = [];
+      for (var q = 0; q < linhasMax; q++) linhas.push(texto);
+      return linhas.join('\n');
     }
     Object.keys(mapa.achados).forEach(function (item) {
       ['prog1', 'prog2'].forEach(function (semana) { ler(item, semana, mapa.achados[item][semana]); });
@@ -1090,6 +1124,9 @@ window.SIPAV = window.SIPAV || {};
             }
             var s = semEncarregadoNaFrente[item] = semEncarregadoNaFrente[item] || { linhas: 0, equipe: equipeDaSoma };
             s.linhas++;
+            var grupo = grupoDaFrente(item, equipeDaSoma, fr.frente);
+            ler(item, semana, fr.linha, encarregadoDoGrupo(grupo, fr.linha), grupo);
+            return;
           }
           ler(item, semana, fr.linha);
         });
@@ -1215,7 +1252,8 @@ window.SIPAV = window.SIPAV || {};
                                           data: dataDoDia, encNomes: equipeDaLinha });
                 });
               }
-              daLinha.forEach(function (b) { brutas.push(b); });
+              if (leitura.grupo) daLinha.forEach(function (b) { b.grupoFrente = leitura.grupo.chave; });
+            daLinha.forEach(function (b) { brutas.push(b); });
             });
           }
         });
@@ -1374,7 +1412,7 @@ window.SIPAV = window.SIPAV || {};
       var chave = torre.torre_id + '|' + b.data + '|' + b.item +
         (equipe.length > 1 ? '|' + equipe.map(function (e) { return e.id; }).sort().join('+') : '');
       var x = porItem[chave] = porItem[chave] || {
-        torre: torre, data: b.data, item: b.item, encs: [], percentual: null, notas: []
+        torre: torre, data: b.data, item: b.item, encs: [], percentual: null, notas: [], grupoFrente: b.grupoFrente || null
       };
       equipe.forEach(function (enc) {
         if (!x.encs.some(function (e) { return e.id === enc.id; })) x.encs.push(enc);
@@ -1452,8 +1490,9 @@ window.SIPAV = window.SIPAV || {};
         if (equipes.indexOf(e) === -1) equipes.push(e);
       });
       problema('layout', 'Em ' + itensSemEnc.length + ' item(ns) a planilha escreve as torres por frente, sem encarregado: o nome só ' +
-               'aparece na linha da semana (' + equipes.slice(0, 3).join(' · ') + '). Entraram sem encarregado, porque quem está ' +
-               'em qual frente muda toda semana. Itens: ' + itensSemEnc.slice(0, 8).map(function (i) { return rotuloDoItem(i); }).join(', ') +
+               'aparece na linha da semana (' + equipes.slice(0, 3).join(' · ') + '). Escolha quem é em cada frente, em "Frentes sem ' +
+               'encarregado", logo abaixo; sem escolha, entram sem encarregado. Itens: ' +
+               itensSemEnc.slice(0, 8).map(function (i) { return rotuloDoItem(i); }).join(', ') +
                (itensSemEnc.length > 8 ? ', …' : '') + '.');
     }    var avulsas = Object.keys(anotacoes);
     if (avulsas.length) {
@@ -1555,6 +1594,7 @@ window.SIPAV = window.SIPAV || {};
           explicito: primeiro.percentual != null,
           cabo: cabo || null,
           observacao: observacaoDasNotas(atv.nome, notas),
+          grupoFrente: primeiro.grupoFrente || null,
           itens: itensUsados.slice()
         };
       }
@@ -1624,10 +1664,19 @@ window.SIPAV = window.SIPAV || {};
 
     dividirPercentuais(lista);
 
+    lista.forEach(function (r) {
+      if (r.grupoFrente && gruposFrente[r.grupoFrente]) gruposFrente[r.grupoFrente].qtd++;
+    });
+
     return {
       datas: { s1: lidas.s1, s2: lidas.s2, origem: lidas.origem },
       registros: lista,
       naoReconhecidos: Object.keys(naoReconhecidos).sort().map(function (k) { return naoReconhecidos[k]; }),
+      gruposSemEncarregado: Object.keys(gruposFrente).map(function (k) {
+        var g = gruposFrente[k];
+        return { chave: g.chave, equipe: g.equipe, frente: g.frente, qtd: g.qtd, candidatos: g.candidatos,
+                 atividades: Object.keys(g.atividades) };
+      }).sort(function (a, b) { return a.equipe.localeCompare(b.equipe, 'pt-BR') || a.frente.localeCompare(b.frente, 'pt-BR'); }),
       movimentos: Object.keys(movimentos).map(function (k) { return movimentos[k]; })
         .sort(function (a, b) { return a.data < b.data ? -1 : a.data > b.data ? 1 : 0; }),
       problemas: problemas,

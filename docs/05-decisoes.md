@@ -32,12 +32,15 @@ cola os textos) e leria tudo duas vezes. Na Correntina isso passou de 5 para 376
 programações; na Buritirama–Barra II, de 0 para 123.
 
 **Frente sem encarregado.** Na Campo Formoso–Barra II a linha da semana traz a equipe
-inteira numa célula (às vezes seis nomes) e as linhas das frentes vêm sem nome. Quem está
-em qual frente muda toda semana, então não há mapa fixo para montar. As programações
-entram sem encarregado, e o aviso mostra a equipe que a planilha trazia, para eu atribuir
-depois. Quando a linha da semana tem um nome só (Franklin, Cláudio, Gleison, Ayrton,
-Edmilson), é ele em todas as frentes e entra com o nome.
-
+inteira numa célula (às vezes seis nomes) e as linhas das frentes vêm sem nome. Quando a
+linha da semana tem um nome só (Franklin, Cláudio, Gleison, Ayrton, Edmilson), é ele em
+todas as frentes e entra com o nome. Quando tem vários, a prévia mostra o painel "Frentes
+sem encarregado": uma linha por equipe e frente, com dois seletores (encarregado e um
+segundo opcional), e os da equipe da planilha vêm primeiro. A escolha vale para todas as
+atividades da mesma equipe naquela frente e para as duas semanas, e fica guardada no
+navegador para a próxima importação (quem está em qual frente muda, então vem preenchido
+mas dá para trocar). Programar com frente sem escolha pergunta antes, e entra sem
+encarregado.
 **Mais atividades.** Empacadura (instalação e retirada), praça para lançamento,
 amortecimento, descida e caixa de emenda do OPGW, pré-comissionamento, comissionamento,
 revisão de solo e PRAD viram atividades (migração 52), todas condicionais e sem

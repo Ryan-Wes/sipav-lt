@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v163 · 2026-10-14';
+  var VERSAO = 'v164 · 2026-10-14';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -8523,6 +8523,7 @@ window.SIPAV = window.SIPAV || {};
         guardarApelidosDaIsa();
         importacaoIsa = { arquivo: arquivo.name, datas: r.datas, registros: r.registros,
                           movimentos: r.movimentos || [], naoReconhecidos: r.naoReconhecidos || [],
+                          gruposSemEncarregado: r.gruposSemEncarregado || [],
                           porticoFaltando: (r.resumo && r.resumo.porticoFaltando) || { inicio: 0, fim: 0, indefinido: 0 },
                           problemas: r.problemas, resumo: r.resumo };
 
@@ -8615,12 +8616,13 @@ window.SIPAV = window.SIPAV || {};
 
   function atualizarAplicarEscolhasIsa() {
     var n = escolhasPendentesIsa().length;
-    var btn = $('btnAplicarEscolhasIsa');
-    if (!btn) return;
-    btn.disabled = !n;
-    btn.textContent = n ? 'Aplicar ' + n + (n === 1 ? ' escolha' : ' escolhas') : 'Aplicar escolhas';
-    var nota = $('notaEscolhasIsa');
-    if (nota) nota.textContent = n ? 'Ainda não aplicadas: a lista de baixo só muda depois de aplicar.' : '';
+    Array.prototype.forEach.call(document.querySelectorAll('.btn-aplicar-isa'), function (btn) {
+      btn.disabled = !n;
+      btn.textContent = n ? 'Aplicar ' + n + (n === 1 ? ' escolha' : ' escolhas') : 'Aplicar escolhas';
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('.nota-escolhas-isa'), function (nota) {
+      nota.textContent = n ? 'Ainda não aplicadas: a lista de baixo só muda depois de aplicar.' : '';
+    });
   }
 
   /** Lê a planilha de novo com o que foi escolhido. Dá para trocar e aplicar de novo. */
@@ -8698,6 +8700,23 @@ window.SIPAV = window.SIPAV || {};
         : '') +
       '<button type="button" class="btn-secundario" ' +
               'onclick="SIPAV.app.pedirNovoEncarregadoIsa(\'' + esc(chave) + '\', true)">+ Novo</button></div>';
+  }
+
+  /**
+   * Um seletor de encarregado para uma frente sem nome. Primeiro a equipe que a planilha
+   * traz na linha da semana (os que o SIPAV reconheceu), depois todos os outros.
+   */
+  function seletorDeFrenteIsa(g, chave, vazio) {
+    var atual = escolhaAtualIsa(chave);
+    var porNome = E.encarregados.slice().sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); });
+    var daEquipe = g.candidatos.map(function (id) { return porNome.filter(function (e) { return e.id === id; })[0]; }).filter(Boolean);
+    var outros = porNome.filter(function (e) { return g.candidatos.indexOf(e.id) === -1; });
+    function op(e) { return '<option value="' + e.id + '"' + (e.id === atual ? ' selected' : '') + '>' + esc(e.nome) + '</option>'; }
+    return '<select class="campo" style="min-width:9rem;flex:1" ' +
+             'onchange="SIPAV.app.escolherEncarregadoIsa(\'' + esc(chave) + '\', this.value)">' +
+      '<option value="">' + vazio + '</option>' +
+      (daEquipe.length ? '<optgroup label="Da equipe da planilha">' + daEquipe.map(op).join('') + '</optgroup>' : '') +
+      '<optgroup label="Outros encarregados">' + outros.map(op).join('') + '</optgroup></select>';
   }
 
   /** O que a planilha diz desse nome, para ajudar a escolher quem ele é. */
@@ -8930,9 +8949,49 @@ window.SIPAV = window.SIPAV || {};
             '</div>';
           }).join('') +
           '<div class="flex items-center gap-3 flex-wrap">' +
-            '<button type="button" id="btnAplicarEscolhasIsa" class="btn-primario" ' +
+            '<button type="button" class="btn-primario btn-aplicar-isa" ' +
                     'onclick="SIPAV.app.aplicarEscolhasIsa()" disabled>Aplicar escolhas</button>' +
-            '<span id="notaEscolhasIsa" class="text-xs text-amber-800"></span>' +
+            '<span class="text-xs text-amber-800 nota-escolhas-isa"></span>' +
+          '</div>' +
+        '</div>';
+    }
+    // Frentes que a planilha escreve sem encarregado, com a equipe só na linha da semana. A mesma
+    // equipe numa mesma frente costuma ser a mesma pessoa em todas as atividades, então a escolha
+    // é por equipe e frente, e vale para as duas semanas. Fica guardada para a próxima importação.
+    var gruposDeFrente = imp.gruposSemEncarregado || [];
+    if (gruposDeFrente.length) {
+      var faltam = gruposDeFrente.filter(function (g) { return !aplicadaIsa(g.chave); })
+        .reduce(function (s, g) { return s + g.qtd; }, 0);
+      var equipesDeFrente = [], porEquipeDeFrente = {};
+      gruposDeFrente.forEach(function (g) {
+        if (!porEquipeDeFrente[g.equipe]) { porEquipeDeFrente[g.equipe] = []; equipesDeFrente.push(g.equipe); }
+        porEquipeDeFrente[g.equipe].push(g);
+      });
+      corpo +=
+        '<div class="rounded-lg border border-amber-300 bg-amber-50 p-3 space-y-3">' +
+          '<p class="text-sm font-semibold text-amber-900">Frentes sem encarregado</p>' +
+          '<p class="text-xs text-amber-800">A planilha traz a equipe na linha da semana e deixa as frentes sem nome. ' +
+            'Escolha quem fez em cada frente (e um segundo, se foram dois) e clique em <strong>Aplicar</strong>. ' +
+            'A escolha vale para as duas semanas e fica guardada para a próxima importação. ' +
+            (faltam ? '<strong>' + faltam + ' programação(ões) ainda sem encarregado.</strong>' : 'Todas com encarregado.') +
+          '</p>' +
+          equipesDeFrente.map(function (eq) {
+            return '<div class="space-y-1">' +
+              '<p class="text-xs font-semibold">' + esc(eq) + '</p>' +
+              porEquipeDeFrente[eq].map(function (g) {
+                return '<div class="flex items-center gap-2 flex-wrap">' +
+                  '<span class="text-xs" style="min-width:11rem"><strong>' + esc(g.frente) + '</strong> · ' + g.qtd +
+                    '<br><em style="color:var(--texto-suave)">' + esc(g.atividades.slice(0, 3).join(', ') + (g.atividades.length > 3 ? '…' : '')) + '</em></span>' +
+                  seletorDeFrenteIsa(g, g.chave, 'Sem encarregado') +
+                  seletorDeFrenteIsa(g, g.chave + '|2', '+ segundo (opcional)') +
+                '</div>';
+              }).join('') +
+            '</div>';
+          }).join('') +
+          '<div class="flex items-center gap-3 flex-wrap">' +
+            '<button type="button" class="btn-primario btn-aplicar-isa" ' +
+                    'onclick="SIPAV.app.aplicarEscolhasIsa()" disabled>Aplicar escolhas</button>' +
+            '<span class="text-xs text-amber-800 nota-escolhas-isa"></span>' +
           '</div>' +
         '</div>';
     }
@@ -9050,6 +9109,7 @@ window.SIPAV = window.SIPAV || {};
   }
 
   var gravandoIsa = false;   // a importação está gravando: um segundo clique não pode começar outra
+  var confirmouSemEncarregadoIsa = false;   // já disse que pode entrar sem encarregado
 
   function gravarImportacaoIsa() {
     var imp = importacaoIsa;
@@ -9064,6 +9124,19 @@ window.SIPAV = window.SIPAV || {};
     var criar = imp.registros.filter(function (x) { return !x.existe; });
     var movCriar = (imp.movimentos || []).filter(function (x) { return !x.existe; });
     if (!criar.length && !movCriar.length) { ui.avisar('Nada para programar.', 'alerta'); return; }
+
+    // Programação de frente sem ninguém escolhido: entra sem encarregado, e é pergunta
+    // porque depois alguém precisa atribuir uma a uma
+    var semQuem = criar.filter(function (x) { return x.grupoFrente && !x.encarregadoId; }).length;
+    var jaConfirmou = confirmouSemEncarregadoIsa;
+    confirmouSemEncarregadoIsa = false;
+    if (semQuem && !jaConfirmou) {
+      ui.confirmar('Sem encarregado',
+        semQuem + ' programação(ões) vão entrar sem encarregado: a planilha não diz quem fez cada frente. ' +
+        'Dá para escolher acima, em "Frentes sem encarregado". Programar assim mesmo?', 'Programar assim mesmo')
+        .then(function (sim) { if (sim) { confirmouSemEncarregadoIsa = true; gravarImportacaoIsa(); } });
+      return;
+    }
 
     var hoje = ui.hoje();
     var justRetro = $('isaImpRetro') ? $('isaImpRetro').value.trim() : '';
