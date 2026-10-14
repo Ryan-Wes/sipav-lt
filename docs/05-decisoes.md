@@ -16,6 +16,16 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 14/10/2026
 
+### Supervisor: programar por encarregado ou por torre — [WR]
+
+Na tela do supervisor há dois caminhos. **Por encarregado** abre o formulário já na lista de
+encarregados (encarregado, atividade, torres, dias). **Por torre** abre a grade de torres, com os
+mesmos cartões da grade completa (estrutura EST/AUP, estado pela última atividade concluída ou
+restrição em vermelho) e o que já está programado em cada torre nas próximas semanas, com a
+origem: oficial, solicitada por outro supervisor ou minha. Toca para marcar, "Marcar faixa" pega
+da primeira à última, e a busca filtra por número. Ao continuar, o formulário abre com as torres
+já preenchidas (as seguidas viram "88/1 a 92/2") e a lista de atividades já aberta. Dentro do
+formulário, "Escolher na grade de torres" volta à grade com as torres atuais marcadas.
 ### Supervisor: pré-programação que o planejamento aprova — [WR]
 
 O supervisor não usa a tela completa. Tem uma tela própria, simples, feita para o celular e

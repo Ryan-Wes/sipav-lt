@@ -198,7 +198,7 @@ window.SIPAV = window.SIPAV || {};
   function cartaoStatus() {
     if (!S.sol) {
       return '<div class="sup-status"><strong>Nenhuma programação em andamento</strong>' +
-             '<p>Toque em <b>Programar</b> para começar. Quando terminar, envie para o planejamento analisar.</p></div>';
+             '<p>Escolha por onde começar: <b>por encarregado</b> ou <b>por torre</b>. Quando terminar, envie para o planejamento analisar.</p></div>';
     }
     if (S.sol.status === 'DEVOLVIDA') {
       return '<div class="sup-status devolvida"><strong>Devolvida pelo planejamento</strong>' +
@@ -224,8 +224,12 @@ window.SIPAV = window.SIPAV || {};
     var html = cartaoStatus();
 
     if (editavel || (S.sol && S.sol.status === 'APROVADA')) {
-      html += '<button type="button" class="sup-programar" data-acao="programar">' +
-              '<i data-lucide="plus" class="w-5 h-5"></i> Programar</button>';
+      html += '<div class="sup-programar-par">' +
+        '<button type="button" class="sup-programar" data-acao="por-encarregado">' +
+          '<i data-lucide="users" class="w-5 h-5"></i><span>Por encarregado</span></button>' +
+        '<button type="button" class="sup-programar" data-acao="por-torre">' +
+          '<i data-lucide="layout-grid" class="w-5 h-5"></i><span>Por torre</span></button>' +
+      '</div>';
     }
 
     if (!S.minhas.length) return html;
@@ -335,7 +339,13 @@ window.SIPAV = window.SIPAV || {};
       case 'atualizar': carregar(); break;
       case 'tema': window.SIPAV.app.alternarTema(); break;
       case 'sair': window.SIPAV.app.sair(); break;
-      case 'programar': abrirFormulario(null); break;
+      case 'por-encarregado': abrirFormulario(null, { modo: 'encarregado' }); break;
+      case 'por-torre': abrirGradeParaProgramar(); break;
+      case 'abrir-grade': abrirGradeDoFormulario(); break;
+      case 'grade-torre': alternarTorreDaGrade(alvo.getAttribute('data-id')); break;
+      case 'grade-faixa': G.faixa = !G.faixa; G.ancora = null; atualizarRodapeDaGrade(); break;
+      case 'grade-fechar': fecharGrade(); break;
+      case 'grade-ok': confirmarGrade(); break;
       case 'editar': abrirFormulario(S.minhas.filter(function (p) { return p.id === id; })[0]); break;
       case 'apagar': apagarLinha(id); break;
       case 'enviar': enviarPacote(); break;
@@ -373,6 +383,8 @@ window.SIPAV = window.SIPAV || {};
       if (d && d >= hojeIso()) { adicionarDia(d); ev.target.value = ''; }
     } else if (ev.target.id === 'listaBusca') {
       desenharLista(ev.target.value);
+    } else if (ev.target.id === 'gradeBusca' && G) {
+      G.busca = ev.target.value; desenharGrade();
     }
   });
 
@@ -414,7 +426,8 @@ window.SIPAV = window.SIPAV || {};
     return dias.sort();
   }
 
-  function abrirFormulario(linha) {
+  function abrirFormulario(linha, opcoes) {
+    opcoes = opcoes || {};
     if (S.sol && S.sol.status === 'ENVIADA') {
       ui.avisar('Está aguardando o planejamento. Dá para programar de novo depois da análise.', 'alerta', 5000);
       return;
@@ -422,10 +435,10 @@ window.SIPAV = window.SIPAV || {};
 
     F = {
       editId: linha ? linha.id : null,
-      encId: linha && linha.encarregado ? linha.encarregado.id : (lembrado('enc') || ''),
+      encId: linha && linha.encarregado ? linha.encarregado.id : '',
       atvId: linha && linha.atividade ? linha.atividade.id : '',
       cabo: linha ? (linha.cabo || '') : '',
-      torresTexto: linha ? linha.torre.identificador : '',
+      torresTexto: linha ? linha.torre.identificador : (opcoes.torresTexto || ''),
       dias: {},
       distribuicao: 'todas',
       pct: linha ? Number(linha.percentual) || 100 : 100,
@@ -438,9 +451,14 @@ window.SIPAV = window.SIPAV || {};
     ui.mostrar('supFolha');
     document.body.classList.add('sup-travado');
     if (linha) { $('fTorres').value = linha.torre.identificador; $('fObs').value = F.obs; $('fPct').value = F.pct; }
-    else { $('fPct').value = 100; }
+    else { $('fPct').value = 100; $('fTorres').value = F.torresTexto; }
     atualizarFormulario();
     ui.icones();
+
+    // Cada caminho já abre o que falta escolher: por encarregado, a lista de encarregados;
+    // por torre, as torres já vêm da grade e falta a atividade
+    if (!linha && opcoes.modo === 'encarregado') escolherEncarregado();
+    else if (!linha && opcoes.modo === 'torre') escolherAtividade();
   }
 
   function lembrado(chave) {
@@ -454,7 +472,7 @@ window.SIPAV = window.SIPAV || {};
     F = null;
     ui.esconder('supFolha');
     ui.esconder('supLista');
-    document.body.classList.remove('sup-travado');
+    if (!G) document.body.classList.remove('sup-travado');
   }
 
   function esqueletoDoFormulario() {
@@ -480,6 +498,7 @@ window.SIPAV = window.SIPAV || {};
                 '<textarea id="fTorres" rows="2" class="campo" placeholder="Ex.: 88/1, 89/1 ou 88/1 a 92/2" ' +
                   'autocomplete="off" autocapitalize="off" spellcheck="false"></textarea>' +
                 '<div id="fTorresChips" class="sup-chips"></div>' +
+                '<button type="button" class="sup-link" data-acao="abrir-grade"><i data-lucide="layout-grid" class="w-4 h-4"></i> Escolher na grade de torres</button>' +
                 '<p class="sup-fraco">Separe por vírgula. Para uma sequência, escreva <b>88/1 a 92/2</b>.</p></div>') +
 
           '<div class="sup-bloco"><label>' + (edicao ? 'Dia' : 'Dia (pode marcar mais de um)') + '</label>' +
@@ -872,6 +891,179 @@ window.SIPAV = window.SIPAV || {};
     }).catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro', 7000); });
   }
 
+  /* ======================================================================== */
+  /* GRADE DE TORRES — programar por torre                                    */
+  /* ======================================================================== */
+
+  /**
+   * A grade que o planejamento vê, aqui para tocar: cada torre com o estado dela (a última
+   * atividade concluída, ou a restrição) e o que já está programado nas próximas semanas,
+   * seja oficial, seja solicitado. É daqui que o supervisor escolhe as torres.
+   */
+  var G = null;
+
+  function ehPortico(t) { return norm(t.identificador).indexOf('portico') === 0; }
+
+  /** O que já está programado numa torre, de hoje em diante: oficial, outros supervisores e o meu. */
+  function programadasDaTorre(torreId) {
+    var hoje = hojeIso();
+    return S.consulta.filter(function (p) { return p.torre && p.torre.id === torreId && p.data >= hoje; })
+      .sort(function (a, b) { return a.data < b.data ? -1 : a.data > b.data ? 1 : 0; });
+  }
+
+  function cartaoDaGrade(t) {
+    var restrito = !!t.tem_restricao;
+    var cor = restrito ? '#E11D48' : (t.ultima_atividade_cor || null);
+    var estado = ehPortico(t) ? 'Pórtico'
+      : restrito ? 'Restrição ' + String(t.restricao_tipo || '').toLowerCase()
+      : (t.ultima_atividade || 'Não iniciada');
+    var estilo = cor ? 'border-color:' + ui.rgba(cor, 0.45) + ';border-top-color:' + cor + ';' : '';
+
+    var progs = programadasDaTorre(t.torre_id);
+    var lista = progs.slice(0, 3).map(function (p) {
+      var minha = S.sol && p.solicitacao_id === S.sol.id;
+      var origem = p.situacao === 'APROVADA' ? 'of' : minha ? 'mi' : 'so';
+      return '<span class="sup-g-prog ' + origem + '" title="' + esc(origemDe(p)) + '">' +
+        '<b>' + esc(ui.dataCurta(p.data)) + '</b> ' + esc(p.atividade ? p.atividade.nome : '') + '</span>';
+    }).join('') + (progs.length > 3 ? '<span class="sup-g-prog mais">+' + (progs.length - 3) + '</span>' : '');
+
+    var estaiada = t.estrutura === 'ESTAIADA';
+    var pastilha = t.estrutura
+      ? '<span class="pastilha-estrutura ' + (estaiada ? 'est' : 'aup') + '">' + (estaiada ? 'EST' : 'AUP') + '</span>' : '';
+
+    return '<button type="button" class="cartao-torre sup-g-torre' + (restrito ? ' cartao-restrito' : '') +
+      (progs.length ? ' cartao-programado' : '') + (G.sel[t.torre_id] ? ' sel' : '') +
+      '" data-acao="grade-torre" data-id="' + t.torre_id + '"' + (estilo ? ' style="' + estilo + '"' : '') + '>' +
+      '<span class="sup-g-ok"><i data-lucide="check" class="w-3 h-3"></i></span>' +
+      '<span class="identidade"><span class="identificador">' + esc(t.identificador) + '</span>' + pastilha +
+        '<span class="legenda"><span class="ponto-atividade" style="background:' + (cor || 'var(--borda-forte)') + '"></span>' +
+        esc(estado) + '</span></span>' +
+      (lista ? '<span class="sup-g-lista">' + lista + '</span>' : '') +
+      '</button>';
+  }
+
+  function esqueletoDaGrade() {
+    return '<div class="sup-folha-caixa sup-grade-caixa" role="dialog" aria-modal="true">' +
+      '<div class="sup-folha-topo"><strong>Escolha as torres</strong>' +
+        '<button type="button" class="sup-x" data-acao="grade-fechar" aria-label="Fechar"><i data-lucide="x" class="w-5 h-5"></i></button></div>' +
+      '<div class="sup-grade-barra">' +
+        '<input id="gradeBusca" class="campo" placeholder="Buscar torre (ex.: 88)" autocomplete="off" inputmode="text">' +
+        '<button type="button" id="gradeFaixa" class="sup-seg-btn" data-acao="grade-faixa">Marcar faixa</button>' +
+      '</div>' +
+      '<p class="sup-fraco sup-grade-dica" id="gradeDica"></p>' +
+      '<div class="sup-grade-rolagem"><div id="gradeCorpo" class="sup-grade"></div></div>' +
+      '<div class="sup-folha-rodape sup-grade-rodape">' +
+        '<div class="sup-grade-contagem" id="gradeContagem"></div>' +
+        '<button type="button" class="btn-primario" id="gradeOk" data-acao="grade-ok">Continuar</button>' +
+      '</div></div>';
+  }
+
+  function abrirGrade(preSelecionadas, aoConfirmar) {
+    G = { sel: {}, busca: '', faixa: false, ancora: null, aoConfirmar: aoConfirmar };
+    (preSelecionadas || []).forEach(function (t) { G.sel[t.torre_id] = true; });
+    $('supGrade').innerHTML = esqueletoDaGrade();
+    ui.mostrar('supGrade');
+    document.body.classList.add('sup-travado');
+    desenharGrade();
+    atualizarRodapeDaGrade();
+  }
+
+  function desenharGrade() {
+    var termo = norm(G.busca).replace(/\s+/g, '');
+    var lista = S.torres.filter(function (t) {
+      return !termo || norm(t.identificador).replace(/\s+/g, '').indexOf(termo) !== -1;
+    });
+    $('gradeCorpo').innerHTML = lista.length ? lista.map(cartaoDaGrade).join('') : '<p class="sup-vazio">Nenhuma torre com essa busca.</p>';
+    ui.icones();
+  }
+
+  function marcarNaGrade() {
+    Array.prototype.forEach.call(document.querySelectorAll('#gradeCorpo [data-acao="grade-torre"]'), function (el) {
+      el.classList.toggle('sel', !!G.sel[el.getAttribute('data-id')]);
+    });
+    atualizarRodapeDaGrade();
+  }
+
+  function torresMarcadas() {
+    return S.torres.filter(function (t) { return G.sel[t.torre_id]; });
+  }
+
+  function atualizarRodapeDaGrade() {
+    if (!G) return;
+    var marcadas = torresMarcadas();
+    $('gradeContagem').innerHTML = marcadas.length
+      ? '<b>' + marcadas.length + (marcadas.length === 1 ? ' torre' : ' torres') + '</b><span>' +
+        esc(marcadas.slice(0, 6).map(function (t) { return t.identificador; }).join(', ')) + (marcadas.length > 6 ? '…' : '') + '</span>'
+      : '<span>Toque nas torres para marcar</span>';
+    $('gradeOk').disabled = !marcadas.length;
+    $('gradeFaixa').classList.toggle('ativo', G.faixa);
+    $('gradeFaixa').textContent = G.faixa ? (G.ancora ? 'Toque na última' : 'Toque na primeira') : 'Marcar faixa';
+    $('gradeDica').textContent = G.faixa
+      ? 'Faixa: toque na primeira torre e depois na última, e as do meio entram juntas.' : '';
+  }
+
+  function alternarTorreDaGrade(id) {
+    if (!G) return;
+    if (G.faixa) {
+      if (!G.ancora) { G.ancora = id; G.sel[id] = true; marcarNaGrade(); return; }
+      var i = S.torres.map(function (t) { return t.torre_id; }).indexOf(G.ancora);
+      var j = S.torres.map(function (t) { return t.torre_id; }).indexOf(id);
+      var de = Math.min(i, j), ate = Math.max(i, j);
+      for (var k = de; k <= ate; k++) G.sel[S.torres[k].torre_id] = true;
+      G.faixa = false; G.ancora = null;
+      marcarNaGrade();
+      return;
+    }
+    if (G.sel[id]) delete G.sel[id]; else G.sel[id] = true;
+    marcarNaGrade();
+  }
+
+  /** "88/1 a 92/2, 95/1": as seguidas viram faixa, para o campo de torres não virar uma lista enorme. */
+  function textoDasTorres(torres) {
+    var posicoes = torres.map(function (t) { return S.torres.indexOf(t); }).sort(function (a, b) { return a - b; });
+    var partes = [], i = 0;
+    while (i < posicoes.length) {
+      var j = i;
+      while (j + 1 < posicoes.length && posicoes[j + 1] === posicoes[j] + 1) j++;
+      var de = S.torres[posicoes[i]].identificador, ate = S.torres[posicoes[j]].identificador;
+      if (j - i >= 2) partes.push(de + ' a ' + ate);
+      else for (var k = i; k <= j; k++) partes.push(S.torres[posicoes[k]].identificador);
+      i = j + 1;
+    }
+    return partes.join(', ');
+  }
+
+  function fecharGrade() {
+    G = null;
+    ui.esconder('supGrade');
+    if (!F) document.body.classList.remove('sup-travado');
+  }
+
+  function confirmarGrade() {
+    var texto = textoDasTorres(torresMarcadas());
+    var depois = G.aoConfirmar;
+    fecharGrade();
+    if (depois) depois(texto);
+  }
+
+  /** Por torre: escolhe as torres na grade e depois abre o formulário com elas. */
+  function abrirGradeParaProgramar() {
+    if (S.sol && S.sol.status === 'ENVIADA') {
+      ui.avisar('Está aguardando o planejamento. Dá para programar de novo depois da análise.', 'alerta', 5000);
+      return;
+    }
+    abrirGrade([], function (texto) { abrirFormulario(null, { modo: 'torre', torresTexto: texto }); });
+  }
+
+  /** De dentro do formulário: trocar as torres olhando a grade. */
+  function abrirGradeDoFormulario() {
+    var atuais = lerTorres($('fTorres').value).torres;
+    abrirGrade(atuais, function (texto) {
+      $('fTorres').value = texto;
+      F.torresTexto = texto;
+      atualizarFormulario();
+    });
+  }
   /* ======================================================================== */
   /* CAIXA DE SOLICITAÇÕES — o planejamento                                   */
   /* ======================================================================== */

@@ -1805,3 +1805,41 @@ body.sup-travado { overflow: hidden; }
 /* O aviso não pode ficar em cima da barra de baixo do supervisor */
 body:has(#telaSupervisor:not(.hidden)) #aviso { bottom: calc(8rem + env(safe-area-inset-bottom)); left: 1rem; right: 1rem; }
 body:has(#telaSupervisor:not(.hidden)) #aviso #avisoInterno { justify-content: center; }
+
+/* Dois caminhos para programar: por encarregado e por torre */
+.sup-programar-par { display: grid; grid-template-columns: 1fr 1fr; gap: .625rem; margin: .25rem 0 1.25rem; }
+.sup-programar-par .sup-programar { margin: 0; flex-direction: column; gap: .25rem; min-height: 72px; font-size: 1rem; }
+.sup-link { display: inline-flex; align-items: center; gap: .375rem; min-height: 44px; margin-top: .25rem; padding: 0 .25rem;
+  border: 0; background: transparent; color: var(--acento); font-weight: 800; font-size: .875rem; cursor: pointer; }
+
+/* A grade de torres do supervisor: os mesmos cartões da grade completa, para tocar */
+.sup-grade-folha { z-index: 46; }
+.sup-grade-caixa { max-width: 880px; }
+.sup-grade-barra { display: flex; gap: .5rem; padding: .625rem 1rem 0; background: var(--fundo); }
+.sup-grade-barra .campo { flex: 1; }
+.sup-seg-btn { flex-shrink: 0; min-height: 48px; padding: 0 .875rem; border-radius: .75rem; border: 1px solid var(--borda-forte);
+  background: var(--superficie); color: var(--texto-suave); font-weight: 700; font-size: .8125rem; cursor: pointer; }
+.sup-seg-btn.ativo { border-color: var(--acento); background: rgba(249,115,22,.14); color: var(--texto); }
+.sup-grade-dica { padding: .375rem 1rem 0; min-height: 1.25rem; }
+.sup-grade-rolagem { flex: 1 1 auto; overflow-y: auto; padding: .625rem 1rem 1rem; -webkit-overflow-scrolling: touch; }
+.sup-grade { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+@media (min-width: 600px) { .sup-grade { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); } }
+.sup-g-torre { font: inherit; width: 100%; min-height: 112px; padding: .625rem .5rem; gap: .375rem; -webkit-tap-highlight-color: transparent; }
+.sup-g-torre:hover { transform: none; }
+.sup-g-torre.sel { outline: 3px solid var(--acento); outline-offset: -2px; background: rgba(249,115,22,.12); }
+.sup-g-ok { position: absolute; top: 6px; right: 6px; width: 20px; height: 20px; border-radius: 999px; display: none;
+  align-items: center; justify-content: center; background: var(--acento); color: #fff; }
+.sup-g-torre.sel .sup-g-ok { display: inline-flex; }
+.sup-g-lista { display: flex; flex-direction: column; gap: .1875rem; width: 100%; text-align: left; margin-top: .125rem; }
+.sup-g-prog { display: block; padding: .125rem .375rem; border-radius: .375rem; border-left: 3px solid; background: var(--superficie-2);
+  font-size: .625rem; line-height: 1.25; color: var(--texto-suave); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sup-g-prog b { color: var(--texto); }
+.sup-g-prog.of { border-left-color: #16A34A; }
+.sup-g-prog.so { border-left-color: #D97706; }
+.sup-g-prog.mi { border-left-color: var(--acento); }
+.sup-g-prog.mais { border-left-color: transparent; text-align: center; }
+.sup-grade-rodape { align-items: center; }
+.sup-grade-contagem { flex: 1; min-width: 0; display: flex; flex-direction: column; font-size: .75rem; color: var(--texto-fraco); }
+.sup-grade-contagem b { font-size: .9375rem; color: var(--texto); }
+.sup-grade-contagem span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sup-grade-rodape .btn-primario { flex: 0 0 auto; min-width: 9rem; }
