@@ -255,9 +255,12 @@ window.SIPAV = window.SIPAV || {};
     'INSTALAÇÃO DE JUMPER':                     { itens: ['4.3.7'] },
     'INSTALAÇÃO DE ESPAÇADORES':                { itens: ['4.3.8'] },
 
-    // A ISA separa em três tipos de sinalização (estais, avifauna, placas) e o campo aponta como um
-    // serviço só. Na exportação a mesma programação vai nas três; na importação basta uma
-    // preenchida para a torre entrar inteira.
+    // Três atividades, como na planilha: estais, avifauna e placas. A de nome antigo, que valia
+    // pelas três, fica até a migração 53 separar; enquanto ela existir sozinha no cadastro, basta
+    // uma das três linhas preenchida para a torre entrar.
+    'INSTALAÇÃO DE SINALIZADORES DE ESTAIS':    { itens: ['4.4.1'] },
+    'INSTALAÇÃO DE DISPOSITIVO AVIFAUNA':       { itens: ['4.4.2'] },
+    'INSTALAÇÃO DE PLACAS DE SINALIZAÇÃO':      { itens: ['4.4.3'] },
     'INSTALAÇÃO DE SINALIZAÇÃO':                { itens: ['4.4.1', '4.4.2', '4.4.3'], basta: true }
   };
 
@@ -1361,44 +1364,9 @@ window.SIPAV = window.SIPAV || {};
     // ---- 2. Resolve torre e encarregado ----
     var porItem = {};      // torre|data|item → {torre, data, item, encs:[], pct, notas}
 
-    // Torre que o trecho não tem ("16/2") mas existe com outro sufixo ("16/1"): se a
-    // vizinha não está programada na mesma atividade, foi erro de digitação e vale a
-    // vizinha. Se já está, quem lançou achou que havia uma 16/2 e programou outra coisa:
-    // não entra. Só vale com uma vizinha só; com duas, não se adivinha.
-    var usadas = {};
     brutas.forEach(function (b) {
-      var t = torres[norm(b.torreTexto)];
-      if (t) (usadas[b.item] = usadas[b.item] || {})[t.torre_id] = true;
-    });
-    var assumidas = {}, recusadas = {};
-
-    function vizinhaDaTorre(b) {
-      var m = /^(\d+)\/\d+$/.exec(b.torreTexto.trim());
-      if (!m) return null;
-      var vizinhas = (ctx.torres || []).filter(function (t) { return t.identificador.indexOf(m[1] + '/') === 0; });
-      if (vizinhas.length !== 1) return null;
-
-      var v = vizinhas[0];
-      var chave = b.torreTexto.trim() + '|' + v.identificador + '|' + b.item;
-      var info = { de: b.torreTexto.trim(), para: v.identificador, item: (atividadesDoItem(b.item)[0] || rotuloDoItem(b.item)) + ' (' + b.item + ')', n: 0 };
-      if (usadas[b.item] && usadas[b.item][v.torre_id]) {
-        recusadas[chave] = recusadas[chave] || info;
-        recusadas[chave].n++;
-        return 'recusada';
-      }
-      assumidas[chave] = assumidas[chave] || info;
-      assumidas[chave].n++;
-      (usadas[b.item] = usadas[b.item] || {})[v.torre_id] = true;
-      return v;
-    }
-
-    brutas.forEach(function (b) {
+      // Torre que o trecho não tem não se programa, nem como erro de digitação da vizinha
       var torre = torres[norm(b.torreTexto)];
-      if (!torre) {
-        var viz = vizinhaDaTorre(b);
-        if (viz === 'recusada') return;
-        if (viz) torre = viz;
-      }
       if (!torre) {
         var mov = movimentoDaAnotacao(b.torreTexto);
         if (mov) {
@@ -1469,16 +1437,6 @@ window.SIPAV = window.SIPAV || {};
       };
     });
 
-    Object.keys(assumidas).sort().forEach(function (k) {
-      var a = assumidas[k];
-      problema('assumida', 'Torre ' + a.de + ' não existe: assumi ' + a.para + ' como erro de digitação, em "' +
-               a.item + '" (' + a.n + ' lançamento(s)). Confira.');
-    });
-    Object.keys(recusadas).sort().forEach(function (k) {
-      var a = recusadas[k];
-      problema('torre', 'Torre ' + a.de + ' não existe, e a ' + a.para + ' já está programada em "' + a.item +
-               '": quem lançou deve ter achado que havia uma ' + a.de + '. Não entrou (' + a.n + ').');
-    });
     // Programação em item que o SIPAV não importa. Dia só com FERIADO, FOLGA e afins
     // não conta: isso já vira dia sem atividade.
     var semItem = {};

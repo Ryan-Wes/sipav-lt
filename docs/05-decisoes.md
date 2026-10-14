@@ -16,11 +16,16 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 13/10/2026
 
-### Sinalização: basta um dos três itens da planilha — [WR]
+### Sinalização em três atividades; torre que não existe não se programa — [WR]
 
-A planilha preenche só o que foi feito (estais, avifauna ou placas), e a atividade do SIPAV
-é uma só. Como na concretagem, um item preenchido basta para a torre entrar inteira, sem o
-aviso de "só o item 4.4.2 está preenchido". Na exportação continua indo nos três.
+A planilha tem três itens de sinalização (estais, avifauna, placas), e cada um é um serviço.
+A atividade "Instalação de sinalização" passa a ser a dos sinalizadores de estais (migração
+53), e nascem a do dispositivo de avifauna e a das placas, com a mesma cor de família e as
+mesmas dependências. O que já estava programado na antiga fica como estais.
+
+Torre que a planilha cita e o trecho não tem não é programada, e não se assume a vizinha
+como erro de digitação: sai o aviso "Torre X não existe neste trecho" e fim. A regra da
+vizinha ("45/2" virando "45/1") foi tirada.
 ### Limpar programação leva os dias sem atividade, menos o feriado — [WR]
 
 O botão "Limpar programação" do período agora também remove os dias sem atividade do trecho
