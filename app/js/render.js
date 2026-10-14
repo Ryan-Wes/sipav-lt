@@ -732,21 +732,21 @@ window.SIPAV = window.SIPAV || {};
     var cor = corDoTrecho(tr.nome);
     return '<span class="tag-trecho" title="' + esc(tr.nome) + '"' +
       (cor ? ' style="--tag-cor:' + cor.cor + (cor.clara ? ';--tag-cor-clara:' + cor.clara : '') + '"' : '') + '>' +
-      esc(tr.nome) + '</span>';
+      esc(cor && cor.sigla ? cor.sigla : tr.nome) + '</span>';
   }
 
   /**
-   * A cor de cada trecho, a mesma das etiquetas da planilha da ISA (BRT-BRR, BRR-CRN,
-   * CAF-BRR, JZR-CAF), para reconhecer de relance. A etiqueta é só o contorno e a letra nessa
+   * A sigla e a cor de cada trecho, as mesmas das etiquetas da planilha da ISA (BRT-BRR, BRR-CRN,
+   * CAF-BRR, JZT-CAF), para reconhecer de relance. O nome inteiro fica no title da etiqueta. A etiqueta é só o contorno e a letra nessa
    * cor, com o fundo transparente. No tema claro o amarelo some no branco, então ele ganha uma
    * versão mais escura (`clara`). Vem do nome do trecho: Juazeiro vem antes de Campo Formoso
    * porque o nome de um contém o do outro. Trecho de outro nome fica com a cor padrão.
    */
   var CORES_DOS_TRECHOS = [
-    { quando: /correntina/,   cor: '#FFFF00', clara: '#A89A00' },   // BRR-CRN
-    { quando: /buritirama/,   cor: '#01B0F1' },                      // BRT-BRR
-    { quando: /juazeiro/,     cor: '#4BA750' },                      // JZR-CAF
-    { quando: /campo formoso/, cor: '#C64DAA' }                      // CAF-BRR
+    { quando: /correntina/,   sigla: 'BRR-CRN', cor: '#FFFF00', clara: '#A89A00' },
+    { quando: /buritirama/,   sigla: 'BRT-BRR', cor: '#01B0F1' },
+    { quando: /juazeiro/,     sigla: 'JZT-CAF', cor: '#4BA750' },
+    { quando: /campo formoso/, sigla: 'CAF-BRR', cor: '#C64DAA' }
   ];
   function corDoTrecho(nome) {
     var n = String(nome || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();

@@ -21,7 +21,8 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 A etiqueta do trecho nas programações (quando a tela mostra mais de um trecho) usa a mesma
 cor das etiquetas da planilha da ISA, só no contorno e na letra, com o fundo transparente:
 Buritirama–Barra azul (#01B0F1), Barra–Correntina amarelo (#FFFF00), Campo Formoso–Barra rosa
-(#C64DAA) e Juazeiro–Campo Formoso verde (#4BA750). No tema claro o amarelo vira #A89A00,
+(#C64DAA) e Juazeiro–Campo Formoso verde (#4BA750). O texto é a sigla (BRT-BRR, BRR-CRN, CAF-BRR, JZT-CAF);
+o nome inteiro fica no title da etiqueta. No tema claro o amarelo vira #A89A00,
 porque o amarelo puro some no branco. A cor vem do nome do trecho; trecho com outro nome
 fica com a cor padrão.
 ### Sinalização em três atividades — [WR]
