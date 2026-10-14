@@ -34,7 +34,7 @@ aviso do alto diz de que dia a que dia ele programa.
 folha já no encarregado e no dia. A folha pede atividade, encarregado, torres, dias e percentual,
 avisa de conflito e de sequência, e grava como pré-programação do pacote dele.
 
-**O que ele vê.** O oficial e as pré-programações de todos, estas tracejadas e com a marca PRÉ.
+**O que ele vê.** O oficial e as pré-programações de todos, só do trecho escolhido no alto (o escopo é fixo em "só este trecho"), estas tracejadas e com a marca PRÉ. Ele aparece em "Ao vivo" para o planejamento, com o rótulo Supervisor e o trecho que está olhando.
 Tocar numa programação dele (no pacote aberto) deixa editar ou apagar; nas dos outros só mostra
 de quem é. O planejamento continua com a janela de torre e o lote de sempre.
 ### PDF com uma página por encarregado, atividade ou dia — [WR]

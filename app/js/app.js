@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v180 · 2026-10-14';
+  var VERSAO = 'v181 · 2026-10-14';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -290,6 +290,8 @@ window.SIPAV = window.SIPAV || {};
         if (E.modoSupervisor) {
           var janela = window.SIPAV.supervisor.janela();
           E.periodo = { modo: 'supervisor', de: janela.de, ate: janela.ate };
+          // Só o trecho escolhido no alto: as programações dos outros trechos não entram aqui
+          E.escopo = 'trecho';
           E.supSel = {};
         } else {
           restaurarPeriodo();
@@ -460,6 +462,7 @@ window.SIPAV = window.SIPAV || {};
               esc(p.nome) + (p.souEu ? ' <span style="color:var(--texto-fraco)">(você)</span>' : '') +
             '</p>' +
             '<p class="text-xs truncate" style="color:var(--texto-fraco)">' +
+              (p.papel === 'SUPERVISOR' ? 'Supervisor · ' : '') +
               (p.trecho ? esc(p.trecho) : 'sem trecho aberto') +
               (p.abas > 1 ? ' · ' + p.abas + ' abas' : '') +
             '</p>' +
