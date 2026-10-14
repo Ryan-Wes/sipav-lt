@@ -1631,48 +1631,11 @@ details.hist-grupo > summary:hover { border-color: var(--borda-forte); }
 .sol-tabela td { vertical-align: top; }
 .sol-linha-tab { border-top: 1px solid var(--borda); }
 
-/* A tela do supervisor: celular primeiro, e no computador fica uma coluna centrada */
-.sup-tela { min-height: 100%; flex: 1 1 auto; display: flex; flex-direction: column; background: var(--fundo); }
-.sup-tela.hidden { display: none; }
+/* O supervisor usa a tela completa, em modo restrito (body.modo-supervisor), e esta parte é o que é só dele */
 body.sup-travado { overflow: hidden; }
 
-.sup-topo {
-  position: sticky; top: 0; z-index: 30;
-  display: flex; align-items: center; justify-content: space-between; gap: .5rem;
-  padding: .5rem .75rem .5rem 1rem; background: var(--superficie); border-bottom: 1px solid var(--borda);
-}
-.sup-marca { display: flex; align-items: center; gap: .625rem; min-width: 0; }
-.sup-marca strong { display: block; font-size: .9375rem; color: var(--texto); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.sup-marca span { display: block; font-size: .6875rem; color: var(--texto-fraco); }
-.sup-topo-acoes { display: flex; align-items: center; flex-shrink: 0; }
-.sup-icone {
-  width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center;
-  border-radius: .75rem; border: 0; background: transparent; color: var(--texto-suave); cursor: pointer;
-}
-.sup-icone:active { background: var(--superficie-2); }
-
-.sup-trecho-barra {
-  display: flex; align-items: center; gap: .625rem; padding: .625rem 1rem;
-  background: var(--superficie-2); border-bottom: 1px solid var(--borda);
-}
-.sup-trecho-barra label { font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--texto-fraco); }
-.sup-trecho-barra select { flex: 1; min-height: 44px; font-size: 16px; }
-
-.sup-corpo { flex: 1 1 auto; width: 100%; max-width: 720px; margin: 0 auto; padding: 1rem 1rem 10rem; }
-
-.sup-abas {
-  position: fixed; left: 0; right: 0; bottom: 0; z-index: 35;
-  display: grid; grid-template-columns: 1fr 1fr;
-  background: var(--superficie); border-top: 1px solid var(--borda); padding-bottom: env(safe-area-inset-bottom);
-}
-.sup-aba {
-  min-height: 58px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .125rem;
-  border: 0; background: transparent; color: var(--texto-fraco); font-weight: 700; font-size: .75rem; cursor: pointer;
-}
-.sup-aba.ativa { color: var(--acento); box-shadow: inset 0 3px 0 var(--acento); }
-
 .sup-enviar {
-  position: fixed; left: 0; right: 0; bottom: calc(58px + env(safe-area-inset-bottom)); z-index: 34;
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 34; padding-bottom: calc(.625rem + env(safe-area-inset-bottom));
   padding: .625rem 1rem; background: var(--superficie); border-top: 1px solid var(--borda);
 }
 .sup-enviar.hidden { display: none; }
@@ -1843,3 +1806,73 @@ body:has(#telaSupervisor:not(.hidden)) #aviso #avisoInterno { justify-content: c
 .sup-grade-contagem b { font-size: .9375rem; color: var(--texto); }
 .sup-grade-contagem span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sup-grade-rodape .btn-primario { flex: 0 0 auto; min-width: 9rem; }
+/* =============================================================================
+   Modo supervisor: a mesma tela do planejamento, sem as ferramentas de administração
+   ============================================================================= */
+
+/* Fora do header: importar, exportar, cadastros, planejamentos, selecionar, histórico, limpar,
+   dias sem atividade, solicitações (o menu de configurações, a presença e o trecho ficam) */
+body.modo-supervisor .app-header .btn-header,
+body.modo-supervisor .app-header .menu-wrap:has(> .btn-header) { display: none !important; }
+
+/* Só a grade, o por encarregado e a solicitação dele */
+body.modo-supervisor #abaDatas,
+body.modo-supervisor #abaAtividades,
+body.modo-supervisor #abaMovimentacoes { display: none !important; }
+
+/* O período é a janela dele, fixa; o escopo e "selecionar vários" não se aplicam */
+body.modo-supervisor .caixa-filtro:has(#filtroPeriodo),
+body.modo-supervisor .caixa-filtro:has(#filtroEscopo),
+body.modo-supervisor #caixaSelecaoProg,
+body.modo-supervisor #btnLimparFiltros { display: none !important; }
+
+/* Os dias vazios aparecem sempre: é neles que fica o + de programar */
+body.modo-supervisor .dia-col-vazia { display: block !important; }
+
+/* Aviso da janela */
+.banner-supervisor {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: .25rem .75rem; margin-bottom: 1rem;
+  padding: .625rem .875rem; border-radius: .75rem; border: 1px solid rgba(249,115,22,.4); background: rgba(249,115,22,.08);
+  font-size: .8125rem; color: var(--texto-suave);
+}
+.banner-supervisor.hidden { display: none; }
+.banner-supervisor strong { color: var(--acento); }
+
+.selo-minha-sol { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 .3125rem;
+  border-radius: 999px; background: var(--acento); color: #fff; font-size: .6875rem; font-weight: 800; }
+.selo-minha-sol.hidden { display: none; }
+
+/* A programação ainda não aprovada: tracejada e com a marca PRÉ */
+.chip-prog.chip-pre { border-style: dashed; border-color: rgba(217,119,6,.65); background: rgba(217,119,6,.06); }
+.tag-pre { display: inline-block; padding: 0 .3125rem; margin-right: .25rem; border-radius: .25rem; border: 1px solid rgba(217,119,6,.6);
+  color: #D97706; font-size: .5625rem; font-weight: 800; letter-spacing: .04em; vertical-align: 1px; }
+
+/* O pacote dele */
+.sup-minha { max-width: 720px; margin: 0 auto; padding-bottom: 6rem; }
+
+/* As torres marcadas na grade: barra de baixo */
+.sup-barra-torres {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 34; display: flex; align-items: center; gap: .5rem;
+  padding: .625rem 1rem calc(.625rem + env(safe-area-inset-bottom)); background: var(--superficie); border-top: 1px solid var(--borda);
+}
+.sup-barra-torres.hidden { display: none; }
+.sup-bt-info { flex: 1; min-width: 0; display: flex; flex-direction: column; font-size: .75rem; color: var(--texto-fraco); }
+.sup-bt-info b { font-size: .9375rem; color: var(--texto); }
+.sup-bt-info span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sup-barra-torres .btn-primario { min-height: 48px; padding: 0 1rem; font-weight: 800; }
+.sup-barra-torres .btn-primario:disabled { opacity: .45; }
+body.modo-supervisor main { padding-bottom: 6rem; }
+
+/* Celular: o cabeçalho enxuto, a grade em duas colunas e os dias empilhados */
+@media (max-width: 700px) {
+  body.modo-supervisor main { padding-left: .75rem; padding-right: .75rem; margin-top: .75rem; }
+  body.modo-supervisor .bloco-marca { display: none; }
+  body.modo-supervisor .barra-ferramentas { padding: .5rem; gap: .5rem; margin-bottom: .75rem; }
+  body.modo-supervisor .barra-ferramentas .aba { min-height: 44px; flex: 1 1 auto; justify-content: center; }
+  body.modo-supervisor .linha-filtros { width: 100%; }
+  body.modo-supervisor #visaoGrade { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 10px; }
+  body.modo-supervisor #filtroColunas { display: none; }
+  body.modo-supervisor .caixa-filtro:has(#filtroColunas) { display: none !important; }
+  body.modo-supervisor .btn-lancar { min-height: 40px; padding: 0 .875rem; }
+  body.modo-supervisor .dia-mais { min-height: 44px; }
+}

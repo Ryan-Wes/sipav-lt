@@ -41,7 +41,7 @@
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 
   <!-- ?v= força o navegador a buscar de novo quando o código muda. -->
-  <link rel="stylesheet" href="css/app.css?v=179">
+  <link rel="stylesheet" href="css/app.css?v=180">
 </head>
 <body class="h-full flex flex-col antialiased">
 
@@ -301,6 +301,9 @@
       </button>
     </div>
 
+    <!-- Só para o supervisor: de que dia a que dia ele programa -->
+    <div id="bannerSupervisor" class="hidden banner-supervisor no-print"></div>
+
     <!-- Abas + filtros -->
     <div class="barra-ferramentas painel p-3 mb-5 flex flex-wrap justify-between items-center gap-4 no-print">
 
@@ -319,6 +322,11 @@
         </button>
         <button id="abaMovimentacoes" onclick="SIPAV.app.trocarAba('movimentacoes')" class="aba">
           <i data-lucide="calendar-x" class="w-4 h-4"></i> Dias sem atividade
+        </button>
+        <!-- Só para o supervisor: o pacote dele, para conferir e enviar -->
+        <button id="abaSolicitacao" onclick="SIPAV.app.trocarAba('solicitacao')" class="aba hidden">
+          <i data-lucide="send" class="w-4 h-4"></i> Minha solicitação
+          <span id="seloMinhaSol" class="selo-minha-sol hidden">0</span>
         </button>
       </div>
 
@@ -416,6 +424,7 @@
       <div id="visaoEncarregados" class="hidden space-y-5"></div>
       <div id="visaoAtividades"   class="hidden space-y-5"></div>
       <div id="visaoMovimentacoes" class="hidden space-y-5"></div>
+      <div id="visaoSolicitacao" class="hidden space-y-5"></div>
     </div>
 
     <div id="estadoVazio" class="hidden text-center py-20">
@@ -429,44 +438,23 @@
 </div>
 
 <!-- ========================================================================
-     TELA DO SUPERVISOR — própria, simples, feita para o celular
+     SUPERVISOR — folha de programar, grade de torres, barras de baixo
+     (a tela é a completa, em modo restrito: ver body.modo-supervisor)
      ===================================================================== -->
-<div id="telaSupervisor" class="hidden sup-tela no-print">
-  <header class="sup-topo">
-    <div class="sup-marca">
-      <img id="logoSimbolo2" alt="" style="height:30px;width:auto">
-      <div style="min-width:0">
-        <strong id="supNome">—</strong>
-        <span>Supervisor · pré-programação</span>
-      </div>
-    </div>
-    <div class="sup-topo-acoes">
-      <button type="button" class="sup-icone" data-acao="atualizar" title="Atualizar" aria-label="Atualizar"><i data-lucide="refresh-cw" class="w-5 h-5"></i></button>
-      <button type="button" class="sup-icone" data-acao="tema" title="Claro / escuro" aria-label="Tema"><i data-lucide="sun-moon" class="w-5 h-5"></i></button>
-      <button type="button" class="sup-icone" data-acao="sair" title="Sair" aria-label="Sair"><i data-lucide="log-out" class="w-5 h-5"></i></button>
-    </div>
-  </header>
+<div id="supFolha" class="sup-folha hidden no-print"></div>
+<div id="supGrade" class="sup-folha sup-grade-folha hidden no-print"></div>
 
-  <div class="sup-trecho-barra">
-    <label for="supTrecho">Trecho</label>
-    <select id="supTrecho" class="campo"></select>
-  </div>
-
-  <main id="supCorpo" class="sup-corpo"></main>
-
-  <div id="supEnviar" class="sup-enviar hidden">
-    <button type="button" id="supEnviarBotao" data-acao="enviar">Enviar para análise</button>
-  </div>
-
-  <nav class="sup-abas">
-    <button type="button" class="sup-aba ativa" data-acao="aba" data-aba="minha"><i data-lucide="clipboard-list" class="w-5 h-5"></i> Minha programação</button>
-    <button type="button" class="sup-aba" data-acao="aba" data-aba="consultar"><i data-lucide="search" class="w-5 h-5"></i> Consultar</button>
-  </nav>
-
-  <div id="supFolha" class="sup-folha hidden"></div>
-  <div id="supGrade" class="sup-folha sup-grade-folha hidden"></div>
+<!-- Torres marcadas na grade: programar, faixa, limpar -->
+<div id="supBarraTorres" class="sup-barra-torres hidden no-print">
+  <div class="sup-bt-info" id="supBtInfo"></div>
+  <button type="button" id="supBtFaixa" class="sup-seg-btn" data-acao="bt-faixa">Faixa</button>
+  <button type="button" class="sup-seg-btn" data-acao="bt-limpar">Limpar</button>
+  <button type="button" id="supBtProgramar" class="btn-primario" data-acao="bt-programar">Programar</button>
 </div>
 
+<div id="supEnviar" class="sup-enviar hidden no-print">
+  <button type="button" id="supEnviarBotao" data-acao="enviar">Enviar para análise</button>
+</div>
 <!-- ========================================================================
      MODAL — PROGRAMAÇÃO DA TORRE
      ===================================================================== -->
@@ -806,12 +794,12 @@
   </div>
 </div>
 
-<script src="js/config.js?v=179"></script>
-<script src="js/db.js?v=179"></script>
-<script src="js/ui.js?v=179"></script>
-<script src="js/render.js?v=179"></script>
-<script src="js/isa.js?v=179"></script>
-<script src="js/supervisor.js?v=179"></script>
-<script src="js/app.js?v=179"></script>
+<script src="js/config.js?v=180"></script>
+<script src="js/db.js?v=180"></script>
+<script src="js/ui.js?v=180"></script>
+<script src="js/render.js?v=180"></script>
+<script src="js/isa.js?v=180"></script>
+<script src="js/supervisor.js?v=180"></script>
+<script src="js/app.js?v=180"></script>
 </body>
 </html>

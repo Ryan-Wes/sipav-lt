@@ -26,15 +26,15 @@ window.SIPAV = window.SIPAV || {};
 
   var S = {
     ativo: false,
-    aba: 'minha',            // 'minha' | 'consultar'
     trecho: null,
     sol: null,               // o pacote em andamento do supervisor neste trecho
     minhas: [],              // as linhas dele
-    consulta: [],            // o oficial e o que os outros solicitaram, de hoje a quatro semanas
+    erro: null,
+    consulta: [],            // espelho do que a tela completa carregou: oficial e pré-programações
     torres: [],
     torrePorNome: {},
-    diaConsulta: null,
-    busca: ''
+    faixa: false,            // marcando uma faixa de torres na grade
+    ancora: null
   };
   var F = null;              // o formulário aberto
   var atualizador = null;
@@ -63,42 +63,77 @@ window.SIPAV = window.SIPAV || {};
 
   function ehEditavel() { return !S.sol || S.sol.status === 'RASCUNHO' || S.sol.status === 'DEVOLVIDA'; }
 
+  /* ----------------------------------------------------- A janela dele ----- */
+
+  /**
+   * O supervisor programa só o semanal e o quinzenal dele: da próxima segunda-feira depois de
+   * hoje, por duas semanas. Hoje quarta 14/10, é de 19/10 a 01/11. Não há programação para o que
+   * já passou nem para os dias até a segunda: o resto ele só consulta.
+   */
+  function janela() {
+    var hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    var falta = (8 - hoje.getDay()) % 7 || 7;      // dias até a próxima segunda (domingo = 1)
+    var segunda = ui.somarDias(hoje, falta);
+    return { de: ui.iso(segunda), ate: ui.iso(ui.somarDias(segunda, 13)) };
+  }
+
+  function diasDaJanela() {
+    var j = janela(), dias = [];
+    for (var i = 0; i < 14; i++) dias.push(ui.iso(ui.somarDias(ui.paraData(j.de), i)));
+    return dias;
+  }
+
   /* ------------------------------------------------------- Início e saída -- */
 
-  /** Chamado depois que o login carregou obra, trechos, atividades e encarregados. */
+  /** Chamado depois que a tela completa carregou, já em modo supervisor. */
   function iniciar() {
     S.ativo = true;
-    $('supNome').textContent = E.perfil ? E.perfil.nome : '';
-
-    $('supTrecho').innerHTML = E.trechos.map(function (t) {
-      return '<option value="' + t.id + '">' + esc(t.nome) + '</option>';
-    }).join('');
-    var salvo = null;
-    try { salvo = localStorage.getItem('sipav_sup_trecho'); } catch (e) {}
-    S.trecho = E.trechos.filter(function (t) { return t.id === salvo; })[0] || E.trechos[0];
-    E.trechoAtual = S.trecho;   // o cabo que se oferece depende do trecho
-    $('supTrecho').value = S.trecho.id;
-
+    sincronizar();
     ligarEventos();
-    ui.esconder('telaCarregando');
-    ui.esconder('telaLogin');
-    ui.esconder('telaApp');
-    ui.mostrar('telaSupervisor');
-    ui.icones();
+    escreverAviso();
 
-    return carregar().then(function () {
-      // Atualiza sozinho de tempos em tempos e quando a pessoa volta para a aba
-      if (atualizador) clearInterval(atualizador);
-      atualizador = setInterval(function () { if (!document.hidden && !F) recarregar(true); }, 60000);
-    });
+    if (atualizador) clearInterval(atualizador);
+    atualizador = setInterval(function () {
+      if (!document.hidden && !F && !G && S.ativo) window.SIPAV.app.recarregarProgramacoes().catch(function () {});
+    }, 60000);
+
+    return carregarMinha();
   }
 
   function parar() {
     S.ativo = false;
-    F = null;
-    document.body.classList.remove('sup-travado');
+    F = null; G = null;
     if (atualizador) { clearInterval(atualizador); atualizador = null; }
-    ui.esconder('telaSupervisor');
+    document.body.classList.remove('modo-supervisor', 'sup-travado');
+    E.modoSupervisor = false;
+    ['supFolha', 'supGrade', 'supBarraTorres', 'supEnviar'].forEach(function (id) { ui.esconder(id); });
+  }
+
+  function trechoMudou() {
+    S.trecho = E.trechoAtual;
+    S.sol = null; S.minhas = [];
+    E.supSel = {};
+    S.faixa = false; S.ancora = null;
+    sincronizar();
+    atualizarBarraDeTorres();
+    return carregarMinha();
+  }
+
+  /** A tela completa acabou de recarregar as programações: o que o supervisor consulta é o mesmo. */
+  function aoRecarregar() {
+    sincronizar();
+    carregarMinha();
+  }
+
+  /** O aviso do alto: de que dia a que dia ele programa. */
+  function escreverAviso() {
+    var j = janela();
+    var el = $('bannerSupervisor');
+    if (!el) return;
+    el.innerHTML = '<strong>Você programa de ' + esc(ui.dataCurta(j.de)) + ' a ' + esc(ui.dataCurta(j.ate)) +
+      '</strong><span>o semanal e o quinzenal. O resto da programação é só para consultar.</span>';
+    el.classList.remove('hidden');
   }
 
   var eventosLigados = false;
@@ -107,52 +142,52 @@ window.SIPAV = window.SIPAV || {};
     if (eventosLigados) return;
     eventosLigados = true;
 
-    $('telaSupervisor').addEventListener('click', aoClicar);
-    $('supTrecho').addEventListener('change', function (ev) {
-      S.trecho = E.trechos.filter(function (t) { return t.id === ev.target.value; })[0] || S.trecho;
-      E.trechoAtual = S.trecho;
-      try { localStorage.setItem('sipav_sup_trecho', S.trecho.id); } catch (e) {}
-      S.sol = null; S.minhas = [];
-      carregar();
+    document.addEventListener('click', aoClicar);
+    document.addEventListener('keydown', function (ev) {
+      if (!S.ativo || ev.key !== 'Escape') return;
+      if (lista) fecharLista();
+      else if (G) fecharGrade();
+      else if (F) fecharFormulario();
     });
     document.addEventListener('visibilitychange', function () {
-      if (S.ativo && !document.hidden && !F) recarregar(true);
+      if (S.ativo && !document.hidden && !F && !G) window.SIPAV.app.recarregarProgramacoes().catch(function () {});
     });
   }
 
   /* -------------------------------------------------------------- Dados ---- */
 
-  function indexarTorres() {
+  /** As programações que a tela completa carregou: o oficial e as pré-programações, do trecho e da obra. */
+  function todas() { return E.programacoesObra || E.programacoes || []; }
+
+  /** Espelha o que a tela completa carregou: as torres do trecho e o que está programado na janela. */
+  function sincronizar() {
+    S.trecho = E.trechoAtual;
+    S.torres = E.torres || [];
     S.torrePorNome = {};
     S.torres.forEach(function (t) { S.torrePorNome[norm(t.identificador).replace(/\s+/g, '')] = t; });
+    S.consulta = todas();
   }
 
-  function carregar() {
-    ui.processando('Carregando…');
-    return recarregar(false).then(function () { ui.pronto(); }, function (e) { ui.pronto(); ui.avisar(e.message, 'erro', 6000); });
-  }
-
-  /** Busca de novo o pacote, as linhas e o que os outros programaram. `calado` não mexe na tela se nada mudou. */
-  function recarregar(calado) {
-    var de = hojeIso();
-    var ate = ui.iso(ui.somarDias(new Date(), 28));
-    return Promise.all([
-      db.torres(S.trecho.id),
-      db.minhaSolicitacao(S.trecho.id),
-      db.programacoesParaConsulta({ de: de, ate: ate })
-    ]).then(function (r) {
-      S.torres = r[0];
-      indexarTorres();
-      S.sol = r[1];
-      S.consulta = r[2];
-      return S.sol ? db.programacoesDaSolicitacao(S.sol.id) : [];
+  /** O pacote dele neste trecho e as linhas dele. Sem a migração 54 a tabela não existe, e a aba diz isso. */
+  function carregarMinha() {
+    if (!E.trechoAtual) return Promise.resolve();
+    return db.minhaSolicitacao(E.trechoAtual.id).then(function (sol) {
+      S.sol = sol;
+      S.erro = null;
+      return sol ? db.programacoesDaSolicitacao(sol.id) : [];
     }).then(function (minhas) {
       S.minhas = minhas;
-      if (!S.diaConsulta || S.diaConsulta < hojeIso()) S.diaConsulta = hojeIso();
-      render();
     }).catch(function (e) {
-      if (!calado) throw e;
+      S.erro = e.message;
+    }).then(function () {
+      atualizarSelo();
+      if (E.aba === 'solicitacao') renderMinha();
     });
+  }
+
+  /** Recarrega a tela toda (grade, por encarregado) e o pacote dele. */
+  function atualizarTudo() {
+    return window.SIPAV.app.recarregarProgramacoes().then(carregarMinha);
   }
 
   /** O que já está programado (oficial ou solicitado por outro) numa torre num dia. */
@@ -178,15 +213,14 @@ window.SIPAV = window.SIPAV || {};
         : ', já solicitada por ' + ((o.criador && o.criador.nome) || 'outro supervisor'));
   }
 
-  /* ------------------------------------------------------------- Render ---- */
+  /* ----------------------------------------------- A aba Minha solicitação -- */
 
-  function render() {
-    Array.prototype.forEach.call(document.querySelectorAll('.sup-aba'), function (b) {
-      b.classList.toggle('ativa', b.getAttribute('data-aba') === S.aba);
-    });
-    $('supCorpo').innerHTML = S.aba === 'minha' ? htmlMinha() : htmlConsultar();
-    renderBarraDeEnvio();
-    ui.icones();
+  function atualizarSelo() {
+    var selo = $('seloMinhaSol');
+    if (!selo) return;
+    var n = S.minhas.filter(function (p) { return p.situacao === 'SOLICITADA'; }).length;
+    selo.textContent = n;
+    selo.classList.toggle('hidden', !n);
   }
 
   function chipAtividade(a) {
@@ -198,7 +232,8 @@ window.SIPAV = window.SIPAV || {};
   function cartaoStatus() {
     if (!S.sol) {
       return '<div class="sup-status"><strong>Nenhuma programação em andamento</strong>' +
-             '<p>Escolha por onde começar: <b>por encarregado</b> ou <b>por torre</b>. Quando terminar, envie para o planejamento analisar.</p></div>';
+             '<p>Toque nas torres da <b>Grade</b>, ou no <b>+</b> de um dia em <b>Por Encarregado</b>, para começar. ' +
+             'Quando terminar, envie para o planejamento analisar.</p></div>';
     }
     if (S.sol.status === 'DEVOLVIDA') {
       return '<div class="sup-status devolvida"><strong>Devolvida pelo planejamento</strong>' +
@@ -219,36 +254,44 @@ window.SIPAV = window.SIPAV || {};
            '<p>Ainda não foi enviado. Quando terminar, toque em <b>Enviar para análise</b>.</p></div>';
   }
 
-  function htmlMinha() {
-    var editavel = ehEditavel();
-    var html = cartaoStatus();
+  function renderMinha() {
+    var cont = $('visaoSolicitacao');
+    if (!cont) return;
 
-    if (editavel || (S.sol && S.sol.status === 'APROVADA')) {
-      html += '<div class="sup-programar-par">' +
-        '<button type="button" class="sup-programar" data-acao="por-encarregado">' +
-          '<i data-lucide="users" class="w-5 h-5"></i><span>Por encarregado</span></button>' +
-        '<button type="button" class="sup-programar" data-acao="por-torre">' +
-          '<i data-lucide="layout-grid" class="w-5 h-5"></i><span>Por torre</span></button>' +
-      '</div>';
+    if (S.erro) {
+      cont.innerHTML = '<div class="sup-status devolvida"><strong>Não foi possível abrir a solicitação</strong><p>' + esc(S.erro) +
+        '</p><p class="sup-fraco">Se a mensagem fala de tabela ou função que não existe, falta aplicar a migração 54 no banco.</p></div>';
+      renderBarraDeEnvio();
+      return;
     }
 
-    if (!S.minhas.length) return html;
+    var editavel = ehEditavel();
+    var html = '<div class="sup-minha">' + cartaoStatus();
 
-    var porDia = {};
-    S.minhas.forEach(function (p) { (porDia[p.data] = porDia[p.data] || []).push(p); });
+    if (editavel || (S.sol && S.sol.status === 'APROVADA')) {
+      html += '<button type="button" class="sup-programar" data-acao="por-encarregado">' +
+              '<i data-lucide="plus" class="w-5 h-5"></i><span>Programar</span></button>';
+    }
 
-    html += Object.keys(porDia).sort().map(function (dia) {
-      var linhas = porDia[dia].slice().sort(function (a, b) {
-        var ea = a.encarregado ? a.encarregado.nome : '', eb = b.encarregado ? b.encarregado.nome : '';
-        return ea.localeCompare(eb, 'pt-BR') || ((a.torre && a.torre.ordem) - (b.torre && b.torre.ordem));
-      });
-      return '<section class="sup-dia"><h3>' + esc(nomeCurtoDoDia(dia)) +
-             '<span>' + linhas.length + (linhas.length === 1 ? ' programação' : ' programações') + '</span></h3>' +
-             linhas.map(function (p) { return cartaoLinha(p, editavel && p.situacao === 'SOLICITADA'); }).join('') +
-             '</section>';
-    }).join('');
+    if (S.minhas.length) {
+      var porDia = {};
+      S.minhas.forEach(function (p) { (porDia[p.data] = porDia[p.data] || []).push(p); });
 
-    return html;
+      html += Object.keys(porDia).sort().map(function (dia) {
+        var linhas = porDia[dia].slice().sort(function (a, b) {
+          var ea = a.encarregado ? a.encarregado.nome : '', eb = b.encarregado ? b.encarregado.nome : '';
+          return ea.localeCompare(eb, 'pt-BR') || ((a.torre && a.torre.ordem) - (b.torre && b.torre.ordem));
+        });
+        return '<section class="sup-dia"><h3>' + esc(nomeCurtoDoDia(dia)) +
+               '<span>' + linhas.length + (linhas.length === 1 ? ' programação' : ' programações') + '</span></h3>' +
+               linhas.map(function (p) { return cartaoLinha(p, editavel && p.situacao === 'SOLICITADA'); }).join('') +
+               '</section>';
+      }).join('');
+    }
+
+    cont.innerHTML = html + '</div>';
+    renderBarraDeEnvio();
+    ui.icones();
   }
 
   function cartaoLinha(p, podeMexer) {
@@ -274,82 +317,123 @@ window.SIPAV = window.SIPAV || {};
 
   function renderBarraDeEnvio() {
     var barra = $('supEnviar');
+    if (!barra) return;
     var n = S.minhas.filter(function (p) { return p.situacao === 'SOLICITADA'; }).length;
-    var mostrar = S.aba === 'minha' && ehEditavel() && S.sol && n > 0;
+    var mostrar = E.aba === 'solicitacao' && !S.erro && ehEditavel() && S.sol && n > 0;
     barra.classList.toggle('hidden', !mostrar);
-    if (mostrar) {
-      $('supEnviarBotao').innerHTML = 'Enviar para análise <b>(' + n + ')</b>';
-    }
+    if (mostrar) $('supEnviarBotao').innerHTML = 'Enviar para análise <b>(' + n + ')</b>';
   }
 
-  /* --------------------------------------------------------- Consultar ----- */
+  /* ------------------------------------------- Tocar na grade e nos chips --- */
 
-  function htmlConsultar() {
-    var dias = [];
-    for (var i = 0; i < 21; i++) dias.push(ui.iso(ui.somarDias(new Date(), i)));
+  function bloqueadoPelaAnalise() {
+    if (S.sol && S.sol.status === 'ENVIADA') {
+      ui.avisar('Sua solicitação está aguardando o planejamento. Dá para programar de novo depois da análise.', 'alerta', 5000);
+      return true;
+    }
+    return false;
+  }
 
-    var chips = dias.map(function (d) {
-      return '<button type="button" class="sup-dia-chip' + (d === S.diaConsulta ? ' ativo' : '') + (ui.fimDeSemana(d) ? ' fds' : '') +
-             '" data-acao="dia-consulta" data-dia="' + d + '"><b>' + esc(ui.diaDaSemana(d).slice(0, 3)) + '</b>' +
-             esc(ui.dataCurta(d)) + '</button>';
-    }).join('');
+  /** Tocar numa torre da grade marca ela para programar. Com "Faixa", da primeira à última. */
+  function tocarTorre(id) {
+    if (bloqueadoPelaAnalise()) return;
+    E.supSel = E.supSel || {};
 
-    var termo = norm(S.busca);
-    var lista = S.consulta.filter(function (p) {
-      if (p.data !== S.diaConsulta) return false;
-      if (!termo) return true;
-      return norm((p.torre ? p.torre.identificador : '') + ' ' + (p.atividade ? p.atividade.nome : '') + ' ' +
-                  (p.encarregado ? p.encarregado.nome : '')).indexOf(termo) !== -1;
-    }).sort(function (a, b) {
-      return (a.torre.ordem - b.torre.ordem) ||
-             ((a.atividade ? a.atividade.ordem_execucao : 0) - (b.atividade ? b.atividade.ordem_execucao : 0));
-    });
+    if (S.faixa) {
+      var ids = S.torres.map(function (t) { return t.torre_id; });
+      if (!S.ancora) { S.ancora = id; E.supSel[id] = true; marcarCartao(id); atualizarBarraDeTorres(); return; }
+      var i = ids.indexOf(S.ancora), j = ids.indexOf(id);
+      for (var k = Math.min(i, j); k <= Math.max(i, j); k++) { E.supSel[ids[k]] = true; marcarCartao(ids[k]); }
+      S.faixa = false; S.ancora = null;
+      atualizarBarraDeTorres();
+      return;
+    }
 
-    var corpo = lista.length
-      ? lista.map(function (p) {
-          var minha = S.sol && p.solicitacao_id === S.sol.id;
-          var rotulo = minha ? 'Minha solicitação' : origemDe(p);
-          var classe = p.situacao === 'APROVADA' ? 'oficial' : minha ? 'minha' : 'solicitada';
-          return '<div class="sup-card"><div class="sup-card-topo"><strong>' + esc(p.torre.identificador) + '</strong>' +
-                 chipAtividade(p.atividade) + '</div>' +
-                 '<div class="sup-card-meio"><span>' + esc(p.encarregado ? p.encarregado.nome : 'Sem encarregado') + '</span>' +
-                 '<span class="sup-pct">' + pct(p.percentual) + '</span></div>' +
-                 '<span class="sup-origem ' + classe + '">' + esc(rotulo) + '</span></div>';
-        }).join('')
-      : '<p class="sup-vazio">Nada programado ' + (termo ? 'com essa busca ' : '') + 'neste dia' +
-        (S.trecho ? ' em ' + esc(S.trecho.nome) : '') + '.</p>';
+    if (E.supSel[id]) delete E.supSel[id]; else E.supSel[id] = true;
+    marcarCartao(id);
+    atualizarBarraDeTorres();
+  }
 
-    return '<p class="sup-fraco sup-dica">Veja o que já está programado antes de lançar: o que é oficial e o que outros ' +
-             'supervisores solicitaram. Aqui só se consulta.</p>' +
-           '<div class="sup-dias-linha">' + chips + '</div>' +
-           '<input id="supBusca" class="campo sup-busca" placeholder="Buscar torre, encarregado ou atividade" value="' + esc(S.busca) + '" autocomplete="off">' +
-           corpo;
+  function marcarCartao(id) {
+    var el = document.querySelector('#visaoGrade [data-torre="' + id + '"]');
+    if (el) el.classList.toggle('cartao-selecionado', !!E.supSel[id]);
+  }
+
+  function torresDaSelecao() {
+    return S.torres.filter(function (t) { return E.supSel && E.supSel[t.torre_id]; });
+  }
+
+  function atualizarBarraDeTorres() {
+    var barra = $('supBarraTorres');
+    if (!barra) return;
+    var marcadas = torresDaSelecao();
+    var mostrar = E.aba === 'grade' && E.modoSupervisor && (marcadas.length > 0 || S.faixa);
+    barra.classList.toggle('hidden', !mostrar);
+    if (!mostrar) return;
+    $('supBtInfo').innerHTML = marcadas.length
+      ? '<b>' + marcadas.length + (marcadas.length === 1 ? ' torre' : ' torres') + '</b><span>' +
+        esc(marcadas.slice(0, 5).map(function (t) { return t.identificador; }).join(', ')) + (marcadas.length > 5 ? '…' : '') + '</span>'
+      : '<span>Toque na primeira torre da faixa</span>';
+    $('supBtFaixa').classList.toggle('ativo', S.faixa);
+    $('supBtFaixa').textContent = S.faixa ? (S.ancora ? 'Toque na última' : 'Toque na primeira') : 'Faixa';
+    $('supBtProgramar').disabled = !marcadas.length;
+  }
+
+  function limparSelecaoDeTorres() {
+    var ids = Object.keys(E.supSel || {});
+    E.supSel = {};
+    S.faixa = false; S.ancora = null;
+    ids.forEach(marcarCartao);
+    atualizarBarraDeTorres();
+  }
+
+  /** O + do dia ou o Lançar do encarregado, na aba Por Encarregado: abre a folha já nele (e no dia). */
+  function programarParaEncarregado(encarregadoId, dia) {
+    if (bloqueadoPelaAnalise()) return;
+    abrirFormulario(null, { modo: 'encarregado', encId: encarregadoId || '', dia: dia || '' });
+  }
+
+  /** Tocar numa programação: editar ou apagar a dele, ou só ver de quem é. */
+  function tocarProgramacao(id) {
+    var p = todas().concat(E.programacoes || []).filter(function (x) { return x.id === id; })[0];
+    if (!p) return;
+
+    var minha = !!S.sol && p.solicitacao_id === S.sol.id && p.situacao === 'SOLICITADA' && ehEditavel();
+    var linhas = '<p class="text-sm"><b>' + esc(p.torre.identificador) + '</b> · ' + esc(p.atividade ? p.atividade.nome : '') + '</p>' +
+      '<p class="text-sm" style="color:var(--texto-suave)">' + esc(nomeCurtoDoDia(p.data)) + ' · ' +
+        esc(p.encarregado ? p.encarregado.nome : 'sem encarregado') + ' · ' + pct(p.percentual) + '</p>' +
+      (p.observacao ? '<p class="sup-fraco">' + esc(p.observacao) + '</p>' : '') +
+      '<p class="sup-fraco" style="margin-top:.5rem">' + esc(p.situacao === 'APROVADA' ? 'Programação oficial.' : origemDe(p) +
+        (p.solicitacao_id && S.sol && p.solicitacao_id === S.sol.id ? ' (a sua)' : '') + ', ainda não aprovada.') + '</p>';
+
+    var botoes = [{ rotulo: 'Fechar', classe: 'btn-secundario' }];
+    if (minha) {
+      botoes = [
+        { rotulo: 'Fechar', classe: 'btn-secundario' },
+        { rotulo: 'Apagar', classe: 'btn-secundario btn-secundario-perigo', acao: function () { ui.fecharModal('modalGenerico'); apagarLinha(id); } },
+        { rotulo: 'Editar', classe: 'btn-primario', acao: function () { ui.fecharModal('modalGenerico'); abrirFormulario(p); } }
+      ];
+    }
+    ui.modalGenerico({ titulo: 'Programação', corpoHtml: linhas, botoes: botoes });
   }
 
   /* ------------------------------------------------------------ Cliques ---- */
 
   function aoClicar(ev) {
+    if (!S.ativo) return;
     var alvo = ev.target.closest ? ev.target.closest('[data-acao]') : null;
     if (!alvo) return;
     var acao = alvo.getAttribute('data-acao');
     var id = alvo.getAttribute('data-id');
 
     switch (acao) {
-      case 'aba': S.aba = alvo.getAttribute('data-aba'); render(); break;
-      case 'atualizar': carregar(); break;
-      case 'tema': window.SIPAV.app.alternarTema(); break;
-      case 'sair': window.SIPAV.app.sair(); break;
-      case 'por-encarregado': abrirFormulario(null, { modo: 'encarregado' }); break;
-      case 'por-torre': abrirGradeParaProgramar(); break;
-      case 'abrir-grade': abrirGradeDoFormulario(); break;
-      case 'grade-torre': alternarTorreDaGrade(alvo.getAttribute('data-id')); break;
-      case 'grade-faixa': G.faixa = !G.faixa; G.ancora = null; atualizarRodapeDaGrade(); break;
-      case 'grade-fechar': fecharGrade(); break;
-      case 'grade-ok': confirmarGrade(); break;
+      case 'por-encarregado': programarParaEncarregado('', ''); break;
+      case 'bt-programar': programarDaGrade(); break;
+      case 'bt-limpar': limparSelecaoDeTorres(); break;
+      case 'bt-faixa': S.faixa = !S.faixa; S.ancora = null; atualizarBarraDeTorres(); break;
       case 'editar': abrirFormulario(S.minhas.filter(function (p) { return p.id === id; })[0]); break;
       case 'apagar': apagarLinha(id); break;
       case 'enviar': enviarPacote(); break;
-      case 'dia-consulta': S.diaConsulta = alvo.getAttribute('data-dia'); render(); break;
       case 'fechar-form': fecharFormulario(); break;
       case 'salvar-form': salvarFormulario(); break;
       case 'escolher-enc': escolherEncarregado(); break;
@@ -361,33 +445,35 @@ window.SIPAV = window.SIPAV || {};
       case 'tirar-torre': tirarTorre(alvo.getAttribute('data-nome')); break;
       case 'fechar-lista': fecharLista(); break;
       case 'item-lista': escolherDaLista(alvo.getAttribute('data-id')); break;
+      case 'abrir-grade': abrirGradeDoFormulario(); break;
+      case 'grade-torre': alternarTorreDaGrade(alvo.getAttribute('data-id')); break;
+      case 'grade-faixa': G.faixa = !G.faixa; G.ancora = null; atualizarRodapeDaGrade(); break;
+      case 'grade-fechar': fecharGrade(); break;
+      case 'grade-ok': confirmarGrade(); break;
     }
+  }
+
+  /** Das torres marcadas na grade da tela: abre a folha com elas e falta escolher a atividade. */
+  function programarDaGrade() {
+    var marcadas = torresDaSelecao();
+    if (!marcadas.length) return;
+    abrirFormulario(null, { modo: 'torre', torresTexto: textoDasTorres(marcadas) });
   }
 
   document.addEventListener('input', function (ev) {
     if (!S.ativo) return;
-    if (ev.target.id === 'supBusca') {
-      S.busca = ev.target.value;
-      var pos = ev.target.selectionStart;
-      $('supCorpo').innerHTML = htmlConsultar();
-      var campo = $('supBusca'); campo.focus(); try { campo.setSelectionRange(pos, pos); } catch (e) {}
-      ui.icones();
-    } else if (ev.target.id === 'fTorres') {
+    if (ev.target.id === 'fTorres') {
       F.torresTexto = ev.target.value; atualizarFormulario();
     } else if (ev.target.id === 'fPct') {
       F.pct = Number(ev.target.value) || 0; atualizarFormulario();
     } else if (ev.target.id === 'fObs') {
       F.obs = ev.target.value;
-    } else if (ev.target.id === 'fOutraData') {
-      var d = ev.target.value;
-      if (d && d >= hojeIso()) { adicionarDia(d); ev.target.value = ''; }
     } else if (ev.target.id === 'listaBusca') {
       desenharLista(ev.target.value);
     } else if (ev.target.id === 'gradeBusca' && G) {
       G.busca = ev.target.value; desenharGrade();
     }
   });
-
   /* --------------------------------------------------- Apagar e enviar ----- */
 
   function apagarLinha(id) {
@@ -398,7 +484,7 @@ window.SIPAV = window.SIPAV || {};
       'Apagar').then(function (sim) {
       if (!sim) return;
       ui.processando('Apagando…');
-      return db.removerProgramacao(id).then(function () { return recarregar(false); })
+      return db.removerProgramacao(id).then(atualizarTudo)
         .then(function () { ui.pronto(); });
     }).catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro', 6000); });
   }
@@ -412,20 +498,19 @@ window.SIPAV = window.SIPAV || {};
       'Enviar').then(function (sim) {
       if (!sim) return;
       ui.processando('Enviando…');
-      return db.enviarSolicitacao(S.sol.id).then(function () { return recarregar(false); })
+      return db.enviarSolicitacao(S.sol.id).then(atualizarTudo)
         .then(function () { ui.pronto(); ui.avisar('Enviado. O planejamento vai analisar.', 'sucesso', 5000); });
     }).catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro', 7000); });
   }
 
   /* ---------------------------------------------------------- Formulário --- */
 
+  /** Só os dias da janela dele (mais o da linha, se uma antiga é editada). */
   function diasDoFormulario() {
-    var dias = [];
-    for (var i = 0; i < 14; i++) dias.push(ui.iso(ui.somarDias(new Date(), i)));
+    var dias = diasDaJanela();
     Object.keys(F.dias).forEach(function (d) { if (dias.indexOf(d) === -1) dias.push(d); });
     return dias.sort();
   }
-
   function abrirFormulario(linha, opcoes) {
     opcoes = opcoes || {};
     if (S.sol && S.sol.status === 'ENVIADA') {
@@ -435,7 +520,7 @@ window.SIPAV = window.SIPAV || {};
 
     F = {
       editId: linha ? linha.id : null,
-      encId: linha && linha.encarregado ? linha.encarregado.id : '',
+      encId: linha && linha.encarregado ? linha.encarregado.id : (opcoes.encId || ''),
       atvId: linha && linha.atividade ? linha.atividade.id : '',
       cabo: linha ? (linha.cabo || '') : '',
       torresTexto: linha ? linha.torre.identificador : (opcoes.torresTexto || ''),
@@ -446,6 +531,7 @@ window.SIPAV = window.SIPAV || {};
       token: 0
     };
     if (linha) F.dias[linha.data] = true;
+    else if (opcoes.dia) F.dias[opcoes.dia] = true;
 
     $('supFolha').innerHTML = esqueletoDoFormulario();
     ui.mostrar('supFolha');
@@ -457,15 +543,8 @@ window.SIPAV = window.SIPAV || {};
 
     // Cada caminho já abre o que falta escolher: por encarregado, a lista de encarregados;
     // por torre, as torres já vêm da grade e falta a atividade
-    if (!linha && opcoes.modo === 'encarregado') escolherEncarregado();
-    else if (!linha && opcoes.modo === 'torre') escolherAtividade();
-  }
-
-  function lembrado(chave) {
-    try { return localStorage.getItem('sipav_sup_' + chave) || ''; } catch (e) { return ''; }
-  }
-  function lembrar(chave, valor) {
-    try { localStorage.setItem('sipav_sup_' + chave, valor); } catch (e) {}
+    if (!linha && opcoes.modo === 'encarregado' && !opcoes.encId) escolherEncarregado();
+    else if (!linha && (opcoes.modo === 'torre' || opcoes.encId)) escolherAtividade();
   }
 
   function fecharFormulario() {
@@ -503,7 +582,7 @@ window.SIPAV = window.SIPAV || {};
 
           '<div class="sup-bloco"><label>' + (edicao ? 'Dia' : 'Dia (pode marcar mais de um)') + '</label>' +
             '<div id="fDias" class="sup-dias-linha"></div>' +
-            '<label class="sup-outra">Outra data <input type="date" id="fOutraData" min="' + hojeIso() + '"></label></div>' +
+            '<p class="sup-fraco">Você programa de ' + esc(ui.dataCurta(janela().de)) + ' a ' + esc(ui.dataCurta(janela().ate)) + '.</p></div>' +
 
           '<div class="sup-bloco hidden" id="fDistribBloco"><label>Como distribuir</label><div id="fDistrib" class="sup-seg"></div></div>' +
 
@@ -577,12 +656,6 @@ window.SIPAV = window.SIPAV || {};
   }
 
   /* -- Dias ---------------------------------------------------------------- */
-
-  function adicionarDia(iso) {
-    if (F.editId) F.dias = {};
-    F.dias[iso] = true;
-    atualizarFormulario();
-  }
 
   function alternarDiaDoFormulario(iso) {
     if (F.editId) { F.dias = {}; F.dias[iso] = true; }
@@ -831,7 +904,7 @@ window.SIPAV = window.SIPAV || {};
   function escolherEncarregado() {
     var itens = E.encarregados.slice().sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); })
       .map(function (e) { return { id: e.id, rotulo: e.nome }; });
-    abrirLista('Encarregado', itens, F.encId, function (id) { F.encId = id; lembrar('enc', id); atualizarFormulario(); });
+    abrirLista('Encarregado', itens, F.encId, function (id) { F.encId = id; atualizarFormulario(); });
   }
 
   function escolherAtividade() {
@@ -844,7 +917,7 @@ window.SIPAV = window.SIPAV || {};
 
   function garantirRascunho() {
     if (S.sol && (S.sol.status === 'RASCUNHO' || S.sol.status === 'DEVOLVIDA')) return Promise.resolve(S.sol);
-    return db.criarSolicitacao(S.trecho.id).then(function (s) { S.sol = s; return s; });
+    return db.criarSolicitacao(E.trechoAtual.id).then(function (s) { S.sol = s; return s; });
   }
 
   function salvarFormulario() {
@@ -858,7 +931,7 @@ window.SIPAV = window.SIPAV || {};
       db.atualizarProgramacao(F.editId, {
         encarregado_id: F.encId || null, atividade_id: F.atvId, data: l.data,
         percentual: plano.dias.length > 1 ? 100 : (F.pct || 100), observacao: (F.obs || '').trim() || null, cabo: cabo
-      }).then(function () { return recarregar(false); })
+      }).then(atualizarTudo)
         .then(function () { ui.pronto(); fecharFormulario(); ui.avisar('Salvo.', 'sucesso', 3000); })
         .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro', 7000); });
       return;
@@ -879,14 +952,14 @@ window.SIPAV = window.SIPAV || {};
       }
       return Promise.all([um(), um(), um(), um()]).then(function () { return { feitas: feitas, falhas: falhas }; });
     }).then(function (r) {
-      return recarregar(false).then(function () {
+      return atualizarTudo().then(function () {
         ui.pronto();
         if (r.falhas.length) {
           ui.avisar(r.feitas + ' adicionada(s). Não entrou: ' + r.falhas.slice(0, 2).join(' · '), 'alerta', 9000);
         } else {
           ui.avisar(r.feitas + (r.feitas === 1 ? ' programação adicionada.' : ' programações adicionadas.'), 'sucesso', 4000);
         }
-        if (!r.falhas.length) fecharFormulario();
+        if (!r.falhas.length) { fecharFormulario(); limparSelecaoDeTorres(); }
       });
     }).catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro', 7000); });
   }
@@ -1044,15 +1117,6 @@ window.SIPAV = window.SIPAV || {};
     var depois = G.aoConfirmar;
     fecharGrade();
     if (depois) depois(texto);
-  }
-
-  /** Por torre: escolhe as torres na grade e depois abre o formulário com elas. */
-  function abrirGradeParaProgramar() {
-    if (S.sol && S.sol.status === 'ENVIADA') {
-      ui.avisar('Está aguardando o planejamento. Dá para programar de novo depois da análise.', 'alerta', 5000);
-      return;
-    }
-    abrirGrade([], function (texto) { abrirFormulario(null, { modo: 'torre', torresTexto: texto }); });
   }
 
   /** De dentro do formulário: trocar as torres olhando a grade. */
@@ -1314,8 +1378,14 @@ window.SIPAV = window.SIPAV || {};
   window.SIPAV.supervisor = {
     iniciar: iniciar,
     parar: parar,
+    janela: janela,
+    trechoMudou: trechoMudou,
+    aoRecarregar: aoRecarregar,
+    renderMinha: renderMinha,
+    tocarTorre: tocarTorre,
+    tocarProgramacao: tocarProgramacao,
+    programarParaEncarregado: programarParaEncarregado,
     abrirSolicitacoes: abrirSolicitacoes,
     ligarSolicitacoesDoPlanejamento: ligarSolicitacoesDoPlanejamento,
     atualizarContador: atualizarContador
-  };
-})();
+  };})();

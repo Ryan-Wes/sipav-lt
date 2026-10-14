@@ -227,6 +227,13 @@ window.SIPAV = window.SIPAV || {};
       .toLowerCase().indexOf('portico') === 0;
   }
 
+  /** Clicar na torre: o planejamento abre a janela dela; o supervisor marca para programar. */
+  function acaoDaTorre(torreId) {
+    return E.modoSupervisor
+      ? 'SIPAV.supervisor.tocarTorre(\'' + torreId + '\')'
+      : 'SIPAV.app.abrirTorre(\'' + torreId + '\')';
+  }
+
   function cartaoTorre(torre) {
     if (ehPortico(torre)) return cartaoPortico(torre);    // A view torre_situacao expõe a chave como torre_id, não id.
     //
@@ -241,6 +248,7 @@ window.SIPAV = window.SIPAV || {};
 
     var classes = ['cartao-torre'];
     if (E.modoSelecao && E.selecionadas[torre.torre_id]) classes.push('cartao-selecionado');
+    if (E.modoSupervisor && E.supSel && E.supSel[torre.torre_id]) classes.push('cartao-selecionado');
     if (restrito)       classes.push('cartao-restrito');
     if (progs.length)   classes.push('cartao-programado');
 
@@ -343,7 +351,7 @@ window.SIPAV = window.SIPAV || {};
       // retângulo na tela, sem ter que remontar a grade.
       '<div class="' + classes.join(' ') + '" data-torre="' + torre.torre_id + '" ' +
            (estilo ? 'style="' + estilo + '" ' : '') +
-           'onclick="SIPAV.app.abrirTorre(\'' + torre.torre_id + '\')" ' +
+           'onclick="' + acaoDaTorre(torre.torre_id) + '" ' +
            'title="' + dica + '">' +
         selo +
         seloObs +
@@ -372,7 +380,9 @@ window.SIPAV = window.SIPAV || {};
       return !refletidaNoEstagio(p) && !escondida(p);
     });
     var classes = ['cartao-torre', 'cartao-portico'];
+    if (E.modoSupervisor && E.supSel && E.supSel[torre.torre_id]) classes.push('cartao-selecionado');
     if (E.modoSelecao && E.selecionadas[torre.torre_id]) classes.push('cartao-selecionado');
+    if (E.modoSupervisor && E.supSel && E.supSel[torre.torre_id]) classes.push('cartao-selecionado');
     if (progs.length) classes.push('cartao-programado'); else classes.push('cartao-portico-vazio');
 
     var id = String(torre.identificador).toUpperCase();
@@ -411,7 +421,7 @@ window.SIPAV = window.SIPAV || {};
       : '';
 
     return '<div class="' + classes.join(' ') + '" data-torre="' + torre.torre_id + '" ' +
-           'onclick="SIPAV.app.abrirTorre(\'' + torre.torre_id + '\')" ' +
+           'onclick="' + acaoDaTorre(torre.torre_id) + '" ' +
            'title="' + esc(torre.identificador) + ' — ' + ponta + '. Já está pronto: não tem estágio.">' +
         selo +
         // O raio fica no canto de cima, na linha do selo das programações
@@ -498,11 +508,14 @@ window.SIPAV = window.SIPAV || {};
 
     var acao = marcando
       ? 'SIPAV.app.alternarProgramacaoMarcada(\'' + p.id + '\')'
-      : 'SIPAV.app.abrirTorre(\'' + (p.torre ? p.torre.id : '') + '\')';
+      : E.modoSupervisor
+        ? 'SIPAV.supervisor.tocarProgramacao(\'' + p.id + '\')'
+        : 'SIPAV.app.abrirTorre(\'' + (p.torre ? p.torre.id : '') + '\')';
 
     // A lixeira some no modo seleção: lá o apagar é o da barra, e duas portas
-    // para a mesma coisa na mesma tela é convite para clicar na errada.
-    var lixeira = (op.apagar === false || marcando) ? ''
+    // para a mesma coisa na mesma tela é convite para clicar na errada. E some para o
+    // supervisor, que apaga pela folha que abre ao tocar na programação dele.
+    var lixeira = (op.apagar === false || marcando || E.modoSupervisor) ? ''
       : '<button class="chip-lixeira" title="Apagar esta programação" ' +
           'onclick="event.stopPropagation();SIPAV.app.apagarUmaProgramacao(\'' + p.id + '\')">' +
           '<i data-lucide="trash-2" class="w-3 h-3"></i></button>';
@@ -510,7 +523,14 @@ window.SIPAV = window.SIPAV || {};
     var marca = marcando
       ? '<span class="chip-marca' + (marcado ? ' chip-marca-on' : '') + '"></span>' : '';
 
-    var abrir = '<div class="chip-prog' + (op.empilhado ? ' empilhado' : '') +
+    // Pré-programação do supervisor, ainda não aprovada: contorno tracejado e a marca PRÉ
+    var pre = p.situacao === 'SOLICITADA';
+    if (pre) {
+      var dono = (p.criador && p.criador.nome) || 'supervisor';
+      parcial = '<span class="tag-pre" title="Solicitada por ' + esc(dono) + ', aguardando aprovação">PRÉ</span>' + parcial;
+    }
+
+    var abrir = '<div class="chip-prog' + (op.empilhado ? ' empilhado' : '') + (pre ? ' chip-pre' : '') +
       (marcado ? ' chip-marcado' : '') + '" onclick="' + acao + '">';
 
     if (!op.empilhado) {
@@ -1402,6 +1422,12 @@ window.SIPAV = window.SIPAV || {};
     var desta = ui.iso(ui.segundaDaSemana());
     var proxima = ui.iso(ui.somarDias(ui.segundaDaSemana(), 7));
 
+    // Para o supervisor o semanal é a primeira semana da janela dele (a próxima segunda), e o quinzenal a seguinte
+    if (E.modoSupervisor && E.periodo && E.periodo.de) {
+      if (segundaIso === E.periodo.de) return 'Semanal';
+      if (segundaIso === ui.iso(ui.somarDias(ui.paraData(E.periodo.de), 7))) return 'Quinzenal';
+    }
+
     if (segundaIso === desta) return 'Semanal';
     if (segundaIso === proxima) return 'Quinzenal';
 
@@ -1639,8 +1665,14 @@ window.SIPAV = window.SIPAV || {};
     datas:        { div: 'visaoDatas',        aba: 'abaDatas',        fn: renderPorData },
     encarregados: { div: 'visaoEncarregados', aba: 'abaEncarregados', fn: renderPorEncarregado },
     atividades:   { div: 'visaoAtividades',   aba: 'abaAtividades',   fn: renderPorAtividade },
-    movimentacoes: { div: 'visaoMovimentacoes', aba: 'abaMovimentacoes', fn: renderMovimentacoes }
+    movimentacoes: { div: 'visaoMovimentacoes', aba: 'abaMovimentacoes', fn: renderMovimentacoes },
+    solicitacao:  { div: 'visaoSolicitacao',   aba: 'abaSolicitacao',   fn: renderSolicitacao }
   };
+
+  /** A aba do supervisor: o pacote dele. Quem desenha é a tela do supervisor. */
+  function renderSolicitacao() {
+    if (window.SIPAV.supervisor) window.SIPAV.supervisor.renderMinha();
+  }
 
   function tudo() {
     Object.keys(VISOES).forEach(function (chave) {

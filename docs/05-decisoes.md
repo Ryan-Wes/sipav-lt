@@ -16,40 +16,27 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 14/10/2026
 
-### Supervisor: programar por encarregado ou por torre — [WR]
+### Supervisor: a tela do planejamento, em modo restrito, e só a janela dele — [WR]
 
-Na tela do supervisor há dois caminhos. **Por encarregado** abre o formulário já na lista de
-encarregados (encarregado, atividade, torres, dias). **Por torre** abre a grade de torres, com os
-mesmos cartões da grade completa (estrutura EST/AUP, estado pela última atividade concluída ou
-restrição em vermelho) e o que já está programado em cada torre nas próximas semanas, com a
-origem: oficial, solicitada por outro supervisor ou minha. Toca para marcar, "Marcar faixa" pega
-da primeira à última, e a busca filtra por número. Ao continuar, o formulário abre com as torres
-já preenchidas (as seguidas viram "88/1 a 92/2") e a lista de atividades já aberta. Dentro do
-formulário, "Escolher na grade de torres" volta à grade com as torres atuais marcadas.
-### Supervisor: pré-programação que o planejamento aprova — [WR]
+O supervisor abre a mesma tela do planejamento (Grade Geral e Por Encarregado, com os mesmos
+cartões e o mesmo painel por encarregado, em semanal e quinzenal), sem as ferramentas de
+administração: ficam de fora importar, exportar, cadastros, planejamentos, histórico, limpar,
+dias sem atividade, solicitações, o filtro de período e as abas Por Data, Por Atividade e Dias
+sem atividade. A aba **Minha solicitação** é só dele: o pacote, o status e o botão de enviar.
 
-O supervisor não usa a tela completa. Tem uma tela própria, simples, feita para o celular e
-que também funciona no computador: Minha programação e Consultar, com a folha de programar
-(encarregado, atividade, torres, dias, percentual) e o botão de enviar.
+**A janela.** Ele programa só da próxima segunda-feira depois de hoje, por duas semanas
+(hoje quarta 14/10: de 19/10 a 01/11). O período da tela é fixo nisso; o primeiro cartão é o
+Semanal e o segundo o Quinzenal. Os dias da folha de programar são só esses catorze, e o
+aviso do alto diz de que dia a que dia ele programa.
 
-**Fluxo.** O supervisor monta o pacote (solicitação) como rascunho e envia para análise. Chega
-na caixa **Solicitações** do planejamento (botão com o número de pacotes esperando). Lá o
-planejamento edita ou tira linhas, devolve com motivo (o supervisor vê o motivo, corrige e envia
-de novo) ou aprova (cada linha vira programação oficial). A que a sequência barrar fica de fora
-com o motivo, e dá para aprovar mesmo assim, registrado na linha.
+**Como lança.** Na grade, toca nas torres (a barra de baixo mostra quantas, com "Faixa" e
+"Limpar") e toca em Programar. Em Por Encarregado, o "+ Lançar" e o + de cada dia abrem a
+folha já no encarregado e no dia. A folha pede atividade, encarregado, torres, dias e percentual,
+avisa de conflito e de sequência, e grava como pré-programação do pacote dele.
 
-**Alcance.** Cada supervisor vê o oficial e o que os outros solicitaram, para saber se a torre e
-o dia estão livres, mas não altera o que é dos outros. Se programa em cima, recebe aviso
-(mesma torre, mesmo dia), que não impede. A sequência também é aviso para o supervisor; quem
-decide é o planejamento, na aprovação. Não escolhe data que já passou. Não vê cadastros,
-feriados, atividades, importação nem exportação.
-
-**Isolamento.** O que é solicitado fica fora do oficial: grade, por data, por encarregado, PDF,
-exportação e importação para a ISA só leem programação aprovada, e o "Limpar programação" não
-apaga as solicitações. As regras são do banco (migração 54), não só da tela.
-
-Os usuários de teste são `testesupcryan` e `testesupalessandro` (db/usuarios-teste-supervisor.sql).
-
+**O que ele vê.** O oficial e as pré-programações de todos, estas tracejadas e com a marca PRÉ.
+Tocar numa programação dele (no pacote aberto) deixa editar ou apagar; nas dos outros só mostra
+de quem é. O planejamento continua com a janela de torre e o lote de sempre.
 ### PDF com uma página por encarregado, atividade ou dia — [WR]
 
 Ao exportar em PDF com a aba por encarregado, por atividade ou por data aberta, a janela

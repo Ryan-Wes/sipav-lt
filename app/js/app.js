@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v179 · 2026-10-14';
+  var VERSAO = 'v180 · 2026-10-14';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -266,13 +266,12 @@ window.SIPAV = window.SIPAV || {};
           throw new Error('Nenhum trecho cadastrado. Rode o seed do banco (db/02-seed.sql).');
         }
 
-        // O supervisor não usa a tela completa: tem a dele, simples, feita para o celular.
-        // Ela guarda no banco só pré-programação, que o planejamento aprova.
-        if (E.perfil.papel === 'SUPERVISOR') {
-          E.modoSupervisor = true;
-          return window.SIPAV.supervisor.iniciar();
-        }
-        E.modoSupervisor = false;
+        // O supervisor usa a mesma tela, em modo restrito: a grade e o por encarregado, só com a
+        // janela dele (da próxima segunda, duas semanas) e sem as ferramentas de administração.
+        // O que ele lança vai para o banco como pré-programação, que o planejamento aprova.
+        E.modoSupervisor = E.perfil.papel === 'SUPERVISOR';
+        document.body.classList.toggle('modo-supervisor', E.modoSupervisor);
+        $('abaSolicitacao').classList.toggle('hidden', !E.modoSupervisor);
 
         preencherSeletorTrecho();
         preencherFiltroAtividade();
@@ -288,15 +287,21 @@ window.SIPAV = window.SIPAV || {};
     if ($('filtroEscopo')) $('filtroEscopo').value = E.escopo;
         $('filtroColunas').value = E.colunas;
 
-        restaurarPeriodo();
+        if (E.modoSupervisor) {
+          var janela = window.SIPAV.supervisor.janela();
+          E.periodo = { modo: 'supervisor', de: janela.de, ate: janela.ate };
+          E.supSel = {};
+        } else {
+          restaurarPeriodo();
+        }
         return carregarTrecho();
       })
       .then(function () {
-        if (E.modoSupervisor) { aplicarLogos(); return; }
         ui.esconder('telaCarregando');
         ui.mostrar('telaApp');
         ligarTempoReal();
-        window.SIPAV.supervisor.ligarSolicitacoesDoPlanejamento();
+        if (E.modoSupervisor) window.SIPAV.supervisor.iniciar();
+        else window.SIPAV.supervisor.ligarSolicitacoesDoPlanejamento();
         ui.icones();
       })
       .catch(function (e) {
@@ -345,15 +350,20 @@ window.SIPAV = window.SIPAV || {};
     return !!E.perfil && (E.perfil.papel === 'ADMIN' || E.perfil.papel === 'PLANEJAMENTO');
   }
 
+  /** Para o supervisor a lista é o oficial mais as pré-programações; para os demais, só o oficial. */
+  function buscarProgramacoes(filtro) {
+    return E.modoSupervisor ? db.programacoesParaConsulta(filtro) : db.programacoes(filtro);
+  }
+
   function carregarTrecho() {
     if (!E.trechoAtual) return Promise.resolve();
     return Promise.all([
       db.torres(E.trechoAtual.id),
-      db.programacoes(filtroProgramacao()),
+      buscarProgramacoes(filtroProgramacao()),
       db.execucoes(filtroExecucao()),
       db.movimentacoes(),
       db.observacoesDasTorres(E.trechoAtual.id),
-      E.escopo === 'todos' ? db.programacoes(filtroProgramacaoObra()) : Promise.resolve(null)
+      E.escopo === 'todos' ? buscarProgramacoes(filtroProgramacaoObra()) : Promise.resolve(null)
     ]).then(function (r) {
       E.torres = r[0];
       E.programacoes = r[1];
@@ -373,11 +383,11 @@ window.SIPAV = window.SIPAV || {};
 
     return Promise.all([
       db.torres(E.trechoAtual.id),
-      db.programacoes(filtroProgramacao()),
+      buscarProgramacoes(filtroProgramacao()),
       db.execucoes(filtroExecucao()),
       db.movimentacoes(),
       db.observacoesDasTorres(E.trechoAtual.id),
-      E.escopo === 'todos' ? db.programacoes(filtroProgramacaoObra()) : Promise.resolve(null)
+      E.escopo === 'todos' ? buscarProgramacoes(filtroProgramacaoObra()) : Promise.resolve(null)
     ]).then(function (r) {
       E.torres = r[0];
       E.programacoes = r[1];
@@ -387,6 +397,7 @@ window.SIPAV = window.SIPAV || {};
       aplicarObservacoesDasTorres(r[4]);
       render.tudo();
       if (torreAberta) renderListaDoModal();
+      if (E.modoSupervisor) window.SIPAV.supervisor.aoRecarregar();
     });
   }
 
@@ -397,7 +408,7 @@ window.SIPAV = window.SIPAV || {};
   function ligarTempoReal() {
     cancelarEscuta = db.escutarProgramacoes(function (ev) {
       // O que o supervisor solicita ainda não é programação oficial: não recarrega por isso
-      if (ev && ev.registro && ev.registro.situacao === 'SOLICITADA') return;
+      if (!E.modoSupervisor && ev && ev.registro && ev.registro.situacao === 'SOLICITADA') return;
       // Agrupa rajadas de eventos numa recarga só
       clearTimeout(recargaAgendada);
       recargaAgendada = setTimeout(function () {
@@ -475,7 +486,9 @@ window.SIPAV = window.SIPAV || {};
       localStorage.setItem('sipav_trecho', E.trechoAtual.id);
       anunciarTrechoAtual();
       ui.processando('Carregando trecho…');
-      carregarTrecho().then(ui.pronto).catch(function (e) {
+      carregarTrecho().then(function () {
+        if (E.modoSupervisor) return window.SIPAV.supervisor.trechoMudou();
+      }).then(ui.pronto).catch(function (e) {
         ui.pronto(); ui.avisar(e.message, 'erro');
       });
     };
@@ -723,6 +736,7 @@ window.SIPAV = window.SIPAV || {};
    *   exemplo, que sem isto só marcava a torre e não abria nada.
    */
   function abrirTorre(torreId, forcar) {
+    if (E.modoSupervisor) { window.SIPAV.supervisor.tocarTorre(torreId); return; }
     if (somenteConsulta()) return;
     // Fim de um arrasto, não um clique: o gesto já decidiu o que marcar
     if (arrastou && !forcar) return;
@@ -3670,6 +3684,7 @@ window.SIPAV = window.SIPAV || {};
    */
   function lancarPorEncarregado(encarregadoId, data) {
     if (!E.trechoAtual) return;
+    if (E.modoSupervisor) { window.SIPAV.supervisor.programarParaEncarregado(encarregadoId, data); return; }
     if (somenteConsulta()) return;
     if (E.perfil && E.perfil.papel === 'LEITURA') {
       ui.avisar('Seu perfil só consulta. Quem programa é planejamento ou supervisor.', 'alerta');
@@ -3686,6 +3701,7 @@ window.SIPAV = window.SIPAV || {};
 
   /** O + do dia no painel do encarregado: a mesma janela, já no encarregado e no dia. */
   function lancarNoDia(encarregadoId, iso) {
+    if (E.modoSupervisor) { window.SIPAV.supervisor.programarParaEncarregado(encarregadoId, iso); return; }
     lancarPorEncarregado(encarregadoId, iso);
     if ($('loteBase')) { $('loteBase').value = iso; mudarDataBaseLote(); }
   }
@@ -9681,6 +9697,7 @@ window.SIPAV = window.SIPAV || {};
   window.SIPAV.app = {
     // Usados pela tela do supervisor
     pedeCabo: pedeCabo, opcoesDeCabo: opcoesDeCabo, recarregarProgramacoes: recarregarProgramacoes,
+    entrarNaAplicacao: entrarNaAplicacao,
     iniciar: iniciar, sair: sair, alternarTema: alternarTema,
     alternarMenu: alternarMenu, fecharMenus: fecharMenus,
     abrirAlterarSenha: abrirAlterarSenha,
