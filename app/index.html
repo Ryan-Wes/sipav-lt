@@ -41,7 +41,7 @@
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 
   <!-- ?v= força o navegador a buscar de novo quando o código muda. -->
-  <link rel="stylesheet" href="css/app.css?v=177">
+  <link rel="stylesheet" href="css/app.css?v=178">
 </head>
 <body class="h-full flex flex-col antialiased">
 
@@ -200,6 +200,15 @@
                 title="Salvar o planejamento da semana e rever os anteriores">
           <i data-lucide="history" class="w-4 h-4" style="color:var(--acento)"></i>
           <span class="rotulo-btn">Planejamentos</span>
+        </button>
+
+        <!-- O que os supervisores enviaram para analisar. O número é quantos pacotes esperam. -->
+        <button onclick="SIPAV.supervisor.abrirSolicitacoes()" class="btn-header hidden"
+                id="btnSolicitacoes" style="position:relative"
+                title="Programações que os supervisores enviaram para analisar e aprovar">
+          <i data-lucide="inbox" class="w-4 h-4" style="color:var(--acento)"></i>
+          <span class="rotulo-btn">Solicitações</span>
+          <span id="seloSolicitacoes" class="selo-solicitacoes hidden">0</span>
         </button>
 
         <button onclick="SIPAV.app.alternarModoSelecao()" class="btn-header"
@@ -417,6 +426,44 @@
       </p>
     </div>
   </main>
+</div>
+
+<!-- ========================================================================
+     TELA DO SUPERVISOR — própria, simples, feita para o celular
+     ===================================================================== -->
+<div id="telaSupervisor" class="hidden sup-tela no-print">
+  <header class="sup-topo">
+    <div class="sup-marca">
+      <img id="logoSimbolo2" alt="" style="height:30px;width:auto">
+      <div style="min-width:0">
+        <strong id="supNome">—</strong>
+        <span>Supervisor · pré-programação</span>
+      </div>
+    </div>
+    <div class="sup-topo-acoes">
+      <button type="button" class="sup-icone" data-acao="atualizar" title="Atualizar" aria-label="Atualizar"><i data-lucide="refresh-cw" class="w-5 h-5"></i></button>
+      <button type="button" class="sup-icone" data-acao="tema" title="Claro / escuro" aria-label="Tema"><i data-lucide="sun-moon" class="w-5 h-5"></i></button>
+      <button type="button" class="sup-icone" data-acao="sair" title="Sair" aria-label="Sair"><i data-lucide="log-out" class="w-5 h-5"></i></button>
+    </div>
+  </header>
+
+  <div class="sup-trecho-barra">
+    <label for="supTrecho">Trecho</label>
+    <select id="supTrecho" class="campo"></select>
+  </div>
+
+  <main id="supCorpo" class="sup-corpo"></main>
+
+  <div id="supEnviar" class="sup-enviar hidden">
+    <button type="button" id="supEnviarBotao" data-acao="enviar">Enviar para análise</button>
+  </div>
+
+  <nav class="sup-abas">
+    <button type="button" class="sup-aba ativa" data-acao="aba" data-aba="minha"><i data-lucide="clipboard-list" class="w-5 h-5"></i> Minha programação</button>
+    <button type="button" class="sup-aba" data-acao="aba" data-aba="consultar"><i data-lucide="search" class="w-5 h-5"></i> Consultar</button>
+  </nav>
+
+  <div id="supFolha" class="sup-folha hidden"></div>
 </div>
 
 <!-- ========================================================================
@@ -758,11 +805,12 @@
   </div>
 </div>
 
-<script src="js/config.js?v=177"></script>
-<script src="js/db.js?v=177"></script>
-<script src="js/ui.js?v=177"></script>
-<script src="js/render.js?v=177"></script>
-<script src="js/isa.js?v=177"></script>
-<script src="js/app.js?v=177"></script>
+<script src="js/config.js?v=178"></script>
+<script src="js/db.js?v=178"></script>
+<script src="js/ui.js?v=178"></script>
+<script src="js/render.js?v=178"></script>
+<script src="js/isa.js?v=178"></script>
+<script src="js/supervisor.js?v=178"></script>
+<script src="js/app.js?v=178"></script>
 </body>
 </html>

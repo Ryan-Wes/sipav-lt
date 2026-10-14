@@ -16,6 +16,30 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 14/10/2026
 
+### Supervisor: pré-programação que o planejamento aprova — [WR]
+
+O supervisor não usa a tela completa. Tem uma tela própria, simples, feita para o celular e
+que também funciona no computador: Minha programação e Consultar, com a folha de programar
+(encarregado, atividade, torres, dias, percentual) e o botão de enviar.
+
+**Fluxo.** O supervisor monta o pacote (solicitação) como rascunho e envia para análise. Chega
+na caixa **Solicitações** do planejamento (botão com o número de pacotes esperando). Lá o
+planejamento edita ou tira linhas, devolve com motivo (o supervisor vê o motivo, corrige e envia
+de novo) ou aprova (cada linha vira programação oficial). A que a sequência barrar fica de fora
+com o motivo, e dá para aprovar mesmo assim, registrado na linha.
+
+**Alcance.** Cada supervisor vê o oficial e o que os outros solicitaram, para saber se a torre e
+o dia estão livres, mas não altera o que é dos outros. Se programa em cima, recebe aviso
+(mesma torre, mesmo dia), que não impede. A sequência também é aviso para o supervisor; quem
+decide é o planejamento, na aprovação. Não escolhe data que já passou. Não vê cadastros,
+feriados, atividades, importação nem exportação.
+
+**Isolamento.** O que é solicitado fica fora do oficial: grade, por data, por encarregado, PDF,
+exportação e importação para a ISA só leem programação aprovada, e o "Limpar programação" não
+apaga as solicitações. As regras são do banco (migração 54), não só da tela.
+
+Os usuários de teste são `testesupcryan` e `testesupalessandro` (db/usuarios-teste-supervisor.sql).
+
 ### PDF com uma página por encarregado, atividade ou dia — [WR]
 
 Ao exportar em PDF com a aba por encarregado, por atividade ou por data aberta, a janela

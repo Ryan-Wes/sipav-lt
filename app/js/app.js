@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v177 · 2026-10-14';
+  var VERSAO = 'v178 · 2026-10-14';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -177,6 +177,7 @@ window.SIPAV = window.SIPAV || {};
     if (cancelarEscuta) { cancelarEscuta(); cancelarEscuta = null; }
     ui.esconder('telaCarregando');
     ui.esconder('telaApp');
+    window.SIPAV.supervisor.parar();
     ui.mostrar('telaLogin');
     ui.icones();
 
@@ -265,6 +266,14 @@ window.SIPAV = window.SIPAV || {};
           throw new Error('Nenhum trecho cadastrado. Rode o seed do banco (db/02-seed.sql).');
         }
 
+        // O supervisor não usa a tela completa: tem a dele, simples, feita para o celular.
+        // Ela guarda no banco só pré-programação, que o planejamento aprova.
+        if (E.perfil.papel === 'SUPERVISOR') {
+          E.modoSupervisor = true;
+          return window.SIPAV.supervisor.iniciar();
+        }
+        E.modoSupervisor = false;
+
         preencherSeletorTrecho();
         preencherFiltroAtividade();
         // o filtro de canteiro depende do trecho, então vai em carregarTrecho()
@@ -283,9 +292,11 @@ window.SIPAV = window.SIPAV || {};
         return carregarTrecho();
       })
       .then(function () {
+        if (E.modoSupervisor) { aplicarLogos(); return; }
         ui.esconder('telaCarregando');
         ui.mostrar('telaApp');
         ligarTempoReal();
+        window.SIPAV.supervisor.ligarSolicitacoesDoPlanejamento();
         ui.icones();
       })
       .catch(function (e) {
@@ -384,7 +395,9 @@ window.SIPAV = window.SIPAV || {};
   var recargaAgendada = null;
 
   function ligarTempoReal() {
-    cancelarEscuta = db.escutarProgramacoes(function () {
+    cancelarEscuta = db.escutarProgramacoes(function (ev) {
+      // O que o supervisor solicita ainda não é programação oficial: não recarrega por isso
+      if (ev && ev.registro && ev.registro.situacao === 'SOLICITADA') return;
       // Agrupa rajadas de eventos numa recarga só
       clearTimeout(recargaAgendada);
       recargaAgendada = setTimeout(function () {
@@ -532,11 +545,13 @@ window.SIPAV = window.SIPAV || {};
     dark: {
       logoLogin:   'img/completo-branco.png',
       logoSimbolo: 'img/simbolo-branco.webp',
+      logoSimbolo2: 'img/simbolo-branco.webp',
       logoTexto:   'img/texto-branco.webp'
     },
     light: {
       logoLogin:   'img/completo-preto.webp',
       logoSimbolo: 'img/simbolo-preto.png',
+      logoSimbolo2: 'img/simbolo-preto.png',
       logoTexto:   'img/texto-preto.webp'
     }
   };
@@ -9664,6 +9679,8 @@ window.SIPAV = window.SIPAV || {};
   /* ======================================================================== */
 
   window.SIPAV.app = {
+    // Usados pela tela do supervisor
+    pedeCabo: pedeCabo, opcoesDeCabo: opcoesDeCabo, recarregarProgramacoes: recarregarProgramacoes,
     iniciar: iniciar, sair: sair, alternarTema: alternarTema,
     alternarMenu: alternarMenu, fecharMenus: fecharMenus,
     abrirAlterarSenha: abrirAlterarSenha,

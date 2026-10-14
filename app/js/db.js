@@ -387,6 +387,9 @@ window.SIPAV = window.SIPAV || {};
         if (filtro.de)  q = q.gte('data', filtro.de);
         if (filtro.ate) q = q.lte('data', filtro.ate);
 
+        // O que o supervisor solicitou ainda não é programação: só entra depois de aprovado
+        q = q.eq('situacao', 'APROVADA');
+
         return q.order('data').order('id').range(de, ate);
       });
     }
@@ -459,6 +462,9 @@ window.SIPAV = window.SIPAV || {};
         linha.justificativa_retroativa = dados.justificativaRetroativa;
       }
 
+      // O pacote do supervisor (db/54): só vai quando há, pelo mesmo motivo
+      if (dados.solicitacaoId) linha.solicitacao_id = dados.solicitacaoId;
+
       // Mesmo cuidado com as partes da escavação (db/40): só vai quando há.
       if (dados.partes && temPartes) linha.partes = dados.partes;
 
@@ -502,6 +508,118 @@ window.SIPAV = window.SIPAV || {};
       });
   }
 
+  /* ======================================================================== */
+  /* SOLICITAÇÕES DO SUPERVISOR (db/54)                                       */
+  /* ======================================================================== */
+
+  /**
+   * A mesma seleção da programação, com o que a tela do supervisor precisa a mais: de que
+   * pacote é a linha e quem a criou. O nome do criador vem do perfil pela chave de criado_por
+   * (a tabela tem duas chaves para o perfil: criado_por e aprovado_por).
+   */
+  function selectProgramacaoDoSupervisor() {
+    return selectProgramacao() +
+      ', solicitacao_id, criado_por, criador:perfil!programacao_criado_por_fkey ( nome )';
+  }
+
+  function consultarComPaginas(montar) {
+    return paginar(function (de, ate) {
+      return montar().order('data').order('id').range(de, ate);
+    }).then(function (r) { return ok(r, 'Falha ao carregar programações'); });
+  }
+
+  /**
+   * O último pacote do supervisor neste trecho: rascunho, devolvido, enviado ou, nos três dias
+   * depois da aprovação, o aprovado (para ele ver que deu certo). Passado isso, nulo, e o próximo
+   * lançamento abre um pacote novo.
+   */
+  function minhaSolicitacao(trechoId) {
+    return auth.usuario().then(function (u) {
+      return cliente()
+        .from('solicitacao')
+        .select('id, trecho_id, status, criada_em, enviada_em, decidida_em, motivo_devolucao')
+        .eq('supervisor_id', u.id)
+        .eq('trecho_id', trechoId)
+        .order('criada_em', { ascending: false })
+        .limit(1)
+        .then(function (r) {
+          if (r.error) throw traduzErro(r.error, 'Falha ao carregar a solicitação');
+          var s = (r.data && r.data[0]) || null;
+          if (s && s.status === 'APROVADA' && s.decidida_em &&
+              Date.now() - new Date(s.decidida_em).getTime() > 3 * 86400000) return null;
+          return s;
+        });
+    });
+  }
+  function criarSolicitacao(trechoId) {
+    return auth.usuario().then(function (u) {
+      return cliente()
+        .from('solicitacao')
+        .insert({ supervisor_id: u.id, trecho_id: trechoId, status: 'RASCUNHO' })
+        .select('id, trecho_id, status, criada_em, enviada_em, decidida_em, motivo_devolucao')
+        .single()
+        .then(function (r) { return ok(r, 'Falha ao abrir a solicitação'); });
+    });
+  }
+
+  /** As linhas de um pacote (do supervisor, ou do planejamento analisando). */
+  function programacoesDaSolicitacao(solicitacaoId) {
+    return consultarComPaginas(function () {
+      return cliente().from('programacao').select(selectProgramacaoDoSupervisor())
+        .eq('solicitacao_id', solicitacaoId);
+    });
+  }
+
+  /**
+   * Para o supervisor conferir se o dia e a torre estão livres: o oficial e o que os outros
+   * supervisores solicitaram, no período. Do trecho pedido, ou da obra toda sem ele.
+   */
+  function programacoesParaConsulta(filtro) {
+    return consultarComPaginas(function () {
+      var q = cliente().from('programacao').select(selectProgramacaoDoSupervisor())
+        .in('situacao', ['APROVADA', 'SOLICITADA']);
+      if (filtro.trechoId) q = q.eq('torre.trecho_id', filtro.trechoId);
+      if (filtro.de)  q = q.gte('data', filtro.de);
+      if (filtro.ate) q = q.lte('data', filtro.ate);
+      return q;
+    });
+  }
+
+  function enviarSolicitacao(id) {
+    return cliente().rpc('enviar_solicitacao', { p_id: id })
+      .then(function (r) { if (r.error) throw traduzErro(r.error, 'Falha ao enviar'); return true; });
+  }
+
+  /** Os pacotes que estão esperando o planejamento. */
+  function solicitacoesParaAnalise() {
+    return cliente()
+      .from('solicitacao')
+      .select('id, status, criada_em, enviada_em, supervisor_id, trecho_id, ' +
+              'supervisor:perfil!solicitacao_supervisor_id_fkey ( nome ), trecho:trecho_id ( nome )')
+      .eq('status', 'ENVIADA')
+      .order('enviada_em')
+      .then(function (r) { return ok(r, 'Falha ao carregar as solicitações'); });
+  }
+
+  function devolverSolicitacao(id, motivo) {
+    return cliente().rpc('devolver_solicitacao', { p_id: id, p_motivo: motivo })
+      .then(function (r) { if (r.error) throw traduzErro(r.error, 'Falha ao devolver'); return true; });
+  }
+
+  /** Devolve {aprovadas, falhas:[{id, torre, atividade, data, motivo}]}. */
+  function aprovarSolicitacao(id, liberar) {
+    return cliente().rpc('aprovar_solicitacao', { p_id: id, p_liberar: !!liberar })
+      .then(function (r) { return ok(r, 'Falha ao aprovar'); });
+  }
+
+  /** Quantos pacotes esperam análise (o número do botão do planejamento). */
+  function quantasSolicitacoes() {
+    return cliente()
+      .from('solicitacao')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'ENVIADA')
+      .then(function (r) { return r.error ? 0 : (r.count || 0); });
+  }
   /**
    * Remove as programações de uma torre dentro do período.
    * O recorte de datas é obrigatório por coerência: a tela mostra e conta
@@ -540,6 +658,7 @@ window.SIPAV = window.SIPAV || {};
     var q = cliente()
       .from('programacao')
       .select('id, torre:torre_id ( identificador ), atividade:atividade_id ( nome )')
+      .eq('situacao', 'APROVADA')
       .eq('data', data);
     // Quem é o segundo encarregado de uma programação também está ocupado nela
     q = temEncarregado2
@@ -1449,6 +1568,31 @@ window.SIPAV = window.SIPAV || {};
 
   var canalMovimentacao = null;
 
+  var canalSolicitacao = null;
+
+  /**
+   * Escuta os pacotes dos supervisores: chega um, é devolvido, é aprovado. Canal à parte,
+   * pelo mesmo motivo da movimentação: sem a migração 54 ele falha sozinho.
+   */
+  function escutarSolicitacoes(cb) {
+    if (canalSolicitacao) { cliente().removeChannel(canalSolicitacao); canalSolicitacao = null; }
+    canalSolicitacao = cliente()
+      .channel('sipav-solicitacao')
+      .on('postgres_changes',
+          { event: '*', schema: 'public', table: 'solicitacao' },
+          function (payload) {
+            cb({
+              evento: payload.eventType,
+              registro: payload.new && Object.keys(payload.new).length ? payload.new : payload.old
+            });
+          })
+      .subscribe();
+
+    return function () {
+      if (canalSolicitacao) { cliente().removeChannel(canalSolicitacao); canalSolicitacao = null; }
+    };
+  }
+
   function pararDeEscutar() {
     if (canalProgramacao) {
       cliente().removeChannel(canalProgramacao);
@@ -1588,6 +1732,16 @@ window.SIPAV = window.SIPAV || {};
     temEncarregado2: function () { return temEncarregado2; },
     removerMovimentacao: removerMovimentacao,
     removerMovimentacoes: removerMovimentacoes,
+    minhaSolicitacao: minhaSolicitacao,
+    criarSolicitacao: criarSolicitacao,
+    programacoesDaSolicitacao: programacoesDaSolicitacao,
+    programacoesParaConsulta: programacoesParaConsulta,
+    enviarSolicitacao: enviarSolicitacao,
+    solicitacoesParaAnalise: solicitacoesParaAnalise,
+    devolverSolicitacao: devolverSolicitacao,
+    aprovarSolicitacao: aprovarSolicitacao,
+    quantasSolicitacoes: quantasSolicitacoes,
+    escutarSolicitacoes: escutarSolicitacoes,
     execucoesDaTorre: execucoesDaTorre,
     desfazerApontamentos: desfazerApontamentos,
     atividadeRemovidaPorNome: atividadeRemovidaPorNome,
