@@ -1061,9 +1061,9 @@ window.SIPAV = window.SIPAV || {};
       return false;
     }
     var leituras = {};
-    function ler(item, semana, linha) {
+    function ler(item, semana, linha, encarregado) {
       var l = leituras[item] = leituras[item] || { prog1: [], prog2: [] };
-      l[semana].push(linha);
+      l[semana].push({ linha: linha, enc: encarregado == null ? null : encarregado });
     }
     Object.keys(mapa.achados).forEach(function (item) {
       ['prog1', 'prog2'].forEach(function (semana) { ler(item, semana, mapa.achados[item][semana]); });
@@ -1083,6 +1083,11 @@ window.SIPAV = window.SIPAV || {};
           // para saber quem faz o quê, porque quem está em qual frente muda toda semana.
           // Entra sem encarregado, e o aviso diz quais nomes a planilha trazia.
           if (semTexto(textoDaCelula(ws, fr.linha, COL.ENCARREGADO)) && !semTexto(equipeDaSoma) && temServico(fr.linha)) {
+            // Um nome só na linha da semana: é ele em todas as frentes, sem ambiguidade
+            if (nomesDaEquipe(equipeDaSoma.replace(/\n/g, '/')).length === 1) {
+              ler(item, semana, fr.linha, equipeDaSoma);
+              return;
+            }
             var s = semEncarregadoNaFrente[item] = semEncarregadoNaFrente[item] || { linhas: 0, equipe: equipeDaSoma };
             s.linhas++;
           }
@@ -1095,9 +1100,10 @@ window.SIPAV = window.SIPAV || {};
       ['prog1', 'prog2'].forEach(function (semana) {
         var segunda = semana === 'prog1' ? lidas.s1 : lidas.s2;
         if (!segunda) return;
-        leituras[item][semana].forEach(function (linha) {
+        leituras[item][semana].forEach(function (leitura) {
+          var linha = leitura.linha;
 
-          var textoEnc = textoDaCelula(ws, linha, COL.ENCARREGADO);
+          var textoEnc = leitura.enc != null ? leitura.enc : textoDaCelula(ws, linha, COL.ENCARREGADO);
           var nomes = semTexto(textoEnc) ? [] : textoEnc.split('\n').map(function (n) { return n.trim(); });
 
           for (var dia = 0; dia < 7; dia++) {

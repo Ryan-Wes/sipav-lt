@@ -35,7 +35,8 @@ programações; na Buritirama–Barra II, de 0 para 123.
 inteira numa célula (às vezes seis nomes) e as linhas das frentes vêm sem nome. Quem está
 em qual frente muda toda semana, então não há mapa fixo para montar. As programações
 entram sem encarregado, e o aviso mostra a equipe que a planilha trazia, para eu atribuir
-depois.
+depois. Quando a linha da semana tem um nome só (Franklin, Cláudio, Gleison, Ayrton,
+Edmilson), é ele em todas as frentes e entra com o nome.
 
 **Mais atividades.** Empacadura (instalação e retirada), praça para lançamento,
 amortecimento, descida e caixa de emenda do OPGW, pré-comissionamento, comissionamento,
