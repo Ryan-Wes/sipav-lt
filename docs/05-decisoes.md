@@ -16,6 +16,14 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 13/10/2026
 
+### Limpar programação leva os dias sem atividade, menos o feriado — [WR]
+
+O botão "Limpar programação" do período agora também remove os dias sem atividade do trecho
+no período (folga, mudança de trecho ou de máquina, outro motivo), que são a outra metade do
+que a importação da planilha grava. O feriado fica: é o calendário da obra, e não faz parte
+da programação que se refaz. A confirmação diz quantas programações e quantos dias saem. Só
+administração e planejamento limpam dias sem atividade, e vale o trecho aberto e o período
+exibido, como já valia para as programações.
 ### Importação: percentual depois do parêntese e repetido em vários dias — [WR]
 
 "44/1 (2 BOEIROS) 66%" (e "44/1 66%") saía como torre que não existe, porque o percentual

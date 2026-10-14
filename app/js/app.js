@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v166 · 2026-10-14';
+  var VERSAO = 'v167 · 2026-10-14';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -2515,36 +2515,70 @@ window.SIPAV = window.SIPAV || {};
   }
 
   /**
+   * Os dias sem atividade do trecho no período, menos o feriado: é o calendário da obra, e
+   * não faz parte da programação que se refaz. Só quem pode editar movimentação os limpa.
+   */
+  function movimentacoesParaLimpar() {
+    var papel = E.perfil && E.perfil.papel;
+    if (papel !== 'ADMIN' && papel !== 'PLANEJAMENTO') return [];
+    var de = E.periodo.de, ate = E.periodo.ate;
+    return (E.movimentacoes || []).filter(function (m) {
+      if (m.tipo === 'FERIADO') return false;
+      if ((ate && m.data > ate) || (de && m.data < de)) return false;
+      return render.movimentacaoDoTrecho(m);
+    });
+  }
+
+  /**
    * Limpeza sempre limitada ao trecho aberto e ao período exibido. Nunca a obra
    * inteira: com quatro pessoas programando ao mesmo tempo, um "limpar tudo"
    * apagaria o trabalho de quem está em outro trecho.
+   *
+   * Leva junto os dias sem atividade do período (folga, mudança de trecho ou de máquina,
+   * outro motivo), que são a outra metade do que a importação da planilha grava. O
+   * feriado fica.
    */
   function limparProgramacoesDoPeriodo() {
     if (!E.trechoAtual) return;
 
     var quantas = E.programacoes.length;
-    if (!quantas) { ui.avisar('Não há programação no período exibido.', 'alerta'); return; }
+    var movs = movimentacoesParaLimpar();
+    if (!quantas && !movs.length) { ui.avisar('Não há programação nem dia sem atividade no período exibido.', 'alerta'); return; }
+
+    var dias = movs.length + (movs.length === 1 ? ' dia sem atividade' : ' dias sem atividade');
+    var titulo = quantas && movs.length
+      ? 'Limpar ' + quantas + (quantas === 1 ? ' programação' : ' programações') + ' e ' + dias
+      : quantas ? 'Limpar ' + quantas + (quantas === 1 ? ' programação' : ' programações') : 'Limpar ' + dias;
 
     ui.confirmar(
-      'Limpar ' + quantas + (quantas === 1 ? ' programação' : ' programações'),
+      titulo,
       'De ' + E.trechoAtual.nome + ', no período ' +
       ui.rotuloPeriodo(E.periodo.de, E.periodo.ate) + '. ' +
-      'Outros trechos e outras datas não são tocados. Cada remoção fica registrada ' +
-      'no histórico, com seu nome.',
-      'Limpar ' + quantas
+      (movs.length ? 'Os dias sem atividade saem junto; o feriado fica. ' : '') +
+      'Outros trechos e outras datas não são tocados. ' +
+      (quantas ? 'Cada programação removida fica registrada no histórico, com seu nome.' : ''),
+      'Limpar'
     ).then(function (sim) {
       if (!sim) return;
-      ui.processando('Limpando ' + quantas + ' programações…');
-      return db.limparProgramacoesDoPeriodo(E.trechoAtual.id, E.periodo.de, E.periodo.ate)
+      ui.processando('Limpando…');
+      var apagarProgramacoes = quantas
+        ? db.limparProgramacoesDoPeriodo(E.trechoAtual.id, E.periodo.de, E.periodo.ate)
+        : Promise.resolve(0);
+      return apagarProgramacoes
+        .then(function (apagadas) {
+          return db.removerMovimentacoes(movs.map(function (m) { return m.id; })).then(function () { return apagadas; });
+        })
         .then(function (apagadas) {
           return recarregarProgramacoes().then(function () {
             ui.pronto();
-            ui.avisar(apagadas + ' programações removidas.', 'sucesso', 5000);
+            var partes = [];
+            if (quantas) partes.push(apagadas + (apagadas === 1 ? ' programação removida' : ' programações removidas'));
+            if (movs.length) partes.push(dias + (movs.length === 1 ? ' removido' : ' removidos'));
+            ui.avisar(partes.join(' e ') + '.', 'sucesso', 5000);
           });
         });
     }).catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro', 6000); });
   }
-
   function removerProgramacao(id) {
     ui.confirmar('Remover programação', 'Esta atividade sai da programação da torre.', 'Remover')
       .then(function (sim) {

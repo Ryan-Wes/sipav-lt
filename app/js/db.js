@@ -1214,6 +1214,19 @@ window.SIPAV = window.SIPAV || {};
       });
   }
 
+  /** Remove vários dias sem atividade de uma vez, pelo id (em fatias, para a URL não estourar). */
+  function removerMovimentacoes(ids) {
+    ids = ids || [];
+    var fatias = [];
+    for (var i = 0; i < ids.length; i += 100) fatias.push(ids.slice(i, i + 100));
+    return fatias.reduce(function (p, fatia) {
+      return p.then(function () {
+        return cliente().from('movimentacao').delete().in('id', fatia).then(function (r) {
+          if (r.error) throw traduzErro(r.error, 'Falha ao remover os dias sem atividade');
+        });
+      });
+    }, Promise.resolve()).then(function () { return ids.length; });
+  }
   /** Desfaz vários apontamentos de uma vez, pelo id da execução. */
   function desfazerApontamentos(ids) {
     if (!ids || !ids.length) return Promise.resolve(true);
@@ -1574,6 +1587,7 @@ window.SIPAV = window.SIPAV || {};
     temPartes: function () { return temPartes; },
     temEncarregado2: function () { return temEncarregado2; },
     removerMovimentacao: removerMovimentacao,
+    removerMovimentacoes: removerMovimentacoes,
     execucoesDaTorre: execucoesDaTorre,
     desfazerApontamentos: desfazerApontamentos,
     atividadeRemovidaPorNome: atividadeRemovidaPorNome,
