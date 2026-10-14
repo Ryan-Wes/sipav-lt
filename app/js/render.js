@@ -728,7 +728,29 @@ window.SIPAV = window.SIPAV || {};
     if (E.escopo !== 'todos' || E.aba === 'grade' || E.snapshot) return '';
     if (!trechoId || (E.trechos || []).length < 2) return '';
     var tr = E.trechos.filter(function (x) { return x.id === trechoId; })[0];
-    return tr ? '<span class="tag-trecho" title="' + esc(tr.nome) + '">' + esc(tr.nome) + '</span>' : '';
+    if (!tr) return '';
+    var cor = corDoTrecho(tr.nome);
+    return '<span class="tag-trecho" title="' + esc(tr.nome) + '"' +
+      (cor ? ' style="background:' + cor.fundo + ';color:' + cor.texto + ';border-color:' + cor.borda + '"' : '') + '>' +
+      esc(tr.nome) + '</span>';
+  }
+
+  /**
+   * A cor de cada trecho, a mesma das etiquetas da planilha da ISA (BRT-BRR, BRR-CRN,
+   * CAF-BRR, JZR-CAF), para reconhecer de relance. Vem do nome do trecho: Juazeiro vem
+   * antes de Campo Formoso porque o nome de um contém o do outro. Trecho de outro nome
+   * fica com a cor padrão da etiqueta.
+   */
+  var CORES_DOS_TRECHOS = [
+    { quando: /correntina/,   fundo: '#FFFF00', texto: '#002060', borda: 'rgba(0,32,96,.35)' },    // BRR-CRN
+    { quando: /buritirama/,   fundo: '#01B0F1', texto: '#FFFFFF', borda: 'rgba(0,0,0,.2)' },       // BRT-BRR
+    { quando: /juazeiro/,     fundo: '#4BA750', texto: '#FFFFFF', borda: 'rgba(0,0,0,.2)' },       // JZR-CAF
+    { quando: /campo formoso/, fundo: '#C64DAA', texto: '#FFFFFF', borda: 'rgba(0,0,0,.2)' }       // CAF-BRR
+  ];
+
+  function corDoTrecho(nome) {
+    var n = String(nome || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    return CORES_DOS_TRECHOS.filter(function (c) { return c.quando.test(n); })[0] || null;
   }
 
   function programacoesVisiveis() {
@@ -1619,6 +1641,7 @@ window.SIPAV = window.SIPAV || {};
     iconeDaObservacao: iconeDaObservacao,
     ehSerra: ehSerra,
     movimentacaoDoTrecho: movimentacaoDoTrecho,
+    tagTrecho: tagTrecho,
     textoDaMovimentacao: textoDaMovimentacao,
     nomesDosEncarregados: nomesDosEncarregados,
     programacoesDaTorre: programacoesDaTorre,

@@ -16,6 +16,13 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 13/10/2026
 
+### Etiqueta do trecho com a cor da planilha — [WR]
+
+A etiqueta do trecho nas programações (quando a tela mostra mais de um trecho) usa a mesma
+cor das etiquetas da planilha da ISA: Buritirama–Barra azul (#01B0F1), Barra–Correntina
+amarelo (#FFFF00, texto azul-marinho), Campo Formoso–Barra rosa (#C64DAA) e Juazeiro–Campo
+Formoso verde (#4BA750). A cor vem do nome do trecho; trecho com outro nome fica com a
+cor padrão.
 ### Sinalização em três atividades — [WR]
 
 A planilha tem três itens de sinalização (estais, avifauna, placas), e cada um é um serviço.
