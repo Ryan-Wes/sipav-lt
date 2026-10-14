@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v176 · 2026-10-14';
+  var VERSAO = 'v177 · 2026-10-14';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -7469,7 +7469,24 @@ window.SIPAV = window.SIPAV || {};
     return nomes[E.aba] + ' — ' + (E.trechoAtual ? E.trechoAtual.nome : '');
   }
 
+  /**
+   * Nas abas por encarregado, por atividade e por data o PDF pode sair com um item em cada
+   * página, em vez de tudo emendado. É o que se imprime e entrega: cada encarregado com a
+   * folha dele.
+   */
+  var PDF_UM_POR_PAGINA = {
+    encarregados: 'Uma página para cada encarregado',
+    atividades:   'Uma página para cada atividade',
+    datas:        'Uma página para cada dia'
+  };
+
   function abrirExportarPdf() {
+    var umPorPagina = PDF_UM_POR_PAGINA[E.aba]
+      ? '<label class="flex items-center gap-2 text-sm" style="cursor:pointer">' +
+          '<input type="checkbox" id="pdfUmPorPagina" checked> ' + esc(PDF_UM_POR_PAGINA[E.aba]) +
+        '</label>'
+      : '';
+
     var corpo =
       '<div class="space-y-3">' +
         '<div><label class="rotulo">Título do relatório</label>' +
@@ -7478,6 +7495,7 @@ window.SIPAV = window.SIPAV || {};
           '<input id="pdfArquivo" class="campo" value="SIPAV_' +
             (E.trechoAtual ? E.trechoAtual.nome.replace(/[^\w]+/g, '_') : 'relatorio') +
             '_' + ui.hoje() + '"></div>' +
+        umPorPagina +
       '</div>';
 
     ui.modalGenerico({
@@ -9532,9 +9550,43 @@ window.SIPAV = window.SIPAV || {};
     });
   }
 
+  /**
+   * Marca onde cada página começa: o encarregado, a atividade ou o dia. Devolve os elementos
+   * marcados, para a marca sair depois. Na aba por encarregado o consolidado do topo fica na
+   * primeira página, sozinho; na por data a semana começa página nova, e cada dia também.
+   */
+  function marcarQuebrasDoPdf() {
+    var marcados = [];
+    function marcar(el) { el.classList.add('quebra-pdf'); marcados.push(el); }
+    function consolidado(el) { return /^Consolidado/.test((el.querySelector('h3') || {}).textContent || ''); }
+
+    var alvos;
+    if (E.aba === 'encarregados') {
+      alvos = Array.prototype.slice.call($('visaoEncarregados').querySelectorAll(':scope > section.bloco-quadrante'))
+        .filter(function (el) { return !consolidado(el); });
+      // O primeiro encarregado só quebra se há o consolidado antes dele
+      var temConsolidado = !!Array.prototype.filter.call($('visaoEncarregados').children, function (el) {
+        return el.matches && el.matches('section.bloco-quadrante') && consolidado(el);
+      }).length;
+      alvos.forEach(function (el, i) { if (i > 0 || temConsolidado) marcar(el); });
+    } else if (E.aba === 'atividades') {
+      alvos = Array.prototype.slice.call($('visaoAtividades').querySelectorAll(':scope > section.bloco-quadrante, :scope > .bloco-quadrante'));
+      alvos.forEach(function (el, i) { if (i > 0) marcar(el); });
+    } else if (E.aba === 'datas') {
+      Array.prototype.slice.call($('visaoDatas').querySelectorAll(':scope > section')).forEach(function (semana, i) {
+        if (i > 0) marcar(semana);
+        Array.prototype.slice.call(semana.querySelectorAll('.bloco-quadrante')).forEach(function (dia, j) {
+          if (j > 0) marcar(dia);
+        });
+      });
+    }
+    return marcados;
+  }
+
   function gerarPdf() {
     var titulo = $('pdfTitulo').value;
     var arquivo = $('pdfArquivo').value || 'sipav';
+    var umPorPagina = !!($('pdfUmPorPagina') && $('pdfUmPorPagina').checked);
 
     ui.fecharModal('modalGenerico');
     ui.processando('Gerando PDF…');
@@ -9555,6 +9607,8 @@ window.SIPAV = window.SIPAV || {};
       ' · emitido em ' + ui.dataCurta(ui.hoje());
     ui.mostrar('cabecalhoPdf');
     document.body.classList.add('modo-pdf');
+    var quebras = umPorPagina ? marcarQuebrasDoPdf() : [];
+    function tirarQuebras() { quebras.forEach(function (el) { el.classList.remove('quebra-pdf'); }); }
 
     var area = $('areaRelatorio');
     html2pdf()
@@ -9563,12 +9617,14 @@ window.SIPAV = window.SIPAV || {};
         filename: arquivo + '.pdf',
         image: { type: 'jpeg', quality: 0.95 },
         html2canvas: { scale: 2, useCORS: true },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
+        pagebreak: { mode: ['css', 'legacy'] }
       })
       .from(area)
       .save()
       .then(function () {
         document.body.classList.remove('modo-pdf');
+        tirarQuebras();
         ui.esconder('cabecalhoPdf');
         restaurarTema();
         ui.pronto();
@@ -9576,6 +9632,7 @@ window.SIPAV = window.SIPAV || {};
       })
       .catch(function () {
         document.body.classList.remove('modo-pdf');
+        tirarQuebras();
         ui.esconder('cabecalhoPdf');
         restaurarTema();
         ui.pronto();

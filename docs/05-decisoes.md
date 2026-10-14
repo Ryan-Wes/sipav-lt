@@ -14,6 +14,17 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ---
 
+## 14/10/2026
+
+### PDF com uma página por encarregado, atividade ou dia — [WR]
+
+Ao exportar em PDF com a aba por encarregado, por atividade ou por data aberta, a janela
+ganha uma opção marcada por padrão: "Uma página para cada encarregado" (ou atividade, ou
+dia). Na aba por encarregado o consolidado do topo fica sozinho na primeira página e cada
+encarregado começa a dele; na por atividade, cada atividade; na por data, cada semana e cada
+dia. Desmarcada, o PDF sai emendado como antes. Nas outras abas a opção não aparece. As
+quebras são marcadas só durante a geração (classe quebra-pdf) e tiradas no fim. Bloco maior
+que uma página continua na seguinte.
 ## 13/10/2026
 
 ### Importação não passa por cima da programação manual — [WR]

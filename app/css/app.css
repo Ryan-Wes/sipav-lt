@@ -768,6 +768,8 @@ html.dark .hover\:bg-slate-200:hover   { background-color: var(--superficie-3) !
 .modo-pdf { background: #fff !important; background-image: none !important; padding: 0 !important; }
 .modo-pdf .cartao-torre,
 .modo-pdf .bloco-quadrante { page-break-inside: avoid !important; break-inside: avoid !important; }
+/* Começo de página no PDF: o encarregado, a atividade ou o dia (ver marcarQuebrasDoPdf) */
+.modo-pdf .quebra-pdf { page-break-before: always !important; break-before: page !important; }
 
 /* ------------------------------------------------------ Modo de seleção -- */
 
