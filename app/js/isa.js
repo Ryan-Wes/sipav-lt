@@ -107,6 +107,11 @@ window.SIPAV = window.SIPAV || {};
                'montagem mecanizada de torre autoportante'],
     '3.2.3':  ['revisao de torres autoportante', 'revisao de torre autoportante'],
 
+    // ---- Empacadura e praça de lançamento
+    '4.0.1':  ['instalacao de empacadura', 'instalacao de empancadura'],
+    '4.0.2':  ['retirada de empacadura', 'retirada de empancadura'],
+    '4.0.3':  ['praca para lancamento'],
+
     // ---- Para-raio (4.1) e OPGW (4.2)
     '4.1.1':  ['instalacao de bandolas para o cabo para raio'],
     '4.1.2':  ['lancamento do cabo pilotinho para lancamento do cabo para raio'],
@@ -120,6 +125,10 @@ window.SIPAV = window.SIPAV || {};
     '4.2.4':  ['nivelamento do opgw'],
     '4.2.5':  ['grampeacao do cabo opgw'],
     '4.2.6':  ['ancoragem do cabo opgw'],
+    // Só o OPGW tem amortecimento, descida e caixa de emenda
+    '4.2.7':  ['sistema de amortecimento do cabo opgw'],
+    '4.2.8':  ['descida do cabo opgw'],
+    '4.2.9':  ['instalacao de caixa de emenda'],
 
     // ---- Condutor
     '4.3.1':  ['instalacao de bandolas e isoladores'],
@@ -130,6 +139,12 @@ window.SIPAV = window.SIPAV || {};
     '4.3.6':  ['ancoragem do cabo condutor'],
     '4.3.7':  ['instalacao de jumper'],
     '4.3.8':  ['instalacao de espacadores'],
+
+    // ---- Comissionamento
+    '5.1.1':  ['pre comissionamento de cabos estrutura'],
+    '5.1.2':  ['comissionamento de cabos estrutura'],
+    '5.1.3':  ['revisao de solo'],
+    '5.1.4':  ['prad'],
 
     // ---- Sinalização
     '4.4.1':  ['instalacao de sinalizadores de estais'],
@@ -153,6 +168,11 @@ window.SIPAV = window.SIPAV || {};
   function cabo(n) {
     return { pr: ['4.1.' + n], opgw: ['4.2.' + n],
              opgwD: ['4.2D.' + n], opgwE: ['4.2E.' + n] };
+  }
+
+  /** As linhas que só existem na seção do OPGW, sem par no para-raio (4.2.7 a 4.2.9). */
+  function soOpgw(n) {
+    return { opgw: ['4.2.' + n], opgwD: ['4.2D.' + n], opgwE: ['4.2E.' + n] };
   }
 
   /**
@@ -213,6 +233,18 @@ window.SIPAV = window.SIPAV || {};
     'NIVELAMENTO OPGW / PARA-RAIO':             cabo(4),
     'GRAMPEAÇÃO OPGW / PARA-RAIO':              cabo(5),
     'ANCORAGEM OPGW / PARA-RAIO':               cabo(6),
+
+    'INSTALAÇÃO DE EMPACADURA':                 { itens: ['4.0.1'] },
+    'RETIRADA DE EMPACADURA':                   { itens: ['4.0.2'] },
+    'PRAÇA PARA LANÇAMENTO':                    { itens: ['4.0.3'] },
+    'SISTEMA DE AMORTECIMENTO OPGW':            soOpgw(7),
+    'DESCIDA DO CABO OPGW':                     soOpgw(8),
+    'INSTALAÇÃO DE CAIXA DE EMENDA OPGW':       soOpgw(9),
+
+    'PRÉ COMISSIONAMENTO DE CABOS / ESTRUTURA': { itens: ['5.1.1'] },
+    'COMISSIONAMENTO DE CABOS / ESTRUTURA':     { itens: ['5.1.2'] },
+    'REVISÃO DE SOLO':                          { itens: ['5.1.3'] },
+    'PRAD':                                     { itens: ['5.1.4'] },
 
     'INSTALAÇÃO DE BANDOLAS E ISOLADORES':      { itens: ['4.3.1'] },
     'LANÇAMENTO DO PILOTO DO CONDUTOR':         { itens: ['4.3.2'] },
@@ -371,7 +403,9 @@ window.SIPAV = window.SIPAV || {};
       for (var q = r + 1; q <= ultima; q++) {
         if (norm(valor(ws.getCell(q, COL.ATIVIDADE))) !== nomeDoItem) break;
         var tq = norm(valor(ws.getCell(q, COL.TAREFA)));
-        if (tq === 'executado' || tq === 'exec') break;
+        if (tq === 'executado') break;
+        // As três linhas do layout antigo ficam metidas no meio do bloco novo: são lidas à parte
+        if (tq === 'exec' || tq === 'prog 1' || tq === 'prog 2') continue;
         if (tq === 'primeira semana') { semana = 'prog1'; bloco.prog1.agregada = q; continue; }
         if (tq === 'segunda semana') { semana = 'prog2'; bloco.prog2.agregada = q; continue; }
         if (!semana) continue;
@@ -393,11 +427,11 @@ window.SIPAV = window.SIPAV || {};
         // Item que o SIPAV não conhece. Guarda as linhas de programação, para a
         // leitura avisar se alguém programou ali: calar fazia a prévia dizer "0 a
         // programar, 0 avisos" numa planilha que tinha serviço.
-        // "Fundação 100% concluída" só repete o reaterro: não tem o que programar nela
+        // "Fundação 100% concluída" só repete o reaterro, e "Conclusão de montagem" é o que a ISA pede\n        // além da revisão e do giro e prumo: não tem o que programar nelas
         var nomeCru = String(valor(ws.getCell(r, COL.ATIVIDADE)) || '').trim();
-        if ((tarefa === 'prog 1' || tarefa === 'prog 2') && !/^fundacao 100/.test(nome)) {
+        if ((tarefa === 'prog 1' || tarefa === 'prog 2') && !/^(fundacao 100|conclusao de montagem)/.test(nome)) {
           ignorados.push({ linhas: [r], codigo: codigo, nome: nomeCru });
-        } else if (tarefa === 'executado' && !/^fundacao 100/.test(nome)) {
+        } else if (tarefa === 'executado' && !/^(fundacao 100|conclusao de montagem)/.test(nome)) {
           var semItem = blocoPorFrente(r, nome), linhasDoBloco = [];
           ['prog1', 'prog2'].forEach(function (s) {
             if (semItem[s].agregada) linhasDoBloco.push(semItem[s].agregada);
@@ -1043,13 +1077,14 @@ window.SIPAV = window.SIPAV || {};
           if (sem.agregada && temConteudo(sem.agregada)) ler(item, semana, sem.agregada);
           return;
         }
-        var encDaSoma = sem.agregada && !semTexto(textoDaCelula(ws, sem.agregada, COL.ENCARREGADO));
+        var equipeDaSoma = sem.agregada ? textoDaCelula(ws, sem.agregada, COL.ENCARREGADO) : '';
         comConteudo.forEach(function (fr) {
-          // Frente com torre mas sem encarregado, e a soma tem os nomes: não dá para saber
-          // quem faz o quê. Fica de fora, com aviso, em vez de entrar sem ninguém.
-          if (semTexto(textoDaCelula(ws, fr.linha, COL.ENCARREGADO)) && encDaSoma && temServico(fr.linha)) {
-            semEncarregadoNaFrente[item] = (semEncarregadoNaFrente[item] || 0) + 1;
-            return;
+          // Frente com torre mas sem encarregado, e a soma da semana tem os nomes: não dá
+          // para saber quem faz o quê, porque quem está em qual frente muda toda semana.
+          // Entra sem encarregado, e o aviso diz quais nomes a planilha trazia.
+          if (semTexto(textoDaCelula(ws, fr.linha, COL.ENCARREGADO)) && !semTexto(equipeDaSoma) && temServico(fr.linha)) {
+            var s = semEncarregadoNaFrente[item] = semEncarregadoNaFrente[item] || { linhas: 0, equipe: equipeDaSoma };
+            s.linhas++;
           }
           ler(item, semana, fr.linha);
         });
@@ -1405,9 +1440,15 @@ window.SIPAV = window.SIPAV || {};
     });
     var itensSemEnc = Object.keys(semEncarregadoNaFrente).sort();
     if (itensSemEnc.length) {
-      problema('layout', 'Em ' + itensSemEnc.length + ' item(ns) a planilha tem torres numa frente sem encarregado, e o nome só aparece ' +
-               'na linha da semana (' + itensSemEnc.slice(0, 6).map(function (i) { return rotuloDoItem(i); }).join(', ') +
-               (itensSemEnc.length > 6 ? ', …' : '') + '). Não dá para saber quem faz o quê: não entrou, lance na mão.');
+      var equipes = [];
+      itensSemEnc.forEach(function (i) {
+        var e = semEncarregadoNaFrente[i].equipe.replace(/\s*\n\s*/g, ' / ');
+        if (equipes.indexOf(e) === -1) equipes.push(e);
+      });
+      problema('layout', 'Em ' + itensSemEnc.length + ' item(ns) a planilha escreve as torres por frente, sem encarregado: o nome só ' +
+               'aparece na linha da semana (' + equipes.slice(0, 3).join(' · ') + '). Entraram sem encarregado, porque quem está ' +
+               'em qual frente muda toda semana. Itens: ' + itensSemEnc.slice(0, 8).map(function (i) { return rotuloDoItem(i); }).join(', ') +
+               (itensSemEnc.length > 8 ? ', …' : '') + '.');
     }    var avulsas = Object.keys(anotacoes);
     if (avulsas.length) {
       problema('texto', 'Anotações da planilha que não são torre, ficaram de fora: ' +

@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v161 · 2026-10-14';
+  var VERSAO = 'v162 · 2026-10-14';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -788,7 +788,10 @@ window.SIPAV = window.SIPAV || {};
     'LANÇAMENTO DO CABO OPGW/PR',
     'NIVELAMENTO OPGW / PARA-RAIO',
     'GRAMPEAÇÃO OPGW / PARA-RAIO',
-    'ANCORAGEM OPGW / PARA-RAIO'
+    'ANCORAGEM OPGW / PARA-RAIO',
+    'SISTEMA DE AMORTECIMENTO OPGW',
+    'DESCIDA DO CABO OPGW',
+    'INSTALAÇÃO DE CAIXA DE EMENDA OPGW'
   ];
 
   /** O valor do enum, como o campo fala. */

@@ -31,17 +31,22 @@ nenhuma frente tem serviço, porque, quando tem, ela é a soma das frentes (uma 
 cola os textos) e leria tudo duas vezes. Na Correntina isso passou de 5 para 376
 programações; na Buritirama–Barra II, de 0 para 123.
 
-**O que ainda não entra, e avisa.** Frente com torres e sem encarregado, quando o nome só
-aparece na linha da semana. É o caso da Campo Formoso–Barra II, onde a linha da semana
-traz uma equipe de seis nomes juntos e o SIPAV só guarda dois encarregados por
-programação. Também avisa os itens que o SIPAV não importa (empacadura, praça para
-lançamento, amortecimento, descida do cabo, caixa de emenda, comissionamento).
+**Frente sem encarregado.** Na Campo Formoso–Barra II a linha da semana traz a equipe
+inteira numa célula (às vezes seis nomes) e as linhas das frentes vêm sem nome. Quem está
+em qual frente muda toda semana, então não há mapa fixo para montar. As programações
+entram sem encarregado, e o aviso mostra a equipe que a planilha trazia, para eu atribuir
+depois.
 
+**Mais atividades.** Empacadura (instalação e retirada), praça para lançamento,
+amortecimento, descida e caixa de emenda do OPGW, pré-comissionamento, comissionamento,
+revisão de solo e PRAD viram atividades (migração 52), todas condicionais e sem
+dependência. As três do OPGW pedem o cabo.
+
+"Conclusão de montagem" (estaiada e autoportante) é ignorada sem aviso: só repete a
+revisão e o giro e prumo, e é a ISA que pede.
 **Exportação.** Continua escrevendo só no layout antigo: os itens no layout novo saem
 como "não achados" no relato. A frente ainda não é escrita.
 
-Pendente do gerente: se as frentes são os canteiros, quem é o encarregado de cada frente
-e se esse layout é o padrão daqui para frente.
 ## 09/10/2026
 
 ### Importação: parêntese dentro de parêntese — [WR]
