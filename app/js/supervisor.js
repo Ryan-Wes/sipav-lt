@@ -63,6 +63,9 @@ window.SIPAV = window.SIPAV || {};
 
   function ehEditavel() { return !S.sol || S.sol.status === 'RASCUNHO' || S.sol.status === 'DEVOLVIDA'; }
 
+  /** O planejamento já decidiu este pacote (tudo, parte ou nada aprovado). */
+  function jaDecidida() { return !!S.sol && ['APROVADA', 'PARCIAL', 'REPROVADA'].indexOf(S.sol.status) !== -1; }
+
   /* ----------------------------------------------------- A janela dele ----- */
 
   /**
@@ -250,6 +253,17 @@ window.SIPAV = window.SIPAV || {};
              '<p>O planejamento aprovou ' + esc(ui.quandoRelativo(S.sol.decidida_em)) +
              '. Já é programação oficial.</p></div>';
     }
+    if (S.sol.status === 'PARCIAL' || S.sol.status === 'REPROVADA') {
+      var ok = S.minhas.filter(function (p) { return p.situacao === 'APROVADA'; }).length;
+      var recusadas = S.minhas.filter(function (p) { return p.situacao === 'RECUSADA'; }).length;
+      var parcial = S.sol.status === 'PARCIAL';
+      return '<div class="sup-status ' + (parcial ? 'enviada' : 'devolvida') + '"><strong>' +
+             (parcial ? 'Aprovada em parte' : 'Reprovada') + '</strong>' +
+             '<p>' + (ok ? ok + (ok === 1 ? ' programação aprovada' : ' programações aprovadas') + ' (já são oficiais) e ' : '') +
+             recusadas + (recusadas === 1 ? ' reprovada' : ' reprovadas') + ', decidido ' + esc(ui.quandoRelativo(S.sol.decidida_em)) +
+             '. O motivo de cada reprovada está abaixo.</p>' +
+             '<p class="sup-fraco">Corrija o que for preciso e programe de novo.</p></div>';
+    }
     return '<div class="sup-status"><strong>Rascunho</strong>' +
            '<p>Ainda não foi enviado. Quando terminar, toque em <b>Enviar para análise</b>.</p></div>';
   }
@@ -268,7 +282,7 @@ window.SIPAV = window.SIPAV || {};
     var editavel = ehEditavel();
     var html = '<div class="sup-minha">' + cartaoStatus();
 
-    if (editavel || (S.sol && S.sol.status === 'APROVADA')) {
+    if (editavel || jaDecidida()) {
       html += '<button type="button" class="sup-programar" data-acao="por-encarregado">' +
               '<i data-lucide="plus" class="w-5 h-5"></i><span>Programar</span></button>';
     }
@@ -295,17 +309,22 @@ window.SIPAV = window.SIPAV || {};
   }
 
   function cartaoLinha(p, podeMexer) {
-    var avisos = ocupacao(p.torre.id, p.data, p.id).map(function (o) {
+    var avisos = (p.situacao !== 'SOLICITADA' ? [] : ocupacao(p.torre.id, p.data, p.id)).map(function (o) {
       return '<p class="sup-aviso">⚠ Nesta torre, neste dia: ' + esc(textoDaOcupacao(o)) + '</p>';
     }).join('');
 
-    return '<div class="sup-card">' +
+    var decisao = p.situacao === 'RECUSADA'
+      ? '<p class="sup-recusa"><b>Reprovada.</b> ' + esc(p.motivo_recusa || 'Sem justificativa registrada.') + '</p>'
+      : p.situacao === 'APROVADA'
+        ? '<span class="sup-origem oficial">Aprovada, já é oficial</span>' : '';
+
+    return '<div class="sup-card' + (p.situacao === 'RECUSADA' ? ' recusada' : '') + '">' +
       '<div class="sup-card-topo"><strong>' + esc(p.torre.identificador) + '</strong>' + chipAtividade(p.atividade) + '</div>' +
       '<div class="sup-card-meio"><span>' + esc(p.encarregado ? p.encarregado.nome : 'Sem encarregado') + '</span>' +
         '<span class="sup-pct">' + pct(p.percentual) + '</span>' +
         (p.cabo ? '<span class="sup-fraco">' + esc(String(p.cabo).replace('_', ' ')) + '</span>' : '') + '</div>' +
       (p.observacao ? '<p class="sup-fraco">' + esc(p.observacao) + '</p>' : '') +
-      avisos +
+      decisao + avisos +
       (podeMexer
         ? '<div class="sup-card-acoes">' +
             '<button type="button" data-acao="editar" data-id="' + p.id + '" aria-label="Editar"><i data-lucide="pencil" class="w-4 h-4"></i> Editar</button>' +
@@ -1181,34 +1200,47 @@ window.SIPAV = window.SIPAV || {};
     ui.processando('Abrindo a solicitação…');
     Promise.all([db.solicitacoesParaAnalise(), db.programacoesDaSolicitacao(id)]).then(function (r) {
       var sol = r[0].filter(function (s) { return s.id === id; })[0];
-      var linhas = r[1];
+      // O que já foi decidido (aprovado ou reprovado numa rodada anterior) não volta para a análise
+      var linhas = r[1].filter(function (l) { return l.situacao === 'SOLICITADA'; });
       if (!sol) { ui.pronto(); ui.avisar('Esta solicitação já foi analisada.', 'alerta'); abrirSolicitacoes(); return; }
 
       var datas = linhas.map(function (l) { return l.data; }).sort();
-      var de = datas[0], ate = datas[datas.length - 1];
-      return db.programacoes({ de: de, ate: ate }).then(function (oficiais) {
-        pacote = { sol: sol, linhas: linhas, oficiais: oficiais, avisos: {} };
+      return Promise.all([
+        db.programacoes({ de: datas[0], ate: datas[datas.length - 1] }),
+        db.torres(sol.trecho_id)
+      ]).then(function (x) {
+        // Reabrindo depois de editar ou tirar uma linha, as marcas e a visão ficam como estavam
+        var mesma = pacote && pacote.sol.id === id;
+        var marcadas = {};
+        if (mesma) linhas.forEach(function (l) { if (pacote.marcadas[l.id]) marcadas[l.id] = true; });
+        pacote = { sol: sol, linhas: linhas, oficiais: x[0], torres: x[1], avisos: {},
+                   marcadas: marcadas, visao: mesma ? pacote.visao : 'lista' };
         ui.pronto();
-        desenharPacote();
         conferirPacote();
       });
     }).catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro', 6000); });
   }
 
-  function desenharPacote() {
-    var p = pacote;
-    var linhas = p.linhas.slice().sort(function (a, b) {
+  function ordemDasLinhas(linhas) {
+    return linhas.slice().sort(function (a, b) {
       return a.data < b.data ? -1 : a.data > b.data ? 1 : ((a.torre.ordem - b.torre.ordem));
     });
+  }
 
-    var corpo = '<p class="sup-fraco" style="margin-bottom:.5rem">' + esc(p.sol.trecho ? p.sol.trecho.nome : '') +
-      ' · ' + linhas.length + (linhas.length === 1 ? ' programação' : ' programações') +
-      ' · enviada ' + esc(ui.quandoRelativo(p.sol.enviada_em)) + '</p>' +
-      '<div class="sol-tabela"><table class="w-full text-sm"><thead><tr class="text-left text-xs uppercase" style="color:var(--texto-fraco)">' +
-      '<th class="py-1 pr-2">Dia</th><th class="pr-2">Torre</th><th class="pr-2">Atividade</th><th class="pr-2">Encarregado</th><th class="pr-2">%</th><th></th></tr></thead><tbody>' +
+  function avisosDaLinha(l) {
+    return (pacote.avisos[l.id] || []).map(function (a) { return '<div class="sup-aviso">⚠ ' + esc(a) + '</div>'; }).join('');
+  }
+
+  /** A lista: uma linha por programação, com a caixa de marcar. */
+  function htmlDaLista(linhas) {
+    return '<div class="sol-tabela"><table class="w-full text-sm"><thead><tr class="text-left text-xs uppercase" style="color:var(--texto-fraco)">' +
+      '<th class="py-1 pr-1" style="width:2rem"></th><th class="py-1 pr-2">Dia</th><th class="pr-2">Torre</th><th class="pr-2">Atividade</th>' +
+      '<th class="pr-2">Encarregado</th><th class="pr-2">%</th><th></th></tr></thead><tbody>' +
       linhas.map(function (l) {
-        var avisos = (p.avisos[l.id] || []).map(function (a) { return '<div class="sup-aviso">⚠ ' + esc(a) + '</div>'; }).join('');
-        return '<tr class="sol-linha-tab" data-id="' + l.id + '">' +
+        var avisos = avisosDaLinha(l);
+        return '<tr class="sol-linha-tab" data-linha="' + l.id + '">' +
+          '<td class="py-1 pr-1"><input type="checkbox" class="sol-caixa" data-marcar="' + l.id + '" ' +
+            'onclick="SIPAV.supervisor.marcarLinha(\'' + l.id + '\')" aria-label="Marcar"></td>' +
           '<td class="py-1 pr-2 whitespace-nowrap">' + esc(nomeCurtoDoDia(l.data)) + '</td>' +
           '<td class="pr-2"><strong>' + esc(l.torre.identificador) + '</strong></td>' +
           '<td class="pr-2">' + chipAtividade(l.atividade) + '</td>' +
@@ -1216,8 +1248,100 @@ window.SIPAV = window.SIPAV || {};
           '<td class="pr-2">' + pct(l.percentual) + '</td>' +
           '<td class="whitespace-nowrap"><button type="button" class="btn-lancar" data-ed="' + l.id + '">Editar</button> ' +
           '<button type="button" class="btn-lancar" data-rm="' + l.id + '">Tirar</button></td></tr>' +
-          (avisos ? '<tr><td></td><td colspan="5">' + avisos + '</td></tr>' : '');
-      }).join('') + '</tbody></table></div>' +
+          (avisos ? '<tr class="sol-linha-av" data-linha-av="' + l.id + '"><td></td><td colspan="6">' + avisos + '</td></tr>' : '');
+      }).join('') + '</tbody></table></div>';
+  }
+
+  /** A grade: só as torres do pacote, com o estado de cada uma, o que a solicitação põe nela e o que já é oficial. */
+  function htmlDaGrade(linhas) {
+    var porTorre = {}, ordem = [];
+    linhas.forEach(function (l) {
+      if (!porTorre[l.torre.id]) { porTorre[l.torre.id] = []; ordem.push(l.torre.id); }
+      porTorre[l.torre.id].push(l);
+    });
+    var estado = {};
+    (pacote.torres || []).forEach(function (t) { estado[t.torre_id] = t; });
+
+    return '<div class="sup-grade sol-grade">' + ordem.sort(function (a, b) {
+      var oa = estado[a] ? estado[a].ordem : porTorre[a][0].torre.ordem;
+      var ob = estado[b] ? estado[b].ordem : porTorre[b][0].torre.ordem;
+      return oa - ob;
+    }).map(function (tid) {
+      var t = estado[tid] || { identificador: porTorre[tid][0].torre.identificador };
+      var restrito = !!t.tem_restricao;
+      var cor = restrito ? '#E11D48' : (t.ultima_atividade_cor || null);
+      var nomeEstado = restrito ? 'Restrição ' + String(t.restricao_tipo || '').toLowerCase() : (t.ultima_atividade || 'Não iniciada');
+      var estilo = cor ? 'border-color:' + ui.rgba(cor, 0.45) + ';border-top-color:' + cor + ';' : '';
+      var estaiada = t.estrutura === 'ESTAIADA';
+      var pastilha = t.estrutura ? '<span class="pastilha-estrutura ' + (estaiada ? 'est' : 'aup') + '">' + (estaiada ? 'EST' : 'AUP') + '</span>' : '';
+
+      var oficiais = pacote.oficiais.filter(function (o) { return o.torre && o.torre.id === tid; });
+      var lista = ordemDasLinhas(porTorre[tid]).map(function (l) {
+        return '<span class="sup-g-prog so" data-g-linha="' + l.id + '"><b>' + esc(ui.dataCurta(l.data)) + '</b> ' +
+          esc(l.atividade ? l.atividade.nome : '') + ' · ' + esc(l.encarregado ? l.encarregado.nome.split(' ')[0] : '—') + ' ' + pct(l.percentual) + '</span>';
+      }).join('') + oficiais.map(function (o) {
+        return '<span class="sup-g-prog of" title="Já é programação oficial"><b>' + esc(ui.dataCurta(o.data)) + '</b> ' +
+          esc(o.atividade ? o.atividade.nome : '') + ' · ' + esc(o.encarregado ? o.encarregado.nome.split(' ')[0] : '—') + ' (oficial)</span>';
+      }).join('');
+
+      return '<button type="button" class="cartao-torre sup-g-torre" data-g-torre="' + tid + '"' + (estilo ? ' style="' + estilo + '"' : '') +
+        ' onclick="SIPAV.supervisor.marcarTorre(\'' + tid + '\')">' +
+        '<span class="sup-g-ok"><i data-lucide="check" class="w-3 h-3"></i></span>' +
+        '<span class="identidade"><span class="identificador">' + esc(t.identificador) + '</span>' + pastilha +
+          '<span class="legenda"><span class="ponto-atividade" style="background:' + (cor || 'var(--borda-forte)') + '"></span>' + esc(nomeEstado) + '</span></span>' +
+        '<span class="sup-g-lista">' + lista + '</span></button>';
+    }).join('') + '</div>';
+  }
+
+  /** O por encarregado, igual ao da tela do planejamento: o que a solicitação põe e o que já é oficial, semana a semana. */
+  function htmlDoPorEncarregado(linhas) {
+    var datas = linhas.map(function (l) { return l.data; }).sort();
+    var segundas = [], seg = ui.segundaDaSemana(ui.paraData(datas[0]));
+    var ultima = ui.iso(ui.segundaDaSemana(ui.paraData(datas[datas.length - 1])));
+    for (var n = 0; n < 6 && ui.iso(seg) <= ultima; n++) { segundas.push(ui.iso(seg)); seg = ui.somarDias(seg, 7); }
+
+    var porEnc = {}, ordem = [];
+    linhas.forEach(function (l) {
+      var nome = l.encarregado ? l.encarregado.nome : 'Sem encarregado';
+      if (!porEnc[nome]) { porEnc[nome] = { id: l.encarregado ? l.encarregado.id : null, itens: [] }; ordem.push(nome); }
+      porEnc[nome].itens.push(l);
+    });
+
+    var idsDoPacote = {};
+    linhas.forEach(function (l) { idsDoPacote[l.id] = true; });
+    var extra = {
+      acao: function (p) { return idsDoPacote[p.id] ? 'SIPAV.supervisor.marcarLinha(\'' + p.id + '\')' : null; },
+      marcada: function (p) { return !!pacote.marcadas[p.id]; }
+    };
+
+    return '<div class="space-y-4 sol-por-enc">' + ordem.sort(function (a, b) { return a.localeCompare(b, 'pt-BR'); }).map(function (nome) {
+      var e = porEnc[nome];
+      var oficiais = e.id ? pacote.oficiais.filter(function (o) {
+        return (o.encarregado && o.encarregado.id === e.id) || (o.encarregado2 && o.encarregado2.id === e.id);
+      }) : [];
+      return window.SIPAV.render.painelDoEncarregadoParaAnalise(nome, e.itens.concat(oficiais), segundas, extra);
+    }).join('') + '</div>';
+  }
+
+  function desenharPacote() {
+    var p = pacote;
+    var linhas = ordemDasLinhas(p.linhas);
+
+    var visoes = [['lista', 'Lista'], ['grade', 'Grade'], ['enc', 'Por encarregado']].map(function (v) {
+      return '<button type="button" class="sup-seg-btn' + (p.visao === v[0] ? ' ativo' : '') +
+             '" onclick="SIPAV.supervisor.trocarVisao(\'' + v[0] + '\')">' + v[1] + '</button>';
+    }).join('');
+
+    var conteudo = p.visao === 'grade' ? htmlDaGrade(linhas) : p.visao === 'enc' ? htmlDoPorEncarregado(linhas) : htmlDaLista(linhas);
+
+    var corpo = '<p class="sup-fraco" style="margin-bottom:.5rem">' + esc(p.sol.trecho ? p.sol.trecho.nome : '') +
+      ' · ' + linhas.length + (linhas.length === 1 ? ' programação' : ' programações') +
+      ' · enviada ' + esc(ui.quandoRelativo(p.sol.enviada_em)) + '</p>' +
+      '<div class="sol-barra"><div class="sol-visoes">' + visoes + '</div>' +
+        '<div class="sol-marcas"><span id="solMarcadas" class="sup-fraco"></span>' +
+          '<button type="button" class="btn-lancar" onclick="SIPAV.supervisor.marcarTodas()">Marcar todas</button>' +
+          '<button type="button" class="btn-lancar" onclick="SIPAV.supervisor.limparMarcas()">Limpar</button></div></div>' +
+      conteudo +
       '<p class="sup-fraco" id="solConferindo" style="margin-top:.5rem"></p>';
 
     ui.modalGenerico({
@@ -1225,10 +1349,15 @@ window.SIPAV = window.SIPAV || {};
       corpoHtml: corpo,
       botoes: [
         { rotulo: 'Voltar', classe: 'btn-secundario', acao: abrirSolicitacoes },
-        { rotulo: 'Devolver…', classe: 'btn-secundario', acao: pedirMotivoDeDevolucao },
-        { rotulo: 'Aprovar tudo', classe: 'btn-primario', acao: aprovarPacote }
+        { rotulo: 'Devolver para corrigir…', classe: 'btn-secundario', acao: pedirMotivoDeDevolucao },
+        { rotulo: 'Reprovar', classe: 'btn-secundario btn-secundario-perigo', acao: function () { decidir('reprovar'); } },
+        { rotulo: 'Aprovar', classe: 'btn-primario', acao: function () { decidir('aprovar'); } }
       ]
     });
+
+    document.querySelector('#modalGenerico .modal-caixa').classList.add('sol-larga');
+    var bs = document.querySelectorAll('#genericoRodape button');
+    p.btnReprovar = bs[2]; p.btnAprovar = bs[3];
 
     Array.prototype.forEach.call(document.querySelectorAll('#genericoCorpo [data-ed]'), function (b) {
       b.onclick = function () { editarLinhaDoPacote(b.getAttribute('data-ed')); };
@@ -1236,7 +1365,80 @@ window.SIPAV = window.SIPAV || {};
     Array.prototype.forEach.call(document.querySelectorAll('#genericoCorpo [data-rm]'), function (b) {
       b.onclick = function () { tirarLinhaDoPacote(b.getAttribute('data-rm')); };
     });
+    ui.icones();
+    atualizarMarcas();
   }
+
+  /* -- Marcar o que se quer aprovar ou reprovar ---------------------------- */
+
+  function qtdMarcadas() {
+    return pacote.linhas.filter(function (l) { return pacote.marcadas[l.id]; }).length;
+  }
+
+  /** Põe nas caixas, nas linhas, nas torres e nos cartões o que está marcado, e nos botões o que cada um vai fazer. */
+  function atualizarMarcas() {
+    if (!pacote) return;
+    var n = qtdMarcadas();
+
+    Array.prototype.forEach.call(document.querySelectorAll('#genericoCorpo .sol-caixa'), function (c) {
+      c.checked = !!pacote.marcadas[c.getAttribute('data-marcar')];
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('#genericoCorpo [data-linha]'), function (tr) {
+      tr.classList.toggle('marcada', !!pacote.marcadas[tr.getAttribute('data-linha')]);
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('#genericoCorpo [data-g-linha]'), function (el) {
+      el.classList.toggle('marcada', !!pacote.marcadas[el.getAttribute('data-g-linha')]);
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('#genericoCorpo [data-g-torre]'), function (el) {
+      var tid = el.getAttribute('data-g-torre');
+      var dela = pacote.linhas.filter(function (l) { return l.torre.id === tid; });
+      el.classList.toggle('sel', dela.length > 0 && dela.every(function (l) { return pacote.marcadas[l.id]; }));
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('#genericoCorpo [data-prog]'), function (el) {
+      var id = el.getAttribute('data-prog');
+      var marcada = !!pacote.marcadas[id];
+      el.classList.toggle('chip-marcado', marcada);
+      var m = el.querySelector('.chip-marca');
+      if (m) m.classList.toggle('chip-marca-on', marcada);
+    });
+
+    var legenda = $('solMarcadas');
+    if (legenda) legenda.textContent = n ? n + (n === 1 ? ' marcada' : ' marcadas') : 'Nenhuma marcada: os botões valem para todas';
+    if (pacote.btnAprovar) pacote.btnAprovar.textContent = n ? 'Aprovar marcadas (' + n + ')' : 'Aprovar tudo';
+    if (pacote.btnReprovar) pacote.btnReprovar.textContent = n ? 'Reprovar marcadas (' + n + ')' : 'Reprovar tudo';
+  }
+
+  function marcarLinha(id) {
+    if (!pacote) return;
+    if (pacote.marcadas[id]) delete pacote.marcadas[id]; else pacote.marcadas[id] = true;
+    atualizarMarcas();
+  }
+
+  /** Na grade, tocar numa torre marca ou desmarca todas as linhas dela no pacote. */
+  function marcarTorre(tid) {
+    if (!pacote) return;
+    var dela = pacote.linhas.filter(function (l) { return l.torre.id === tid; });
+    var todas = dela.length > 0 && dela.every(function (l) { return pacote.marcadas[l.id]; });
+    dela.forEach(function (l) { if (todas) delete pacote.marcadas[l.id]; else pacote.marcadas[l.id] = true; });
+    atualizarMarcas();
+  }
+
+  function marcarTodas() {
+    pacote.linhas.forEach(function (l) { pacote.marcadas[l.id] = true; });
+    atualizarMarcas();
+  }
+
+  function limparMarcas() {
+    pacote.marcadas = {};
+    atualizarMarcas();
+  }
+
+  function trocarVisao(v) {
+    pacote.visao = v;
+    desenharPacote();
+  }
+
+  /* -- Conferir antes de decidir ------------------------------------------- */
 
   /** Avisos de cada linha: sequência, duplicidade com o oficial, encarregado no mesmo dia. */
   function conferirPacote() {
@@ -1321,10 +1523,13 @@ window.SIPAV = window.SIPAV || {};
     });
   }
 
+  /** Devolver o pacote inteiro para o supervisor corrigir e enviar de novo. */
   function pedirMotivoDeDevolucao() {
     ui.modalGenerico({
-      titulo: 'Devolver para o supervisor',
-      corpoHtml: '<label class="rotulo">O que está errado? (o supervisor vai ler isto)</label>' +
+      titulo: 'Devolver para o supervisor corrigir',
+      corpoHtml: '<p class="text-sm" style="margin-bottom:.5rem;color:var(--texto-suave)">A solicitação inteira volta para ele editar e enviar de novo. ' +
+        'Nada é aprovado nem reprovado agora.</p>' +
+        '<label class="rotulo">O que está errado? (o supervisor vai ler isto)</label>' +
         '<textarea id="solMotivo" class="campo" rows="4" placeholder="Ex.: a torre 88/2 não é desta semana; falta a atividade do dia 15."></textarea>',
       botoes: [
         { rotulo: 'Voltar', classe: 'btn-secundario', acao: function () { desenharPacote(); } },
@@ -1342,27 +1547,85 @@ window.SIPAV = window.SIPAV || {};
     });
   }
 
-  function aprovarPacote() { executarAprovacao(false); }
+  /* -- Aprovar e reprovar --------------------------------------------------- */
 
-  function executarAprovacao(liberar) {
-    ui.processando('Aprovando…');
-    db.aprovarSolicitacao(pacote.sol.id, liberar).then(function (r) {
+  /**
+   * Sem nada marcado, o botão vale para todas. Com marcadas: "Aprovar marcadas" aprova essas e
+   * reprova as outras; "Reprovar marcadas" reprova essas e aprova as outras. A janela de
+   * confirmação diz o que vai acontecer e pede a justificativa do que for reprovado.
+   */
+  function decidir(modo) {
+    var p = pacote;
+    var ids = p.linhas.map(function (l) { return l.id; });
+    var marcadas = ids.filter(function (id) { return p.marcadas[id]; });
+    var aprovar;
+    if (!marcadas.length) aprovar = modo === 'aprovar' ? ids : [];
+    else if (modo === 'aprovar') aprovar = marcadas;
+    else aprovar = ids.filter(function (id) { return !p.marcadas[id]; });
+    var reprovar = ids.filter(function (id) { return aprovar.indexOf(id) === -1; });
+    confirmarDecisao(aprovar, reprovar);
+  }
+
+  function resumoDeLinhas(ids) {
+    return ids.map(function (id) {
+      var l = pacote.linhas.filter(function (x) { return x.id === id; })[0];
+      return '<li><b>' + esc(l.torre.identificador) + '</b> · ' + esc(l.atividade ? l.atividade.nome : '') + ' · ' +
+             esc(nomeCurtoDoDia(l.data)) + ' · ' + esc(l.encarregado ? l.encarregado.nome : '—') + '</li>';
+    }).join('');
+  }
+
+  function confirmarDecisao(aprovar, reprovar) {
+    var corpo = '<div class="space-y-3">' +
+      (aprovar.length
+        ? '<div><p class="text-sm font-bold" style="color:#16A34A">Aprovar ' + aprovar.length + (aprovar.length === 1 ? ' programação' : ' programações') + '</p>' +
+          '<p class="sup-fraco">Viram programação oficial e já aparecem na grade para todo mundo.</p>' +
+          (aprovar.length <= 8 ? '<ul class="text-xs sol-resumo">' + resumoDeLinhas(aprovar) + '</ul>' : '') + '</div>'
+        : '') +
+      (reprovar.length
+        ? '<div><p class="text-sm font-bold" style="color:#E11D48">Reprovar ' + reprovar.length + (reprovar.length === 1 ? ' programação' : ' programações') + '</p>' +
+          '<ul class="text-xs sol-resumo">' + resumoDeLinhas(reprovar.slice(0, 12)) + '</ul>' +
+          (reprovar.length > 12 ? '<p class="sup-fraco">e mais ' + (reprovar.length - 12) + '…</p>' : '') +
+          '<label class="rotulo" style="margin-top:.5rem">Justificativa da reprovação (o supervisor vai ler)</label>' +
+          '<textarea id="solMotivo" class="campo" rows="3" placeholder="Ex.: a torre 88/2 não é desta semana."></textarea></div>'
+        : '') +
+      '</div>';
+
+    ui.modalGenerico({
+      titulo: 'Confirmar a decisão',
+      corpoHtml: corpo,
+      botoes: [
+        { rotulo: 'Voltar', classe: 'btn-secundario', acao: function () { desenharPacote(); } },
+        { rotulo: 'Confirmar', classe: reprovar.length && !aprovar.length ? 'btn-perigo' : 'btn-primario', acao: function () {
+          var motivo = reprovar.length ? $('solMotivo').value.trim() : '';
+          if (reprovar.length && !motivo) { ui.avisar('Escreva a justificativa da reprovação.', 'alerta'); $('solMotivo').focus(); return; }
+          executarDecisao(aprovar, motivo, false);
+        } }
+      ]
+    });
+  }
+
+  function executarDecisao(aprovar, motivo, liberar) {
+    ui.processando('Decidindo…');
+    db.decidirSolicitacao(pacote.sol.id, aprovar, motivo, liberar).then(function (r) {
       ui.pronto();
       var recarregarOficial = window.SIPAV.app.recarregarProgramacoes;
-      var depois = recarregarOficial ? recarregarOficial() : Promise.resolve();
-      return Promise.resolve(depois).then(function () {
+      return Promise.resolve(recarregarOficial ? recarregarOficial() : null).then(function () {
         atualizarContador(false);
         if (r.falhas && r.falhas.length) { mostrarFalhasDaAprovacao(r); return; }
         ui.fecharModal('modalGenerico');
         pacote = null;
-        ui.avisar(r.aprovadas + (r.aprovadas === 1 ? ' programação aprovada' : ' programações aprovadas') + ' e já são oficiais.', 'sucesso', 6000);
+        var partes = [];
+        if (r.aprovadas) partes.push(r.aprovadas + (r.aprovadas === 1 ? ' aprovada, já na grade' : ' aprovadas, já na grade'));
+        if (r.reprovadas) partes.push(r.reprovadas + (r.reprovadas === 1 ? ' reprovada' : ' reprovadas'));
+        ui.avisar(partes.join(' · ') + '.', 'sucesso', 6000);
       });
     }).catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro', 7000); });
   }
 
   function mostrarFalhasDaAprovacao(r) {
+    var ids = r.falhas.map(function (f) { return f.id; });
     ui.modalGenerico({
-      titulo: r.aprovadas + ' aprovada(s), ' + r.falhas.length + ' barrada(s)',
+      titulo: r.aprovadas + ' aprovada(s)' + (r.reprovadas ? ', ' + r.reprovadas + ' reprovada(s)' : '') + ', ' + r.falhas.length + ' barrada(s)',
       corpoHtml: '<p class="text-sm" style="margin-bottom:.5rem">A sequência barrou estas. Elas continuam na solicitação.</p>' +
         '<ul class="text-sm space-y-1">' + r.falhas.map(function (f) {
           return '<li><strong>' + esc(f.torre) + '</strong> · ' + esc(f.atividade) + ' · ' + esc(ui.dataCurta(f.data)) +
@@ -1370,11 +1633,10 @@ window.SIPAV = window.SIPAV || {};
         }).join('') + '</ul>',
       botoes: [
         { rotulo: 'Voltar e editar', classe: 'btn-secundario', acao: function () { recarregarPacote(); } },
-        { rotulo: 'Aprovar mesmo assim', classe: 'btn-primario', acao: function () { executarAprovacao(true); } }
+        { rotulo: 'Aprovar mesmo assim', classe: 'btn-primario', acao: function () { executarDecisao(ids, '', true); } }
       ]
     });
   }
-
   window.SIPAV.supervisor = {
     iniciar: iniciar,
     parar: parar,
@@ -1386,6 +1648,11 @@ window.SIPAV = window.SIPAV || {};
     tocarProgramacao: tocarProgramacao,
     programarParaEncarregado: programarParaEncarregado,
     abrirSolicitacoes: abrirSolicitacoes,
+    marcarLinha: marcarLinha,
+    marcarTorre: marcarTorre,
+    marcarTodas: marcarTodas,
+    limparMarcas: limparMarcas,
+    trocarVisao: trocarVisao,
     ligarSolicitacoesDoPlanejamento: ligarSolicitacoesDoPlanejamento,
     atualizarContador: atualizarContador
   };})();

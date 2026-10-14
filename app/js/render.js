@@ -520,6 +520,16 @@ window.SIPAV = window.SIPAV || {};
           'onclick="event.stopPropagation();SIPAV.app.apagarUmaProgramacao(\'' + p.id + '\')">' +
           '<i data-lucide="trash-2" class="w-3 h-3"></i></button>';
 
+    // A análise das solicitações (o planejamento marca as linhas que quer aprovar ou reprovar)
+    // passa a própria ação; null deixa a linha só para ver, sem clique
+    var fixo = false;
+    if (Object.prototype.hasOwnProperty.call(op, 'acaoCustom')) {
+      fixo = !op.acaoCustom;
+      marcando = !!op.acaoCustom;
+      marcado = marcando && !!op.marcada;
+      acao = op.acaoCustom || '';
+    }
+
     var marca = marcando
       ? '<span class="chip-marca' + (marcado ? ' chip-marca-on' : '') + '"></span>' : '';
 
@@ -531,7 +541,7 @@ window.SIPAV = window.SIPAV || {};
     }
 
     var abrir = '<div class="chip-prog' + (op.empilhado ? ' empilhado' : '') + (pre ? ' chip-pre' : '') +
-      (marcado ? ' chip-marcado' : '') + '" onclick="' + acao + '">';
+      (marcado ? ' chip-marcado' : '') + (fixo ? ' chip-fixo' : '') + '"' + (acao ? ' onclick="' + acao + '"' : '') + ' data-prog="' + p.id + '">';
 
     if (!op.empilhado) {
       return abrir + marca + torre + data + pastilha + enc + parcial + alerta + lixeira + '</div>';
@@ -1134,7 +1144,7 @@ window.SIPAV = window.SIPAV || {};
    * Como a coluna é estreita, o cartão leva a data só na coluna (não repete) e o
    * nome da atividade quebra em duas linhas, se precisar.
    */
-  function semanaEmDias(segundaIso, eventos, nome, encarregadoId) {
+  function semanaEmDias(segundaIso, eventos, nome, encarregadoId, extra) {
     var inicio = ui.paraData(segundaIso);
     var dias = [0, 1, 2, 3, 4, 5, 6].map(function (i) { return ui.iso(ui.somarDias(inicio, i)); });
 
@@ -1157,9 +1167,10 @@ window.SIPAV = window.SIPAV || {};
                    doDia.map(function (e) {
                      return e.m
                        ? cartaoMovimentacao(e.m, false, nome, true)
-                       : chipProgramacao(e.p, { torre: true, data: false, atividade: true,
+                       : chipProgramacao(e.p, Object.assign({ torre: true, data: false, atividade: true,
                                                 encarregado: false, empilhado: true, curto: true,
-                                                doEncarregado: nome });
+                                                doEncarregado: nome },
+                                                extra ? { acaoCustom: extra.acao(e.p), marcada: extra.marcada(e.p), apagar: false } : {}));
                    }).join('') +
                    // O + no fim do dia: lança uma atividade para este encarregado neste dia,
                    // embaixo da última (ou sozinho, se o dia está vazio)
@@ -1172,6 +1183,33 @@ window.SIPAV = window.SIPAV || {};
                '</div>';
       }).join('') +
     '</div>';
+  }
+
+  /**
+   * O bloco de um encarregado como na aba Por Encarregado, mas para a análise de uma
+   * solicitação: semana a semana, em colunas de dia, sem o + e sem as portas do planejamento.
+   * `extra.acao(p)` devolve o clique de cada linha (ou nulo, para a linha só aparecer) e
+   * `extra.marcada(p)` diz se está marcada.
+   */
+  function painelDoEncarregadoParaAnalise(nome, itens, segundas, extra) {
+    var porSemana = {};
+    emOrdemDeDataETorre(itens, []).forEach(function (e) {
+      var seg = ui.iso(ui.segundaDaSemana(ui.paraData(e.data)));
+      (porSemana[seg] = porSemana[seg] || []).push(e);
+    });
+    var corpo = segundas.map(function (segunda) {
+      return '<div class="faixa-semana">' +
+               '<span class="faixa-semana-nome">' + esc('Semana de ' + ui.dataCurta(segunda)) + '</span>' +
+               '<span class="faixa-semana-datas">' + esc(ui.dataCurta(segunda)) + ' a ' +
+                 esc(ui.dataCurta(ui.iso(ui.somarDias(ui.paraData(segunda), 6)))) + '</span>' +
+             '</div>' +
+             semanaEmDias(segunda, porSemana[segunda] || [], nome, null, extra);
+    }).join('');
+
+    return '<section class="bloco-quadrante painel overflow-hidden">' +
+      '<header class="flex flex-wrap items-baseline justify-between gap-x-3 px-4 py-2.5 bg-slate-50 border-b border-slate-200">' +
+        '<h3 class="font-bold text-slate-800">' + esc(nome) + '</h3>' +
+      '</header>' + corpo + '</section>';
   }
 
   /**
@@ -1731,6 +1769,7 @@ window.SIPAV = window.SIPAV || {};
     ehSerra: ehSerra,
     movimentacaoDoTrecho: movimentacaoDoTrecho,
     tagTrecho: tagTrecho,
+    painelDoEncarregadoParaAnalise: painelDoEncarregadoParaAnalise,
     ajustarPastilhas: ajustarPastilhas,
     textoDaMovimentacao: textoDaMovimentacao,
     nomesDosEncarregados: nomesDosEncarregados,

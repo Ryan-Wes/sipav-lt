@@ -517,14 +517,28 @@ window.SIPAV = window.SIPAV || {};
    * pacote é a linha e quem a criou. O nome do criador vem do perfil pela chave de criado_por
    * (a tabela tem duas chaves para o perfil: criado_por e aprovado_por).
    */
+  // O motivo da reprovação (db/55): só vai no select quando o banco já tem a coluna
+  var temMotivoRecusa = true;
+
   function selectProgramacaoDoSupervisor() {
     return selectProgramacao() +
-      ', solicitacao_id, criado_por, criador:perfil!programacao_criado_por_fkey ( nome )';
+      ', solicitacao_id, criado_por, criador:perfil!programacao_criado_por_fkey ( nome )' +
+      (temMotivoRecusa ? ', motivo_recusa' : '');
   }
 
   function consultarComPaginas(montar) {
-    return paginar(function (de, ate) {
-      return montar().order('data').order('id').range(de, ate);
+    function uma() {
+      return paginar(function (de, ate) {
+        return montar().order('data').order('id').range(de, ate);
+      });
+    }
+    return uma().then(function (r) {
+      // Antes da migração 55 a coluna não existe: tira do select e tenta de novo
+      if (r.error && temMotivoRecusa && faltaColuna(r.error, 'motivo_recusa')) {
+        temMotivoRecusa = false;
+        return uma();
+      }
+      return r;
     }).then(function (r) { return ok(r, 'Falha ao carregar programações'); });
   }
 
@@ -545,7 +559,7 @@ window.SIPAV = window.SIPAV || {};
         .then(function (r) {
           if (r.error) throw traduzErro(r.error, 'Falha ao carregar a solicitação');
           var s = (r.data && r.data[0]) || null;
-          if (s && s.status === 'APROVADA' && s.decidida_em &&
+          if (s && ['APROVADA', 'PARCIAL', 'REPROVADA'].indexOf(s.status) !== -1 && s.decidida_em &&
               Date.now() - new Date(s.decidida_em).getTime() > 3 * 86400000) return null;
           return s;
         });
@@ -610,6 +624,17 @@ window.SIPAV = window.SIPAV || {};
   function aprovarSolicitacao(id, liberar) {
     return cliente().rpc('aprovar_solicitacao', { p_id: id, p_liberar: !!liberar })
       .then(function (r) { return ok(r, 'Falha ao aprovar'); });
+  }
+
+  /**
+   * Decide o pacote: o que vai em `aprovarIds` é aprovado e o resto é reprovado, com a
+   * justificativa (db/55). Devolve {aprovadas, reprovadas, falhas:[{id, torre, atividade, data, motivo}]}.
+   * A linha que a sequência barrar volta em `falhas` e continua no pacote.
+   */
+  function decidirSolicitacao(id, aprovarIds, motivo, liberar) {
+    return cliente().rpc('decidir_solicitacao', {
+      p_id: id, p_aprovar: aprovarIds || [], p_motivo: motivo || null, p_liberar: !!liberar
+    }).then(function (r) { return ok(r, 'Falha ao decidir a solicitação'); });
   }
 
   /** Quantos pacotes esperam análise (o número do botão do planejamento). */
@@ -1740,6 +1765,7 @@ window.SIPAV = window.SIPAV || {};
     solicitacoesParaAnalise: solicitacoesParaAnalise,
     devolverSolicitacao: devolverSolicitacao,
     aprovarSolicitacao: aprovarSolicitacao,
+    decidirSolicitacao: decidirSolicitacao,
     quantasSolicitacoes: quantasSolicitacoes,
     escutarSolicitacoes: escutarSolicitacoes,
     execucoesDaTorre: execucoesDaTorre,

@@ -16,6 +16,24 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 14/10/2026
 
+### Solicitação do supervisor: aprovar e reprovar por linha, com justificativa — [WR]
+
+Antes eu só tinha "Aprovar tudo" ou "Devolver" o pacote inteiro. Agora, ao abrir uma solicitação,
+decido linha a linha: marco as que quero e uso **Aprovar marcadas** ou **Reprovar marcadas**; sem
+nada marcado os botões viram **Aprovar tudo** e **Reprovar tudo**. O que eu reprovo exige a
+justificativa (o supervisor lê o motivo na linha). O que eu aprovo vira programação oficial na hora
+e já aparece na grade para todo mundo.
+
+A análise tem três visões da mesma solicitação, e as marcas valem entre elas: **Lista** (a tabela de
+sempre, com Editar e Tirar), **Grade** (as torres com o estado delas e o que foi pedido em cada) e
+**Por encarregado** (o painel da semana, igual ao Por Encarregado, tocando no cartão para marcar).
+
+O pacote termina como Aprovada (tudo), Parcial (parte e parte) ou Reprovada (tudo). **Devolver para
+corrigir** continua existindo, para mandar o pacote inteiro de volta. A linha reprovada (RECUSADA)
+não conta na trava de duplicata, então ele pode programar de novo a mesma torre no mesmo dia. Se a
+sequência barrar uma linha, a tela lista as barradas e deixa aprovar mesmo assim (fica registrado na
+linha). Migração `db/55`; sem ela a tela avisa que falta aplicar.
+
 ### Supervisor: a tela do planejamento, em modo restrito, e só a janela dele — [WR]
 
 O supervisor abre a mesma tela do planejamento (Grade Geral e Por Encarregado, com os mesmos

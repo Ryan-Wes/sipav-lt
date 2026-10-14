@@ -1876,3 +1876,19 @@ body.modo-supervisor main { padding-bottom: 6rem; }
   body.modo-supervisor .btn-lancar { min-height: 40px; padding: 0 .875rem; }
   body.modo-supervisor .dia-mais { min-height: 44px; }
 }
+/* Análise da solicitação: marcar o que aprovar e o que reprovar, e ver em lista, grade ou por encarregado */
+#modalGenerico .modal-caixa.sol-larga { max-width: min(1100px, 96vw); }
+.sol-barra { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: .5rem; margin-bottom: .75rem; }
+.sol-visoes { display: flex; gap: .375rem; }
+.sol-visoes .sup-seg-btn { min-height: 38px; padding: 0 .75rem; }
+.sol-marcas { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.sol-caixa { width: 18px; height: 18px; accent-color: var(--acento); cursor: pointer; }
+.sol-linha-tab.marcada td { background: rgba(249,115,22,.10); }
+.sol-grade { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+.sol-grade .sup-g-torre { cursor: pointer; }
+.sup-g-prog.marcada { outline: 2px solid var(--acento); outline-offset: -1px; }
+.chip-prog.chip-fixo { cursor: default; opacity: .72; }
+.chip-prog.chip-fixo:hover { background: var(--superficie); border-color: var(--borda); }
+.sol-resumo { margin: .25rem 0 0 1rem; list-style: disc; color: var(--texto-suave); }
+.sup-card.recusada { border-color: rgba(225,29,72,.5); background: rgba(225,29,72,.06); }
+.sup-recusa { margin-top: .375rem; font-size: .8125rem; color: #E11D48; }

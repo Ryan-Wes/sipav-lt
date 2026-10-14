@@ -1,4 +1,4 @@
-﻿/* =============================================================================
+/* =============================================================================
    SIPAV LT — Utilidades de interface
    ========================================================================== */
 
@@ -92,6 +92,9 @@ window.SIPAV = window.SIPAV || {};
    * @param {object} opcoes {titulo, corpoHtml, botoes:[{rotulo, classe, acao}]}
    */
   function modalGenerico(opcoes) {
+    // A análise das solicitações alarga a janela; as outras voltam ao tamanho de sempre
+    var caixa = document.querySelector('#modalGenerico .modal-caixa');
+    if (caixa) caixa.classList.remove('sol-larga');
     $('genericoTitulo').textContent = opcoes.titulo || '';
     $('genericoCorpo').innerHTML = opcoes.corpoHtml || '';
 
