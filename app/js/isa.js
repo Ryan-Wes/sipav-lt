@@ -803,6 +803,13 @@ window.SIPAV = window.SIPAV || {};
     var ini = token.indexOf('(');
     var torre = (ini === -1 ? token : token.slice(0, ini)).trim();
     var dentro = '';
+    var percentualDepois = null;
+
+    // "44/1 66%": o percentual solto depois da torre, sem parêntese
+    if (ini === -1) {
+      var solto = /^(.*?\S)\s+(\d+(?:[.,]\d+)?)\s*%$/.exec(token.trim());
+      if (solto) return { torre: solto[1], percentual: Number(solto[2].replace(',', '.')), notas: [] };
+    }
 
     if (ini !== -1) {
       var fundo = 0, fim = -1;
@@ -810,8 +817,14 @@ window.SIPAV = window.SIPAV || {};
         if (token.charAt(k) === '(') fundo++;
         else if (token.charAt(k) === ')' && --fundo === 0) { fim = k; break; }
       }
-      // Sobrou texto depois do parêntese: não é "torre (nota)", fica como veio
-      if (fim !== -1 && token.slice(fim + 1).trim()) return { torre: token.trim(), percentual: null, notas: [] };
+      // Depois do parêntese só cabe um percentual ("44/1 (2 BOEIROS) 66%"); qualquer outro texto
+      // não é "torre (nota)", e fica como veio
+      var resto = fim !== -1 ? token.slice(fim + 1).trim() : '';
+      if (resto) {
+        var pDepois = /^(\d+(?:[.,]\d+)?)\s*%$/.exec(resto);
+        if (!pDepois) return { torre: token.trim(), percentual: null, notas: [] };
+        percentualDepois = Number(pDepois[1].replace(',', '.'));
+      }
       dentro = token.slice(ini + 1, fim === -1 ? token.length : fim);
     }
 
@@ -839,8 +852,9 @@ window.SIPAV = window.SIPAV || {};
       else notas.push(parte);
     });
 
-    return { torre: torre, percentual: percentual, notas: notas };
+    return { torre: torre, percentual: percentual != null ? percentual : percentualDepois, notas: notas };
   }
+
   /** O texto de uma célula, com as quebras de linha da planilha. */
   function textoDaCelula(ws, linha, col) {
     var v = valor(ws.getCell(linha, col));
@@ -1718,6 +1732,23 @@ window.SIPAV = window.SIPAV || {};
     Object.keys(grupos).forEach(function (k) {
       var g = grupos[k];
       if (g.length < 2) return;
+
+      // O mesmo percentual escrito em vários dias e somando mais de 100 ("44/1 (2 BOEIROS) 66%"
+      // na terça, quarta e quinta): não são 66% em cada dia, é o que o serviço vale na torre,
+      // repetido enquanto dura. Esse total é dividido entre os dias.
+      var escritos = g.filter(function (r) { return r.explicito; });
+      if (escritos.length > 1) {
+        var somaEscrita = escritos.reduce(function (s, r) { return s + r.percentual; }, 0);
+        var todosIguais = escritos.every(function (r) { return r.percentual === escritos[0].percentual; });
+        if (somaEscrita > 100 && todosIguais) {
+          var totalEscrito = escritos[0].percentual;
+          escritos.sort(function (a, b) { return a.data < b.data ? -1 : a.data > b.data ? 1 : 0; });
+          var fatia = Math.floor(totalEscrito * 100 / escritos.length) / 100;
+          escritos.forEach(function (r, i) {
+            r.percentual = i < escritos.length - 1 ? fatia : Math.round((totalEscrito - fatia * (escritos.length - 1)) * 100) / 100;
+          });
+        }
+      }
 
       var livres = g.filter(function (r) { return !r.explicito; });
       if (!livres.length) return;

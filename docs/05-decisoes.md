@@ -16,6 +16,14 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 13/10/2026
 
+### Importação: percentual depois do parêntese e repetido em vários dias — [WR]
+
+"44/1 (2 BOEIROS) 66%" (e "44/1 66%") saía como torre que não existe, porque o percentual
+vem depois do parêntese. Agora a torre é a 44/1, "2 BOEIROS" é o comentário e 66% o
+percentual. Escrito igual em vários dias e somando mais de 100% (66% na terça, quarta e
+quinta), não são 66% por dia: é o que o serviço vale na torre, repetido enquanto dura, e
+esse total é dividido entre os dias (22% em cada um; 75% em quatro dias dá 18,75%). Se a
+soma fecha 100 ou menos, valem os percentuais como estão.
 ### Importação: "atividade concluída" e torre com hífen — [WR]
 
 Na Buritirama–Barra II o texto "ATIVIDADE CONCLUIDA", escrito no dia em que o lançamento do
