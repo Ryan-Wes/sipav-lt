@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v173 · 2026-10-14';
+  var VERSAO = 'v174 · 2026-10-14';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -8567,12 +8567,20 @@ window.SIPAV = window.SIPAV || {};
       .then(function (existentes) {
         // O que já está no SIPAV não entra de novo. A chave é a mesma do banco:
         // torre, atividade, data e encarregado
-        var ja = {};
+        var ja = {}, jaSemQuem = {};
         existentes.forEach(function (p) {
           ja[[p.torre.id, p.atividade ? p.atividade.id : '', p.data, p.encarregado ? p.encarregado.id : '', p.cabo || ''].join('|')] = true;
+          jaSemQuem[[p.torre.id, p.atividade ? p.atividade.id : '', p.data, p.cabo || ''].join('|')] = true;
         });
         importacaoIsa.registros.forEach(function (x) {
           x.existe = !!ja[[x.torreId, x.atividadeId, x.data, x.encarregadoId || '', x.cabo || ''].join('|')];
+
+          // A planilha que não diz quem faz (frente sem nome, ou sem encarregado) não pode criar
+          // outra linha por cima da que alguém já programou na mão, com encarregado: o serviço da
+          // torre naquele dia já está lá, e a diferença é só o nome
+          if (!x.existe && (!x.encarregadoId || x.grupoFrente)) {
+            x.existe = !!jaSemQuem[[x.torreId, x.atividadeId, x.data, x.cabo || ''].join('|')];
+          }
         });
 
         resolverMudancasDaIsa(importacaoIsa.movimentos);

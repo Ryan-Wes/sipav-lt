@@ -16,6 +16,14 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 13/10/2026
 
+### Importação não passa por cima da programação manual — [WR]
+
+A importação nunca apaga nem altera o que já está no SIPAV. O que já está programado igual
+(torre, atividade, dia, cabo e encarregado) aparece em "já estão no SIPAV" e não se repete.
+Agora, quando a linha da planilha não diz quem faz (frente sem nome, ou sem encarregado), ela
+também conta como já programada se a torre, a atividade e o dia já têm programação, com
+qualquer encarregado: sem isso, a frente sem nome criaria uma segunda linha por cima da que
+alguém programou na mão, e a única diferença seria o nome.
 ### Etiqueta do trecho com a cor da planilha — [WR]
 
 A etiqueta do trecho nas programações (quando a tela mostra mais de um trecho) usa a mesma
