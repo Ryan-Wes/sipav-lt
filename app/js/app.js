@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v196 · 2026-10-15';
+  var VERSAO = 'v197 · 2026-10-15';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -260,7 +260,6 @@ window.SIPAV = window.SIPAV || {};
       .then(function (r) {
         E.obra = r[0]; E.trechos = r[1]; E.atividades = r[2];
         E.encarregados = r[3]; E.canteiros = r[4]; E.dependencias = r[5];
-        $('nomeObra').textContent = E.obra.nome;
 
         if (!E.trechos.length) {
           throw new Error('Nenhum trecho cadastrado. Rode o seed do banco (db/02-seed.sql).');
@@ -9812,8 +9811,7 @@ window.SIPAV = window.SIPAV || {};
 
     $('tituloPdf').textContent = titulo;
     $('subtituloPdf').textContent =
-      (E.obra ? E.obra.nome : '') +
-      ' · período ' + ui.rotuloPeriodo(E.periodo.de, E.periodo.ate) +
+      'Período ' + ui.rotuloPeriodo(E.periodo.de, E.periodo.ate) +
       ' · emitido em ' + ui.dataCurta(ui.hoje());
     ui.mostrar('cabecalhoPdf');
     document.body.classList.add('modo-pdf');
