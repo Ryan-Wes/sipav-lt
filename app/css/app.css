@@ -1938,3 +1938,16 @@ body.modo-supervisor main { padding-bottom: 6rem; }
 /* Supervisor: as programações dentro do cartão da torre são tocáveis (editar a dele, ver de quem é) */
 body.modo-supervisor .item-prog-toque { cursor: pointer; border-radius: .375rem; padding-top: .25rem; padding-bottom: .25rem; }
 body.modo-supervisor .item-prog-toque:hover, body.modo-supervisor .item-prog-toque:active { background: rgba(249,115,22,.12); }
+/* Marcar tudo de uma vez na Minha solicitação, e apagar as marcadas */
+.sup-selecao-topo { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; margin: .75rem 0 .25rem; }
+.sup-selecao-topo .sup-seg-btn { min-height: 40px; padding: 0 .875rem; }
+.sup-dia-sel { margin-left: .5rem; padding: .125rem .625rem; border-radius: 999px; font-size: .75rem; font-weight: 700;
+  border: 1px solid var(--borda-forte); color: var(--texto-suave); background: transparent; }
+.sup-dia-sel:active { background: var(--superficie-2); }
+.sup-dia h3 { display: flex; align-items: center; flex-wrap: wrap; }
+.sup-dia h3 > span { margin-left: auto; }
+.sup-dia h3 > .sup-dia-sel { margin-left: .5rem; order: 2; }
+.sup-seg-btn.perigo { color: #E11D48; border-color: rgba(225,29,72,.45); }
+#supBarraLinhas { flex-wrap: wrap; }
+#supBarraLinhas .sup-bt-info { flex: 1 1 100%; flex-direction: row; gap: .5rem; align-items: baseline; }
+#supBarraLinhas .btn-primario { flex: 1 1 auto; }

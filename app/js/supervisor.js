@@ -325,6 +325,14 @@ window.SIPAV = window.SIPAV || {};
               '<i data-lucide="plus" class="w-5 h-5"></i><span>Programar</span></button>';
     }
 
+    var marcaveis = S.minhas.filter(podeMarcar);
+    if (marcaveis.length > 1) {
+      var todasMarcadas = marcaveis.every(function (p) { return S.selLinhas[p.id]; });
+      html += '<div class="sup-selecao-topo"><button type="button" class="sup-seg-btn" data-acao="sel-todas">' +
+        (todasMarcadas ? 'Desmarcar todas' : 'Marcar todas (' + marcaveis.length + ')') + '</button>' +
+        '<span class="sup-fraco">Para apagar ou trocar o encarregado de várias de uma vez</span></div>';
+    }
+
     if (S.minhas.length) {
       var porDia = {};
       S.minhas.forEach(function (p) { (porDia[p.data] = porDia[p.data] || []).push(p); });
@@ -335,7 +343,9 @@ window.SIPAV = window.SIPAV || {};
           return ea.localeCompare(eb, 'pt-BR') || ((a.torre && a.torre.ordem) - (b.torre && b.torre.ordem));
         });
         return '<section class="sup-dia"><h3>' + esc(nomeCurtoDoDia(dia)) +
-               '<span>' + linhas.length + (linhas.length === 1 ? ' programação' : ' programações') + '</span></h3>' +
+               '<span>' + linhas.length + (linhas.length === 1 ? ' programação' : ' programações') + '</span>' +
+               (linhas.filter(podeMarcar).length > 1 ? '<button type="button" class="sup-dia-sel" data-acao="sel-dia" data-dia="' + dia + '">' +
+                 (linhas.filter(podeMarcar).every(function (p) { return S.selLinhas[p.id]; }) ? 'Desmarcar o dia' : 'Marcar o dia') + '</button>' : '') + '</h3>' +
                linhas.map(function (p) { return cartaoLinha(p, editavel && p.situacao === 'SOLICITADA'); }).join('') +
                '</section>';
       }).join('');
@@ -347,6 +357,13 @@ window.SIPAV = window.SIPAV || {};
     atualizarBarraDeLinhas();
     renderBarraDeEnvio();
     ui.icones();
+  }
+
+  /** Dá para marcar a linha para mexer em várias: a ainda não enviada (menos pedido de apagar) e a reprovada dele. */
+  function podeMarcar(p) {
+    var tipo = p.exclusao ? 'apagar' : p.substitui_id ? 'alteracao' : '';
+    return (ehEditavel() && p.situacao === 'SOLICITADA' && tipo !== 'apagar') ||
+           (p.situacao === 'RECUSADA' && !p.exclusao && ehMinha(p));
   }
 
   /** O tipo do pedido: nenhum (linha comum), alteração ou apagar. */
@@ -423,6 +440,48 @@ window.SIPAV = window.SIPAV || {};
     renderBarraDeEnvio();
   }
 
+  /** Marca todas as dadas; se já estavam todas marcadas, desmarca. */
+  function marcarVarias(linhas) {
+    var todas = linhas.length > 0 && linhas.every(function (p) { return S.selLinhas[p.id]; });
+    linhas.forEach(function (p) { if (todas) delete S.selLinhas[p.id]; else S.selLinhas[p.id] = true; });
+    renderMinha();
+  }
+
+  /** Apaga de uma vez as marcadas que ainda não foram enviadas. Reprovada não se apaga: fica no pacote antigo. */
+  function apagarMarcadas() {
+    var ids = Object.keys(S.selLinhas);
+    var linhas = ids.map(function (id) { return S.minhas.filter(function (p) { return p.id === id; })[0]; }).filter(Boolean);
+    var apagaveis = linhas.filter(function (p) { return p.situacao === 'SOLICITADA' && ehEditavel(); });
+    var reprovadas = linhas.length - apagaveis.length;
+    if (!apagaveis.length) {
+      ui.avisar('As reprovadas não se apagam: corrija e reapresente, ou deixe como estão.', 'alerta', 6000);
+      return;
+    }
+    var pedidos = apagaveis.filter(function (p) { return tipoDoPedido(p); }).length;
+    ui.confirmar('Apagar ' + apagaveis.length + (apagaveis.length === 1 ? ' programação' : ' programações'),
+      'Elas saem da sua solicitação.' + (pedidos ? ' Os pedidos de alteração ou de apagar que estiverem entre elas são cancelados, e a programação aprovada continua como está.' : '') +
+        (reprovadas ? ' ' + reprovadas + (reprovadas === 1 ? ' marcada reprovada fica' : ' marcadas reprovadas ficam') + ', porque não se apagam.' : ''),
+      'Apagar').then(function (sim) {
+      if (!sim) return;
+      ui.processando('Apagando ' + apagaveis.length + '…');
+      var fila = apagaveis.slice(), feitas = 0, falhas = [];
+      function um() {
+        var p = fila.shift();
+        if (!p) return Promise.resolve();
+        return db.removerProgramacao(p.id).then(function () { feitas++; },
+          function (e) { falhas.push(p.torre.identificador + ' em ' + ui.dataCurta(p.data) + ': ' + e.message); }).then(um);
+      }
+      return Promise.all([um(), um(), um(), um()]).then(function () {
+        S.selLinhas = {};
+        return atualizarTudo();
+      }).then(function () {
+        ui.pronto();
+        if (falhas.length) ui.avisar(feitas + ' apagada(s). Não deu: ' + falhas.slice(0, 2).join(' · '), 'alerta', 9000);
+        else ui.avisar(feitas + (feitas === 1 ? ' programação apagada.' : ' programações apagadas.'), 'sucesso', 4000);
+      });
+    }).catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro', 7000); });
+  }
+
   /** A barra de baixo com as linhas marcadas (só na aba Minha solicitação). */
   function atualizarBarraDeLinhas() {
     var barra = $('supBarraLinhas');
@@ -432,7 +491,7 @@ window.SIPAV = window.SIPAV || {};
     barra.classList.toggle('hidden', !mostrar);
     if (mostrar) {
       $('supBlInfo').innerHTML = '<b>' + n + (n === 1 ? ' programação marcada' : ' programações marcadas') + '</b>' +
-        '<span>Troque o encarregado de todas de uma vez</span>';
+        '';
     }
   }
 
@@ -645,6 +704,9 @@ window.SIPAV = window.SIPAV || {};
       case 'corrigir': abrirFormulario(S.minhas.filter(function (p) { return p.id === id; })[0]); break;
       case 'sel-linha': alternarLinha(id, alvo.checked); break;
       case 'sel-limpar': S.selLinhas = {}; renderMinha(); break;
+      case 'sel-todas': marcarVarias(S.minhas.filter(podeMarcar)); break;
+      case 'sel-dia': marcarVarias(S.minhas.filter(function (p) { return p.data === alvo.getAttribute('data-dia') && podeMarcar(p); })); break;
+      case 'sel-apagar': apagarMarcadas(); break;
       case 'sel-trocar-enc': trocarEncarregadoDasMarcadas(); break;
       case 'enviar': enviarPacote(); break;
       case 'fechar-form': fecharFormulario(); break;

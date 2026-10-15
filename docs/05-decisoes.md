@@ -16,6 +16,10 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 15/10/2026
 
+### Supervisor marca tudo de uma vez para apagar ou trocar o encarregado — [WR]
+
+Na Minha solicitação, acima da lista, **Marcar todas (n)** marca todas as que dá para mexer (as ainda não enviadas e as reprovadas dele), e cada dia ganha **Marcar o dia**. A barra de baixo com as marcadas passou a ter **Apagar**, além de **Trocar encarregado** e **Limpar**. Apagar leva só as ainda não enviadas (e cancela os pedidos de alteração ou de apagar que estiverem entre elas); a reprovada não se apaga, porque fica no pacote antigo, e a confirmação avisa quantas ficaram.
+
 ### Supervisor edita tocando na programação dentro do cartão da torre — [WR]
 
 Na grade, tocar no cartão da torre continua marcando ela para programar, mas cada programação dentro do cartão agora é tocável: abre a dela com Editar e Apagar (se ainda não foi enviada), Pedir alteração e Pedir para apagar (se já foi aprovada e é dele), ou só mostra de quem é. As pré-programações ganham a marca PRÉ (ou ALT, APAGAR) dentro do cartão. Antes, quem não achava o Por Encarregado ou a aba Minha solicitação não via por onde editar. As migrações 57 e 58 passaram a parar com um aviso se a 56 não foi aplicada antes, porque a função de decisão da 57 depende das colunas da 56.
