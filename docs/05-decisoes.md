@@ -16,6 +16,17 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 15/10/2026
 
+### Supervisor programa com seleção no mesmo lote do planejamento — [AM]
+
+O Alessandro sentiu falta, na tela do supervisor, de programar várias torres de uma vez do jeito do
+planejamento: várias atividades juntas e uma data para cada torre. A folha simples (uma atividade
+por vez, dias em botões) ficou só para o Por Encarregado e para o "+" de cada dia. Marcando torres
+na grade e tocando em Programar, o supervisor abre a **programação em lote** do admin, com as
+diferenças que o papel dele pede: cada linha vira pré-programação no pacote dele (um novo se o
+anterior já foi decidido), as datas só valem dentro da janela dele (o campo de data já limita e a
+gravação confere), e a sequência vira aviso, sem pedir motivo, porque quem decide é o planejamento
+na aprovação. O lote também avisa quando uma linha cai em cima de programação oficial ou de outro
+supervisor. No celular cada linha do lote quebra em duas.
 ### Supervisor altera o que já foi aprovado, como pedido — [WR]
 
 A programação do supervisor que já foi aprovada é oficial, e ele não mexe nela direto. Ao tocar nela

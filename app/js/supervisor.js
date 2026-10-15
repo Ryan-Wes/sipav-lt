@@ -562,7 +562,23 @@ window.SIPAV = window.SIPAV || {};
   function programarDaGrade() {
     var marcadas = torresDaSelecao();
     if (!marcadas.length) return;
-    abrirFormulario(null, { modo: 'torre', torresTexto: textoDasTorres(marcadas) });
+    if (bloqueadoPelaAnalise()) return;
+    // O mesmo lote do planejamento: várias atividades de uma vez e uma data para cada torre
+    window.SIPAV.app.abrirProgramacaoEmLote(null, '', 100, null, marcadas, null, {});
+  }
+
+  /** Nas linhas de um lote: onde já tem programação (oficial ou de outro supervisor) na mesma torre e dia. */
+  function avisosDeOcupacao(linhas) {
+    var vistos = {}, avisos = [];
+    linhas.forEach(function (l) {
+      if (!l.data) return;
+      ocupacao(l.torreId, l.data).forEach(function (o) {
+        if (vistos[o.id + l.torreId]) return;
+        vistos[o.id + l.torreId] = true;
+        avisos.push(l.identificador + ' em ' + ui.dataCurta(l.data) + ': ' + textoDaOcupacao(o));
+      });
+    });
+    return avisos;
   }
 
   document.addEventListener('input', function (ev) {
@@ -1841,5 +1857,8 @@ window.SIPAV = window.SIPAV || {};
     limparMarcas: limparMarcas,
     trocarVisao: trocarVisao,
     ligarSolicitacoesDoPlanejamento: ligarSolicitacoesDoPlanejamento,
-    atualizarContador: atualizarContador
+    atualizarContador: atualizarContador,
+    garantirRascunho: garantirRascunho,
+    limparSelecao: limparSelecaoDeTorres,
+    avisosDeOcupacao: avisosDeOcupacao
   };})();

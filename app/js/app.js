@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v183 · 2026-10-15';
+  var VERSAO = 'v184 · 2026-10-15';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -3449,6 +3449,22 @@ window.SIPAV = window.SIPAV || {};
   var loteUltimasMovs = [];    // e os dias sem atividade que a mesma importação registrou
   var lotePadrao = { encarregadoId: '', percentual: 100 };
 
+  /**
+   * O supervisor usa este mesmo lote para programar com seleção (foi pedido do Alessandro: dá
+   * mais produtividade do que uma atividade por vez). Muda pouco: as linhas viram pré-programação
+   * no pacote dele, as datas ficam dentro da janela dele, e a sequência vira aviso em vez de
+   * pedir motivo, porque quem decide a sequência é o planejamento, na aprovação.
+   */
+  function limitesDoLote() {
+    if (!E.modoSupervisor) return '';
+    var j = window.SIPAV.supervisor.janela();
+    return ' min="' + j.de + '" max="' + j.ate + '"';
+  }
+
+  function dataBaseDoLote() {
+    return E.modoSupervisor ? window.SIPAV.supervisor.janela().de : ui.hoje();
+  }
+
   /** Dia seguinte, pulando domingo, que é DSR. */
   function diaSeguinteUtil(iso) {
     var d = ui.somarDias(ui.paraData(iso), 1);
@@ -3577,7 +3593,7 @@ window.SIPAV = window.SIPAV || {};
 
           '<div>' +
             '<label class="rotulo">Data</label>' +
-            '<input id="loteBase" type="date" class="campo" value="' + ui.hoje() + '" ' +
+            '<input id="loteBase" type="date" class="campo" value="' + dataBaseDoLote() + '"' + limitesDoLote() + ' ' +
                    'onchange="SIPAV.app.mudarDataBaseLote()">' +
             '<p id="loteDiaSemana" class="dia-semana"></p>' +
             // As três formas de preencher as datas, no mesmo lugar. A terceira é
@@ -3666,6 +3682,9 @@ window.SIPAV = window.SIPAV || {};
             '</div>' +
           '</div>' +
         '</div>' +
+
+        // Só o supervisor: onde já tem programação, oficial ou de outro supervisor, na mesma torre e dia
+        '<div id="loteAvisoOcupacao" class="hidden"></div>' +
 
         // O que o encarregado escolhido já tem: programação e movimentação
         '<div id="loteResumoEnc" class="hidden"></div>' +
@@ -3910,6 +3929,19 @@ window.SIPAV = window.SIPAV || {};
           : '<p class="resumo-enc-vazio">Nada neste período.</p>') +
       '</details>';
 
+    caixa.classList.remove('hidden');
+  }
+
+  /** Supervisor: avisa as linhas do lote que caem em cima de outra programação (não impede). */
+  function renderAvisoDeOcupacaoLote() {
+    var caixa = $('loteAvisoOcupacao');
+    if (!caixa) return;
+    var avisos = E.modoSupervisor ? window.SIPAV.supervisor.avisosDeOcupacao(loteLinhas) : [];
+    if (!avisos.length) { caixa.classList.add('hidden'); caixa.innerHTML = ''; return; }
+    caixa.innerHTML = '<div class="sup-aviso-caixa"><strong>Atenção: já tem programação aí</strong>' +
+      avisos.slice(0, 6).map(function (a) { return '<p>⚠ ' + esc(a) + '</p>'; }).join('') +
+      (avisos.length > 6 ? '<p class="sup-fraco">e mais ' + (avisos.length - 6) + '…</p>' : '') +
+      '<p class="sup-fraco">Dá para programar mesmo assim, o planejamento confere.</p></div>';
     caixa.classList.remove('hidden');
   }
 
@@ -4394,6 +4426,7 @@ window.SIPAV = window.SIPAV || {};
 
     avisarDataPassada(loteLinhas.map(function (x) { return x.data; }));
     renderResumoDoEncarregadoLote();
+    renderAvisoDeOcupacaoLote();
 
     if (!loteAtividades.length) {
       caixa.innerHTML =
@@ -4427,7 +4460,7 @@ window.SIPAV = window.SIPAV || {};
           '<span class="lote-ativ" style="background:' + cor + ';color:' +
             ui.corDoTexto(cor) + '">' + esc(a ? a.nome : '—') + '</span>' +
           '<input type="date" class="campo lote-campo' + (passada ? ' lote-passada' : '') + '" ' +
-                 'style="width:130px" value="' + (x.data || '') + '" ' +
+                 'style="width:130px" value="' + (x.data || '') + '"' + limitesDoLote() + ' ' +
                  'onchange="SIPAV.app.mudarDataLote(' + i + ', this.value)">' +
           '<span class="lote-dia' + (fds ? ' fim-de-semana' : '') + '">' +
             esc(dia.slice(0, 3)) + '</span>' +
@@ -4469,6 +4502,16 @@ window.SIPAV = window.SIPAV || {};
 
     caixa.classList.toggle('hidden', !travadas);
     if (!travadas) return;
+
+    // O supervisor não precisa de motivo: é só um aviso, e o planejamento confere na aprovação
+    if (E.modoSupervisor) {
+      $('loteTextoSequencia').textContent =
+        travadas + (travadas === 1 ? ' lançamento está fora da sequência' : ' lançamentos estão fora da sequência') +
+        ' (o motivo está em vermelho na linha). Dá para programar mesmo assim: o planejamento confere antes de aprovar.';
+      $('loteJustSequencia').classList.add('hidden');
+      ui.icones();
+      return;
+    }
 
     $('loteTextoSequencia').textContent =
       travadas + (travadas === 1 ? ' lançamento está fora da sequência' : ' lançamentos estão fora da sequência') +
@@ -4603,7 +4646,7 @@ window.SIPAV = window.SIPAV || {};
     var justRetro = $('loteJustificativa').value.trim();
     var linhasNoPassado = loteLinhas.filter(function (x) { return x.data < ui.hoje(); });
 
-    if (linhasNoPassado.length && !justRetro) {
+    if (!E.modoSupervisor && linhasNoPassado.length && !justRetro) {
       ui.avisar(linhasNoPassado.length + ' lançamento(s) estão no passado. ' +
                 'Diga o motivo antes de programar.', 'alerta', 6000);
       $('loteJustificativa').focus();
@@ -4614,6 +4657,19 @@ window.SIPAV = window.SIPAV || {};
     // grava — o motivo é o que fica no histórico para explicar a exceção.
     var justSequencia = $('loteJustSequencia') ? $('loteJustSequencia').value.trim() : '';
     var foraDaSequencia = loteLinhas.filter(function (x) { return x.bloqueio; });
+
+    // O supervisor programa só dentro da janela dele, e não precisa de motivo para a sequência
+    if (E.modoSupervisor) {
+      var j = window.SIPAV.supervisor.janela();
+      var foraDaJanela = loteLinhas.filter(function (x) { return x.data < j.de || x.data > j.ate; });
+      if (foraDaJanela.length) {
+        ui.avisar(foraDaJanela.length + ' lançamento(s) fora da sua janela. Você programa de ' +
+                  ui.dataCurta(j.de) + ' a ' + ui.dataCurta(j.ate) + '.', 'alerta', 7000);
+        return;
+      }
+      foraDaSequencia = [];
+    }
+
     if (foraDaSequencia.length && !justSequencia) {
       ui.avisar(foraDaSequencia.length + ' lançamento(s) fora da sequência. ' +
                 'Escreva o motivo para programá-los mesmo assim, ou tire-os da lista.', 'alerta', 7000);
@@ -4651,11 +4707,16 @@ window.SIPAV = window.SIPAV || {};
 
     var ok = [], falhou = [], ids = [];
 
-    tarefas.reduce(function (antes, t) {
+    // O supervisor grava no pacote dele (abre um novo se o anterior já foi decidido)
+    var pacoteDele = E.modoSupervisor ? window.SIPAV.supervisor.garantirRascunho() : Promise.resolve(null);
+
+    pacoteDele.then(function (sol) {
+      return tarefas.reduce(function (antes, t) {
       return antes.then(function () {
         var a = E.atividades.find(function (y) { return y.id === t.atividadeId; });
         var rotulo = t.identificador + ' · ' + (a ? a.nome : '');
         return db.criarProgramacao({
+          solicitacaoId: sol ? sol.id : null,
           torreId: t.torreId,
           atividadeId: t.atividadeId,
           encarregadoId: t.encarregadoId || null,
@@ -4667,13 +4728,14 @@ window.SIPAV = window.SIPAV || {};
           // Só nas linhas cuja data passou; as futuras seguem sem
           justificativaRetroativa: t.data < ui.hoje() ? justRetro : null,
           // Só as linhas travadas ignoram a sequência; as outras seguem a regra
-          overrideMotivo: t.bloqueio ? justSequencia : null,
+          overrideMotivo: t.bloqueio && !E.modoSupervisor ? justSequencia : null,
           situacao: situacao
         })
           .then(function (nova) { ok.push(rotulo); if (nova && nova.id) ids.push(nova.id); })
           .catch(function (e) { falhou.push({ torre: rotulo, motivo: e.message }); });
       });
-    }, Promise.resolve())
+      }, Promise.resolve());
+    })
       .then(recarregarProgramacoes)
       .then(function () {
         ui.pronto();
@@ -4697,6 +4759,7 @@ window.SIPAV = window.SIPAV || {};
         }
 
         if (E.modoSelecao) limparSelecao();
+        if (E.modoSupervisor && ok.length) window.SIPAV.supervisor.limparSelecao();
         relatarLote(ok, falhou);
       })
       .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro'); });
