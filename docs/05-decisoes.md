@@ -16,6 +16,12 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 15/10/2026
 
+### Grade no celular com 2, 3 ou 4 cartões por linha; reprovadas reapresentadas sem mudar — [WR]
+
+No celular o seletor de colunas do computador (auto, 2 a 12) é ignorado e sai da tela; no lugar entra **2 · 3 · 4 por linha**, que fica guardado no aparelho. O 2 é o de sempre. Com 3 os cartões ficam mais enxutos e com 4 mostram só o essencial (torre, tipo e estado); as programações viram o selo com a contagem, no pé do cartão. Vale para planejamento e supervisor.
+
+Nas reprovadas, além de **Corrigir e reapresentar**, o supervisor tem **Reapresentar todas** (no grupo) e **Reapresentar** (na barra das marcadas), que mandam de volta para **Para enviar** do jeito que estão, sem mudar nada. Só o que foi reprovado é livre para editar; o que já foi aprovado continua passando por pedido de alteração.
+
 ### Reprovar e devolver viraram uma coisa só — [WR]
 
 **Reprovar** e **Devolver para corrigir** pareciam a mesma coisa e funcionavam de jeitos diferentes, o que confundia. O botão **Devolver** saiu da análise: reprovar já é devolver. Toda linha reprovada volta para o supervisor com o motivo, aparece no grupo **Reprovadas, para corrigir** e ele corrige e reapresenta. Para devolver a solicitação inteira, é só **Reprovar tudo** com uma justificativa. Os pacotes que já tinham sido devolvidos antes continuam funcionando do mesmo jeito para o supervisor; o banco ainda tem a função de devolver, só não há mais botão para ela.

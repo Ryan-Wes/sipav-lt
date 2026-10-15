@@ -372,6 +372,10 @@ window.SIPAV = window.SIPAV || {};
       var botaoTodas = marcaveisDaSecao.length > 1
         ? '<button type="button" class="sup-seg-btn" data-acao="sel-secao" data-secao="' + sec.id + '">' +
           (marcaveisDaSecao.every(function (p) { return S.selLinhas[p.id]; }) ? 'Desmarcar todas' : 'Marcar todas') + '</button>' : '';
+      // Reprovadas: dá para mandar de volta como estão, sem mexer (quando o motivo já foi resolvido por fora)
+      if (sec.id === 'reprovadas' && marcaveisDaSecao.length) {
+        botaoTodas += ' <button type="button" class="sup-seg-btn" data-acao="reapresentar-secao">Reapresentar todas</button>';
+      }
 
       if (sec.recolhida) {
         html += '<details class="sup-secao sup-secao-' + sec.id + '"><summary><span class="sup-secao-titulo">' + sec.titulo +
@@ -477,6 +481,35 @@ window.SIPAV = window.SIPAV || {};
     renderMinha();
   }
 
+  /**
+   * Manda as reprovadas de volta para "Para enviar" como estão, sem mudar nada (a correção foi feita
+   * por fora, ou o motivo não pedia mudança). Depois é só enviar a solicitação.
+   */
+  function reapresentarSemMudar(ids) {
+    var reprovadas = ids.map(function (id) { return S.minhas.filter(function (p) { return p.id === id; })[0]; })
+      .filter(function (p) { return p && p.situacao === 'RECUSADA' && !p.exclusao; });
+    if (!reprovadas.length) { ui.avisar('Marque pelo menos uma reprovada.', 'alerta', 4000); return; }
+    ui.confirmar('Reapresentar ' + reprovadas.length + (reprovadas.length === 1 ? ' reprovada' : ' reprovadas'),
+      'Elas voltam para "Para enviar" do jeito que estão, sem mudar nada. Depois é só tocar em Enviar para análise. ' +
+      'Para mudar alguma coisa, toque na programação e use Corrigir e reapresentar.', 'Reapresentar').then(function (sim) {
+      if (!sim) return;
+      ui.processando('Reapresentando…');
+      return garantirRascunho().then(function (sol) {
+        return db.reapresentarReprovadas(reprovadas.map(function (p) { return p.id; }), sol.id, {});
+      }).then(function (r) {
+        S.selLinhas = {};
+        return atualizarTudo().then(function () {
+          ui.pronto();
+          if (r.falhas && r.falhas.length) {
+            ui.avisar(r.corrigidas + ' voltou(voltaram). Não deu: ' + r.falhas.slice(0, 2).map(function (f) { return f.torre + ' em ' + ui.dataCurta(f.data) + ': ' + f.motivo; }).join(' · '), 'alerta', 10000);
+          } else {
+            ui.avisar(r.corrigidas + (r.corrigidas === 1 ? ' voltou' : ' voltaram') + ' para "Para enviar". Envie a solicitação para o planejamento analisar de novo.', 'sucesso', 7000);
+          }
+        });
+      });
+    }).catch(function (e) { ui.pronto(); ui.avisar(semMigracao58(e.message), 'erro', 9000); });
+  }
+
   /** Apaga de uma vez as marcadas que ainda não foram enviadas. Reprovada não se apaga: fica no pacote antigo. */
   function apagarMarcadas() {
     var ids = Object.keys(S.selLinhas);
@@ -519,6 +552,11 @@ window.SIPAV = window.SIPAV || {};
     var n = Object.keys(S.selLinhas).length;
     var mostrar = E.aba === 'solicitacao' && !S.erro && n > 0;
     barra.classList.toggle('hidden', !mostrar);
+    var temReprovada = Object.keys(S.selLinhas).some(function (id) {
+      var p = S.minhas.filter(function (x) { return x.id === id; })[0];
+      return p && p.situacao === 'RECUSADA';
+    });
+    $('supBlReapresentar').classList.toggle('hidden', !temReprovada);
     if (mostrar) {
       $('supBlInfo').innerHTML = '<b>' + n + (n === 1 ? ' programação marcada' : ' programações marcadas') + '</b>' +
         '';
@@ -739,6 +777,8 @@ window.SIPAV = window.SIPAV || {};
         return p.data === alvo.getAttribute('data-dia') && secaoDe(p) === alvo.getAttribute('data-secao') && podeMarcar(p);
       })); break;
       case 'sel-apagar': apagarMarcadas(); break;
+      case 'sel-reapresentar': reapresentarSemMudar(Object.keys(S.selLinhas)); break;
+      case 'reapresentar-secao': reapresentarSemMudar(S.minhas.filter(function (p) { return secaoDe(p) === 'reprovadas' && podeMarcar(p); }).map(function (p) { return p.id; })); break;
       case 'sel-trocar-enc': trocarEncarregadoDasMarcadas(); break;
       case 'enviar': enviarPacote(); break;
       case 'fechar-form': fecharFormulario(); break;

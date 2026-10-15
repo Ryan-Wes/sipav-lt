@@ -1870,7 +1870,7 @@ body.modo-supervisor main { padding-bottom: 6rem; }
   body.modo-supervisor .barra-ferramentas { padding: .5rem; gap: .5rem; margin-bottom: .75rem; }
   body.modo-supervisor .barra-ferramentas .aba { min-height: 44px; flex: 1 1 auto; justify-content: center; }
   body.modo-supervisor .linha-filtros { width: 100%; }
-  body.modo-supervisor #visaoGrade { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 10px; }
+  body.modo-supervisor #visaoGrade { grid-template-columns: repeat(var(--cols-cel, 2), minmax(0, 1fr)) !important; gap: 10px; }
   body.modo-supervisor #filtroColunas { display: none; }
   body.modo-supervisor .caixa-filtro:has(#filtroColunas) { display: none !important; }
   body.modo-supervisor .btn-lancar { min-height: 40px; padding: 0 .875rem; }
@@ -1966,3 +1966,39 @@ body.modo-supervisor .item-prog-toque:hover, body.modo-supervisor .item-prog-toq
 .sup-secao-aprovadas > summary::after { content: '▾'; margin-left: auto; color: var(--texto-fraco); }
 .sup-secao-aprovadas[open] > summary::after { content: '▴'; }
 .sup-secao .sup-seg-btn { min-height: 38px; padding: 0 .75rem; }
+/* ---------------------------------------- Cartões por linha, só no celular --- */
+.caixa-colunas-cel { display: none; }
+.seg-colunas { display: inline-flex; gap: 2px; padding: 2px; border-radius: .5rem; background: var(--superficie-2); }
+.seg-colunas button { min-width: 34px; height: 30px; padding: 0 .5rem; border-radius: .375rem; font-size: .8125rem; font-weight: 800;
+  color: var(--texto-suave); background: transparent; border: 1px solid transparent; }
+.seg-colunas button.ativo { color: var(--texto); background: var(--superficie); border-color: var(--acento); }
+.rotulo-cols { font-size: .6875rem; color: var(--texto-fraco); white-space: nowrap; }
+
+@media (max-width: 639px) {
+  .caixa-colunas-cel { display: flex; align-items: center; gap: .5rem; grid-column: 1 / -1; justify-content: center; }
+  /* O seletor numérico (auto, 2…12) é do computador */
+  .caixa-filtro:has(#filtroColunas) { display: none !important; }
+  /* Vale a escolha 2, 3 ou 4, em vez do que couber */
+  #visaoGrade { grid-template-columns: repeat(var(--cols-cel, 2), minmax(0, 1fr)) !important; gap: 8px; }
+
+  /* Com 3 por linha: cartão mais enxuto */
+  body[data-cols-cel="3"] .cartao-torre { padding: .625rem .25rem; min-height: 120px; gap: .3125rem; }
+  body[data-cols-cel="3"] .cartao-torre .identificador { font-size: .9375rem; }
+  body[data-cols-cel="3"] .cartao-torre .legenda { font-size: .5938rem; }
+  body[data-cols-cel="3"] .cartao-torre .modelo { font-size: .5938rem; }
+  body[data-cols-cel="3"] .pastilha-estrutura { font-size: .5625rem; padding: .125rem .25rem; }
+  body[data-cols-cel="3"] .item-prog { font-size: .5625rem; }
+  body[data-cols-cel="3"] .item-prog .encarregado { font-size: .5625rem; }
+
+  /* Com 4: só o essencial (torre, tipo e estado); as programações viram o selo com a contagem */
+  body[data-cols-cel="4"] #visaoGrade { gap: 6px; }
+  body[data-cols-cel="4"] .cartao-torre { padding: .5rem .125rem; min-height: 96px; gap: .25rem; border-radius: .5rem; }
+  body[data-cols-cel="4"] .cartao-torre .identidade { gap: .25rem; }
+  body[data-cols-cel="4"] .cartao-torre .identificador { font-size: .8125rem; }
+  body[data-cols-cel="4"] .cartao-torre .legenda { font-size: .5rem; line-height: 1.2; padding: 0 .125rem; }
+  body[data-cols-cel="4"] .cartao-torre .modelo { display: none; }
+  body[data-cols-cel="4"] .pastilha-estrutura { font-size: .5rem; padding: .0625rem .1875rem; }
+  body[data-cols-cel="4"] .lista-prog { display: none; }
+  /* Os selos (contagem e observação) descem para o pé do cartão, para não cobrir o número da torre */
+  body[data-cols-cel="4"] .selo-prog, body[data-cols-cel="4"] .selo-obs { top: auto; bottom: .1875rem; transform: scale(.85); }
+}

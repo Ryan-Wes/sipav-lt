@@ -41,7 +41,7 @@
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 
   <!-- ?v= força o navegador a buscar de novo quando o código muda. -->
-  <link rel="stylesheet" href="css/app.css?v=190">
+  <link rel="stylesheet" href="css/app.css?v=191">
 </head>
 <body class="h-full flex flex-col antialiased">
 
@@ -372,6 +372,17 @@
           </select>
         </div>
 
+        <!-- Só no celular: quantos cartões por linha na grade (o seletor de cima fica para o computador) -->
+        <div class="caixa-filtro caixa-colunas-cel" id="caixaColunasCel">
+          <i data-lucide="columns-3" class="w-3.5 h-3.5" style="color:var(--texto-fraco)"></i>
+          <div class="seg-colunas" role="group" aria-label="Cartões por linha">
+            <button type="button" data-cols="2" onclick="SIPAV.app.mudarColunasCelular(2)">2</button>
+            <button type="button" data-cols="3" onclick="SIPAV.app.mudarColunasCelular(3)">3</button>
+            <button type="button" data-cols="4" onclick="SIPAV.app.mudarColunasCelular(4)">4</button>
+          </div>
+          <span class="rotulo-cols">por linha</span>
+        </div>
+
         <div class="caixa-filtro">
           <i data-lucide="tent" class="w-3.5 h-3.5" style="color:var(--texto-fraco)"></i>
           <select id="filtroCanteiro" onchange="SIPAV.app.renderizar()" class="select-filtro">
@@ -456,6 +467,7 @@
   <div class="sup-bt-info" id="supBlInfo"></div>
   <button type="button" class="sup-seg-btn" data-acao="sel-limpar">Limpar</button>
   <button type="button" class="sup-seg-btn perigo" data-acao="sel-apagar">Apagar</button>
+  <button type="button" id="supBlReapresentar" class="sup-seg-btn hidden" data-acao="sel-reapresentar">Reapresentar</button>
   <button type="button" class="btn-primario" data-acao="sel-trocar-enc">Trocar encarregado</button>
 </div>
 
@@ -801,12 +813,12 @@
   </div>
 </div>
 
-<script src="js/config.js?v=190"></script>
-<script src="js/db.js?v=190"></script>
-<script src="js/ui.js?v=190"></script>
-<script src="js/render.js?v=190"></script>
-<script src="js/isa.js?v=190"></script>
-<script src="js/supervisor.js?v=190"></script>
-<script src="js/app.js?v=190"></script>
+<script src="js/config.js?v=191"></script>
+<script src="js/db.js?v=191"></script>
+<script src="js/ui.js?v=191"></script>
+<script src="js/render.js?v=191"></script>
+<script src="js/isa.js?v=191"></script>
+<script src="js/supervisor.js?v=191"></script>
+<script src="js/app.js?v=191"></script>
 </body>
 </html>

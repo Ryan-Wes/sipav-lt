@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v190 · 2026-10-15';
+  var VERSAO = 'v191 · 2026-10-15';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -286,6 +286,7 @@ window.SIPAV = window.SIPAV || {};
     E.escopo = localStorage.getItem('sipav_escopo') === 'trecho' ? 'trecho' : 'todos';
     if ($('filtroEscopo')) $('filtroEscopo').value = E.escopo;
         $('filtroColunas').value = E.colunas;
+        aplicarColunasCelular(localStorage.getItem('sipav_colunas_cel'));
 
         if (E.modoSupervisor) {
           var janela = window.SIPAV.supervisor.janela();
@@ -675,6 +676,7 @@ window.SIPAV = window.SIPAV || {};
     E.aba = aba;
     // Seletor de colunas só faz sentido na grade
     $('filtroColunas').parentNode.style.display = aba === 'grade' ? '' : 'none';
+    if ($('caixaColunasCel')) $('caixaColunasCel').style.display = aba === 'grade' ? '' : 'none';
     // E o escopo só nas outras: a grade é sempre do trecho aberto
     $('filtroEscopo').parentNode.style.display = aba === 'grade' ? 'none' : '';
 
@@ -697,6 +699,27 @@ window.SIPAV = window.SIPAV || {};
     recarregarProgramacoes()
       .then(ui.pronto)
       .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro'); });
+  }
+
+  /**
+   * No celular a escolha de colunas do computador é ignorada (esmagaria os cartões); em vez dela
+   * vale esta: 2, 3 ou 4 por linha. O 2 é o de sempre. Com 3 e 4 os cartões ficam mais enxutos
+   * (ver o css), para a torre e o estado caberem.
+   */
+  function aplicarColunasCelular(valor) {
+    var n = Number(valor);
+    if ([2, 3, 4].indexOf(n) === -1) n = 2;
+    document.documentElement.style.setProperty('--cols-cel', String(n));
+    document.body.setAttribute('data-cols-cel', String(n));
+    Array.prototype.forEach.call(document.querySelectorAll('#caixaColunasCel [data-cols]'), function (b) {
+      b.classList.toggle('ativo', Number(b.getAttribute('data-cols')) === n);
+    });
+    return n;
+  }
+
+  function mudarColunasCelular(valor) {
+    var n = aplicarColunasCelular(valor);
+    try { localStorage.setItem('sipav_colunas_cel', String(n)); } catch (e) {}
   }
 
   function mudarColunas(valor) {
@@ -9804,7 +9827,7 @@ window.SIPAV = window.SIPAV || {};
     iniciar: iniciar, sair: sair, alternarTema: alternarTema,
     alternarMenu: alternarMenu, fecharMenus: fecharMenus,
     abrirAlterarSenha: abrirAlterarSenha,
-    trocarAba: trocarAba, mudarColunas: mudarColunas, mudarEscopo: mudarEscopo, renderizar: renderizar,
+    trocarAba: trocarAba, mudarColunas: mudarColunas, mudarColunasCelular: mudarColunasCelular, mudarEscopo: mudarEscopo, renderizar: renderizar,
     mudarPeriodo: mudarPeriodo, limparFiltros: limparFiltros,
     fecharModal: ui.fecharModal,
 
