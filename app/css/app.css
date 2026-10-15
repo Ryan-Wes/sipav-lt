@@ -695,6 +695,8 @@ html.dark .hover\:bg-slate-200:hover   { background-color: var(--superficie-3) !
 /* Etapa 2 — o seletor de trecho encolhe e o nome da obra sai */
 @media (max-width: 1199px) {
   #seletorTrecho { min-width: 0; width: 100%; max-width: 190px; }
+  /* O subtítulo da marca só no computador, onde há espaço */
+  .subtitulo-marca { display: none; }
   .barra-cabecalho { padding-left: 1rem; padding-right: 1rem; }
 }
 
