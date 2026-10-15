@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v197 · 2026-10-15';
+  var VERSAO = 'v198 · 2026-10-15';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -585,13 +585,15 @@ window.SIPAV = window.SIPAV || {};
   // só a que está em uso.
   var LOGOS = {
     dark: {
-      logoLogin:   'img/completo-branco.png',
+      logoLoginSimbolo: 'img/simbolo-branco.webp',
+      logoLoginTexto:   'img/texto-branco.webp',
       logoSimbolo: 'img/simbolo-branco.webp',
       logoSimbolo2: 'img/simbolo-branco.webp',
       logoTexto:   'img/texto-branco.webp'
     },
     light: {
-      logoLogin:   'img/completo-preto.webp',
+      logoLoginSimbolo: 'img/simbolo-preto.png',
+      logoLoginTexto:   'img/texto-preto.webp',
       logoSimbolo: 'img/simbolo-preto.png',
       logoSimbolo2: 'img/simbolo-preto.png',
       logoTexto:   'img/texto-preto.webp'

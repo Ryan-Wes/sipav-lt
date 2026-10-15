@@ -41,7 +41,7 @@
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 
   <!-- ?v= força o navegador a buscar de novo quando o código muda. -->
-  <link rel="stylesheet" href="css/app.css?v=197">
+  <link rel="stylesheet" href="css/app.css?v=198">
 </head>
 <body class="h-full flex flex-col antialiased">
 
@@ -52,8 +52,11 @@
      style="background:var(--fundo);background-image:var(--brilho)">
   <div class="w-full max-w-sm">
     <div class="text-center mb-8">
-      <img id="logoLogin" alt="SIPAV LT" class="mx-auto mb-3"
-           style="height:76px;width:auto">
+      <!-- A torre em cima do nome, as duas da mesma largura e centralizadas -->
+      <div class="logo-login mx-auto mb-4">
+        <img id="logoLoginSimbolo" alt="">
+        <img id="logoLoginTexto" alt="SIPAV LT">
+      </div>
       <p class="text-base" style="color:var(--texto-fraco)">Sistema de Planejamento de Avanço</p>
     </div>
 
@@ -813,12 +816,12 @@
   </div>
 </div>
 
-<script src="js/config.js?v=197"></script>
-<script src="js/db.js?v=197"></script>
-<script src="js/ui.js?v=197"></script>
-<script src="js/render.js?v=197"></script>
-<script src="js/isa.js?v=197"></script>
-<script src="js/supervisor.js?v=197"></script>
-<script src="js/app.js?v=197"></script>
+<script src="js/config.js?v=198"></script>
+<script src="js/db.js?v=198"></script>
+<script src="js/ui.js?v=198"></script>
+<script src="js/render.js?v=198"></script>
+<script src="js/isa.js?v=198"></script>
+<script src="js/supervisor.js?v=198"></script>
+<script src="js/app.js?v=198"></script>
 </body>
 </html>

@@ -110,7 +110,10 @@ body::before {
 }
 
 /* Logotipos: a troca claro/escuro é feita por src, em app.js */
-#logoSimbolo, #logoTexto, #logoLogin { display: block; max-width: 100%; }
+#logoSimbolo, #logoTexto { display: block; max-width: 100%; }
+/* Tela de login: a torre em cima do nome SIPAV LT, as duas da mesma largura, centralizadas */
+.logo-login { width: min(190px, 56vw); display: flex; flex-direction: column; align-items: center; gap: .625rem; }
+.logo-login img { display: block; width: 100%; height: auto; }
 
 /* ---------------------------------------------------------------- Botões -- */
 
