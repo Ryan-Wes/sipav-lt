@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v193 · 2026-10-15';
+  var VERSAO = 'v194 · 2026-10-15';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -677,7 +677,6 @@ window.SIPAV = window.SIPAV || {};
     // Seletor de colunas só faz sentido na grade
     $('filtroColunas').parentNode.style.display = aba === 'grade' ? '' : 'none';
     if ($('caixaColunasCel')) $('caixaColunasCel').style.display = aba === 'grade' ? '' : 'none';
-    if ($('caixaArrastar')) $('caixaArrastar').style.display = aba === 'grade' ? '' : 'none';
     // E o escopo só nas outras: a grade é sempre do trecho aberto
     $('filtroEscopo').parentNode.style.display = aba === 'grade' ? 'none' : '';
 

@@ -2100,17 +2100,7 @@ body.modo-supervisor .item-prog-toque:hover, body.modo-supervisor .item-prog-toq
 /* Linha do lote sem data: avisa em vez de deixar o campo vazio */
 .lote-sem-data { width: auto !important; color: #F59E0B !important; white-space: nowrap; font-size: .625rem !important; letter-spacing: .04em; }
 .lote-campo.lote-vazia { border-color: rgba(245,158,11,.6); }
-/* Selecionar arrastando (só do supervisor): ligado, o toque na grade vira arrasto e não rola a tela */
-.caixa-arrastar { display: none; }
-body.modo-supervisor .caixa-arrastar { display: flex; }
-.btn-arrastar { display: inline-flex; align-items: center; gap: .375rem; min-height: 36px; padding: 0 .75rem; border-radius: .5rem; font-size: .75rem; font-weight: 700;
-  color: var(--texto-suave); background: transparent; border: 1px solid transparent; }
-.btn-arrastar .estado-arrastar { font-size: .625rem; letter-spacing: .04em; text-transform: uppercase; padding: .0625rem .375rem; border-radius: 999px;
-  background: var(--superficie-2); color: var(--texto-fraco); }
-.btn-arrastar.ativo { color: var(--texto); border-color: var(--acento); background: rgba(249,115,22,.12); }
-.btn-arrastar.ativo .estado-arrastar { background: var(--acento); color: #fff; }
-body.sup-arrastando #visaoGrade { touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
-body.sup-arrastando #visaoGrade .cartao-torre { cursor: crosshair; }
-@media (max-width: 639px) {
-  .caixa-arrastar { grid-column: 1 / -1; justify-content: center; }
-}
+/* Selecionar arrastando (só do supervisor), sem botão: a grade deixa o navegador cuidar da rolagem vertical
+   (pan-y) e entrega o arrasto para o lado ao script. Texto não se seleciona, para o arrasto não virar cópia. */
+body.modo-supervisor #visaoGrade { touch-action: pan-y; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.sup-dica { display: block; margin-top: .25rem; font-size: .75rem; color: var(--texto-fraco); }

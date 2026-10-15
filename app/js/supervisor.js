@@ -35,8 +35,9 @@ window.SIPAV = window.SIPAV || {};
     torrePorNome: {},
     faixa: false,            // marcando uma faixa de torres na grade
     ancora: null,
-    arrasto: false,          // arrastar pela grade marca várias torres (ligado pelo botão)
-    arrastando: null,        // o arrasto em andamento: { modo: 'por' | 'tirar', ultimo, x, y }
+    candidato: null,         // um toque que começou numa torre e ainda não decidiu se é seleção ou rolagem
+    arrastando: null,        // a seleção por arrasto em andamento: { modo: 'por' | 'tirar', ultimo, x, y }
+    engolirClique: false,    // depois de selecionar arrastando, o clique que o navegador manda em seguida não conta
     abaMinhas: null,         // a aba aberta dentro de Minhas programações (nula: a primeira com linhas)
     selLinhas: {}            // linhas marcadas na aba Minhas programações, para mexer em várias de uma vez
   };
@@ -179,7 +180,7 @@ window.SIPAV = window.SIPAV || {};
     S.ativo = false;
     F = null; G = null;
     if (atualizador) { clearInterval(atualizador); atualizador = null; }
-    document.body.classList.remove('modo-supervisor', 'sup-travado', 'sup-arrastando');
+    document.body.classList.remove('modo-supervisor', 'sup-travado');
     E.modoSupervisor = false;
     ['supFolha', 'supGrade', 'supBarraTorres', 'supEnviar'].forEach(function (id) { ui.esconder(id); });
   }
@@ -206,7 +207,8 @@ window.SIPAV = window.SIPAV || {};
     var el = $('bannerSupervisor');
     if (!el) return;
     el.innerHTML = '<strong>Você programa de ' + esc(ui.dataCurta(j.de)) + ' a ' + esc(ui.dataCurta(j.ate)) +
-      '</strong><span>o semanal e o quinzenal. O resto da programação é só para consultar.</span>';
+      '</strong><span>o semanal e o quinzenal. O resto da programação é só para consultar.</span>' +
+      '<span class="sup-dica">Dica: arraste o dedo para o lado sobre as torres para marcar várias, e de novo para desmarcar. Para cima ou para baixo, a tela rola.</span>';
     el.classList.remove('hidden');
   }
 
@@ -218,15 +220,17 @@ window.SIPAV = window.SIPAV || {};
 
     document.addEventListener('click', aoClicar);
 
-    // Selecionar arrastando: pointer events servem ao dedo e ao mouse. Com o arrasto ligado a grade não rola
-    // por toque (touch-action), e o clique que vem depois do toque é engolido, para não marcar duas vezes.
+    // Selecionar arrastando, sem botão: arrastar para o LADO sobre as torres marca (ou desmarca, se começou numa
+    // marcada) e, sem soltar, seguir para baixo continua marcando. Arrastar para CIMA ou para BAIXO logo de início é
+    // rolagem (a grade tem touch-action: pan-y, então o navegador rola sozinho e manda pointercancel).
     document.addEventListener('pointerdown', aoComecarArrasto, true);
     document.addEventListener('pointermove', aoArrastar, true);
     document.addEventListener('pointerup', aoSoltarArrasto, true);
     document.addEventListener('pointercancel', aoSoltarArrasto, true);
     document.addEventListener('click', function (ev) {
-      if (!S.ativo || !S.arrasto) return;
+      if (!S.ativo || !S.engolirClique) return;
       if (ev.target.closest && ev.target.closest('#visaoGrade')) { ev.stopPropagation(); ev.preventDefault(); }
+      S.engolirClique = false;
     }, true);
     document.addEventListener('keydown', function (ev) {
       if (!S.ativo || ev.key !== 'Escape') return;
@@ -743,19 +747,6 @@ window.SIPAV = window.SIPAV || {};
 
   /* ------------------------------------------- Selecionar arrastando ----- */
 
-  function alternarArrasto() {
-    S.arrasto = !S.arrasto;
-    S.arrastando = null;
-    document.body.classList.toggle('sup-arrastando', S.arrasto);
-    var b = $('btnArrastar');
-    if (b) {
-      b.classList.toggle('ativo', S.arrasto);
-      b.setAttribute('aria-pressed', S.arrasto ? 'true' : 'false');
-      b.querySelector('.estado-arrastar').textContent = S.arrasto ? 'ligado' : 'desligado';
-    }
-    if (S.arrasto) ui.avisar('Passe o dedo pelas torres para marcar. Começando numa já marcada, desmarca. Desligue para rolar a tela.', 'info', 6000);
-  }
-
   function torreDoPonto(x, y) {
     var el = document.elementFromPoint(x, y);
     var card = el && el.closest ? el.closest('#visaoGrade .cartao-torre') : null;
@@ -769,23 +760,39 @@ window.SIPAV = window.SIPAV || {};
     marcarCartao(id);
   }
 
+  /** O dedo (ou o mouse) desceu numa torre: ainda não se sabe se vai ser seleção ou rolagem. */
   function aoComecarArrasto(ev) {
-    if (!S.ativo || !S.arrasto || E.aba !== 'grade' || bloqueadoSilencioso()) return;
+    if (!S.ativo || E.aba !== 'grade' || bloqueadoSilencioso()) return;
+    if (ev.pointerType === 'mouse' && ev.button !== 0) return;
     var id = torreDoPonto(ev.clientX, ev.clientY);
     if (!id) return;
-    E.supSel = E.supSel || {};
-    // Começar numa torre já marcada desmarca; numa livre, marca
-    S.arrastando = { modo: E.supSel[id] ? 'tirar' : 'por', ultimo: id, x: ev.clientX, y: ev.clientY };
-    ev.preventDefault();
-    aplicarNoArrasto(id);
-    atualizarBarraDeTorres();
+    S.candidato = { id: id, x0: ev.clientX, y0: ev.clientY };
+    S.arrastando = null;
   }
 
   function aoArrastar(ev) {
-    if (!S.ativo || !S.arrastando) return;
+    if (!S.ativo) return;
+
+    // Ainda decidindo: para o lado vira seleção; para cima ou para baixo é rolagem e some o candidato
+    if (S.candidato && !S.arrastando) {
+      var dx = ev.clientX - S.candidato.x0, dy = ev.clientY - S.candidato.y0;
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+      if (Math.abs(dx) > Math.abs(dy)) {
+        E.supSel = E.supSel || {};
+        // Começar numa torre já marcada desmarca; numa livre, marca
+        S.arrastando = { modo: E.supSel[S.candidato.id] ? 'tirar' : 'por', ultimo: S.candidato.id, x: S.candidato.x0, y: S.candidato.y0 };
+        aplicarNoArrasto(S.candidato.id);
+        S.engolirClique = true;
+      }
+      S.candidato = null;
+      if (!S.arrastando) return;
+    }
+
+    if (!S.arrastando) return;
     ev.preventDefault();
     var a = S.arrastando;
-    // Dedo rápido pula cartões: anda do ponto anterior ao atual de pouco em pouco
+    // Dedo rápido pula cartões: anda do ponto anterior ao atual de pouco em pouco. Depois de começar para o
+    // lado, vale qualquer direção (para baixo continua marcando as torres de baixo) até soltar o dedo.
     var passos = Math.max(1, Math.ceil(Math.hypot(ev.clientX - a.x, ev.clientY - a.y) / 12));
     for (var i = 1; i <= passos; i++) {
       var id = torreDoPonto(a.x + (ev.clientX - a.x) * i / passos, a.y + (ev.clientY - a.y) * i / passos);
@@ -795,12 +802,17 @@ window.SIPAV = window.SIPAV || {};
     atualizarBarraDeTorres();
   }
 
+  /** Soltou o dedo: a próxima vez começa do zero (para o lado seleciona de novo, para cima ou para baixo rola). */
   function aoSoltarArrasto() {
-    if (!S.arrastando) return;
+    var estava = !!S.arrastando;
+    S.candidato = null;
     S.arrastando = null;
-    atualizarBarraDeTorres();
+    if (estava) {
+      atualizarBarraDeTorres();
+      // O clique que o navegador manda depois do toque não pode marcar de novo; se não vier, solta sozinho
+      setTimeout(function () { S.engolirClique = false; }, 350);
+    }
   }
-
   /** Sem aviso: o pacote enviado trava a programação, mas o toque na grade continua marcando para consulta. */
   function bloqueadoSilencioso() { return !!(S.sol && S.sol.status === 'ENVIADA'); }
 
@@ -922,7 +934,6 @@ window.SIPAV = window.SIPAV || {};
       case 'por-encarregado': programarParaEncarregado('', ''); break;
       case 'bt-programar': programarDaGrade(); break;
       case 'bt-limpar': limparSelecaoDeTorres(); break;
-      case 'arrastar-alternar': alternarArrasto(); break;
       case 'bt-faixa': S.faixa = !S.faixa; S.ancora = null; atualizarBarraDeTorres(); break;
       case 'editar':
       case 'pedir-alteracao': abrirFormulario(S.minhas.filter(function (p) { return p.id === id; })[0]); break;
