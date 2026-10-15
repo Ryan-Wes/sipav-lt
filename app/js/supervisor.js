@@ -35,6 +35,7 @@ window.SIPAV = window.SIPAV || {};
     torrePorNome: {},
     faixa: false,            // marcando uma faixa de torres na grade
     ancora: null,
+    abaMinhas: null,         // a aba aberta dentro de Minhas programações (nula: a primeira com linhas)
     selLinhas: {}            // linhas marcadas na aba Minhas programações, para mexer em várias de uma vez
   };
   var F = null;              // o formulário aberto
@@ -308,10 +309,10 @@ window.SIPAV = window.SIPAV || {};
 
   /** Os grupos da aba, na ordem em que aparecem: o que fazer com cada linha está no próprio título. */
   var SECOES = [
-    { id: 'enviar', titulo: 'Para enviar', dica: 'Ainda não foram para o planejamento. Quando terminar, toque em <b>Enviar para análise</b>.' },
-    { id: 'reprovadas', titulo: 'Reprovadas, para corrigir', dica: 'O planejamento não aprovou e devolveu para você corrigir. Toque numa para ver o motivo, corrigir e reapresentar.' },
-    { id: 'analise', titulo: 'Enviadas, aguardando análise', dica: 'Estão com o planejamento. Enquanto isso não dá para alterar.' },
-    { id: 'aprovadas', titulo: 'Aprovadas', dica: 'Já são programação oficial. Para mudar, toque na programação e faça o pedido.', recolhida: true }
+    { id: 'enviar', titulo: 'Para enviar', rotuloAba: 'Para enviar', dica: 'Ainda não foram para o planejamento. Quando terminar, toque em <b>Enviar para análise</b>.' },
+    { id: 'reprovadas', titulo: 'Reprovadas, para corrigir', rotuloAba: 'Reprovadas', dica: 'O planejamento não aprovou e devolveu para você corrigir. Toque numa para ver o motivo, corrigir e reapresentar.' },
+    { id: 'analise', titulo: 'Enviadas, aguardando análise', rotuloAba: 'Em análise', dica: 'Estão com o planejamento. Enquanto isso não dá para alterar.' },
+    { id: 'aprovadas', titulo: 'Aprovadas', rotuloAba: 'Aprovadas', dica: 'Já são programação oficial. Para mudar, toque na programação e faça o pedido.', recolhida: true }
   ];
 
   function secaoDe(p) {
@@ -343,7 +344,25 @@ window.SIPAV = window.SIPAV || {};
     var porSecao = {};
     S.minhas.forEach(function (p) { (porSecao[secaoDe(p)] = porSecao[secaoDe(p)] || []).push(p); });
 
-    SECOES.forEach(function (sec) {
+    // Abas dentro da aba: uma de cada vez, para a lista não ficar enorme. A que abre é a primeira com linhas
+    var comLinhas = SECOES.filter(function (sec) { return (porSecao[sec.id] || []).length; });
+    var padrao = comLinhas.length ? comLinhas[0].id : 'enviar';
+    // Uma aba só vale se tem linhas (Para enviar também vale vazia, mas só quando dá para programar)
+    var ativa = SECOES.some(function (sec) { return sec.id === S.abaMinhas && ((porSecao[sec.id] || []).length || (sec.id === 'enviar' && editavel)); })
+      ? S.abaMinhas : padrao;
+    S.abaMinhas = ativa;
+
+    if (S.minhas.length) {
+      html += '<div class="sup-abas-minhas" role="tablist">' + SECOES.filter(function (sec) {
+        return (porSecao[sec.id] || []).length || (sec.id === 'enviar' && editavel);
+      }).map(function (sec) {
+        var n = (porSecao[sec.id] || []).length;
+        return '<button type="button" role="tab" class="sup-aba-minhas sup-aba-' + sec.id + (sec.id === ativa ? ' ativa' : '') +
+          '" data-acao="aba-minhas" data-aba="' + sec.id + '"><span>' + sec.rotuloAba + '</span><em>' + n + '</em></button>';
+      }).join('') + '</div>';
+    }
+
+    SECOES.filter(function (sec) { return sec.id === ativa; }).forEach(function (sec) {
       var linhasDaSecao = porSecao[sec.id] || [];
       if (!linhasDaSecao.length && !(sec.id === 'enviar' && editavel && S.minhas.length)) return;
 
@@ -377,13 +396,8 @@ window.SIPAV = window.SIPAV || {};
         botaoTodas += ' <button type="button" class="sup-seg-btn" data-acao="reapresentar-secao">Reapresentar todas</button>';
       }
 
-      if (sec.recolhida) {
-        html += '<details class="sup-secao sup-secao-' + sec.id + '"><summary><span class="sup-secao-titulo">' + sec.titulo +
-          '</span><em>' + linhasDaSecao.length + '</em></summary><p class="sup-fraco">' + sec.dica + '</p>' + corpo + '</details>';
-      } else {
-        html += '<section class="sup-secao sup-secao-' + sec.id + '"><div class="sup-secao-topo"><h2><span class="sup-secao-titulo">' + sec.titulo +
-          '</span><em>' + linhasDaSecao.length + '</em></h2>' + botaoTodas + '</div><p class="sup-fraco">' + sec.dica + '</p>' + corpo + '</section>';
-      }
+      html += '<section class="sup-secao sup-secao-' + sec.id + '"><div class="sup-secao-topo"><p class="sup-fraco">' + sec.dica + '</p>' +
+        (botaoTodas ? '<div class="sup-secao-botoes">' + botaoTodas + '</div>' : '') + '</div>' + corpo + '</section>';
     });
     cont.innerHTML = html + '</div>';
     // Marcas de linhas que já não existem saem
@@ -772,6 +786,7 @@ window.SIPAV = window.SIPAV || {};
       case 'corrigir': abrirFormulario(S.minhas.filter(function (p) { return p.id === id; })[0]); break;
       case 'sel-linha': alternarLinha(id, alvo.checked); break;
       case 'sel-limpar': S.selLinhas = {}; renderMinha(); break;
+      case 'aba-minhas': S.abaMinhas = alvo.getAttribute('data-aba'); S.selLinhas = {}; renderMinha(); break;
       case 'sel-secao': marcarVarias(S.minhas.filter(function (p) { return secaoDe(p) === alvo.getAttribute('data-secao') && podeMarcar(p); })); break;
       case 'sel-dia': marcarVarias(S.minhas.filter(function (p) {
         return p.data === alvo.getAttribute('data-dia') && secaoDe(p) === alvo.getAttribute('data-secao') && podeMarcar(p);

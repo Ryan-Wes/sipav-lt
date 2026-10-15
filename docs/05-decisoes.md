@@ -16,6 +16,10 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 15/10/2026
 
+### Os grupos de Minhas programações viraram abas — [WR]
+
+Os quatro grupos (Para enviar, Reprovadas, Em análise, Aprovadas) deixaram de ser seções empilhadas e viraram abas dentro de Minhas programações, uma de cada vez, cada uma com o contador. Só aparecem as que têm linhas (Para enviar aparece sempre que dá para programar). Abre a primeira com linhas e a escolha se mantém. Trocar de aba limpa as marcas, para a barra de baixo (Apagar, Trocar encarregado, Reapresentar) nunca valer para linhas que não estão na tela.
+
 ### Grade no celular com 2, 3 ou 4 cartões por linha; reprovadas reapresentadas sem mudar — [WR]
 
 No celular o seletor de colunas do computador (auto, 2 a 12) é ignorado e sai da tela; no lugar entra **2 · 3 · 4 por linha**, que fica guardado no aparelho. O 2 é o de sempre. Com 3 os cartões ficam mais enxutos e com 4 mostram só o essencial (torre, tipo e estado); as programações viram o selo com a contagem, no pé do cartão. Vale para planejamento e supervisor.
