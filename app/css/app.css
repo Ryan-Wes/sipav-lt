@@ -2154,3 +2154,9 @@ body.modo-supervisor #visaoGrade { touch-action: pan-y; user-select: none; -webk
 @media (max-width: 359px) {
   .linha-filtros .select-filtro { font-size: .6875rem; }
 }
+
+/* O subtítulo da marca (computador): na mesma largura do nome SIPAV LT (16px de altura, 2000x336, dá uns 95px),
+   em duas linhas pequenas; a primeira se estica até as duas bordas do nome. */
+.subtitulo-marca { width: 95px; margin-top: .3125rem; font-size: 7.9px; line-height: 1.2; letter-spacing: 0; color: var(--texto-fraco); }
+.subtitulo-marca span { display: block; white-space: nowrap; }
+.subtitulo-marca span:first-child { text-align: justify; text-align-last: justify; }
