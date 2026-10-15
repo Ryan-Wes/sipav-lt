@@ -35,6 +35,8 @@ window.SIPAV = window.SIPAV || {};
     torrePorNome: {},
     faixa: false,            // marcando uma faixa de torres na grade
     ancora: null,
+    arrasto: false,          // arrastar pela grade marca várias torres (ligado pelo botão)
+    arrastando: null,        // o arrasto em andamento: { modo: 'por' | 'tirar', ultimo, x, y }
     abaMinhas: null,         // a aba aberta dentro de Minhas programações (nula: a primeira com linhas)
     selLinhas: {}            // linhas marcadas na aba Minhas programações, para mexer em várias de uma vez
   };
@@ -89,6 +91,73 @@ window.SIPAV = window.SIPAV || {};
     return dias;
   }
 
+  /* ------------------------------------------------ O calendário dele ----- */
+
+  var SIGLAS_DO_DIA = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'];
+
+  function siglaDoDia(iso) { return SIGLAS_DO_DIA[ui.paraData(iso).getDay()]; }
+
+  /** Semanal (a primeira semana da janela) ou quinzenal (a segunda); vazio para o dia fora da janela. */
+  function semanaDoDia(iso) {
+    var i = diasDaJanela().indexOf(iso);
+    return i === -1 ? '' : i < 7 ? 'Semanal' : 'Quinzenal';
+  }
+
+  /** O dia escrito para o botão: sigla do dia da semana em destaque, depois a data e se é semanal ou quinzenal. */
+  function rotuloDoDia(iso) {
+    if (!iso) return '<span class="sup-dia-vazio">SEM DATA</span>';
+    var sem = semanaDoDia(iso);
+    return '<b>' + siglaDoDia(iso) + '</b><span>' + esc(ui.dataCurta(iso)) + '</span>' +
+      (sem ? '<em class="sup-sem-' + sem.toLowerCase() + '">' + sem + '</em>' : '');
+  }
+
+  /**
+   * Só os dias que ele pode programar, em duas faixas: a semanal e a quinzenal. O dia da semana
+   * vem grande, e a data pequena embaixo. `selecionados` é um mapa dia → true. `extras` são dias
+   * fora da janela que já estão na linha (uma programação antiga), para ela não perder o dia.
+   */
+  function htmlDoCalendario(selecionados, acao, extras) {
+    var dias = diasDaJanela();
+    var grupos = [
+      { id: 'semanal', rotulo: 'Semanal', dias: dias.slice(0, 7) },
+      { id: 'quinzenal', rotulo: 'Quinzenal', dias: dias.slice(7) }
+    ];
+    var fora = (extras || []).filter(function (d) { return dias.indexOf(d) === -1; });
+    if (fora.length) grupos.push({ id: 'outro', rotulo: 'Dia da programação', dias: fora });
+
+    return '<div class="sup-cal">' + grupos.map(function (g) {
+      var de = g.dias[0], ate = g.dias[g.dias.length - 1];
+      return '<div class="sup-cal-grupo sup-cal-' + g.id + '"><div class="sup-cal-titulo"><b>' + g.rotulo.toUpperCase() + '</b>' +
+        '<span>' + esc(ui.dataCurta(de)) + (ate !== de ? ' a ' + esc(ui.dataCurta(ate)) : '') + '</span></div>' +
+        '<div class="sup-cal-dias">' + g.dias.map(function (d) {
+          return '<button type="button" class="sup-cal-dia' + (selecionados && selecionados[d] ? ' ativo' : '') + (ui.paraData(d).getDay() === 0 ? ' dom' : '') +
+            '" data-acao="' + acao + '" data-dia="' + d + '"><b>' + siglaDoDia(d) + '</b><span>' + esc(ui.dataCurta(d)) + '</span></button>';
+        }).join('') + '</div></div>';
+    }).join('') + '</div>';
+  }
+
+  var calendario = null;   // o seletor de um dia só, aberto por cima de outras janelas (o lote)
+
+  /** Abre o calendário dele para escolher um dia. Serve ao lote do planejamento no modo supervisor. */
+  function escolherDia(titulo, atual, aoEscolher) {
+    calendario = { aoEscolher: aoEscolher };
+    var marcado = {}; if (atual) marcado[atual] = true;
+    $('supCalendario').innerHTML =
+      '<div class="sup-folha-caixa sup-cal-caixa" role="dialog" aria-modal="true">' +
+        '<div class="sup-folha-topo"><strong>' + esc(titulo || 'Escolher o dia') + '</strong>' +
+          '<button type="button" class="sup-x" data-acao="cal-fechar" aria-label="Fechar"><i data-lucide="x" class="w-5 h-5"></i></button></div>' +
+        '<div class="sup-folha-corpo">' + htmlDoCalendario(marcado, 'cal-dia', atual ? [atual] : []) +
+          '<p class="sup-fraco">Você programa de ' + esc(ui.dataCurta(janela().de)) + ' a ' + esc(ui.dataCurta(janela().ate)) + '.</p></div>' +
+      '</div>';
+    ui.mostrar('supCalendario');
+    ui.icones();
+  }
+
+  function fecharCalendario() {
+    calendario = null;
+    ui.esconder('supCalendario');
+  }
+
   /* ------------------------------------------------------- Início e saída -- */
 
   /** Chamado depois que a tela completa carregou, já em modo supervisor. */
@@ -110,7 +179,7 @@ window.SIPAV = window.SIPAV || {};
     S.ativo = false;
     F = null; G = null;
     if (atualizador) { clearInterval(atualizador); atualizador = null; }
-    document.body.classList.remove('modo-supervisor', 'sup-travado');
+    document.body.classList.remove('modo-supervisor', 'sup-travado', 'sup-arrastando');
     E.modoSupervisor = false;
     ['supFolha', 'supGrade', 'supBarraTorres', 'supEnviar'].forEach(function (id) { ui.esconder(id); });
   }
@@ -148,9 +217,21 @@ window.SIPAV = window.SIPAV || {};
     eventosLigados = true;
 
     document.addEventListener('click', aoClicar);
+
+    // Selecionar arrastando: pointer events servem ao dedo e ao mouse. Com o arrasto ligado a grade não rola
+    // por toque (touch-action), e o clique que vem depois do toque é engolido, para não marcar duas vezes.
+    document.addEventListener('pointerdown', aoComecarArrasto, true);
+    document.addEventListener('pointermove', aoArrastar, true);
+    document.addEventListener('pointerup', aoSoltarArrasto, true);
+    document.addEventListener('pointercancel', aoSoltarArrasto, true);
+    document.addEventListener('click', function (ev) {
+      if (!S.ativo || !S.arrasto) return;
+      if (ev.target.closest && ev.target.closest('#visaoGrade')) { ev.stopPropagation(); ev.preventDefault(); }
+    }, true);
     document.addEventListener('keydown', function (ev) {
       if (!S.ativo || ev.key !== 'Escape') return;
-      if (lista) fecharLista();
+      if (calendario) fecharCalendario();
+      else if (lista) fecharLista();
       else if (G) fecharGrade();
       else if (F) fecharFormulario();
     });
@@ -660,6 +741,69 @@ window.SIPAV = window.SIPAV || {};
     return false;
   }
 
+  /* ------------------------------------------- Selecionar arrastando ----- */
+
+  function alternarArrasto() {
+    S.arrasto = !S.arrasto;
+    S.arrastando = null;
+    document.body.classList.toggle('sup-arrastando', S.arrasto);
+    var b = $('btnArrastar');
+    if (b) {
+      b.classList.toggle('ativo', S.arrasto);
+      b.setAttribute('aria-pressed', S.arrasto ? 'true' : 'false');
+      b.querySelector('.estado-arrastar').textContent = S.arrasto ? 'ligado' : 'desligado';
+    }
+    if (S.arrasto) ui.avisar('Passe o dedo pelas torres para marcar. Começando numa já marcada, desmarca. Desligue para rolar a tela.', 'info', 6000);
+  }
+
+  function torreDoPonto(x, y) {
+    var el = document.elementFromPoint(x, y);
+    var card = el && el.closest ? el.closest('#visaoGrade .cartao-torre') : null;
+    return card ? card.getAttribute('data-torre') : null;
+  }
+
+  function aplicarNoArrasto(id) {
+    if (!id) return;
+    E.supSel = E.supSel || {};
+    if (S.arrastando.modo === 'por') E.supSel[id] = true; else delete E.supSel[id];
+    marcarCartao(id);
+  }
+
+  function aoComecarArrasto(ev) {
+    if (!S.ativo || !S.arrasto || E.aba !== 'grade' || bloqueadoSilencioso()) return;
+    var id = torreDoPonto(ev.clientX, ev.clientY);
+    if (!id) return;
+    E.supSel = E.supSel || {};
+    // Começar numa torre já marcada desmarca; numa livre, marca
+    S.arrastando = { modo: E.supSel[id] ? 'tirar' : 'por', ultimo: id, x: ev.clientX, y: ev.clientY };
+    ev.preventDefault();
+    aplicarNoArrasto(id);
+    atualizarBarraDeTorres();
+  }
+
+  function aoArrastar(ev) {
+    if (!S.ativo || !S.arrastando) return;
+    ev.preventDefault();
+    var a = S.arrastando;
+    // Dedo rápido pula cartões: anda do ponto anterior ao atual de pouco em pouco
+    var passos = Math.max(1, Math.ceil(Math.hypot(ev.clientX - a.x, ev.clientY - a.y) / 12));
+    for (var i = 1; i <= passos; i++) {
+      var id = torreDoPonto(a.x + (ev.clientX - a.x) * i / passos, a.y + (ev.clientY - a.y) * i / passos);
+      if (id && id !== a.ultimo) { a.ultimo = id; aplicarNoArrasto(id); }
+    }
+    a.x = ev.clientX; a.y = ev.clientY;
+    atualizarBarraDeTorres();
+  }
+
+  function aoSoltarArrasto() {
+    if (!S.arrastando) return;
+    S.arrastando = null;
+    atualizarBarraDeTorres();
+  }
+
+  /** Sem aviso: o pacote enviado trava a programação, mas o toque na grade continua marcando para consulta. */
+  function bloqueadoSilencioso() { return !!(S.sol && S.sol.status === 'ENVIADA'); }
+
   /** Tocar numa torre da grade marca ela para programar. Com "Faixa", da primeira à última. */
   function tocarTorre(id) {
     if (bloqueadoPelaAnalise()) return;
@@ -778,6 +922,7 @@ window.SIPAV = window.SIPAV || {};
       case 'por-encarregado': programarParaEncarregado('', ''); break;
       case 'bt-programar': programarDaGrade(); break;
       case 'bt-limpar': limparSelecaoDeTorres(); break;
+      case 'arrastar-alternar': alternarArrasto(); break;
       case 'bt-faixa': S.faixa = !S.faixa; S.ancora = null; atualizarBarraDeTorres(); break;
       case 'editar':
       case 'pedir-alteracao': abrirFormulario(S.minhas.filter(function (p) { return p.id === id; })[0]); break;
@@ -797,6 +942,8 @@ window.SIPAV = window.SIPAV || {};
       case 'sel-trocar-enc': trocarEncarregadoDasMarcadas(); break;
       case 'enviar': enviarPacote(); break;
       case 'fechar-form': fecharFormulario(); break;
+      case 'cal-fechar': fecharCalendario(); break;
+      case 'cal-dia': { var cb = calendario && calendario.aoEscolher; var dia = alvo.getAttribute('data-dia'); fecharCalendario(); if (cb) cb(dia); break; }
       case 'salvar-form': salvarFormulario(); break;
       case 'escolher-enc': escolherEncarregado(); break;
       case 'escolher-atv': escolherAtividade(); break;
@@ -914,12 +1061,6 @@ window.SIPAV = window.SIPAV || {};
 
   /* ---------------------------------------------------------- Formulário --- */
 
-  /** Só os dias da janela dele (mais o da linha, se uma antiga é editada). */
-  function diasDoFormulario() {
-    var dias = diasDaJanela();
-    Object.keys(F.dias).forEach(function (d) { if (dias.indexOf(d) === -1) dias.push(d); });
-    return dias.sort();
-  }
   function abrirFormulario(linha, opcoes) {
     opcoes = opcoes || {};
     if (S.sol && S.sol.status === 'ENVIADA') {
@@ -1001,7 +1142,7 @@ window.SIPAV = window.SIPAV || {};
                 '<p class="sup-fraco">Separe por vírgula. Para uma sequência, escreva <b>88/1 a 92/2</b>.</p></div>') +
 
           '<div class="sup-bloco"><label>' + (edicao ? 'Dia' : 'Dia (pode marcar mais de um)') + '</label>' +
-            '<div id="fDias" class="sup-dias-linha"></div>' +
+            '<div id="fDias"></div>' +
             '<p class="sup-fraco">Você programa de ' + esc(ui.dataCurta(janela().de)) + ' a ' + esc(ui.dataCurta(janela().ate)) + '.</p></div>' +
 
           '<div class="sup-bloco hidden" id="fDistribBloco"><label>Como distribuir</label><div id="fDistrib" class="sup-seg"></div></div>' +
@@ -1152,12 +1293,8 @@ window.SIPAV = window.SIPAV || {};
       }).join('');
     } else { F.cabo = ''; }
 
-    // Dias
-    $('fDias').innerHTML = diasDoFormulario().map(function (d) {
-      return '<button type="button" class="sup-dia-chip' + (F.dias[d] ? ' ativo' : '') + (ui.fimDeSemana(d) ? ' fds' : '') +
-             '" data-acao="dia-form" data-dia="' + d + '"><b>' + (d === hojeIso() ? 'Hoje' : esc(ui.diaDaSemana(d).slice(0, 3))) + '</b>' +
-             esc(ui.dataCurta(d)) + '</button>';
-    }).join('');
+    // Dias: só os da janela dele, em semanal e quinzenal
+    $('fDias').innerHTML = htmlDoCalendario(F.dias, 'dia-form', Object.keys(F.dias));
 
     var plano = planejar();
 
@@ -2316,6 +2453,8 @@ window.SIPAV = window.SIPAV || {};
     garantirRascunho: garantirRascunho,
     limparSelecao: limparSelecaoDeTorres,
     avisosDeOcupacao: avisosDeOcupacao,
+    escolherDia: escolherDia,
+    rotuloDoDia: rotuloDoDia,
     voltarParaAnalise: voltarParaAnalise,
     voltarTodasParaAnalise: voltarTodasParaAnalise,
     reanalisarLinha: reanalisarLinha

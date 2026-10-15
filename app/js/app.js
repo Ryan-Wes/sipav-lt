@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v192 · 2026-10-15';
+  var VERSAO = 'v193 · 2026-10-15';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -449,7 +449,7 @@ window.SIPAV = window.SIPAV || {};
 
   function renderPresenca(lista) {
     var outros = lista.filter(function (p) { return !p.souEu; });
-    $('contagemPresenca').textContent = outros.length ? '· ' + lista.length : '';
+    $('contagemPresenca').textContent = outros.length ? String(lista.length) : '';
 
     $('listaPresenca').innerHTML = lista.map(function (p) {
       var iniciais = p.nome.trim().split(/\s+/).slice(0, 2)
@@ -677,6 +677,7 @@ window.SIPAV = window.SIPAV || {};
     // Seletor de colunas só faz sentido na grade
     $('filtroColunas').parentNode.style.display = aba === 'grade' ? '' : 'none';
     if ($('caixaColunasCel')) $('caixaColunasCel').style.display = aba === 'grade' ? '' : 'none';
+    if ($('caixaArrastar')) $('caixaArrastar').style.display = aba === 'grade' ? '' : 'none';
     // E o escopo só nas outras: a grade é sempre do trecho aberto
     $('filtroEscopo').parentNode.style.display = aba === 'grade' ? 'none' : '';
 
@@ -708,7 +709,7 @@ window.SIPAV = window.SIPAV || {};
    */
   function aplicarColunasCelular(valor) {
     var n = Number(valor);
-    if ([2, 3, 4].indexOf(n) === -1) n = 2;
+    if ([2, 3, 4, 6, 8].indexOf(n) === -1) n = 2;
     document.documentElement.style.setProperty('--cols-cel', String(n));
     document.body.setAttribute('data-cols-cel', String(n));
     Array.prototype.forEach.call(document.querySelectorAll('#caixaColunasCel [data-cols]'), function (b) {
@@ -3618,8 +3619,11 @@ window.SIPAV = window.SIPAV || {};
 
           '<div>' +
             '<label class="rotulo">Data</label>' +
-            '<input id="loteBase" type="date" class="campo" value="' + dataBaseDoLote() + '"' + limitesDoLote() + ' ' +
-                   'onchange="SIPAV.app.mudarDataBaseLote()">' +
+            (E.modoSupervisor
+              ? '<input id="loteBase" type="hidden" value="' + dataBaseDoLote() + '">' +
+                '<button type="button" id="loteBaseBtn" class="sup-dia-btn" onclick="SIPAV.app.escolherDiaBase()"></button>'
+              : '<input id="loteBase" type="date" class="campo" value="' + dataBaseDoLote() + '" ' +
+                'onchange="SIPAV.app.mudarDataBaseLote()">') +
             '<p id="loteDiaSemana" class="dia-semana"></p>' +
             // As três formas de preencher as datas, no mesmo lugar. A terceira é
             // o antigo "repetir sequência": era um caminho separado, começando
@@ -4246,8 +4250,28 @@ window.SIPAV = window.SIPAV || {};
   function escolherAtividadeLote(id) {
     if (loteAtividades.indexOf(id) === -1) loteAtividades.push(id);
     $('buscaAtividadeLote').value = '';
-    $('listaAtividadesLote').classList.add('hidden');
     renderChipsAtividadeLote();
+    // A lista continua aberta, sem a que acabou de entrar, para ir adicionando as outras de seguida
+    filtrarAtividadesLote();
+  }
+
+  /** Supervisor: o calendário dele no lugar do campo de data (a data base e a de cada linha). */
+  function escolherDiaBase() {
+    window.SIPAV.supervisor.escolherDia('Escolher o dia', $('loteBase').value, function (iso) {
+      $('loteBase').value = iso;
+      mudarDataBaseLote();
+    });
+  }
+
+  function escolherDiaDaLinha(i) {
+    var x = linhaLote(i);
+    if (!x) return;
+    window.SIPAV.supervisor.escolherDia(x.identificador + ' · ' + nomeDaAtividadeDoLote(x.atividadeId), x.data, function (iso) { mudarDataLote(i, iso); });
+  }
+
+  function nomeDaAtividadeDoLote(id) {
+    var a = E.atividades.find(function (y) { return y.id === id; });
+    return a ? a.nome : '';
   }
 
   function tirarAtividadeLote(id) {
@@ -4303,8 +4327,9 @@ window.SIPAV = window.SIPAV || {};
   function mudarDataBaseLote() {
     var iso = $('loteBase').value;
     var campo = $('loteDiaSemana');
+    if (E.modoSupervisor && $('loteBaseBtn')) $('loteBaseBtn').innerHTML = window.SIPAV.supervisor.rotuloDoDia(iso);
     if (campo) {
-      if (!iso) { campo.textContent = ''; campo.className = 'dia-semana'; }
+      if (!iso) { campo.textContent = 'SEM DATA'; campo.className = 'dia-semana fim-de-semana'; }
       else {
         var domingo = ui.paraData(iso).getDay() === 0;
         campo.textContent = ui.diaDaSemana(iso) + (domingo ? ' · DSR na planilha' : '') +
@@ -4484,11 +4509,14 @@ window.SIPAV = window.SIPAV || {};
           '<span class="lote-id">' + (primeira ? esc(x.identificador) : '') + '</span>' +
           '<span class="lote-ativ" style="background:' + cor + ';color:' +
             ui.corDoTexto(cor) + '">' + esc(a ? a.nome : '—') + '</span>' +
-          '<input type="date" class="campo lote-campo' + (passada ? ' lote-passada' : '') + '" ' +
-                 'style="width:130px" value="' + (x.data || '') + '"' + limitesDoLote() + ' ' +
-                 'onchange="SIPAV.app.mudarDataLote(' + i + ', this.value)">' +
-          '<span class="lote-dia' + (fds ? ' fim-de-semana' : '') + '">' +
-            esc(dia.slice(0, 3)) + '</span>' +
+          (E.modoSupervisor
+            ? '<button type="button" class="sup-dia-btn lote-dia-btn' + (x.data ? '' : ' vazio') + '" ' +
+                'onclick="SIPAV.app.escolherDiaDaLinha(' + i + ')">' + window.SIPAV.supervisor.rotuloDoDia(x.data) + '</button>'
+            : '<input type="date" class="campo lote-campo' + (passada ? ' lote-passada' : '') + (x.data ? '' : ' lote-vazia') + '" ' +
+                'style="width:130px" value="' + (x.data || '') + '" ' +
+                'onchange="SIPAV.app.mudarDataLote(' + i + ', this.value)">' +
+              '<span class="lote-dia' + (fds ? ' fim-de-semana' : '') + (x.data ? '' : ' lote-sem-data') + '">' +
+                (x.data ? esc(dia.slice(0, 3)) : 'SEM DATA') + '</span>') +
           '<select class="campo lote-campo lote-enc" style="width:140px" ' +
                   'onchange="SIPAV.app.mudarEncarregadoLote(' + i + ', this.value)">' +
             '<option value="">— sem encarregado —</option>' + opcoesEnc +
@@ -9827,7 +9855,7 @@ window.SIPAV = window.SIPAV || {};
     iniciar: iniciar, sair: sair, alternarTema: alternarTema,
     alternarMenu: alternarMenu, fecharMenus: fecharMenus,
     abrirAlterarSenha: abrirAlterarSenha,
-    trocarAba: trocarAba, mudarColunas: mudarColunas, mudarColunasCelular: mudarColunasCelular, mudarEscopo: mudarEscopo, renderizar: renderizar,
+    trocarAba: trocarAba, mudarColunas: mudarColunas, mudarColunasCelular: mudarColunasCelular, escolherDiaBase: escolherDiaBase, escolherDiaDaLinha: escolherDiaDaLinha, mudarEscopo: mudarEscopo, renderizar: renderizar,
     mudarPeriodo: mudarPeriodo, limparFiltros: limparFiltros,
     fecharModal: ui.fecharModal,
 

@@ -1866,7 +1866,6 @@ body.modo-supervisor main { padding-bottom: 6rem; }
 /* Celular: o cabeçalho enxuto, a grade em duas colunas e os dias empilhados */
 @media (max-width: 700px) {
   body.modo-supervisor main { padding-left: .75rem; padding-right: .75rem; margin-top: .75rem; }
-  body.modo-supervisor .bloco-marca { display: none; }
   body.modo-supervisor .barra-ferramentas { padding: .5rem; gap: .5rem; margin-bottom: .75rem; }
   body.modo-supervisor .barra-ferramentas .aba { min-height: 44px; flex: 1 1 auto; justify-content: center; }
   body.modo-supervisor .linha-filtros { width: 100%; }
@@ -1912,7 +1911,8 @@ body.modo-supervisor main { padding-bottom: 6rem; }
   .lote-linha .lote-ativ { flex: 1 1 0; min-width: 0; }
   .lote-linha .lote-remover { width: 32px; height: 32px; }
   .lote-linha::after { content: ''; order: 2; flex-basis: 100%; height: 0; }
-  .lote-linha > input, .lote-linha > .lote-dia, .lote-linha > .lote-enc, .lote-linha > .lote-pct { order: 3; }
+  .lote-linha > input, .lote-linha > .lote-dia, .lote-linha > .lote-dia-btn, .lote-linha > .lote-enc, .lote-linha > .lote-pct { order: 3; }
+  .lote-linha > .lote-dia-btn { flex: 0 0 auto; }
   .lote-linha > .lote-enc { flex: 1 1 64px; width: auto !important; min-width: 64px; }
   .lote-linha > input[type=date] { width: 108px !important; }
   .lote-linha .lote-pct input { width: 56px !important; }
@@ -1990,18 +1990,51 @@ body.modo-supervisor .item-prog-toque:hover, body.modo-supervisor .item-prog-toq
   body[data-cols-cel="3"] .item-prog { font-size: .5625rem; }
   body[data-cols-cel="3"] .item-prog .encarregado { font-size: .5625rem; }
 
-  /* Com 4: só o essencial (torre, tipo e estado); as programações viram o selo com a contagem */
+  /* Com 4: torre, tipo, estado e as programações abreviadas (data e nome curto); o selo com a contagem fica no alto */
   body[data-cols-cel="4"] #visaoGrade { gap: 6px; }
-  body[data-cols-cel="4"] .cartao-torre { padding: .5rem .125rem; min-height: 96px; gap: .25rem; border-radius: .5rem; }
+  body[data-cols-cel="4"] .cartao-torre { padding: 1rem .125rem .375rem; min-height: 104px; gap: .25rem; border-radius: .5rem; }
   body[data-cols-cel="4"] .cartao-torre .identidade { gap: .25rem; }
   body[data-cols-cel="4"] .cartao-torre .identificador { font-size: .8125rem; }
   body[data-cols-cel="4"] .cartao-torre .legenda { font-size: .5rem; line-height: 1.2; padding: 0 .125rem; }
   body[data-cols-cel="4"] .cartao-torre .modelo { display: none; }
   body[data-cols-cel="4"] .pastilha-estrutura { font-size: .5rem; padding: .0625rem .1875rem; }
-  body[data-cols-cel="4"] .lista-prog { display: none; }
-  /* Os selos (contagem e observação) descem para o pé do cartão, para não cobrir o número da torre */
-  body[data-cols-cel="4"] .selo-prog, body[data-cols-cel="4"] .selo-obs { top: auto; bottom: .1875rem; transform: scale(.85); }
+  body[data-cols-cel="4"] .selo-prog, body[data-cols-cel="4"] .selo-obs { top: .125rem; transform: scale(.8); }
+  body[data-cols-cel="4"] .selo-prog { right: .0625rem; transform-origin: top right; }
+  body[data-cols-cel="4"] .selo-obs { left: .0625rem; transform-origin: top left; }
+  body[data-cols-cel="4"] .lista-prog { margin-top: .25rem; padding-top: .25rem; gap: .1875rem; }
+  body[data-cols-cel="4"] .item-prog { font-size: .5rem; gap: .1875rem; line-height: 1.15; }
+  body[data-cols-cel="4"] .item-prog .ponto-atividade { width: 5px; height: 5px; margin-right: 0; margin-top: .125rem !important; }
+  body[data-cols-cel="4"] .item-prog .dia-curto,
+  body[data-cols-cel="4"] .item-prog .parcial,
+  body[data-cols-cel="4"] .item-prog .encarregado,
+  body[data-cols-cel="4"] .item-prog .tag-cabo,
+  body[data-cols-cel="4"] .item-prog .marca-feito { display: none; }
+  body[data-cols-cel="4"] .item-prog .nome-longo { display: none; }
+  body[data-cols-cel="4"] .item-prog .nome-abrev { display: inline; }
+  body[data-cols-cel="4"] .item-prog > .flex-1 { min-width: 0; word-break: break-word; }
+
+  /* Com 6: torre, tipo e o selo; o estado só pela cor da faixa de cima */
+  body[data-cols-cel="6"] #visaoGrade { gap: 4px; }
+  body[data-cols-cel="6"] .cartao-torre { padding: .875rem .0625rem .375rem; min-height: 64px; gap: .1875rem; border-radius: .4375rem; }
+  body[data-cols-cel="6"] .cartao-torre .identificador { font-size: .6875rem; letter-spacing: -.03em; }
+  body[data-cols-cel="6"] .cartao-torre .legenda, body[data-cols-cel="6"] .cartao-torre .modelo, body[data-cols-cel="6"] .lista-prog { display: none; }
+  body[data-cols-cel="6"] .pastilha-estrutura { font-size: .4375rem; padding: .0625rem .125rem; }
+  body[data-cols-cel="6"] .selo-prog, body[data-cols-cel="6"] .selo-obs { top: .0625rem; transform: scale(.7); }
+  body[data-cols-cel="6"] .selo-prog { right: 0; transform-origin: top right; }
+  body[data-cols-cel="6"] .selo-obs { left: 0; transform-origin: top left; }
+
+  /* Com 8: só o número da torre e o selo; o resto está na cor da faixa */
+  body[data-cols-cel="8"] #visaoGrade { gap: 3px; }
+  body[data-cols-cel="8"] .cartao-torre { padding: .75rem 0 .25rem; min-height: 46px; gap: .125rem; border-radius: .375rem; border-top-width: 3px; }
+  body[data-cols-cel="8"] .cartao-torre .identificador { font-size: .5625rem; letter-spacing: -.04em; }
+  body[data-cols-cel="8"] .cartao-torre .legenda, body[data-cols-cel="8"] .cartao-torre .modelo,
+  body[data-cols-cel="8"] .pastilha-estrutura, body[data-cols-cel="8"] .lista-prog { display: none; }
+  body[data-cols-cel="8"] .selo-prog, body[data-cols-cel="8"] .selo-obs { top: 0; transform: scale(.6); }
+  body[data-cols-cel="8"] .selo-prog { right: 0; transform-origin: top right; }
+  body[data-cols-cel="8"] .selo-obs { left: 0; transform-origin: top left; }
+  body[data-cols-cel="8"] .selo-prog svg, body[data-cols-cel="8"] .selo-prog i { display: none; }
 }
+.nome-abrev { display: none; }
 /* Abas dentro de Minhas programações: Para enviar, Reprovadas, Em análise, Aprovadas */
 .sup-abas-minhas { display: flex; gap: .125rem; margin-top: 1.25rem; overflow-x: auto; border-bottom: 1px solid var(--borda); scrollbar-width: none; }
 .sup-abas-minhas::-webkit-scrollbar { display: none; }
@@ -2020,3 +2053,64 @@ body.modo-supervisor .item-prog-toque:hover, body.modo-supervisor .item-prog-toq
 .sup-secao-topo { align-items: flex-start; }
 .sup-secao-topo > p.sup-fraco { flex: 1 1 14rem; margin: 0 0 .5rem; }
 .sup-secao-botoes { display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: .5rem; }
+/* Celular: o símbolo da torre em cima do nome SIPAV LT */
+@media (max-width: 767px) {
+  .marca-link { flex-direction: column; align-items: center; gap: .25rem !important; }
+  .marca-link #logoSimbolo { height: 30px !important; }
+  .marca-link .bloco-marca { display: block !important; line-height: 1; }
+  .marca-link #logoTexto { height: 12px !important; }
+}
+/* O calendário dele: só os dias que pode programar, semanal e quinzenal, com o dia da semana em destaque */
+.sup-cal { display: flex; flex-direction: column; gap: 1rem; }
+.sup-cal-titulo { display: flex; align-items: baseline; gap: .5rem; margin-bottom: .375rem; }
+.sup-cal-titulo b { font-size: .8125rem; letter-spacing: .08em; }
+.sup-cal-titulo span { font-size: .75rem; color: var(--texto-fraco); }
+.sup-cal-semanal .sup-cal-titulo b { color: var(--acento); }
+.sup-cal-quinzenal .sup-cal-titulo b { color: #38BDF8; }
+.sup-cal-outro .sup-cal-titulo b { color: var(--texto-suave); }
+.sup-cal-dias { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: .375rem; }
+.sup-cal-dia { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .125rem; min-height: 56px; padding: .375rem .125rem;
+  border-radius: .625rem; border: 1px solid var(--borda); background: var(--superficie); color: var(--texto); }
+.sup-cal-dia b { font-size: 1rem; font-weight: 800; letter-spacing: .02em; line-height: 1; }
+.sup-cal-dia span { font-size: .625rem; color: var(--texto-fraco); line-height: 1; }
+.sup-cal-dia.dom b { color: #F59E0B; }
+.sup-cal-semanal .sup-cal-dia { border-color: rgba(249,115,22,.35); }
+.sup-cal-quinzenal .sup-cal-dia { border-color: rgba(56,189,248,.35); }
+.sup-cal-dia:active { background: var(--superficie-2); }
+.sup-cal-dia.ativo { background: rgba(249,115,22,.18); border-color: var(--acento); box-shadow: 0 0 0 1px var(--acento) inset; }
+.sup-cal-quinzenal .sup-cal-dia.ativo { background: rgba(56,189,248,.16); border-color: #38BDF8; box-shadow: 0 0 0 1px #38BDF8 inset; }
+.sup-cal-dia.ativo span { color: var(--texto); }
+.sup-cal-folha { z-index: 60; align-items: flex-end; }
+.sup-cal-caixa { max-width: 560px; max-height: 88vh; border-radius: 1rem 1rem 0 0; overflow: hidden; }
+
+/* O botão que mostra o dia escolhido (no lote do supervisor): dia da semana grande, data e semanal/quinzenal */
+.sup-dia-btn { display: inline-flex; align-items: baseline; gap: .375rem; min-height: 44px; padding: .25rem .75rem; border-radius: .625rem;
+  border: 1px solid var(--borda-forte); background: var(--superficie); color: var(--texto); }
+.sup-dia-btn b { font-size: 1.0625rem; font-weight: 800; }
+.sup-dia-btn span { font-size: .8125rem; color: var(--texto-suave); }
+.sup-dia-btn em { font-style: normal; font-size: .625rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.sup-sem-semanal { color: var(--acento); }
+.sup-sem-quinzenal { color: #38BDF8; }
+.sup-dia-vazio { font-size: .8125rem; font-weight: 800; letter-spacing: .04em; color: #F59E0B; }
+.sup-dia-btn.vazio, .lote-dia-btn.vazio { border-color: rgba(245,158,11,.6); }
+.lote-dia-btn { min-height: 36px; padding: .125rem .5rem; gap: .3125rem; }
+.lote-dia-btn b { font-size: .9375rem; }
+.lote-dia-btn span { font-size: .75rem; }
+
+/* Linha do lote sem data: avisa em vez de deixar o campo vazio */
+.lote-sem-data { width: auto !important; color: #F59E0B !important; white-space: nowrap; font-size: .625rem !important; letter-spacing: .04em; }
+.lote-campo.lote-vazia { border-color: rgba(245,158,11,.6); }
+/* Selecionar arrastando (só do supervisor): ligado, o toque na grade vira arrasto e não rola a tela */
+.caixa-arrastar { display: none; }
+body.modo-supervisor .caixa-arrastar { display: flex; }
+.btn-arrastar { display: inline-flex; align-items: center; gap: .375rem; min-height: 36px; padding: 0 .75rem; border-radius: .5rem; font-size: .75rem; font-weight: 700;
+  color: var(--texto-suave); background: transparent; border: 1px solid transparent; }
+.btn-arrastar .estado-arrastar { font-size: .625rem; letter-spacing: .04em; text-transform: uppercase; padding: .0625rem .375rem; border-radius: 999px;
+  background: var(--superficie-2); color: var(--texto-fraco); }
+.btn-arrastar.ativo { color: var(--texto); border-color: var(--acento); background: rgba(249,115,22,.12); }
+.btn-arrastar.ativo .estado-arrastar { background: var(--acento); color: #fff; }
+body.sup-arrastando #visaoGrade { touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+body.sup-arrastando #visaoGrade .cartao-torre { cursor: crosshair; }
+@media (max-width: 639px) {
+  .caixa-arrastar { grid-column: 1 / -1; justify-content: center; }
+}

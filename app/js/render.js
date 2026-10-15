@@ -212,6 +212,28 @@ window.SIPAV = window.SIPAV || {};
     if (nome.length > 24 && /^INSTALAÇÃO DE /.test(nome)) return nome.replace(/^INSTALAÇÃO DE /, '');
     return nome;
   }
+  /**
+   * Nome abreviado para os cartões muito estreitos (4 por linha no celular): troca as palavras
+   * compridas pela abreviação da obra e tira as de ligação. "SUPRESSÃO DE ÁREA DE TORRE" vira
+   * "SUPR. ÁREA TORRE". O que não couber o css corta com reticências.
+   */
+  var ABREVIACOES = {
+    'SUPRESSÃO': 'SUPR.', 'INSTALAÇÃO': 'INST.', 'LANÇAMENTO': 'LANÇ.', 'COMISSIONAMENTO': 'COMISS.',
+    'ABERTURA': 'ABERT.', 'RECUPERAÇÃO': 'RECUP.', 'CONCRETAGEM': 'CONCR.', 'ESCAVAÇÃO': 'ESCAV.',
+    'FUNDAÇÃO': 'FUND.', 'ESTRUTURA': 'ESTR.', 'CONDUTOR': 'COND.', 'PILOTO': 'PIL.', 'MONTAGEM': 'MONT.',
+    'AMORTECIMENTO': 'AMORT.', 'ATERRAMENTO': 'ATERR.', 'CONTRAPESO': 'CONTRAP.', 'SINALIZAÇÃO': 'SINAL.'
+  };
+  function abreviar(nome) {
+    return String(nome || '').toUpperCase().split(/\s+/).filter(function (w) {
+      return ['DE', 'DA', 'DO', 'DAS', 'DOS', 'E', 'A', 'O'].indexOf(w) === -1;
+    }).map(function (w) { return ABREVIACOES[w] || w; }).join(' ');
+  }
+
+  function nomeDuplo(p) {
+    var n = nomeExibido(p);
+    return '<span class="nome-longo">' + esc(n) + '</span><span class="nome-abrev">' + esc(abreviar(n)) + '</span>';
+  }
+
   function tagCabo(p) {
     if (!p.cabo) return '';
     // Já está no nome da atividade: a etiqueta repetiria
@@ -307,7 +329,7 @@ window.SIPAV = window.SIPAV || {};
                 '<b class="dia-curto' + (ui.fimDeSemana(p.data) ? ' fim-de-semana' : '') + '">' +
                   esc(ui.diaDaSemana(p.data).slice(0, 3)) + '</b>' +
               '</span> ' +
-              tagPreDoItem(p) + esc(nomeExibido(p)) + tagCabo(p) +
+              tagPreDoItem(p) + nomeDuplo(p) + tagCabo(p) +
               marcaFeito(p) +
               // Sempre aparece. O 100% vem apagado, para a parte repartida seguir
               // chamando mais atenção que o serviço inteiro
@@ -421,7 +443,7 @@ window.SIPAV = window.SIPAV || {};
                 '<b class="dia-curto' + (ui.fimDeSemana(p.data) ? ' fim-de-semana' : '') + '">' +
                   esc(ui.diaDaSemana(p.data).slice(0, 3)) + '</b>' +
               '</span> ' +
-              tagPreDoItem(p) + esc(nomeExibido(p)) + tagCabo(p) +
+              tagPreDoItem(p) + nomeDuplo(p) + tagCabo(p) +
               marcaFeito(p) +
               '<span class="parcial' + (Number(p.percentual) >= 100 ? ' cheio' : '') + '">' + rotuloParcial(p) + '</span>' +
               (p.encarregado ? '<span class="encarregado">' + esc(nomesDosEncarregados(p)) + '</span>' : '') +

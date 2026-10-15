@@ -41,7 +41,7 @@
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 
   <!-- ?v= força o navegador a buscar de novo quando o código muda. -->
-  <link rel="stylesheet" href="css/app.css?v=192">
+  <link rel="stylesheet" href="css/app.css?v=193">
 </head>
 <body class="h-full flex flex-col antialiased">
 
@@ -113,7 +113,7 @@
     <div class="barra-cabecalho max-w-[1600px] mx-auto px-5 py-3 flex flex-wrap justify-center md:justify-between items-center gap-x-4 gap-y-2">
 
       <div class="flex items-center gap-3 min-w-0">
-        <div onclick="SIPAV.app.limparFiltros()" class="flex items-center gap-3 cursor-pointer shrink-0"
+        <div onclick="SIPAV.app.limparFiltros()" class="marca-link flex items-center gap-3 cursor-pointer shrink-0"
              title="Voltar à visão completa, sem filtros">
           <img id="logoSimbolo" alt="" class="shrink-0" style="height:36px;width:auto">
           <div class="leading-tight bloco-marca">
@@ -379,8 +379,20 @@
             <button type="button" data-cols="2" onclick="SIPAV.app.mudarColunasCelular(2)">2</button>
             <button type="button" data-cols="3" onclick="SIPAV.app.mudarColunasCelular(3)">3</button>
             <button type="button" data-cols="4" onclick="SIPAV.app.mudarColunasCelular(4)">4</button>
+            <button type="button" data-cols="6" onclick="SIPAV.app.mudarColunasCelular(6)">6</button>
+            <button type="button" data-cols="8" onclick="SIPAV.app.mudarColunasCelular(8)">8</button>
           </div>
           <span class="rotulo-cols">por linha</span>
+        </div>
+
+        <!-- Só do supervisor: ligado, arrastar o dedo (ou o mouse) pelas torres marca várias de uma vez;
+             começando numa já marcada, desmarca -->
+        <div class="caixa-filtro caixa-arrastar" id="caixaArrastar">
+          <button type="button" id="btnArrastar" class="btn-arrastar" data-acao="arrastar-alternar" aria-pressed="false">
+            <i data-lucide="hand" class="w-3.5 h-3.5"></i>
+            <span class="rotulo-arrastar">Selecionar arrastando</span>
+            <b class="estado-arrastar">desligado</b>
+          </button>
         </div>
 
         <div class="caixa-filtro">
@@ -462,6 +474,8 @@
   <button type="button" class="sup-seg-btn" data-acao="bt-limpar">Limpar</button>
   <button type="button" id="supBtProgramar" class="btn-primario" data-acao="bt-programar">Programar</button>
 </div>
+
+<div id="supCalendario" class="sup-folha sup-cal-folha hidden no-print"></div>
 
 <div id="supBarraLinhas" class="sup-barra-torres hidden no-print">
   <div class="sup-bt-info" id="supBlInfo"></div>
@@ -813,12 +827,12 @@
   </div>
 </div>
 
-<script src="js/config.js?v=192"></script>
-<script src="js/db.js?v=192"></script>
-<script src="js/ui.js?v=192"></script>
-<script src="js/render.js?v=192"></script>
-<script src="js/isa.js?v=192"></script>
-<script src="js/supervisor.js?v=192"></script>
-<script src="js/app.js?v=192"></script>
+<script src="js/config.js?v=193"></script>
+<script src="js/db.js?v=193"></script>
+<script src="js/ui.js?v=193"></script>
+<script src="js/render.js?v=193"></script>
+<script src="js/isa.js?v=193"></script>
+<script src="js/supervisor.js?v=193"></script>
+<script src="js/app.js?v=193"></script>
 </body>
 </html>

@@ -16,6 +16,13 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 15/10/2026
 
+### Celular e supervisor: logos, 2 a 8 por linha, arrastar para selecionar, calendário dele — [WR]
+
+- **Cabeçalho no celular:** o símbolo da torre fica em cima do nome SIPAV LT. O "Ao vivo" é só a bolinha e o número, sem o ponto no meio.
+- **Grade por linha (celular):** 2, 3, 4, 6 e 8. Com 4 o cartão mostra as programações abreviadas (a data e o nome curto, como "SUPR. ÁREA TORRE") e o selo da contagem volta para o alto. Com 6 e 8 só o essencial: o número da torre e o selo, e o estado pela cor da faixa.
+- **Selecionar arrastando (supervisor):** o botão liga o modo e arrastar o dedo ou o mouse pelas torres marca várias; começando numa já marcada, desmarca. Ligado, a grade não rola por toque, e o aviso ensina a desligar.
+- **Lote:** a lista de atividades continua aberta depois de escolher uma, sem a escolhida, para ir adicionando as outras. A linha sem data diz SEM DATA, em vez de campo vazio.
+- **Calendário do supervisor:** no lugar do campo de data, os dias que ele pode programar em duas faixas, Semanal e Quinzenal, com o dia da semana em destaque e a data embaixo. Vale para a data base e para a de cada linha do lote (um seletor que abre por cima) e para os dias do formulário simples. O botão do dia escolhido mostra o dia da semana, a data e se é semanal ou quinzenal.
 ### Os grupos de Minhas programações viraram abas — [WR]
 
 Os quatro grupos (Para enviar, Reprovadas, Em análise, Aprovadas) deixaram de ser seções empilhadas e viraram abas dentro de Minhas programações, uma de cada vez, cada uma com o contador. Só aparecem as que têm linhas (Para enviar aparece sempre que dá para programar). Abre a primeira com linhas e a escolha se mantém. Trocar de aba limpa as marcas, para a barra de baixo (Apagar, Trocar encarregado, Reapresentar) nunca valer para linhas que não estão na tela.
