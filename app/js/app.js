@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v182 · 2026-10-14';
+  var VERSAO = 'v183 · 2026-10-15';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -2856,16 +2856,35 @@ window.SIPAV = window.SIPAV || {};
     CRIOU:   { cor: '#10B981', icone: 'plus',    verbo: 'programou' },
     ALTEROU: { cor: '#F59E0B', icone: 'pencil',  verbo: 'alterou' },
     REMOVEU: { cor: '#E11D48', icone: 'trash-2', verbo: 'removeu' },
-    ESTAGIO: { cor: '#0284C7', icone: 'flag',    verbo: 'corrigiu o estágio' }
+    ESTAGIO: { cor: '#0284C7', icone: 'flag',    verbo: 'corrigiu o estágio' },
+    // A decisão do planejamento sobre o que o supervisor pediu (db/56)
+    APROVOU:  { cor: '#16A34A', icone: 'check-circle', verbo: 'aprovou' },
+    REPROVOU: { cor: '#E11D48', icone: 'x-circle',     verbo: 'reprovou' },
+    PEDIU:    { cor: '#0284C7', icone: 'send',         verbo: 'pediu' }
   };
 
   var ROTULO_CAMPO = {
     data: 'Data', atividade: 'Atividade', encarregado: 'Encarregado',
-    situacao: 'Situação', observacao: 'Observação', estagio: 'Estágio'
+    situacao: 'Situação', observacao: 'Observação', estagio: 'Estágio',
+    percentual: 'Percentual', cabo: 'Cabo'
   };
+
+  /** "aprovou a programação de testesupcryan", "reprovou o pedido de Fulano para apagar"… */
+  function fraseDaDecisao(h) {
+    var de = h.de_quem_nome ? ' de <strong>' + esc(h.de_quem_nome) + '</strong>' : ' de um supervisor';
+    var tipo = h.tipo_pedido || 'NOVA';
+    var o = tipo === 'EXCLUSAO' ? 'o pedido' + de + ' para apagar'
+      : tipo === 'EDICAO' ? 'a alteração' + de
+      : 'a programação' + de;
+    if (h.acao === 'PEDIU') return tipo === 'EXCLUSAO' ? 'pediu para apagar a programação' : 'pediu para alterar a programação';
+    return (h.acao === 'APROVOU' ? 'aprovou ' : 'reprovou ') + o + ':';
+  }
 
   function linhaHistorico(h, mostrarTorre) {
     var e = ESTILO_ACAO[h.acao] || ESTILO_ACAO.ALTEROU;
+    var decisao = h.acao === 'APROVOU' || h.acao === 'REPROVOU' || h.acao === 'PEDIU';
+    var verbo = decisao ? fraseDaDecisao(h)
+      : (h.acao === 'CRIOU' && h.situacao === 'SOLICITADA') ? 'pré-programou' : e.verbo;
 
     // Correção de estágio não tem data nem encarregado: a frase é outra
     var alvo = h.acao === 'ESTAGIO'
@@ -2877,7 +2896,10 @@ window.SIPAV = window.SIPAV || {};
         (h.encarregado_nome ? ' · ' + esc(h.encarregado_nome) : '');
 
     var detalhe = '';
-    if ((h.acao === 'ALTEROU' || h.acao === 'ESTAGIO') && h.mudancas) {
+    if (h.acao === 'REPROVOU' && h.motivo) {
+      detalhe += '<div class="text-xs mt-0.5" style="color:#E11D48">Justificativa: ' + esc(h.motivo) + '</div>';
+    }
+    if ((h.acao === 'ALTEROU' || h.acao === 'ESTAGIO' || decisao) && h.mudancas) {
       detalhe = Object.keys(h.mudancas).map(function (campo) {
         var m = h.mudancas[campo];
         var de   = campo === 'data' ? ui.dataCurta(m.de)   : (m.de   || '—');
@@ -2901,7 +2923,7 @@ window.SIPAV = window.SIPAV || {};
           '<i data-lucide="' + e.icone + '" class="w-3 h-3"></i></span>' +
         '<div class="flex-1 min-w-0">' +
           '<p class="text-sm text-slate-700">' +
-            '<strong>' + esc(h.quem_nome || 'desconhecido') + '</strong> ' + e.verbo + ' ' + alvo +
+            '<strong>' + esc(h.quem_nome || 'desconhecido') + '</strong> ' + verbo + ' ' + alvo +
           '</p>' +
           detalhe +
         '</div>' +
@@ -2927,11 +2949,13 @@ window.SIPAV = window.SIPAV || {};
     var abertos = {}, grupos = [], dono = [];
 
     lista.forEach(function (h, i) {
-      var chave = h.acao + '|' + (h.quem_nome || '');
+      // A decisão agrupa por de quem era: "Hanna aprovou 12 programações de Fulano"
+      var chave = h.acao + '|' + (h.quem_nome || '') + '|' + (h.de_quem_nome || '') + '|' + (h.tipo_pedido || '');
       var t = new Date(h.quando).getTime();
       var g = abertos[chave];
       if (!g || Math.abs(g.ultimo - t) > JANELA_DO_GRUPO_MS) {
-        g = abertos[chave] = { itens: [], ultimo: t, acao: h.acao, quem: h.quem_nome };
+        g = abertos[chave] = { itens: [], ultimo: t, acao: h.acao, quem: h.quem_nome,
+                               deQuem: h.de_quem_nome || null, tipo: h.tipo_pedido || null };
         grupos.push(g);
       }
       g.itens.push(h);
@@ -2962,6 +2986,15 @@ window.SIPAV = window.SIPAV || {};
     corpo.innerHTML = g.itens.map(function (h) { return linhaHistorico(h, g.mostrarTorre); }).join('');
     corpo.setAttribute('data-feito', '1');
     ui.icones();
+  }
+
+  /** "12 programações de uma vez", ou, numa decisão, "12 programações de Fulano" (com o tipo do pedido). */
+  function sufixoDoGrupo(g, n) {
+    if (g.acao !== 'APROVOU' && g.acao !== 'REPROVOU' && g.acao !== 'PEDIU') {
+      return '<strong>' + n + ' programações</strong> de uma vez';
+    }
+    var o = g.tipo === 'EXCLUSAO' ? 'pedidos para apagar' : g.tipo === 'EDICAO' ? 'alterações' : 'programações';
+    return '<strong>' + n + ' ' + o + '</strong>' + (g.deQuem ? ' de <strong>' + esc(g.deQuem) + '</strong>' : '');
   }
 
   function cartaoDoGrupoHistorico(g, mostrarTorre) {
@@ -3015,7 +3048,7 @@ window.SIPAV = window.SIPAV || {};
               'style="background:' + e.cor + '22;color:' + e.cor + '">' +
           '<i data-lucide="layers" class="w-3 h-3"></i></span>' +
         '<div class="flex-1 min-w-0">' +
-          '<p class="text-sm text-slate-700">' + quem + ' ' + e.verbo + ' <strong>' + n + ' programações</strong> de uma vez</p>' +
+          '<p class="text-sm text-slate-700">' + quem + ' ' + e.verbo + ' ' + sufixoDoGrupo(g, n) + '</p>' +
           '<p class="text-xs text-slate-500 mt-0.5">' + resumo.join(' · ') + '</p>' +
         '</div>' +
         '<span class="text-[11px] text-slate-400 shrink-0 whitespace-nowrap mt-0.5">' +
@@ -3042,6 +3075,7 @@ window.SIPAV = window.SIPAV || {};
       var pessoas = [];
       lista.forEach(function (h) {
         if (h.quem_nome && pessoas.indexOf(h.quem_nome) === -1) pessoas.push(h.quem_nome);
+        if (h.de_quem_nome && pessoas.indexOf(h.de_quem_nome) === -1) pessoas.push(h.de_quem_nome);
       });
       pessoas.sort(function (a, b) { return a.localeCompare(b, 'pt-BR'); });
 
@@ -3144,7 +3178,8 @@ window.SIPAV = window.SIPAV || {};
     var trecho = $('histTrecho') ? $('histTrecho').value : '';
 
     var lista = historicoCarregado.filter(function (h) {
-      if (quem && h.quem_nome !== quem) return false;
+      // Quem fez, ou de quem era o que foi decidido: filtrar o supervisor mostra o que ele pediu e o que decidiram dele
+      if (quem && h.quem_nome !== quem && h.de_quem_nome !== quem) return false;
       if (trecho && h.trecho_id !== trecho) return false;
       return true;
     });

@@ -14,6 +14,34 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ---
 
+## 15/10/2026
+
+### Supervisor altera o que já foi aprovado, como pedido — [WR]
+
+A programação do supervisor que já foi aprovada é oficial, e ele não mexe nela direto. Ao tocar nela
+(na grade, no Por Encarregado ou na aba Minha solicitação) aparecem **Pedir alteração** e **Pedir
+para apagar**, só para as que ele criou e que são de hoje em diante. O pedido entra no pacote dele,
+ele edita à vontade, e só vale quando eu aprovo.
+
+Como o banco guarda: o pedido é uma linha SOLICITADA no pacote dele, ligada à oficial por
+`substitui_id` (`exclusao` = true quando é para apagar). A oficial continua como está até a
+decisão. Aprovado, a alteração passa para a oficial (ou a oficial sai) e o pedido vira CANCELADA,
+que ficou como "já aplicado" para o supervisor ver no pacote. Reprovado, vira RECUSADA com a
+justificativa e a oficial não muda. Um pedido de cada vez por programação. Na análise, a linha vem
+marcada **Alteração de uma aprovada** ou **Pedido para apagar**, com "Hoje é: …" para comparar, e
+no Por encarregado e na grade aparece ALT ou APAGAR no lugar de PRÉ.
+
+### Quem aprovou e quem reprovou fica escrito — [WR]
+
+O supervisor lê "Aprovada por Hanna", "Reprovada por Rominick" (com a justificativa), "Devolvida
+por …", em vez de "o planejamento". No histórico entram três ações novas: **APROVOU** ("Hanna
+aprovou a programação de testesupcryan"), **REPROVOU** (com a justificativa) e **PEDIU** (o
+supervisor pediu para alterar ou apagar). O filtro por pessoa pega tanto quem decidiu quanto de quem
+era o que foi decidido. Muitas decisões seguidas do mesmo tipo viram um cartão só, por pessoa. A
+pré-programação do supervisor aparece como "pré-programou", não "programou". O pedido dele não gera
+ALTEROU nem REMOVEU a cada toque: só o PEDIU e depois a decisão. Migração `db/56`; sem ela a tela
+avisa que falta aplicar e o histórico continua como era.
+
 ## 14/10/2026
 
 ### Solicitação do supervisor: aprovar e reprovar por linha, com justificativa — [WR]

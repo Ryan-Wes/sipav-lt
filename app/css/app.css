@@ -1892,3 +1892,17 @@ body.modo-supervisor main { padding-bottom: 6rem; }
 .sol-resumo { margin: .25rem 0 0 1rem; list-style: disc; color: var(--texto-suave); }
 .sup-card.recusada { border-color: rgba(225,29,72,.5); background: rgba(225,29,72,.06); }
 .sup-recusa { margin-top: .375rem; font-size: .8125rem; color: #E11D48; }
+/* Pedido de alterar ou de apagar uma programação já aprovada (db/56) */
+.tag-pre.tag-pre-apagar { color: #E11D48; border-color: rgba(225,29,72,.6); }
+.chip-prog.chip-pre.chip-apagar { border-color: rgba(225,29,72,.65); background: rgba(225,29,72,.06); }
+.sup-pedido { margin-left: auto; padding: .125rem .5rem; border-radius: 999px; font-size: .6875rem; font-weight: 800;
+  border: 1px solid rgba(217,119,6,.5); color: #D97706; white-space: nowrap; }
+.sup-pedido.apagar { color: #E11D48; border-color: rgba(225,29,72,.5); }
+.sup-card.pedido { border-style: dashed; border-color: rgba(217,119,6,.55); }
+.sol-pedido { font-size: .8125rem; color: var(--texto-suave); margin-bottom: .25rem; }
+.sol-tag { display: inline-block; padding: 0 .4rem; border-radius: .25rem; border: 1px solid rgba(217,119,6,.6);
+  color: #D97706; font-size: .6875rem; font-weight: 800; }
+.sol-tag.apagar { color: #E11D48; border-color: rgba(225,29,72,.6); }
+.sol-tag-mini { font-style: normal; display: inline-block; padding: 0 .25rem; margin-right: .125rem; border-radius: .2rem;
+  border: 1px solid rgba(217,119,6,.6); color: #D97706; font-size: .5625rem; font-weight: 800; letter-spacing: .03em; }
+.sol-tag-mini.apagar { color: #E11D48; border-color: rgba(225,29,72,.6); }

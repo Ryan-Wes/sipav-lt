@@ -193,11 +193,41 @@ window.SIPAV = window.SIPAV || {};
     return window.SIPAV.app.recarregarProgramacoes().then(carregarMinha);
   }
 
+  /** A programação é dele? */
+  function ehMinha(p) { return !!p && !!p.criado_por && !!E.perfil && p.criado_por === E.perfil.id; }
+
+  /** Quem decidiu o pacote: o nome que vem do banco, ou "o planejamento" quando não veio. */
+  function quemDecidiuOPacote() {
+    return (S.sol && S.sol.decididor && S.sol.decididor.nome) || 'o planejamento';
+  }
+
+  function maiuscula(t) { return t.charAt(0).toUpperCase() + t.slice(1); }
+
+  /** O pedido de alteração (ou de apagar) que está esperando para uma programação aprovada dele. */
+  function pedidoDe(id) {
+    return S.minhas.concat(todas()).filter(function (x) {
+      return x.substitui_id === id && x.situacao === 'SOLICITADA';
+    })[0] || null;
+  }
+
+  /** Programação aprovada dele, de hoje em diante, e sem o pacote dele travado na análise. */
+  function podePedirAlteracao(p) {
+    return p.situacao === 'APROVADA' && ehMinha(p) && p.data >= hojeIso() && !(S.sol && S.sol.status === 'ENVIADA');
+  }
+
+  /** Uma linha do jeito que se escreve num aviso: "0/1 · MONTAGEM · Seg 19/10 · Alielton · 100%". */
+  function descricaoCurta(p) {
+    return p.torre.identificador + ' · ' + (p.atividade ? p.atividade.nome : '') + ' · ' + nomeCurtoDoDia(p.data) + ' · ' +
+      (p.encarregado ? p.encarregado.nome : 'sem encarregado') + ' · ' + pct(p.percentual);
+  }
+
   /** O que já está programado (oficial ou solicitado por outro) numa torre num dia. */
-  function ocupacao(torreId, data, ignorarId) {
+  function ocupacao(torreId, data, ignorarId, ignorarId2) {
     return S.consulta.filter(function (p) {
       if (!p.torre || p.torre.id !== torreId || p.data !== data) return false;
       if (ignorarId && p.id === ignorarId) return false;
+      // O pedido de alteração não conflita com a programação que ele mesmo vai substituir
+      if (ignorarId2 && p.id === ignorarId2) return false;
       // O que está no meu pacote não conta como "de outro"
       if (S.sol && p.solicitacao_id === S.sol.id) return false;
       return true;
@@ -239,7 +269,7 @@ window.SIPAV = window.SIPAV || {};
              'Quando terminar, envie para o planejamento analisar.</p></div>';
     }
     if (S.sol.status === 'DEVOLVIDA') {
-      return '<div class="sup-status devolvida"><strong>Devolvida pelo planejamento</strong>' +
+      return '<div class="sup-status devolvida"><strong>Devolvida por ' + esc(quemDecidiuOPacote()) + '</strong>' +
              '<p>' + esc(S.sol.motivo_devolucao || 'Corrija e envie de novo.') + '</p>' +
              '<p class="sup-fraco">Corrija o que está errado e envie de novo.</p></div>';
     }
@@ -249,17 +279,18 @@ window.SIPAV = window.SIPAV || {};
              'Enquanto isso não dá para alterar.</p></div>';
     }
     if (S.sol.status === 'APROVADA') {
-      return '<div class="sup-status aprovada"><strong>Aprovada</strong>' +
-             '<p>O planejamento aprovou ' + esc(ui.quandoRelativo(S.sol.decidida_em)) +
+      return '<div class="sup-status aprovada"><strong>Aprovada por ' + esc(quemDecidiuOPacote()) + '</strong>' +
+             '<p>' + esc(maiuscula(quemDecidiuOPacote())) + ' aprovou ' + esc(ui.quandoRelativo(S.sol.decidida_em)) +
              '. Já é programação oficial.</p></div>';
     }
     if (S.sol.status === 'PARCIAL' || S.sol.status === 'REPROVADA') {
-      var ok = S.minhas.filter(function (p) { return p.situacao === 'APROVADA'; }).length;
+      // Aprovada é a oficial; o pedido de alteração ou de apagar aprovado fica CANCELADA (já foi aplicado)
+      var ok = S.minhas.filter(function (p) { return p.situacao === 'APROVADA' || p.situacao === 'CANCELADA'; }).length;
       var recusadas = S.minhas.filter(function (p) { return p.situacao === 'RECUSADA'; }).length;
       var parcial = S.sol.status === 'PARCIAL';
       return '<div class="sup-status ' + (parcial ? 'enviada' : 'devolvida') + '"><strong>' +
-             (parcial ? 'Aprovada em parte' : 'Reprovada') + '</strong>' +
-             '<p>' + (ok ? ok + (ok === 1 ? ' programação aprovada' : ' programações aprovadas') + ' (já são oficiais) e ' : '') +
+             (parcial ? 'Aprovada em parte por ' : 'Reprovada por ') + esc(quemDecidiuOPacote()) + '</strong>' +
+             '<p>' + (ok ? ok + (ok === 1 ? ' aprovada' : ' aprovadas') + ' (já valem na programação oficial) e ' : '') +
              recusadas + (recusadas === 1 ? ' reprovada' : ' reprovadas') + ', decidido ' + esc(ui.quandoRelativo(S.sol.decidida_em)) +
              '. O motivo de cada reprovada está abaixo.</p>' +
              '<p class="sup-fraco">Corrija o que for preciso e programe de novo.</p></div>';
@@ -308,29 +339,60 @@ window.SIPAV = window.SIPAV || {};
     ui.icones();
   }
 
+  /** O tipo do pedido: nenhum (linha comum), alteração ou apagar. */
+  function tipoDoPedido(p) { return p.exclusao ? 'apagar' : p.substitui_id ? 'alteracao' : ''; }
+
   function cartaoLinha(p, podeMexer) {
-    var avisos = (p.situacao !== 'SOLICITADA' ? [] : ocupacao(p.torre.id, p.data, p.id)).map(function (o) {
+    var tipo = tipoDoPedido(p);
+    var avisos = (p.situacao !== 'SOLICITADA' || tipo === 'apagar' ? [] : ocupacao(p.torre.id, p.data, p.id, p.substitui_id)).map(function (o) {
       return '<p class="sup-aviso">⚠ Nesta torre, neste dia: ' + esc(textoDaOcupacao(o)) + '</p>';
     }).join('');
 
-    var decisao = p.situacao === 'RECUSADA'
-      ? '<p class="sup-recusa"><b>Reprovada.</b> ' + esc(p.motivo_recusa || 'Sem justificativa registrada.') + '</p>'
-      : p.situacao === 'APROVADA'
-        ? '<span class="sup-origem oficial">Aprovada, já é oficial</span>' : '';
+    // O que o pedido mexe: a programação oficial como está hoje
+    var original = tipo ? todas().filter(function (x) { return x.id === p.substitui_id; })[0] : null;
+    var era = tipo && original && p.situacao === 'SOLICITADA'
+      ? '<p class="sup-fraco">Hoje é: ' + esc(descricaoCurta(original)) + '</p>' : '';
 
-    return '<div class="sup-card' + (p.situacao === 'RECUSADA' ? ' recusada' : '') + '">' +
-      '<div class="sup-card-topo"><strong>' + esc(p.torre.identificador) + '</strong>' + chipAtividade(p.atividade) + '</div>' +
+    var marca = tipo === 'apagar' ? '<span class="sup-pedido apagar">Pedido para apagar</span>'
+      : tipo === 'alteracao' ? '<span class="sup-pedido">Pedido de alteração</span>' : '';
+
+    var por = p.aprovador && p.aprovador.nome ? ' por ' + esc(p.aprovador.nome) : '';
+    var decisao = '';
+    if (p.situacao === 'RECUSADA') {
+      decisao = '<p class="sup-recusa"><b>' + (tipo ? 'Pedido reprovado' : 'Reprovada') + por + '.</b> ' +
+        esc(p.motivo_recusa || 'Sem justificativa registrada.') +
+        (tipo ? ' A programação continua como estava.' : '') + '</p>';
+    } else if (p.situacao === 'CANCELADA') {
+      decisao = '<span class="sup-origem oficial">' + (tipo === 'apagar' ? 'Apagada, aprovado' : 'Alteração aprovada') + por + '</span>';
+    } else if (p.situacao === 'APROVADA') {
+      decisao = '<span class="sup-origem oficial">Aprovada' + por + ', já é oficial</span>';
+    }
+
+    var acoes = '';
+    if (podeMexer) {
+      acoes = '<div class="sup-card-acoes">' +
+        (tipo === 'apagar' ? '' :
+          '<button type="button" data-acao="editar" data-id="' + p.id + '" aria-label="Editar"><i data-lucide="pencil" class="w-4 h-4"></i> Editar</button>') +
+        '<button type="button" data-acao="apagar" data-id="' + p.id + '" aria-label="Apagar" class="perigo"><i data-lucide="trash-2" class="w-4 h-4"></i> ' +
+          (tipo ? 'Cancelar o pedido' : 'Apagar') + '</button></div>';
+    } else if (podePedirAlteracao(p)) {
+      // Aprovada e dele: não mexe direto, vai como pedido para o planejamento decidir
+      var pendente = pedidoDe(p.id);
+      acoes = pendente
+        ? '<p class="sup-fraco">Já tem ' + (pendente.exclusao ? 'um pedido para apagar' : 'um pedido de alteração') + ' desta programação.</p>'
+        : '<div class="sup-card-acoes">' +
+            '<button type="button" data-acao="pedir-alteracao" data-id="' + p.id + '" aria-label="Pedir alteração"><i data-lucide="pencil" class="w-4 h-4"></i> Pedir alteração</button>' +
+            '<button type="button" data-acao="pedir-apagar" data-id="' + p.id + '" aria-label="Pedir para apagar" class="perigo"><i data-lucide="trash-2" class="w-4 h-4"></i> Pedir para apagar</button>' +
+          '</div>';
+    }
+
+    return '<div class="sup-card' + (p.situacao === 'RECUSADA' ? ' recusada' : '') + (tipo && p.situacao === 'SOLICITADA' ? ' pedido' : '') + '">' +
+      '<div class="sup-card-topo"><strong>' + esc(p.torre.identificador) + '</strong>' + chipAtividade(p.atividade) + marca + '</div>' +
       '<div class="sup-card-meio"><span>' + esc(p.encarregado ? p.encarregado.nome : 'Sem encarregado') + '</span>' +
         '<span class="sup-pct">' + pct(p.percentual) + '</span>' +
         (p.cabo ? '<span class="sup-fraco">' + esc(String(p.cabo).replace('_', ' ')) + '</span>' : '') + '</div>' +
       (p.observacao ? '<p class="sup-fraco">' + esc(p.observacao) + '</p>' : '') +
-      decisao + avisos +
-      (podeMexer
-        ? '<div class="sup-card-acoes">' +
-            '<button type="button" data-acao="editar" data-id="' + p.id + '" aria-label="Editar"><i data-lucide="pencil" class="w-4 h-4"></i> Editar</button>' +
-            '<button type="button" data-acao="apagar" data-id="' + p.id + '" aria-label="Apagar" class="perigo"><i data-lucide="trash-2" class="w-4 h-4"></i> Apagar</button>' +
-          '</div>'
-        : '') +
+      era + decisao + avisos + acoes +
       '</div>';
   }
 
@@ -418,20 +480,42 @@ window.SIPAV = window.SIPAV || {};
     if (!p) return;
 
     var minha = !!S.sol && p.solicitacao_id === S.sol.id && p.situacao === 'SOLICITADA' && ehEditavel();
+    var aprovadaDele = podePedirAlteracao(p);
+    var pedidoAberto = aprovadaDele ? pedidoDe(p.id) : null;
+    var tipo = tipoDoPedido(p);
+
+    var quem = p.situacao === 'APROVADA'
+      ? 'Programação oficial' + (p.aprovador && p.aprovador.nome ? ', aprovada por ' + p.aprovador.nome : '') + '.'
+      : tipo === 'alteracao' ? 'Pedido de alteração de ' + ((p.criador && p.criador.nome) || 'outro supervisor') + ', ainda não aprovado.'
+      : origemDe(p) + (p.solicitacao_id && S.sol && p.solicitacao_id === S.sol.id ? ' (a sua)' : '') + ', ainda não aprovada.';
+
+    var original = tipo === 'alteracao' ? todas().filter(function (x) { return x.id === p.substitui_id; })[0] : null;
     var linhas = '<p class="text-sm"><b>' + esc(p.torre.identificador) + '</b> · ' + esc(p.atividade ? p.atividade.nome : '') + '</p>' +
       '<p class="text-sm" style="color:var(--texto-suave)">' + esc(nomeCurtoDoDia(p.data)) + ' · ' +
         esc(p.encarregado ? p.encarregado.nome : 'sem encarregado') + ' · ' + pct(p.percentual) + '</p>' +
       (p.observacao ? '<p class="sup-fraco">' + esc(p.observacao) + '</p>' : '') +
-      '<p class="sup-fraco" style="margin-top:.5rem">' + esc(p.situacao === 'APROVADA' ? 'Programação oficial.' : origemDe(p) +
-        (p.solicitacao_id && S.sol && p.solicitacao_id === S.sol.id ? ' (a sua)' : '') + ', ainda não aprovada.') + '</p>';
+      (original ? '<p class="sup-fraco" style="margin-top:.5rem">Hoje é: ' + esc(descricaoCurta(original)) + '</p>' : '') +
+      '<p class="sup-fraco" style="margin-top:.5rem">' + esc(quem) + '</p>' +
+      (pedidoAberto
+        ? '<p class="sup-fraco" style="margin-top:.5rem">Você já pediu ' + (pedidoAberto.exclusao ? 'para apagar esta programação' : 'uma alteração desta programação') +
+          '. Ele está no seu pacote, na aba Minha solicitação.</p>' : '');
 
     var botoes = [{ rotulo: 'Fechar', classe: 'btn-secundario' }];
     if (minha) {
       botoes = [
         { rotulo: 'Fechar', classe: 'btn-secundario' },
-        { rotulo: 'Apagar', classe: 'btn-secundario btn-secundario-perigo', acao: function () { ui.fecharModal('modalGenerico'); apagarLinha(id); } },
+        { rotulo: tipo ? 'Cancelar o pedido' : 'Apagar', classe: 'btn-secundario btn-secundario-perigo', acao: function () { ui.fecharModal('modalGenerico'); apagarLinha(id); } },
         { rotulo: 'Editar', classe: 'btn-primario', acao: function () { ui.fecharModal('modalGenerico'); abrirFormulario(p); } }
       ];
+    } else if (aprovadaDele && !pedidoAberto) {
+      // Aprovada e dele: alterar ou apagar vai como pedido, e o planejamento decide
+      botoes = [
+        { rotulo: 'Fechar', classe: 'btn-secundario' },
+        { rotulo: 'Pedir para apagar', classe: 'btn-secundario btn-secundario-perigo', acao: function () { ui.fecharModal('modalGenerico'); pedirParaApagar(id); } },
+        { rotulo: 'Pedir alteração', classe: 'btn-primario', acao: function () { ui.fecharModal('modalGenerico'); abrirFormulario(p); } }
+      ];
+      linhas += '<p class="sup-fraco" style="margin-top:.5rem">Já está aprovada. Para mudar, você faz o pedido e o planejamento decide. ' +
+        'Até lá ela continua como está.</p>';
     }
     ui.modalGenerico({ titulo: 'Programação', corpoHtml: linhas, botoes: botoes });
   }
@@ -450,8 +534,10 @@ window.SIPAV = window.SIPAV || {};
       case 'bt-programar': programarDaGrade(); break;
       case 'bt-limpar': limparSelecaoDeTorres(); break;
       case 'bt-faixa': S.faixa = !S.faixa; S.ancora = null; atualizarBarraDeTorres(); break;
-      case 'editar': abrirFormulario(S.minhas.filter(function (p) { return p.id === id; })[0]); break;
+      case 'editar':
+      case 'pedir-alteracao': abrirFormulario(S.minhas.filter(function (p) { return p.id === id; })[0]); break;
       case 'apagar': apagarLinha(id); break;
+      case 'pedir-apagar': pedirParaApagar(id); break;
       case 'enviar': enviarPacote(); break;
       case 'fechar-form': fecharFormulario(); break;
       case 'salvar-form': salvarFormulario(); break;
@@ -498,14 +584,45 @@ window.SIPAV = window.SIPAV || {};
   function apagarLinha(id) {
     var p = S.minhas.filter(function (x) { return x.id === id; })[0];
     if (!p) return;
-    ui.confirmar('Apagar programação',
-      p.torre.identificador + ' · ' + (p.atividade ? p.atividade.nome : '') + ' · ' + nomeCurtoDoDia(p.data) + '. Sai da sua solicitação.',
-      'Apagar').then(function (sim) {
+    var pedido = !!tipoDoPedido(p);
+    ui.confirmar(pedido ? 'Cancelar o pedido' : 'Apagar programação',
+      p.torre.identificador + ' · ' + (p.atividade ? p.atividade.nome : '') + ' · ' + nomeCurtoDoDia(p.data) +
+        (pedido ? '. O pedido sai da sua solicitação e a programação aprovada continua como está.' : '. Sai da sua solicitação.'),
+      pedido ? 'Cancelar o pedido' : 'Apagar').then(function (sim) {
       if (!sim) return;
-      ui.processando('Apagando…');
+      ui.processando(pedido ? 'Cancelando…' : 'Apagando…');
       return db.removerProgramacao(id).then(atualizarTudo)
         .then(function () { ui.pronto(); });
     }).catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro', 6000); });
+  }
+
+  /** Pedir para apagar uma programação já aprovada: vai no pacote dele, e só sai quando o planejamento aprovar. */
+  function pedirParaApagar(id) {
+    var p = S.minhas.concat(todas()).filter(function (x) { return x.id === id; })[0];
+    if (!p || !podePedirAlteracao(p)) return;
+    if (pedidoDe(p.id)) { ui.avisar('Já tem um pedido para esta programação.', 'alerta', 5000); return; }
+    ui.confirmar('Pedir para apagar',
+      descricaoCurta(p) + '. A programação só sai quando o planejamento aprovar o pedido; até lá ela continua como está.',
+      'Pedir para apagar').then(function (sim) {
+      if (!sim) return;
+      ui.processando('Pedindo…');
+      return garantirRascunho().then(function (sol) {
+        return db.criarProgramacao({
+          torreId: p.torre.id, atividadeId: p.atividade.id, encarregadoId: p.encarregado ? p.encarregado.id : null,
+          data: p.data, percentual: p.percentual, observacao: p.observacao, cabo: p.cabo || null,
+          situacao: 'SOLICITADA', solicitacaoId: sol.id, substituiId: p.id, exclusao: true
+        });
+      }).then(atualizarTudo).then(function () {
+        ui.pronto();
+        ui.avisar('Pedido feito. Envie a solicitação para o planejamento decidir.', 'sucesso', 6000);
+      });
+    }).catch(function (e) { ui.pronto(); ui.avisar(semMigracao(e.message), 'erro', 8000); });
+  }
+
+  /** Antes da migração 56 a coluna do pedido não existe: diz isso em vez da mensagem do banco. */
+  function semMigracao(msg) {
+    return /substitui_id|exclusao/i.test(msg || '')
+      ? 'Falta aplicar a migração 56 no banco para pedir alteração de programação aprovada.' : msg;
   }
 
   function enviarPacote() {
@@ -539,6 +656,10 @@ window.SIPAV = window.SIPAV || {};
 
     F = {
       editId: linha ? linha.id : null,
+      torre: linha ? linha.torre : null,                      // a torre da linha editada (fixa)
+      original: !!linha && linha.situacao === 'APROVADA',     // pedido de alteração de uma já aprovada
+      substituiId: linha ? (linha.substitui_id || null) : null,
+      linhaOriginal: linha && linha.situacao === 'APROVADA' ? linha : null,
       encId: linha && linha.encarregado ? linha.encarregado.id : (opcoes.encId || ''),
       atvId: linha && linha.atividade ? linha.atividade.id : '',
       cabo: linha ? (linha.cabo || '') : '',
@@ -577,9 +698,11 @@ window.SIPAV = window.SIPAV || {};
     var edicao = !!F.editId;
     return '' +
       '<div class="sup-folha-caixa" role="dialog" aria-modal="true">' +
-        '<div class="sup-folha-topo"><strong>' + (edicao ? 'Editar programação' : 'Programar') + '</strong>' +
+        '<div class="sup-folha-topo"><strong>' + (F.original ? 'Pedir alteração' : edicao ? 'Editar programação' : 'Programar') + '</strong>' +
           '<button type="button" class="sup-x" data-acao="fechar-form" aria-label="Fechar"><i data-lucide="x" class="w-5 h-5"></i></button></div>' +
         '<div class="sup-folha-corpo">' +
+          (F.original ? '<div class="sup-aviso-caixa" style="margin-bottom:.75rem"><strong>Já está aprovada</strong>' +
+            '<p class="sup-fraco">Isto não muda a programação agora: vai como pedido na sua solicitação, e vale quando o planejamento aprovar.</p></div>' : '') +
 
           '<div class="sup-bloco"><label>Encarregado</label>' +
             '<button type="button" id="fEnc" class="sup-seletor" data-acao="escolher-enc"></button></div>' +
@@ -689,7 +812,7 @@ window.SIPAV = window.SIPAV || {};
     var dias = Object.keys(F.dias).sort();
     var lidas, torres;
     if (F.editId) {
-      var pt = S.minhas.filter(function (p) { return p.id === F.editId; })[0].torre;
+      var pt = F.torre;
       torres = [{ torre_id: pt.id, identificador: pt.identificador, ordem: pt.ordem }];
       lidas = { torres: torres, invalidas: [] };
     } else {
@@ -720,8 +843,10 @@ window.SIPAV = window.SIPAV || {};
     var ignoradas = [];
     var novas = linhas.filter(function (l) {
       var igual = S.consulta.concat(S.minhas).filter(function (p) {
+        // Só vale o que está valendo: aprovada ou solicitada; nunca o pedido para apagar, a reprovada ou a consumida
+        if (p.exclusao || (p.situacao !== 'APROVADA' && p.situacao !== 'SOLICITADA')) return false;
         return p.torre && p.torre.id === l.torre.torre_id && p.data === l.data && p.atividade && p.atividade.id === F.atvId &&
-               (p.encarregado ? p.encarregado.id : '') === (F.encId || '') && p.id !== F.editId;
+               (p.encarregado ? p.encarregado.id : '') === (F.encId || '') && p.id !== F.editId && p.id !== F.substituiId;
       })[0];
       if (igual) { ignoradas.push({ linha: l, origem: igual }); return false; }
       return true;
@@ -759,8 +884,7 @@ window.SIPAV = window.SIPAV || {};
     var plano = planejar();
 
     if (edicao) {
-      var p = S.minhas.filter(function (x) { return x.id === F.editId; })[0];
-      $('fTorreFixa').textContent = p ? p.torre.identificador : '';
+      $('fTorreFixa').textContent = F.torre ? F.torre.identificador : '';
     } else {
       // Chips das torres lidas
       var chips = plano.torres.map(function (t) {
@@ -824,7 +948,7 @@ window.SIPAV = window.SIPAV || {};
     // Quem já programou na mesma torre no mesmo dia
     var vistos = {}, conflitos = [];
     plano.linhas.forEach(function (l) {
-      ocupacao(l.torre.torre_id, l.data, F.editId).forEach(function (o) {
+      ocupacao(l.torre.torre_id, l.data, F.editId, F.substituiId).forEach(function (o) {
         var chave = o.id;
         if (vistos[chave]) return; vistos[chave] = true;
         conflitos.push(l.torre.identificador + ' em ' + ui.dataCurta(l.data) + ': ' + textoDaOcupacao(o));
@@ -842,7 +966,7 @@ window.SIPAV = window.SIPAV || {};
 
     var salvar = $('fSalvar');
     salvar.disabled = erros.length > 0 || !plano.linhas.length;
-    salvar.textContent = edicao ? 'Salvar' : (plano.linhas.length ? 'Adicionar ' + plano.linhas.length : 'Adicionar');
+    salvar.textContent = edicao ? (F.original ? 'Pedir alteração' : 'Salvar') : (plano.linhas.length ? 'Adicionar ' + plano.linhas.length : 'Adicionar');
     ui.icones();
 
     conferirSequencia(plano, atv);
@@ -943,6 +1067,32 @@ window.SIPAV = window.SIPAV || {};
     var plano = planejar();
     if (!plano.linhas.length) return;
     var cabo = F.cabo || null;
+
+    if (F.editId && F.original) {
+      // A programação já é oficial: o que ele muda vai como pedido de alteração, no pacote dele
+      var nova = plano.linhas[0], o = F.linhaOriginal;
+      var pctNovo = plano.dias.length > 1 ? 100 : (F.pct || 100);
+      var obs = (F.obs || '').trim() || null;
+      var igualAoOficial = nova.data === o.data && F.atvId === (o.atividade ? o.atividade.id : '') &&
+        (F.encId || '') === (o.encarregado ? o.encarregado.id : '') && Number(o.percentual) === Number(pctNovo) &&
+        (o.observacao || null) === obs && (o.cabo || null) === cabo;
+      if (igualAoOficial) { ui.avisar('Nada mudou em relação à programação aprovada.', 'alerta', 4000); return; }
+
+      ui.processando('Pedindo…');
+      garantirRascunho().then(function (sol) {
+        return db.criarProgramacao({
+          torreId: F.torre.id, atividadeId: F.atvId, encarregadoId: F.encId || null, data: nova.data,
+          percentual: pctNovo, observacao: obs, cabo: cabo,
+          situacao: 'SOLICITADA', solicitacaoId: sol.id, substituiId: o.id
+        });
+      }).then(atualizarTudo)
+        .then(function () {
+          ui.pronto(); fecharFormulario();
+          ui.avisar('Pedido de alteração feito. Envie a solicitação para o planejamento decidir.', 'sucesso', 6000);
+        })
+        .catch(function (e) { ui.pronto(); ui.avisar(semMigracao(e.message), 'erro', 8000); });
+      return;
+    }
 
     if (F.editId) {
       var l = plano.linhas[0];
@@ -1205,15 +1355,20 @@ window.SIPAV = window.SIPAV || {};
       if (!sol) { ui.pronto(); ui.avisar('Esta solicitação já foi analisada.', 'alerta'); abrirSolicitacoes(); return; }
 
       var datas = linhas.map(function (l) { return l.data; }).sort();
+      // Os pedidos de alteração e de apagar mexem em programações oficiais: busca elas para mostrar "hoje é assim"
+      var idsOficiais = linhas.filter(function (l) { return l.substitui_id; }).map(function (l) { return l.substitui_id; });
       return Promise.all([
         db.programacoes({ de: datas[0], ate: datas[datas.length - 1] }),
-        db.torres(sol.trecho_id)
+        db.torres(sol.trecho_id),
+        db.programacoesPorIds(idsOficiais).catch(function () { return []; })
       ]).then(function (x) {
         // Reabrindo depois de editar ou tirar uma linha, as marcas e a visão ficam como estavam
         var mesma = pacote && pacote.sol.id === id;
         var marcadas = {};
         if (mesma) linhas.forEach(function (l) { if (pacote.marcadas[l.id]) marcadas[l.id] = true; });
-        pacote = { sol: sol, linhas: linhas, oficiais: x[0], torres: x[1], avisos: {},
+        var originais = {};
+        x[2].forEach(function (o) { originais[o.id] = o; });
+        pacote = { sol: sol, linhas: linhas, oficiais: x[0], torres: x[1], avisos: {}, originais: originais,
                    marcadas: marcadas, visao: mesma ? pacote.visao : 'lista' };
         ui.pronto();
         conferirPacote();
@@ -1231,13 +1386,26 @@ window.SIPAV = window.SIPAV || {};
     return (pacote.avisos[l.id] || []).map(function (a) { return '<div class="sup-aviso">⚠ ' + esc(a) + '</div>'; }).join('');
   }
 
+  /** O que a linha é: programação nova, alteração de uma oficial, ou pedido para apagar uma oficial. */
+  function rotuloDaLinha(l) { return l.exclusao ? 'Apagar' : l.substitui_id ? 'Alteração' : ''; }
+
+  /** Nas linhas que mexem numa oficial: a marca e o que a oficial é hoje, para comparar. */
+  function notaDoPedido(l) {
+    if (!l.exclusao && !l.substitui_id) return '';
+    var o = pacote.originais && pacote.originais[l.substitui_id];
+    var hoje = o ? descricaoCurta(o) : 'a programação oficial não foi encontrada (pode já ter sido apagada)';
+    return '<div class="sol-pedido"><span class="sol-tag' + (l.exclusao ? ' apagar' : '') + '">' +
+      (l.exclusao ? 'Pedido para apagar' : 'Alteração de uma aprovada') + '</span> ' +
+      (l.exclusao ? 'Sai da programação oficial: ' : 'Hoje é: ') + esc(hoje) + '</div>';
+  }
+
   /** A lista: uma linha por programação, com a caixa de marcar. */
   function htmlDaLista(linhas) {
     return '<div class="sol-tabela"><table class="w-full text-sm"><thead><tr class="text-left text-xs uppercase" style="color:var(--texto-fraco)">' +
       '<th class="py-1 pr-1" style="width:2rem"></th><th class="py-1 pr-2">Dia</th><th class="pr-2">Torre</th><th class="pr-2">Atividade</th>' +
       '<th class="pr-2">Encarregado</th><th class="pr-2">%</th><th></th></tr></thead><tbody>' +
       linhas.map(function (l) {
-        var avisos = avisosDaLinha(l);
+        var avisos = notaDoPedido(l) + avisosDaLinha(l);
         return '<tr class="sol-linha-tab" data-linha="' + l.id + '">' +
           '<td class="py-1 pr-1"><input type="checkbox" class="sol-caixa" data-marcar="' + l.id + '" ' +
             'onclick="SIPAV.supervisor.marcarLinha(\'' + l.id + '\')" aria-label="Marcar"></td>' +
@@ -1246,7 +1414,7 @@ window.SIPAV = window.SIPAV || {};
           '<td class="pr-2">' + chipAtividade(l.atividade) + '</td>' +
           '<td class="pr-2">' + esc(l.encarregado ? l.encarregado.nome : '—') + '</td>' +
           '<td class="pr-2">' + pct(l.percentual) + '</td>' +
-          '<td class="whitespace-nowrap"><button type="button" class="btn-lancar" data-ed="' + l.id + '">Editar</button> ' +
+          '<td class="whitespace-nowrap">' + (l.exclusao ? '' : '<button type="button" class="btn-lancar" data-ed="' + l.id + '">Editar</button> ') +
           '<button type="button" class="btn-lancar" data-rm="' + l.id + '">Tirar</button></td></tr>' +
           (avisos ? '<tr class="sol-linha-av" data-linha-av="' + l.id + '"><td></td><td colspan="6">' + avisos + '</td></tr>' : '');
       }).join('') + '</tbody></table></div>';
@@ -1278,6 +1446,7 @@ window.SIPAV = window.SIPAV || {};
       var oficiais = pacote.oficiais.filter(function (o) { return o.torre && o.torre.id === tid; });
       var lista = ordemDasLinhas(porTorre[tid]).map(function (l) {
         return '<span class="sup-g-prog so" data-g-linha="' + l.id + '"><b>' + esc(ui.dataCurta(l.data)) + '</b> ' +
+          (rotuloDaLinha(l) ? '<em class="sol-tag-mini' + (l.exclusao ? ' apagar' : '') + '">' + esc(rotuloDaLinha(l).toUpperCase()) + '</em> ' : '') +
           esc(l.atividade ? l.atividade.nome : '') + ' · ' + esc(l.encarregado ? l.encarregado.nome.split(' ')[0] : '—') + ' ' + pct(l.percentual) + '</span>';
       }).join('') + oficiais.map(function (o) {
         return '<span class="sup-g-prog of" title="Já é programação oficial"><b>' + esc(ui.dataCurta(o.data)) + '</b> ' +
@@ -1446,6 +1615,8 @@ window.SIPAV = window.SIPAV || {};
     p.linhas.forEach(function (l) {
       var av = [];
       p.oficiais.forEach(function (o) {
+        // O pedido de alteração (ou de apagar) fica em cima da própria oficial: isso não é duplicidade
+        if (l.exclusao || o.id === l.substitui_id) return;
         if (o.torre.id === l.torre.id && o.data === l.data) {
           av.push('Já tem ' + (o.atividade ? o.atividade.nome : '') + ' na torre neste dia (oficial' + (o.encarregado ? ', ' + o.encarregado.nome : '') + ')');
         }
@@ -1456,7 +1627,8 @@ window.SIPAV = window.SIPAV || {};
 
     if (p.linhas.length > 60) { var n = $('solConferindo'); if (n) n.textContent = 'Muitas linhas: a sequência é conferida na aprovação.'; return; }
 
-    var fila = p.linhas.slice(), feitas = 0, alvoId = p.sol.id;
+    // Apagar não tem sequência a conferir
+    var fila = p.linhas.filter(function (l) { return !l.exclusao; }), feitas = 0, alvoId = p.sol.id;
     function proximo() {
       var l = fila.shift();
       if (!l || !pacote || pacote.sol.id !== alvoId) return Promise.resolve();
@@ -1569,16 +1741,31 @@ window.SIPAV = window.SIPAV || {};
   function resumoDeLinhas(ids) {
     return ids.map(function (id) {
       var l = pacote.linhas.filter(function (x) { return x.id === id; })[0];
-      return '<li><b>' + esc(l.torre.identificador) + '</b> · ' + esc(l.atividade ? l.atividade.nome : '') + ' · ' +
+      return '<li>' + (rotuloDaLinha(l) ? '<em class="sol-tag-mini' + (l.exclusao ? ' apagar' : '') + '">' + esc(rotuloDaLinha(l).toUpperCase()) + '</em> ' : '') +
+             '<b>' + esc(l.torre.identificador) + '</b> · ' + esc(l.atividade ? l.atividade.nome : '') + ' · ' +
              esc(nomeCurtoDoDia(l.data)) + ' · ' + esc(l.encarregado ? l.encarregado.nome : '—') + '</li>';
     }).join('');
+  }
+
+  /** O que acontece com o que se aprova: a nova vira oficial, a alteração muda a oficial, o pedido de apagar a tira. */
+  function textoDoQueAprova(ids) {
+    var linhas = ids.map(function (id) { return pacote.linhas.filter(function (x) { return x.id === id; })[0]; });
+    var apagar = linhas.filter(function (l) { return l.exclusao; }).length;
+    var alterar = linhas.filter(function (l) { return !l.exclusao && l.substitui_id; }).length;
+    var novas = linhas.length - apagar - alterar;
+    var partes = [];
+    if (novas) partes.push(novas === 1 ? 'A nova vira programação oficial e já aparece na grade para todo mundo' : 'As novas viram programação oficial e já aparecem na grade para todo mundo');
+    if (alterar) partes.push(alterar === 1 ? 'a alteração muda a programação oficial' : 'as alterações mudam a programação oficial');
+    if (apagar) partes.push(apagar === 1 ? 'o pedido para apagar tira a programação oficial da grade' : 'os pedidos para apagar tiram as programações oficiais da grade');
+    var t = partes.join('; ');
+    return esc(t.charAt(0).toUpperCase() + t.slice(1) + '.');
   }
 
   function confirmarDecisao(aprovar, reprovar) {
     var corpo = '<div class="space-y-3">' +
       (aprovar.length
         ? '<div><p class="text-sm font-bold" style="color:#16A34A">Aprovar ' + aprovar.length + (aprovar.length === 1 ? ' programação' : ' programações') + '</p>' +
-          '<p class="sup-fraco">Viram programação oficial e já aparecem na grade para todo mundo.</p>' +
+          '<p class="sup-fraco">' + textoDoQueAprova(aprovar) + '</p>' +
           (aprovar.length <= 8 ? '<ul class="text-xs sol-resumo">' + resumoDeLinhas(aprovar) + '</ul>' : '') + '</div>'
         : '') +
       (reprovar.length

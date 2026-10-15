@@ -537,10 +537,15 @@ window.SIPAV = window.SIPAV || {};
     var pre = p.situacao === 'SOLICITADA';
     if (pre) {
       var dono = (p.criador && p.criador.nome) || 'supervisor';
-      parcial = '<span class="tag-pre" title="Solicitada por ' + esc(dono) + ', aguardando aprovação">PRÉ</span>' + parcial;
+      // Pedido de alterar ou de apagar uma programação já aprovada (db/56) tem a marca própria
+      var marca2 = p.exclusao ? 'APAGAR' : p.substitui_id ? 'ALT' : 'PRÉ';
+      var dica = p.exclusao ? 'Pedido de ' + dono + ' para apagar esta programação'
+        : p.substitui_id ? 'Alteração pedida por ' + dono + ', aguardando aprovação'
+        : 'Solicitada por ' + dono + ', aguardando aprovação';
+      parcial = '<span class="tag-pre' + (p.exclusao ? ' tag-pre-apagar' : '') + '" title="' + esc(dica) + '">' + marca2 + '</span>' + parcial;
     }
 
-    var abrir = '<div class="chip-prog' + (op.empilhado ? ' empilhado' : '') + (pre ? ' chip-pre' : '') +
+    var abrir = '<div class="chip-prog' + (op.empilhado ? ' empilhado' : '') + (pre ? ' chip-pre' : '') + (pre && p.exclusao ? ' chip-apagar' : '') +
       (marcado ? ' chip-marcado' : '') + (fixo ? ' chip-fixo' : '') + '"' + (acao ? ' onclick="' + acao + '"' : '') + ' data-prog="' + p.id + '">';
 
     if (!op.empilhado) {

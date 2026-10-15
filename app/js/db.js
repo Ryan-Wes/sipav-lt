@@ -465,6 +465,12 @@ window.SIPAV = window.SIPAV || {};
       // O pacote do supervisor (db/54): só vai quando há, pelo mesmo motivo
       if (dados.solicitacaoId) linha.solicitacao_id = dados.solicitacaoId;
 
+      // O pedido de alterar ou apagar uma programação já aprovada (db/56)
+      if (dados.substituiId) {
+        linha.substitui_id = dados.substituiId;
+        if (dados.exclusao) linha.exclusao = true;
+      }
+
       // Mesmo cuidado com as partes da escavação (db/40): só vai quando há.
       if (dados.partes && temPartes) linha.partes = dados.partes;
 
@@ -519,11 +525,15 @@ window.SIPAV = window.SIPAV || {};
    */
   // O motivo da reprovação (db/55): só vai no select quando o banco já tem a coluna
   var temMotivoRecusa = true;
+  // O pedido de alteração do que já foi aprovado (db/56)
+  var temPedidoDeAlteracao = true;
 
   function selectProgramacaoDoSupervisor() {
     return selectProgramacao() +
       ', solicitacao_id, criado_por, criador:perfil!programacao_criado_por_fkey ( nome )' +
-      (temMotivoRecusa ? ', motivo_recusa' : '');
+      ', aprovado_em, aprovador:perfil!programacao_aprovado_por_fkey ( nome )' +
+      (temMotivoRecusa ? ', motivo_recusa' : '') +
+      (temPedidoDeAlteracao ? ', substitui_id, exclusao' : '');
   }
 
   function consultarComPaginas(montar) {
@@ -532,14 +542,23 @@ window.SIPAV = window.SIPAV || {};
         return montar().order('data').order('id').range(de, ate);
       });
     }
-    return uma().then(function (r) {
-      // Antes da migração 55 a coluna não existe: tira do select e tenta de novo
-      if (r.error && temMotivoRecusa && faltaColuna(r.error, 'motivo_recusa')) {
-        temMotivoRecusa = false;
-        return uma();
-      }
-      return r;
-    }).then(function (r) { return ok(r, 'Falha ao carregar programações'); });
+    // Antes das migrações 55 e 56 as colunas não existem: tira do select a que faltou e tenta de novo
+    function tentar(restantes) {
+      return uma().then(function (r) {
+        if (r.error && restantes > 0) {
+          if (temMotivoRecusa && faltaColuna(r.error, 'motivo_recusa')) {
+            temMotivoRecusa = false;
+            return tentar(restantes - 1);
+          }
+          if (temPedidoDeAlteracao && (faltaColuna(r.error, 'substitui_id') || faltaColuna(r.error, 'exclusao'))) {
+            temPedidoDeAlteracao = false;
+            return tentar(restantes - 1);
+          }
+        }
+        return r;
+      });
+    }
+    return tentar(2).then(function (r) { return ok(r, 'Falha ao carregar programações'); });
   }
 
   /**
@@ -551,7 +570,8 @@ window.SIPAV = window.SIPAV || {};
     return auth.usuario().then(function (u) {
       return cliente()
         .from('solicitacao')
-        .select('id, trecho_id, status, criada_em, enviada_em, decidida_em, motivo_devolucao')
+        .select('id, trecho_id, status, criada_em, enviada_em, decidida_em, motivo_devolucao, ' +
+                'decididor:perfil!solicitacao_decidida_por_fkey ( nome )')
         .eq('supervisor_id', u.id)
         .eq('trecho_id', trechoId)
         .order('criada_em', { ascending: false })
@@ -596,6 +616,17 @@ window.SIPAV = window.SIPAV || {};
       if (filtro.de)  q = q.gte('data', filtro.de);
       if (filtro.ate) q = q.lte('data', filtro.ate);
       return q;
+    }).then(function (lista) {
+      // O pedido para apagar repete a oficial: não vai para a consulta, a oficial já está lá
+      return lista.filter(function (p) { return !p.exclusao; });
+    });
+  }
+
+  /** As programações oficiais a que os pedidos de um pacote se referem (para mostrar "era assim"). */
+  function programacoesPorIds(ids) {
+    if (!ids.length) return Promise.resolve([]);
+    return consultarComPaginas(function () {
+      return cliente().from('programacao').select(selectProgramacaoDoSupervisor()).in('id', ids);
     });
   }
 
@@ -697,19 +728,35 @@ window.SIPAV = window.SIPAV || {};
   /* HISTÓRICO                                                                */
   /* ======================================================================== */
 
-  var CAMPOS_HISTORICO =
+  var CAMPOS_BASE_HISTORICO =
     'id, quando, acao, quem_nome, torre_identificador, trecho_id, atividade_nome, ' +
     'encarregado_nome, data, situacao, observacao, override_motivo, mudancas';
 
+  // Quem pediu, a justificativa e o tipo do pedido (db/56): só vão no select quando o banco tem
+  var temQuemDecidiu = true;
+  function camposDoHistorico() {
+    return CAMPOS_BASE_HISTORICO + (temQuemDecidiu ? ', de_quem_nome, motivo, tipo_pedido' : '');
+  }
+  function historicoComFallback(consultar) {
+    return consultar().then(function (r) {
+      if (r.error && temQuemDecidiu && /de_quem_nome|tipo_pedido|programacao_historico\.motivo/i.test(r.error.message || '')) {
+        temQuemDecidiu = false;
+        return consultar();
+      }
+      return r;
+    });
+  }
+
   /** Histórico de uma torre, do mais recente para o mais antigo. */
   function historicoDaTorre(torreId) {
-    return cliente()
-      .from('programacao_historico')
-      .select(CAMPOS_HISTORICO)
-      .eq('torre_id', torreId)
-      .order('quando', { ascending: false })
-      .limit(100)
-      .then(function (r) { return ok(r, 'Falha ao carregar histórico'); });
+    return historicoComFallback(function () {
+      return cliente()
+        .from('programacao_historico')
+        .select(camposDoHistorico())
+        .eq('torre_id', torreId)
+        .order('quando', { ascending: false })
+        .limit(100);
+    }).then(function (r) { return ok(r, 'Falha ao carregar histórico'); });
   }
 
   /**
@@ -737,11 +784,13 @@ window.SIPAV = window.SIPAV || {};
    * que o histórico dos outros não estava sendo gravado.
    */
   function historicoDoTrecho(trechoId, limite) {
-    return paginar(function (de, ate) {
-      var q = cliente().from('programacao_historico').select(CAMPOS_HISTORICO);
-      if (trechoId) q = q.eq('trecho_id', trechoId);
-      return q.order('quando', { ascending: false }).order('id').range(de, ate);
-    }, limite || 60).then(function (r) {
+    return historicoComFallback(function () {
+      return paginar(function (de, ate) {
+        var q = cliente().from('programacao_historico').select(camposDoHistorico());
+        if (trechoId) q = q.eq('trecho_id', trechoId);
+        return q.order('quando', { ascending: false }).order('id').range(de, ate);
+      }, limite || 60);
+    }).then(function (r) {
       var lista = ok(r, 'Falha ao carregar histórico');
       return limite ? lista.slice(0, limite) : lista;
     });
@@ -749,10 +798,11 @@ window.SIPAV = window.SIPAV || {};
 
   /** Uma página (1000) do histórico da obra, a partir da linha `de`, para ir carregando aos poucos. */
   function historicoPagina(de) {
-    return cliente().from('programacao_historico').select(CAMPOS_HISTORICO)
-      .order('quando', { ascending: false }).order('id')
-      .range(de, de + TAMANHO_DA_PAGINA - 1)
-      .then(function (r) { return ok(r, 'Falha ao carregar histórico'); });
+    return historicoComFallback(function () {
+      return cliente().from('programacao_historico').select(camposDoHistorico())
+        .order('quando', { ascending: false }).order('id')
+        .range(de, de + TAMANHO_DA_PAGINA - 1);
+    }).then(function (r) { return ok(r, 'Falha ao carregar histórico'); });
   }
 
   /* ======================================================================== */
@@ -1761,6 +1811,7 @@ window.SIPAV = window.SIPAV || {};
     criarSolicitacao: criarSolicitacao,
     programacoesDaSolicitacao: programacoesDaSolicitacao,
     programacoesParaConsulta: programacoesParaConsulta,
+    programacoesPorIds: programacoesPorIds,
     enviarSolicitacao: enviarSolicitacao,
     solicitacoesParaAnalise: solicitacoesParaAnalise,
     devolverSolicitacao: devolverSolicitacao,
