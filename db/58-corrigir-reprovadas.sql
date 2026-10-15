@@ -18,6 +18,16 @@
 -- Idempotente. Depende da 54, da 55 e da 56.
 -- =============================================================================
 
+-- Confere a ordem: esta migração só funciona depois da 56. Sem ela, para aqui e não muda nada.
+do $$
+begin
+  if not exists (
+    select 1 from information_schema.columns
+    where table_name = 'programacao' and column_name = 'exclusao'
+  ) then
+    raise exception 'Falta aplicar a migração 56 antes desta.';
+  end if;
+end $$;
 create or replace function reapresentar_reprovadas(
   p_ids         uuid[],
   p_solicitacao uuid,

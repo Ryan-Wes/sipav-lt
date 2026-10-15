@@ -1935,3 +1935,6 @@ body.modo-supervisor main { padding-bottom: 6rem; }
 .sup-recusa-caixa { margin-bottom: .75rem; padding: .75rem; border-radius: .75rem; border: 1px solid rgba(225,29,72,.5); background: rgba(225,29,72,.07); }
 .sup-recusa-caixa strong { color: #E11D48; }
 .sup-recusa-caixa p { margin-top: .25rem; font-size: .875rem; }
+/* Supervisor: as programações dentro do cartão da torre são tocáveis (editar a dele, ver de quem é) */
+body.modo-supervisor .item-prog-toque { cursor: pointer; border-radius: .375rem; padding-top: .25rem; padding-bottom: .25rem; }
+body.modo-supervisor .item-prog-toque:hover, body.modo-supervisor .item-prog-toque:active { background: rgba(249,115,22,.12); }

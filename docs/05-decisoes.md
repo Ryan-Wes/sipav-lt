@@ -16,6 +16,10 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 15/10/2026
 
+### Supervisor edita tocando na programação dentro do cartão da torre — [WR]
+
+Na grade, tocar no cartão da torre continua marcando ela para programar, mas cada programação dentro do cartão agora é tocável: abre a dela com Editar e Apagar (se ainda não foi enviada), Pedir alteração e Pedir para apagar (se já foi aprovada e é dele), ou só mostra de quem é. As pré-programações ganham a marca PRÉ (ou ALT, APAGAR) dentro do cartão. Antes, quem não achava o Por Encarregado ou a aba Minha solicitação não via por onde editar. As migrações 57 e 58 passaram a parar com um aviso se a 56 não foi aplicada antes, porque a função de decisão da 57 depende das colunas da 56.
+
 ### O supervisor corrige as reprovadas e reapresenta — [WR]
 
 A programação reprovada continua no pacote dele, com **Reprovada por <quem>** e a justificativa. Tocando nela abre o formulário com o motivo no alto (**Corrigir e reapresentar**); ao salvar, ela volta a ser pré-programação no pacote aberto dele e vai na próxima vez que ele enviar. Ele também marca várias (reprovadas ou ainda não enviadas) e usa **Trocar encarregado** para aplicar o mesmo encarregado em todas de uma vez. Quando ele começa a corrigir e abre um pacote novo, as outras reprovadas dos últimos três dias continuam na vista, para corrigir aos poucos. A reprovada passa por uma função do banco (db/58), porque a política de edição do supervisor só vale para linha de pacote aberto; o banco confere que a linha é dele e que o pacote de destino está aberto. Pedido de apagar reprovado não se corrige: ele só pede de novo.

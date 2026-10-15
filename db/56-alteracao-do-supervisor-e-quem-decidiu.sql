@@ -135,7 +135,7 @@ alter table programacao_historico add column if not exists tipo_pedido  text;  -
 
 alter table programacao_historico drop constraint if exists programacao_historico_acao_check;
 alter table programacao_historico add constraint programacao_historico_acao_check
-  check (acao in ('CRIOU', 'ALTEROU', 'REMOVEU', 'ESTAGIO', 'APROVOU', 'REPROVOU', 'PEDIU'));
+  check (acao in ('CRIOU', 'ALTEROU', 'REMOVEU', 'ESTAGIO', 'APROVOU', 'REPROVOU', 'PEDIU', 'REABRIU'));
 
 -- O trigger de sempre (db/36), com duas diferenças:
 --   · quando a função de decisão está trabalhando, ele se cala (ela grava a linha de APROVOU

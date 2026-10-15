@@ -227,6 +227,22 @@ window.SIPAV = window.SIPAV || {};
       .toLowerCase().indexOf('portico') === 0;
   }
 
+  /**
+   * O supervisor toca numa programação dentro do cartão da torre para editar (a dele) ou ver de quem
+   * é. Tocar no resto do cartão continua marcando a torre para programar.
+   */
+  function toqueDoItem(p) {
+    if (!E.modoSupervisor) return '';
+    return ' onclick="event.stopPropagation();SIPAV.supervisor.tocarProgramacao(\'' + p.id + '\')"' +
+           ' title="Tocar para editar ou ver de quem é"';
+  }
+
+  /** A marca de pré-programação (ou de pedido de alteração) no item do cartão, só para o supervisor. */
+  function tagPreDoItem(p) {
+    if (!E.modoSupervisor || p.situacao !== 'SOLICITADA') return '';
+    return '<span class="tag-pre' + (p.exclusao ? ' tag-pre-apagar' : '') + '">' + (p.exclusao ? 'APAGAR' : p.substitui_id ? 'ALT' : 'PRÉ') + '</span> ';
+  }
+
   /** Clicar na torre: o planejamento abre a janela dela; o supervisor marca para programar. */
   function acaoDaTorre(torreId) {
     return E.modoSupervisor
@@ -284,14 +300,14 @@ window.SIPAV = window.SIPAV || {};
     var lista = ordenadas.length
       ? '<div class="lista-prog">' + ordenadas.map(function (p) {
           var cor = p.atividade ? p.atividade.cor_fundo : '#94A3B8';
-          return '<span class="item-prog">' +
+          return '<span class="item-prog' + (E.modoSupervisor ? ' item-prog-toque' : '') + '"' + toqueDoItem(p) + '>' +
             '<span class="ponto-atividade" style="background:' + cor + ';margin-top:.25rem"></span>' +
             '<span class="flex-1">' +
               '<span class="data">' + ui.dataCurta(p.data) +
                 '<b class="dia-curto' + (ui.fimDeSemana(p.data) ? ' fim-de-semana' : '') + '">' +
                   esc(ui.diaDaSemana(p.data).slice(0, 3)) + '</b>' +
               '</span> ' +
-              esc(nomeExibido(p)) + tagCabo(p) +
+              tagPreDoItem(p) + esc(nomeExibido(p)) + tagCabo(p) +
               marcaFeito(p) +
               // Sempre aparece. O 100% vem apagado, para a parte repartida seguir
               // chamando mais atenção que o serviço inteiro
@@ -398,14 +414,14 @@ window.SIPAV = window.SIPAV || {};
     var lista = ordenadas.length
       ? '<div class="lista-prog">' + ordenadas.map(function (p) {
           var cor = p.atividade ? p.atividade.cor_fundo : '#94A3B8';
-          return '<span class="item-prog">' +
+          return '<span class="item-prog' + (E.modoSupervisor ? ' item-prog-toque' : '') + '"' + toqueDoItem(p) + '>' +
             '<span class="ponto-atividade" style="background:' + cor + ';margin-top:.25rem"></span>' +
             '<span class="flex-1">' +
               '<span class="data">' + ui.dataCurta(p.data) +
                 '<b class="dia-curto' + (ui.fimDeSemana(p.data) ? ' fim-de-semana' : '') + '">' +
                   esc(ui.diaDaSemana(p.data).slice(0, 3)) + '</b>' +
               '</span> ' +
-              esc(nomeExibido(p)) + tagCabo(p) +
+              tagPreDoItem(p) + esc(nomeExibido(p)) + tagCabo(p) +
               marcaFeito(p) +
               '<span class="parcial' + (Number(p.percentual) >= 100 ? ' cheio' : '') + '">' + rotuloParcial(p) + '</span>' +
               (p.encarregado ? '<span class="encarregado">' + esc(nomesDosEncarregados(p)) + '</span>' : '') +
