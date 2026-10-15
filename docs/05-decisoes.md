@@ -16,6 +16,10 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 15/10/2026
 
+### A aba do supervisor virou **Minhas programações**, em quatro grupos — [WR]
+
+`Minha solicitação` parecia só o que está para enviar, mas guardava também as reprovadas e as aprovadas. O nome passou a ser **Minhas programações** e a lista, com o título de cada grupo dizendo o que fazer: **Para enviar** (ainda não foram para o planejamento), **Reprovadas** (com o motivo, para corrigir e reapresentar), **Enviadas, aguardando análise** (não dá para alterar) e **Aprovadas** (recolhido, já são oficiais). Cada grupo tem o contador e, nos que dá para mexer, **Marcar todas** e **Marcar o dia**.
+
 ### Supervisor marca tudo de uma vez para apagar ou trocar o encarregado — [WR]
 
 Na Minha solicitação, acima da lista, **Marcar todas (n)** marca todas as que dá para mexer (as ainda não enviadas e as reprovadas dele), e cada dia ganha **Marcar o dia**. A barra de baixo com as marcadas passou a ter **Apagar**, além de **Trocar encarregado** e **Limpar**. Apagar leva só as ainda não enviadas (e cancela os pedidos de alteração ou de apagar que estiverem entre elas); a reprovada não se apaga, porque fica no pacote antigo, e a confirmação avisa quantas ficaram.

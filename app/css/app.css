@@ -1951,3 +1951,18 @@ body.modo-supervisor .item-prog-toque:hover, body.modo-supervisor .item-prog-toq
 #supBarraLinhas { flex-wrap: wrap; }
 #supBarraLinhas .sup-bt-info { flex: 1 1 100%; flex-direction: row; gap: .5rem; align-items: baseline; }
 #supBarraLinhas .btn-primario { flex: 1 1 auto; }
+/* A aba do supervisor em grupos: para enviar, reprovadas, aguardando análise, aprovadas */
+.sup-secao { margin-top: 1.5rem; }
+.sup-secao-topo { display: flex; align-items: center; justify-content: space-between; gap: .75rem; flex-wrap: wrap; margin-bottom: .125rem; }
+.sup-secao h2, .sup-secao > summary { font-size: 1.0625rem; font-weight: 800; color: var(--texto); display: flex; align-items: center; gap: .5rem; }
+.sup-secao-titulo { letter-spacing: .01em; }
+.sup-secao h2 em, .sup-secao > summary em { font-style: normal; font-size: .75rem; font-weight: 800; padding: .0625rem .5rem; border-radius: 999px; background: var(--superficie-2); color: var(--texto-suave); }
+.sup-secao > p.sup-fraco, .sup-secao-topo + p.sup-fraco { margin-bottom: .75rem; }
+.sup-secao-enviar h2 { color: var(--acento); }
+.sup-secao-reprovadas h2 { color: #E11D48; }
+.sup-secao-reprovadas h2 em { background: rgba(225,29,72,.15); color: #E11D48; }
+.sup-secao-aprovadas > summary { cursor: pointer; color: #16A34A; list-style: none; }
+.sup-secao-aprovadas > summary::-webkit-details-marker { display: none; }
+.sup-secao-aprovadas > summary::after { content: '▾'; margin-left: auto; color: var(--texto-fraco); }
+.sup-secao-aprovadas[open] > summary::after { content: '▴'; }
+.sup-secao .sup-seg-btn { min-height: 38px; padding: 0 .75rem; }

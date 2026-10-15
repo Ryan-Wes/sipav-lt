@@ -35,7 +35,7 @@ window.SIPAV = window.SIPAV || {};
     torrePorNome: {},
     faixa: false,            // marcando uma faixa de torres na grade
     ancora: null,
-    selLinhas: {}            // linhas marcadas na aba Minha solicitação, para mexer em várias de uma vez
+    selLinhas: {}            // linhas marcadas na aba Minhas programações, para mexer em várias de uma vez
   };
   var F = null;              // o formulário aberto
   var atualizador = null;
@@ -253,7 +253,7 @@ window.SIPAV = window.SIPAV || {};
         : ', já solicitada por ' + ((o.criador && o.criador.nome) || 'outro supervisor'));
   }
 
-  /* ----------------------------------------------- A aba Minha solicitação -- */
+  /* ------------------------------------------- A aba Minhas programações -- */
 
   function atualizarSelo() {
     var selo = $('seloMinhaSol');
@@ -306,6 +306,20 @@ window.SIPAV = window.SIPAV || {};
            '<p>Ainda não foi enviado. Quando terminar, toque em <b>Enviar para análise</b>.</p></div>';
   }
 
+  /** Os grupos da aba, na ordem em que aparecem: o que fazer com cada linha está no próprio título. */
+  var SECOES = [
+    { id: 'enviar', titulo: 'Para enviar', dica: 'Ainda não foram para o planejamento. Quando terminar, toque em <b>Enviar para análise</b>.' },
+    { id: 'reprovadas', titulo: 'Reprovadas', dica: 'O planejamento não aprovou. Toque numa para ver o motivo, corrigir e reapresentar.' },
+    { id: 'analise', titulo: 'Enviadas, aguardando análise', dica: 'Estão com o planejamento. Enquanto isso não dá para alterar.' },
+    { id: 'aprovadas', titulo: 'Aprovadas', dica: 'Já são programação oficial. Para mudar, toque na programação e faça o pedido.', recolhida: true }
+  ];
+
+  function secaoDe(p) {
+    if (p.situacao === 'RECUSADA') return 'reprovadas';
+    if (p.situacao === 'SOLICITADA') return ehEditavel() ? 'enviar' : 'analise';
+    return 'aprovadas';
+  }
+
   function renderMinha() {
     var cont = $('visaoSolicitacao');
     if (!cont) return;
@@ -325,32 +339,48 @@ window.SIPAV = window.SIPAV || {};
               '<i data-lucide="plus" class="w-5 h-5"></i><span>Programar</span></button>';
     }
 
-    var marcaveis = S.minhas.filter(podeMarcar);
-    if (marcaveis.length > 1) {
-      var todasMarcadas = marcaveis.every(function (p) { return S.selLinhas[p.id]; });
-      html += '<div class="sup-selecao-topo"><button type="button" class="sup-seg-btn" data-acao="sel-todas">' +
-        (todasMarcadas ? 'Desmarcar todas' : 'Marcar todas (' + marcaveis.length + ')') + '</button>' +
-        '<span class="sup-fraco">Para apagar ou trocar o encarregado de várias de uma vez</span></div>';
-    }
+    // As linhas em quatro grupos, para ficar claro o que fazer com cada uma
+    var porSecao = {};
+    S.minhas.forEach(function (p) { (porSecao[secaoDe(p)] = porSecao[secaoDe(p)] || []).push(p); });
 
-    if (S.minhas.length) {
-      var porDia = {};
-      S.minhas.forEach(function (p) { (porDia[p.data] = porDia[p.data] || []).push(p); });
+    SECOES.forEach(function (sec) {
+      var linhasDaSecao = porSecao[sec.id] || [];
+      if (!linhasDaSecao.length && !(sec.id === 'enviar' && editavel && S.minhas.length)) return;
 
-      html += Object.keys(porDia).sort().map(function (dia) {
-        var linhas = porDia[dia].slice().sort(function (a, b) {
-          var ea = a.encarregado ? a.encarregado.nome : '', eb = b.encarregado ? b.encarregado.nome : '';
-          return ea.localeCompare(eb, 'pt-BR') || ((a.torre && a.torre.ordem) - (b.torre && b.torre.ordem));
-        });
-        return '<section class="sup-dia"><h3>' + esc(nomeCurtoDoDia(dia)) +
-               '<span>' + linhas.length + (linhas.length === 1 ? ' programação' : ' programações') + '</span>' +
-               (linhas.filter(podeMarcar).length > 1 ? '<button type="button" class="sup-dia-sel" data-acao="sel-dia" data-dia="' + dia + '">' +
-                 (linhas.filter(podeMarcar).every(function (p) { return S.selLinhas[p.id]; }) ? 'Desmarcar o dia' : 'Marcar o dia') + '</button>' : '') + '</h3>' +
-               linhas.map(function (p) { return cartaoLinha(p, editavel && p.situacao === 'SOLICITADA'); }).join('') +
-               '</section>';
-      }).join('');
-    }
+      var corpo = '';
+      if (!linhasDaSecao.length) {
+        corpo = '<p class="sup-fraco">Nada para enviar agora. Toque em <b>Programar</b> para adicionar.</p>';
+      } else {
+        var porDia = {};
+        linhasDaSecao.forEach(function (p) { (porDia[p.data] = porDia[p.data] || []).push(p); });
+        corpo = Object.keys(porDia).sort().map(function (dia) {
+          var linhas = porDia[dia].slice().sort(function (a, b) {
+            var ea = a.encarregado ? a.encarregado.nome : '', eb = b.encarregado ? b.encarregado.nome : '';
+            return ea.localeCompare(eb, 'pt-BR') || ((a.torre && a.torre.ordem) - (b.torre && b.torre.ordem));
+          });
+          var marcaveisDoDia = linhas.filter(podeMarcar);
+          return '<section class="sup-dia"><h3>' + esc(nomeCurtoDoDia(dia)) +
+                 '<span>' + linhas.length + (linhas.length === 1 ? ' programação' : ' programações') + '</span>' +
+                 (marcaveisDoDia.length > 1 ? '<button type="button" class="sup-dia-sel" data-acao="sel-dia" data-dia="' + dia + '" data-secao="' + sec.id + '">' +
+                   (marcaveisDoDia.every(function (p) { return S.selLinhas[p.id]; }) ? 'Desmarcar o dia' : 'Marcar o dia') + '</button>' : '') + '</h3>' +
+                 linhas.map(function (p) { return cartaoLinha(p, editavel && p.situacao === 'SOLICITADA'); }).join('') +
+                 '</section>';
+        }).join('');
+      }
 
+      var marcaveisDaSecao = linhasDaSecao.filter(podeMarcar);
+      var botaoTodas = marcaveisDaSecao.length > 1
+        ? '<button type="button" class="sup-seg-btn" data-acao="sel-secao" data-secao="' + sec.id + '">' +
+          (marcaveisDaSecao.every(function (p) { return S.selLinhas[p.id]; }) ? 'Desmarcar todas' : 'Marcar todas') + '</button>' : '';
+
+      if (sec.recolhida) {
+        html += '<details class="sup-secao sup-secao-' + sec.id + '"><summary><span class="sup-secao-titulo">' + sec.titulo +
+          '</span><em>' + linhasDaSecao.length + '</em></summary><p class="sup-fraco">' + sec.dica + '</p>' + corpo + '</details>';
+      } else {
+        html += '<section class="sup-secao sup-secao-' + sec.id + '"><div class="sup-secao-topo"><h2><span class="sup-secao-titulo">' + sec.titulo +
+          '</span><em>' + linhasDaSecao.length + '</em></h2>' + botaoTodas + '</div><p class="sup-fraco">' + sec.dica + '</p>' + corpo + '</section>';
+      }
+    });
     cont.innerHTML = html + '</div>';
     // Marcas de linhas que já não existem saem
     Object.keys(S.selLinhas).forEach(function (id) { if (!S.minhas.some(function (p) { return p.id === id; })) delete S.selLinhas[id]; });
@@ -482,7 +512,7 @@ window.SIPAV = window.SIPAV || {};
     }).catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro', 7000); });
   }
 
-  /** A barra de baixo com as linhas marcadas (só na aba Minha solicitação). */
+  /** A barra de baixo com as linhas marcadas (só na aba Minhas programações). */
   function atualizarBarraDeLinhas() {
     var barra = $('supBarraLinhas');
     if (!barra) return;
@@ -661,7 +691,7 @@ window.SIPAV = window.SIPAV || {};
       '<p class="sup-fraco" style="margin-top:.5rem">' + esc(quem) + '</p>' +
       (pedidoAberto
         ? '<p class="sup-fraco" style="margin-top:.5rem">Você já pediu ' + (pedidoAberto.exclusao ? 'para apagar esta programação' : 'uma alteração desta programação') +
-          '. Ele está no seu pacote, na aba Minha solicitação.</p>' : '');
+          '. Ele está no seu pacote, na aba Minhas programações.</p>' : '');
 
     var botoes = [{ rotulo: 'Fechar', classe: 'btn-secundario' }];
     if (minha) {
@@ -704,8 +734,10 @@ window.SIPAV = window.SIPAV || {};
       case 'corrigir': abrirFormulario(S.minhas.filter(function (p) { return p.id === id; })[0]); break;
       case 'sel-linha': alternarLinha(id, alvo.checked); break;
       case 'sel-limpar': S.selLinhas = {}; renderMinha(); break;
-      case 'sel-todas': marcarVarias(S.minhas.filter(podeMarcar)); break;
-      case 'sel-dia': marcarVarias(S.minhas.filter(function (p) { return p.data === alvo.getAttribute('data-dia') && podeMarcar(p); })); break;
+      case 'sel-secao': marcarVarias(S.minhas.filter(function (p) { return secaoDe(p) === alvo.getAttribute('data-secao') && podeMarcar(p); })); break;
+      case 'sel-dia': marcarVarias(S.minhas.filter(function (p) {
+        return p.data === alvo.getAttribute('data-dia') && secaoDe(p) === alvo.getAttribute('data-secao') && podeMarcar(p);
+      })); break;
       case 'sel-apagar': apagarMarcadas(); break;
       case 'sel-trocar-enc': trocarEncarregadoDasMarcadas(); break;
       case 'enviar': enviarPacote(); break;
