@@ -16,6 +16,10 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 15/10/2026
 
+### Cabeçalho do celular numa linha só, com o trecho em sigla — [WR]
+
+No celular o seletor de trecho mostra a sigla (CAF-BRR, BRT-BRR, JZT-CAF, BRR-CRN), que cabe sem cortar o nome; o nome por extenso fica no título e aparece nas telas maiores. No supervisor o cabeçalho é uma linha só: a marca, o trecho e, no fim, a bolinha do ao vivo e a engrenagem, que não quebram nem descem. Conferido em 320, 360, 390 e 430 de largura. Em 320 a marca encolhe um pouco, e o resumo dos filtros (torres, programadas e km) acompanha a largura da tela para continuar ao lado da busca. Regra daqui para frente: toda tela nova se confere nessas larguras, e não só numa.
+
 ### Cabeçalho e filtros do celular arrumados — [WR]
 
 No celular a marca fica no canto esquerdo, com o símbolo da torre e o nome SIPAV LT da mesma largura (o símbolo ficou maior). No supervisor o cabeçalho é uma grade de duas colunas: a marca de um lado e, do outro, o seletor de trecho em cima e a bolinha do ao vivo com a engrenagem embaixo, alinhados pela borda do seletor e do mesmo tamanho. Nos filtros, a busca de torre e o resumo (torres, programadas e km) ficam na mesma linha; a busca encolhe para o resumo caber, e só se nem assim couber o resumo desce.

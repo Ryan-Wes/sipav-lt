@@ -853,6 +853,12 @@ window.SIPAV = window.SIPAV || {};
     { quando: /juazeiro/,     sigla: 'JZT-CAF', cor: '#58A65E', clara: '#2E7A35' },
     { quando: /campo formoso/, sigla: 'CAF-BRR', cor: '#BB5BA5', clara: '#963F81' }
   ];
+  /** A sigla do trecho (CAF-BRR…), ou o próprio nome quando não é um dos quatro. Serve ao seletor do celular. */
+  function siglaDoTrecho(nome) {
+    var c = corDoTrecho(nome);
+    return c && c.sigla ? c.sigla : nome;
+  }
+
   function corDoTrecho(nome) {
     var n = String(nome || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
     return CORES_DOS_TRECHOS.filter(function (c) { return c.quando.test(n); })[0] || null;
@@ -1812,6 +1818,7 @@ window.SIPAV = window.SIPAV || {};
     ehSerra: ehSerra,
     movimentacaoDoTrecho: movimentacaoDoTrecho,
     tagTrecho: tagTrecho,
+    siglaDoTrecho: siglaDoTrecho,
     painelDoEncarregadoParaAnalise: painelDoEncarregadoParaAnalise,
     ajustarPastilhas: ajustarPastilhas,
     textoDaMovimentacao: textoDaMovimentacao,

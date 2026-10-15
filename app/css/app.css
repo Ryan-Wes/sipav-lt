@@ -2106,22 +2106,7 @@ body.modo-supervisor #visaoGrade { touch-action: pan-y; user-select: none; -webk
   .marca-link .bloco-marca { display: block !important; width: 100%; line-height: 0; }
 }
 
-/* Celular, supervisor: logo à esquerda e, ao lado, o trecho em cima e o ao vivo e a engrenagem embaixo,
-   os dois na mesma borda esquerda do seletor */
-@media (max-width: 767px) {
-  body.modo-supervisor .barra-cabecalho {
-    display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto;
-    column-gap: .875rem; row-gap: .5rem; align-items: center; justify-items: stretch;
-  }
-  body.modo-supervisor .barra-cabecalho > div:first-child { display: contents; }
-  body.modo-supervisor .marca-link { grid-column: 1; grid-row: 1 / span 2; align-self: center; }
-  body.modo-supervisor .bloco-trecho { grid-column: 2; grid-row: 1; margin: 0 !important; padding: 0 !important; border-left: 0 !important; min-width: 0; }
-  body.modo-supervisor #seletorTrecho { width: 100%; max-width: none; }
-  body.modo-supervisor .barra-cabecalho > div:last-child { grid-column: 2; grid-row: 2; justify-content: flex-start; min-width: 0; }
-  body.modo-supervisor .barra-cabecalho > div:last-child > div { margin: 0 !important; padding: 0 !important; border-left: 0 !important; }
-  /* A bolinha e a engrenagem do mesmo tamanho */
-  body.modo-supervisor #indicadorTempoReal, body.modo-supervisor .btn-tema { height: 40px; min-width: 40px; justify-content: center; }
-}
+
 
 /* Celular: os filtros em linhas que se enchem, e a busca com o resumo na mesma linha */
 @media (max-width: 639px) {
@@ -2132,6 +2117,36 @@ body.modo-supervisor #visaoGrade { touch-action: pan-y; user-select: none; -webk
   /* !important: as regras de 700px para baixo pedem a busca em linha inteira, e têm especificidade maior */
   .linha-filtros > .caixa-busca { flex: 1 1 4.5rem !important; min-width: 4.5rem; }
   .caixa-busca #filtroBusca { width: 100% !important; min-width: 0; }
-  .linha-filtros > #resumoEstatisticas { flex: 0 1 auto; white-space: nowrap; font-size: .6875rem; padding-left: .5rem; padding-right: .5rem;
+  /* O tamanho da letra acompanha a largura da tela: assim o resumo cabe ao lado da busca até em 320 */
+  .linha-filtros > #resumoEstatisticas { flex: 0 1 auto; white-space: nowrap; font-size: clamp(.5625rem, 2.7vw, .6875rem); padding-left: .375rem; padding-right: .375rem;
     display: inline-flex; align-items: center; justify-content: center; }
+}
+/* Celular, supervisor: tudo numa linha só — a marca, o trecho (só a sigla) e, no fim, o ao vivo e a engrenagem,
+   que não quebram nem descem. */
+@media (max-width: 767px) {
+  body.modo-supervisor .barra-cabecalho {
+    display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-rows: auto;
+    column-gap: .75rem; align-items: center; justify-items: stretch;
+  }
+  body.modo-supervisor .barra-cabecalho > div:first-child { display: contents; }
+  body.modo-supervisor .marca-link { grid-column: 1; grid-row: 1; align-self: center; }
+  body.modo-supervisor .bloco-trecho { grid-column: 2; grid-row: 1; margin: 0 !important; padding: 0 !important; border-left: 0 !important; min-width: 0; }
+  body.modo-supervisor #seletorTrecho { width: 100%; max-width: none; min-width: 0; }
+  body.modo-supervisor .barra-cabecalho > div:last-child { grid-column: 3; grid-row: 1; flex-wrap: nowrap; justify-content: flex-end; gap: .375rem; min-width: 0; }
+  body.modo-supervisor .barra-cabecalho > div:last-child > div { margin: 0 !important; padding: 0 !important; border-left: 0 !important; flex-wrap: nowrap; }
+  body.modo-supervisor .barra-cabecalho > div:last-child > div > * { flex-shrink: 0; }
+  /* A bolinha e a engrenagem do mesmo tamanho e sem encolher */
+  body.modo-supervisor #indicadorTempoReal, body.modo-supervisor .btn-tema { height: 40px; min-width: 40px; justify-content: center; flex-shrink: 0; }
+}
+
+/* Telas bem estreitas (320 a 359): a marca encolhe um pouco para o resto caber na mesma linha */
+@media (max-width: 359px) {
+  .marca-link { width: 64px; }
+  .marca-link #logoSimbolo, .marca-link #logoTexto { width: 64px !important; }
+  body.modo-supervisor .barra-cabecalho { column-gap: .5rem; }
+  body.modo-supervisor #seletorTrecho { padding-left: .5rem; padding-right: .125rem; font-size: .8125rem; }
+  body.modo-supervisor #indicadorTempoReal, body.modo-supervisor .btn-tema { height: 36px; min-width: 36px; }
+}
+@media (max-width: 359px) {
+  .linha-filtros .select-filtro { font-size: .6875rem; }
 }

@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v195 · 2026-10-15';
+  var VERSAO = 'v196 · 2026-10-15';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -476,10 +476,36 @@ window.SIPAV = window.SIPAV || {};
   /* CONTROLES DE TELA                                                        */
   /* ======================================================================== */
 
+  /**
+   * No celular o seletor de trecho mostra só a sigla (CAF-BRR, BRT-BRR…), que cabe sem cortar o nome;
+   * no resto, o nome inteiro. O título de cada opção guarda o nome por extenso nos dois casos.
+   */
+  var telaDeCelular = window.matchMedia ? window.matchMedia('(max-width: 767px)') : null;
+
+  function rotularSeletorDeTrecho() {
+    var sel = $('seletorTrecho');
+    if (!sel) return;
+    var curto = !!(telaDeCelular && telaDeCelular.matches);
+    Array.prototype.forEach.call(sel.options, function (o) {
+      var t = E.trechos.find(function (x) { return x.id === o.value; });
+      if (!t) return;
+      o.textContent = curto ? render.siglaDoTrecho(t.nome) : t.nome;
+      o.title = t.nome;
+    });
+    sel.title = E.trechoAtual ? E.trechoAtual.nome : '';
+  }
+
   function preencherSeletorTrecho() {
     $('seletorTrecho').innerHTML = E.trechos.map(function (t) {
       return '<option value="' + t.id + '">' + esc(t.nome) + '</option>';
     }).join('');
+    rotularSeletorDeTrecho();
+    if (telaDeCelular && !telaDeCelular.__sipav) {
+      telaDeCelular.__sipav = true;
+      var rotular = function () { rotularSeletorDeTrecho(); };
+      if (telaDeCelular.addEventListener) telaDeCelular.addEventListener('change', rotular);
+      else if (telaDeCelular.addListener) telaDeCelular.addListener(rotular);
+    }
     $('seletorTrecho').onchange = function (ev) {
       var escolhido = ev.target.value;
       // Outro trecho não tem nada a ver com a foto que estava aberta, nem com o
