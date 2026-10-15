@@ -1928,3 +1928,10 @@ body.modo-supervisor main { padding-bottom: 6rem; }
 .sol-decididas { margin-top: 1rem; font-size: .8125rem; }
 .sol-decididas > summary { cursor: pointer; color: var(--texto-suave); font-weight: 700; padding: .25rem 0; }
 .sol-decididas-lista { margin-top: 1.25rem; padding-top: .75rem; border-top: 1px solid var(--borda); }
+/* Reprovadas: tocar para corrigir, marcar várias, e a caixa do motivo no formulário */
+.sup-card.tocavel { cursor: pointer; }
+.sup-card.tocavel:active { background: rgba(225,29,72,.12); }
+.sup-card-topo .sup-sel { width: 22px; height: 22px; accent-color: var(--acento); flex-shrink: 0; cursor: pointer; }
+.sup-recusa-caixa { margin-bottom: .75rem; padding: .75rem; border-radius: .75rem; border: 1px solid rgba(225,29,72,.5); background: rgba(225,29,72,.07); }
+.sup-recusa-caixa strong { color: #E11D48; }
+.sup-recusa-caixa p { margin-top: .25rem; font-size: .875rem; }

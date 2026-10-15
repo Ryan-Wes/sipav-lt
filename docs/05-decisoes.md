@@ -16,6 +16,10 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 15/10/2026
 
+### O supervisor corrige as reprovadas e reapresenta — [WR]
+
+A programação reprovada continua no pacote dele, com **Reprovada por <quem>** e a justificativa. Tocando nela abre o formulário com o motivo no alto (**Corrigir e reapresentar**); ao salvar, ela volta a ser pré-programação no pacote aberto dele e vai na próxima vez que ele enviar. Ele também marca várias (reprovadas ou ainda não enviadas) e usa **Trocar encarregado** para aplicar o mesmo encarregado em todas de uma vez. Quando ele começa a corrigir e abre um pacote novo, as outras reprovadas dos últimos três dias continuam na vista, para corrigir aos poucos. A reprovada passa por uma função do banco (db/58), porque a política de edição do supervisor só vale para linha de pacote aberto; o banco confere que a linha é dele e que o pacote de destino está aberto. Pedido de apagar reprovado não se corrige: ele só pede de novo.
+
 ### Reprovar não fecha a análise, e dá para reanalisar — [WR]
 
 Antes, reprovar as marcadas já aprovava todas as outras e encerrava a solicitação. Agora **Reprovar** só separa as linhas numa caixa **Reprovadas**, no pé da janela, com a justificativa de cada uma (a que eu escrevi na hora). As outras ficam em análise até eu concluir, e dá para **Voltar para análise** numa reprovada, ou em todas. Nada vai para o banco enquanto não concluo.

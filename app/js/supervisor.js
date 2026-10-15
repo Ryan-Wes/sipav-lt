@@ -34,7 +34,8 @@ window.SIPAV = window.SIPAV || {};
     torres: [],
     torrePorNome: {},
     faixa: false,            // marcando uma faixa de torres na grade
-    ancora: null
+    ancora: null,
+    selLinhas: {}            // linhas marcadas na aba Minha solicitação, para mexer em várias de uma vez
   };
   var F = null;              // o formulário aberto
   var atualizador = null;
@@ -115,7 +116,7 @@ window.SIPAV = window.SIPAV || {};
 
   function trechoMudou() {
     S.trecho = E.trechoAtual;
-    S.sol = null; S.minhas = [];
+    S.sol = null; S.minhas = []; S.selLinhas = {};
     E.supSel = {};
     S.faixa = false; S.ancora = null;
     sincronizar();
@@ -177,9 +178,15 @@ window.SIPAV = window.SIPAV || {};
     return db.minhaSolicitacao(E.trechoAtual.id).then(function (sol) {
       S.sol = sol;
       S.erro = null;
-      return sol ? db.programacoesDaSolicitacao(sol.id) : [];
-    }).then(function (minhas) {
-      S.minhas = minhas;
+      // Junto com o pacote atual vêm as reprovadas recentes de pacotes anteriores, para corrigir aos poucos
+      return Promise.all([
+        sol ? db.programacoesDaSolicitacao(sol.id) : [],
+        db.reprovadasRecentes(E.trechoAtual.id).catch(function () { return []; })
+      ]);
+    }).then(function (r) {
+      var ja = {};
+      r[0].forEach(function (p) { ja[p.id] = true; });
+      S.minhas = r[0].concat(r[1].filter(function (p) { return !ja[p.id]; }));
     }).catch(function (e) {
       S.erro = e.message;
     }).then(function () {
@@ -293,7 +300,7 @@ window.SIPAV = window.SIPAV || {};
              '<p>' + (ok ? ok + (ok === 1 ? ' aprovada' : ' aprovadas') + ' (já valem na programação oficial) e ' : '') +
              recusadas + (recusadas === 1 ? ' reprovada' : ' reprovadas') + ', decidido ' + esc(ui.quandoRelativo(S.sol.decidida_em)) +
              '. O motivo de cada reprovada está abaixo.</p>' +
-             '<p class="sup-fraco">Corrija o que for preciso e programe de novo.</p></div>';
+             '<p class="sup-fraco">Toque numa reprovada para corrigir, ou marque várias para trocar o encarregado de todas de uma vez. Depois é só enviar de novo.</p></div>';
     }
     return '<div class="sup-status"><strong>Rascunho</strong>' +
            '<p>Ainda não foi enviado. Quando terminar, toque em <b>Enviar para análise</b>.</p></div>';
@@ -335,6 +342,9 @@ window.SIPAV = window.SIPAV || {};
     }
 
     cont.innerHTML = html + '</div>';
+    // Marcas de linhas que já não existem saem
+    Object.keys(S.selLinhas).forEach(function (id) { if (!S.minhas.some(function (p) { return p.id === id; })) delete S.selLinhas[id]; });
+    atualizarBarraDeLinhas();
     renderBarraDeEnvio();
     ui.icones();
   }
@@ -368,8 +378,14 @@ window.SIPAV = window.SIPAV || {};
       decisao = '<span class="sup-origem oficial">Aprovada' + por + ', já é oficial</span>';
     }
 
+    // Reprovada dele (e que não é pedido de apagar): dá para corrigir tocando nela, e marcar para mexer em várias
+    var corrigivel = p.situacao === 'RECUSADA' && !p.exclusao && ehMinha(p);
+    var marcavel = (podeMexer && tipo !== 'apagar') || corrigivel;
     var acoes = '';
-    if (podeMexer) {
+    if (corrigivel) {
+      acoes = '<div class="sup-card-acoes">' +
+        '<button type="button" data-acao="corrigir" data-id="' + p.id + '" aria-label="Corrigir"><i data-lucide="pencil" class="w-4 h-4"></i> Corrigir e reapresentar</button></div>';
+    } else if (podeMexer) {
       acoes = '<div class="sup-card-acoes">' +
         (tipo === 'apagar' ? '' :
           '<button type="button" data-acao="editar" data-id="' + p.id + '" aria-label="Editar"><i data-lucide="pencil" class="w-4 h-4"></i> Editar</button>') +
@@ -386,8 +402,11 @@ window.SIPAV = window.SIPAV || {};
           '</div>';
     }
 
-    return '<div class="sup-card' + (p.situacao === 'RECUSADA' ? ' recusada' : '') + (tipo && p.situacao === 'SOLICITADA' ? ' pedido' : '') + '">' +
-      '<div class="sup-card-topo"><strong>' + esc(p.torre.identificador) + '</strong>' + chipAtividade(p.atividade) + marca + '</div>' +
+    return '<div class="sup-card' + (p.situacao === 'RECUSADA' ? ' recusada' : '') + (tipo && p.situacao === 'SOLICITADA' ? ' pedido' : '') + (corrigivel ? ' tocavel' : '') + '"' +
+      (corrigivel ? ' data-acao="corrigir" data-id="' + p.id + '"' : '') + '>' +
+      '<div class="sup-card-topo">' +
+        (marcavel ? '<input type="checkbox" class="sup-sel" data-acao="sel-linha" data-id="' + p.id + '"' +
+          (S.selLinhas[p.id] ? ' checked' : '') + ' aria-label="Marcar">' : '') + '<strong>' + esc(p.torre.identificador) + '</strong>' + chipAtividade(p.atividade) + marca + '</div>' +
       '<div class="sup-card-meio"><span>' + esc(p.encarregado ? p.encarregado.nome : 'Sem encarregado') + '</span>' +
         '<span class="sup-pct">' + pct(p.percentual) + '</span>' +
         (p.cabo ? '<span class="sup-fraco">' + esc(String(p.cabo).replace('_', ' ')) + '</span>' : '') + '</div>' +
@@ -396,11 +415,96 @@ window.SIPAV = window.SIPAV || {};
       '</div>';
   }
 
+  /* ---------------------------------- Mexer em várias linhas de uma vez ---- */
+
+  function alternarLinha(id, marcada) {
+    if (marcada) S.selLinhas[id] = true; else delete S.selLinhas[id];
+    atualizarBarraDeLinhas();
+    renderBarraDeEnvio();
+  }
+
+  /** A barra de baixo com as linhas marcadas (só na aba Minha solicitação). */
+  function atualizarBarraDeLinhas() {
+    var barra = $('supBarraLinhas');
+    if (!barra) return;
+    var n = Object.keys(S.selLinhas).length;
+    var mostrar = E.aba === 'solicitacao' && !S.erro && n > 0;
+    barra.classList.toggle('hidden', !mostrar);
+    if (mostrar) {
+      $('supBlInfo').innerHTML = '<b>' + n + (n === 1 ? ' programação marcada' : ' programações marcadas') + '</b>' +
+        '<span>Troque o encarregado de todas de uma vez</span>';
+    }
+  }
+
+  /** Escolhe o encarregado e aplica nas marcadas: as ainda não enviadas mudam direto, as reprovadas voltam corrigidas. */
+  function trocarEncarregadoDasMarcadas() {
+    var ids = Object.keys(S.selLinhas);
+    if (!ids.length) return;
+    var itens = E.encarregados.slice().sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); })
+      .map(function (e) { return { id: e.id, rotulo: e.nome }; });
+
+    // A lista de escolha vive dentro da folha do formulário: aqui monta a folha só para ela
+    $('supFolha').innerHTML = '<div id="supLista" class="sup-lista hidden"></div>';
+    ui.mostrar('supFolha');
+    document.body.classList.add('sup-travado');
+    abrirLista('Trocar o encarregado de ' + ids.length + (ids.length === 1 ? ' programação' : ' programações'), itens, '', function (encId) {
+      ui.esconder('supFolha');
+      document.body.classList.remove('sup-travado');
+      aplicarEncarregadoNasMarcadas(ids, encId);
+    });
+  }
+
+  function aplicarEncarregadoNasMarcadas(ids, encId) {
+    var linhas = ids.map(function (id) { return S.minhas.filter(function (p) { return p.id === id; })[0]; }).filter(Boolean);
+    var abertas = linhas.filter(function (p) { return p.situacao === 'SOLICITADA'; });
+    var reprovadas = linhas.filter(function (p) { return p.situacao === 'RECUSADA'; });
+    var falhas = [], feitas = 0;
+
+    ui.processando('Trocando o encarregado…');
+    // Primeiro as reprovadas, que precisam de um pacote aberto
+    var passo1 = reprovadas.length
+      ? garantirRascunho().then(function (sol) {
+          return db.reapresentarReprovadas(reprovadas.map(function (p) { return p.id; }), sol.id, { encarregado_id: encId })
+            .then(function (r) {
+              feitas += r.corrigidas || 0;
+              (r.falhas || []).forEach(function (f) { falhas.push(f.torre + ' em ' + ui.dataCurta(f.data) + ': ' + f.motivo); });
+            });
+        })
+      : Promise.resolve();
+
+    passo1.then(function () {
+      return abertas.reduce(function (antes, p) {
+        return antes.then(function () {
+          return db.atualizarProgramacao(p.id, { encarregado_id: encId })
+            .then(function () { feitas++; }, function (e) { falhas.push(p.torre.identificador + ' em ' + ui.dataCurta(p.data) + ': ' + e.message); });
+        });
+      }, Promise.resolve());
+    }).then(function () {
+      S.selLinhas = {};
+      return atualizarTudo();
+    }).then(function () {
+      ui.pronto();
+      var enc = encarregadoPorId(encId);
+      if (falhas.length) {
+        ui.avisar(feitas + ' trocada(s) para ' + (enc ? enc.nome : 'sem encarregado') + '. Não deu: ' + falhas.slice(0, 2).join(' · '), 'alerta', 10000);
+      } else {
+        ui.avisar(feitas + (feitas === 1 ? ' programação agora é de ' : ' programações agora são de ') + (enc ? enc.nome : 'sem encarregado') +
+          (reprovadas.length ? '. As reprovadas voltaram para a sua solicitação: envie de novo.' : '.'), 'sucesso', 7000);
+      }
+    }).catch(function (e) { ui.pronto(); ui.avisar(semMigracao58(e.message), 'erro', 9000); });
+  }
+
+  /** Antes da migração 58 a função das reprovadas não existe: diz isso em vez da mensagem do banco. */
+  function semMigracao58(msg) {
+    return /reapresentar_reprovadas|schema cache|Could not find the function/i.test(msg || '')
+      ? 'Falta aplicar a migração 58 no banco para corrigir programação reprovada.' : msg;
+  }
+
   function renderBarraDeEnvio() {
     var barra = $('supEnviar');
     if (!barra) return;
     var n = S.minhas.filter(function (p) { return p.situacao === 'SOLICITADA'; }).length;
-    var mostrar = E.aba === 'solicitacao' && !S.erro && ehEditavel() && S.sol && n > 0;
+    var mostrar = E.aba === 'solicitacao' && !S.erro && ehEditavel() && S.sol && n > 0 && !Object.keys(S.selLinhas).length;
     barra.classList.toggle('hidden', !mostrar);
     if (mostrar) $('supEnviarBotao').innerHTML = 'Enviar para análise <b>(' + n + ')</b>';
   }
@@ -538,6 +642,10 @@ window.SIPAV = window.SIPAV || {};
       case 'pedir-alteracao': abrirFormulario(S.minhas.filter(function (p) { return p.id === id; })[0]); break;
       case 'apagar': apagarLinha(id); break;
       case 'pedir-apagar': pedirParaApagar(id); break;
+      case 'corrigir': abrirFormulario(S.minhas.filter(function (p) { return p.id === id; })[0]); break;
+      case 'sel-linha': alternarLinha(id, alvo.checked); break;
+      case 'sel-limpar': S.selLinhas = {}; renderMinha(); break;
+      case 'sel-trocar-enc': trocarEncarregadoDasMarcadas(); break;
       case 'enviar': enviarPacote(); break;
       case 'fechar-form': fecharFormulario(); break;
       case 'salvar-form': salvarFormulario(); break;
@@ -674,6 +782,8 @@ window.SIPAV = window.SIPAV || {};
       editId: linha ? linha.id : null,
       torre: linha ? linha.torre : null,                      // a torre da linha editada (fixa)
       original: !!linha && linha.situacao === 'APROVADA',     // pedido de alteração de uma já aprovada
+      reapresentar: !!linha && linha.situacao === 'RECUSADA', // reprovada que ele corrige e reapresenta
+      linhaRecusada: linha && linha.situacao === 'RECUSADA' ? linha : null,
       substituiId: linha ? (linha.substitui_id || null) : null,
       linhaOriginal: linha && linha.situacao === 'APROVADA' ? linha : null,
       encId: linha && linha.encarregado ? linha.encarregado.id : (opcoes.encId || ''),
@@ -714,9 +824,12 @@ window.SIPAV = window.SIPAV || {};
     var edicao = !!F.editId;
     return '' +
       '<div class="sup-folha-caixa" role="dialog" aria-modal="true">' +
-        '<div class="sup-folha-topo"><strong>' + (F.original ? 'Pedir alteração' : edicao ? 'Editar programação' : 'Programar') + '</strong>' +
+        '<div class="sup-folha-topo"><strong>' + (F.original ? 'Pedir alteração' : F.reapresentar ? 'Corrigir e reapresentar' : edicao ? 'Editar programação' : 'Programar') + '</strong>' +
           '<button type="button" class="sup-x" data-acao="fechar-form" aria-label="Fechar"><i data-lucide="x" class="w-5 h-5"></i></button></div>' +
         '<div class="sup-folha-corpo">' +
+          (F.reapresentar ? '<div class="sup-recusa-caixa"><strong>Reprovada' + (F.linhaRecusada.aprovador && F.linhaRecusada.aprovador.nome ? ' por ' + esc(F.linhaRecusada.aprovador.nome) : '') + '</strong>' +
+            '<p>' + esc(F.linhaRecusada.motivo_recusa || 'Sem justificativa registrada.') + '</p>' +
+            '<p class="sup-fraco">Corrija o que for preciso e reapresente: ela volta para a sua solicitação, e você envia de novo.</p></div>' : '') +
           (F.original ? '<div class="sup-aviso-caixa" style="margin-bottom:.75rem"><strong>Já está aprovada</strong>' +
             '<p class="sup-fraco">Isto não muda a programação agora: vai como pedido na sua solicitação, e vale quando o planejamento aprovar.</p></div>' : '') +
 
@@ -982,7 +1095,7 @@ window.SIPAV = window.SIPAV || {};
 
     var salvar = $('fSalvar');
     salvar.disabled = erros.length > 0 || !plano.linhas.length;
-    salvar.textContent = edicao ? (F.original ? 'Pedir alteração' : 'Salvar') : (plano.linhas.length ? 'Adicionar ' + plano.linhas.length : 'Adicionar');
+    salvar.textContent = edicao ? (F.original ? 'Pedir alteração' : F.reapresentar ? 'Corrigir e reapresentar' : 'Salvar') : (plano.linhas.length ? 'Adicionar ' + plano.linhas.length : 'Adicionar');
     ui.icones();
 
     conferirSequencia(plano, atv);
@@ -1053,7 +1166,12 @@ window.SIPAV = window.SIPAV || {};
       : '<p class="sup-vazio">Nada com essa busca.</p>';
   }
 
-  function fecharLista() { lista = null; ui.esconder('supLista'); }
+  function fecharLista() {
+    lista = null;
+    ui.esconder('supLista');
+    // Aberta sozinha (trocar o encarregado das marcadas), sem formulário por baixo: fecha a folha também
+    if (!F) { ui.esconder('supFolha'); if (!G) document.body.classList.remove('sup-travado'); }
+  }
 
   function escolherDaLista(id) {
     var l = lista; fecharLista();
@@ -1107,6 +1225,26 @@ window.SIPAV = window.SIPAV || {};
           ui.avisar('Pedido de alteração feito. Envie a solicitação para o planejamento decidir.', 'sucesso', 6000);
         })
         .catch(function (e) { ui.pronto(); ui.avisar(semMigracao(e.message), 'erro', 8000); });
+      return;
+    }
+
+    if (F.editId && F.reapresentar) {
+      var corr = plano.linhas[0];
+      var campos = {
+        atividade_id: F.atvId, encarregado_id: F.encId || null, data: corr.data,
+        percentual: plano.dias.length > 1 ? 100 : (F.pct || 100), observacao: (F.obs || '').trim() || null, cabo: cabo
+      };
+      ui.processando('Corrigindo…');
+      garantirRascunho().then(function (sol) { return db.reapresentarReprovadas([F.editId], sol.id, campos); })
+        .then(function (r) {
+          if (r.falhas && r.falhas.length) throw new Error(r.falhas[0].motivo);
+          return atualizarTudo();
+        })
+        .then(function () {
+          ui.pronto(); fecharFormulario();
+          ui.avisar('Corrigida. Ela voltou para a sua solicitação: envie para o planejamento analisar de novo.', 'sucesso', 7000);
+        })
+        .catch(function (e) { ui.pronto(); ui.avisar(semMigracao58(e.message), 'erro', 9000); });
       return;
     }
 

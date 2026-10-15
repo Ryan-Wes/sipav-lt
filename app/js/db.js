@@ -622,6 +622,21 @@ window.SIPAV = window.SIPAV || {};
     });
   }
 
+  /**
+   * As reprovadas dele dos últimos três dias neste trecho, de qualquer pacote. Quando ele começa a
+   * corrigir, o pacote novo passa a ser o "atual" e as outras reprovadas ficariam fora da vista.
+   */
+  function reprovadasRecentes(trechoId) {
+    var desde = new Date(Date.now() - 3 * 86400000).toISOString();
+    return auth.usuario().then(function (u) {
+      return consultarComPaginas(function () {
+        return cliente().from('programacao').select(selectProgramacaoDoSupervisor())
+          .eq('situacao', 'RECUSADA').eq('criado_por', u.id)
+          .eq('torre.trecho_id', trechoId).gte('aprovado_em', desde);
+      });
+    }).then(function (lista) { return lista.filter(function (p) { return !p.exclusao; }); });
+  }
+
   /** As programações oficiais a que os pedidos de um pacote se referem (para mostrar "era assim"). */
   function programacoesPorIds(ids) {
     if (!ids.length) return Promise.resolve([]);
@@ -675,6 +690,16 @@ window.SIPAV = window.SIPAV || {};
   function reabrirSolicitacao(id, linhaIds) {
     return cliente().rpc('reabrir_solicitacao', { p_id: id, p_linhas: linhaIds && linhaIds.length ? linhaIds : null })
       .then(function (r) { return ok(r, 'Falha ao reanalisar'); });
+  }
+
+  /**
+   * O supervisor corrige reprovadas e elas voltam a ser pré-programação no pacote aberto (db/58).
+   * `campos` leva só o que muda (encarregado_id, atividade_id, data, percentual, observacao, cabo).
+   * Devolve {corrigidas, falhas:[{id, torre, atividade, data, motivo}]}.
+   */
+  function reapresentarReprovadas(ids, solicitacaoId, campos) {
+    return cliente().rpc('reapresentar_reprovadas', { p_ids: ids, p_solicitacao: solicitacaoId, p_campos: campos || {} })
+      .then(function (r) { return ok(r, 'Falha ao corrigir'); });
   }
 
   /** As últimas solicitações de todos os supervisores, de qualquer situação, para achar as já decididas. */
@@ -1834,6 +1859,8 @@ window.SIPAV = window.SIPAV || {};
     programacoesParaConsulta: programacoesParaConsulta,
     programacoesPorIds: programacoesPorIds,
     reabrirSolicitacao: reabrirSolicitacao,
+    reapresentarReprovadas: reapresentarReprovadas,
+    reprovadasRecentes: reprovadasRecentes,
     solicitacoesRecentes: solicitacoesRecentes,
     enviarSolicitacao: enviarSolicitacao,
     solicitacoesParaAnalise: solicitacoesParaAnalise,
