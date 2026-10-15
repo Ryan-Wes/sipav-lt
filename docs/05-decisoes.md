@@ -16,6 +16,10 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 15/10/2026
 
+### Reprovar e devolver viraram uma coisa só — [WR]
+
+**Reprovar** e **Devolver para corrigir** pareciam a mesma coisa e funcionavam de jeitos diferentes, o que confundia. O botão **Devolver** saiu da análise: reprovar já é devolver. Toda linha reprovada volta para o supervisor com o motivo, aparece no grupo **Reprovadas, para corrigir** e ele corrige e reapresenta. Para devolver a solicitação inteira, é só **Reprovar tudo** com uma justificativa. Os pacotes que já tinham sido devolvidos antes continuam funcionando do mesmo jeito para o supervisor; o banco ainda tem a função de devolver, só não há mais botão para ela.
+
 ### A aba do supervisor virou **Minhas programações**, em quatro grupos — [WR]
 
 `Minha solicitação` parecia só o que está para enviar, mas guardava também as reprovadas e as aprovadas. O nome passou a ser **Minhas programações** e a lista, com o título de cada grupo dizendo o que fazer: **Para enviar** (ainda não foram para o planejamento), **Reprovadas** (com o motivo, para corrigir e reapresentar), **Enviadas, aguardando análise** (não dá para alterar) e **Aprovadas** (recolhido, já são oficiais). Cada grupo tem o contador e, nos que dá para mexer, **Marcar todas** e **Marcar o dia**.

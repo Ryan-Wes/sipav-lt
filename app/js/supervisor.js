@@ -4,7 +4,7 @@
    O supervisor não usa a tela completa: tem uma própria, simples, feita para o
    celular (e que também funciona no computador). Ele monta a programação dos
    encarregados como pré-programação, envia o pacote, e o planejamento analisa,
-   edita, devolve ou aprova. Só depois de aprovada ela é programação oficial.
+   edita, reprova ou aprova. Só depois de aprovada ela é programação oficial.
 
    Duas metades neste arquivo:
      · a tela do supervisor  (iniciar, render, formulário)
@@ -309,7 +309,7 @@ window.SIPAV = window.SIPAV || {};
   /** Os grupos da aba, na ordem em que aparecem: o que fazer com cada linha está no próprio título. */
   var SECOES = [
     { id: 'enviar', titulo: 'Para enviar', dica: 'Ainda não foram para o planejamento. Quando terminar, toque em <b>Enviar para análise</b>.' },
-    { id: 'reprovadas', titulo: 'Reprovadas', dica: 'O planejamento não aprovou. Toque numa para ver o motivo, corrigir e reapresentar.' },
+    { id: 'reprovadas', titulo: 'Reprovadas, para corrigir', dica: 'O planejamento não aprovou e devolveu para você corrigir. Toque numa para ver o motivo, corrigir e reapresentar.' },
     { id: 'analise', titulo: 'Enviadas, aguardando análise', dica: 'Estão com o planejamento. Enquanto isso não dá para alterar.' },
     { id: 'aprovadas', titulo: 'Aprovadas', dica: 'Já são programação oficial. Para mudar, toque na programação e faça o pedido.', recolhida: true }
   ];
@@ -848,7 +848,7 @@ window.SIPAV = window.SIPAV || {};
     if (!S.sol || !n) return;
     ui.confirmar('Enviar para análise',
       'Vão ' + n + (n === 1 ? ' programação' : ' programações') + ' para o planejamento analisar. ' +
-      'Depois de enviar você não altera mais, até o planejamento aprovar ou devolver.',
+      'Depois de enviar você não altera mais, até o planejamento aprovar ou reprovar.',
       'Enviar').then(function (sim) {
       if (!sim) return;
       ui.processando('Enviando…');
@@ -1838,7 +1838,7 @@ window.SIPAV = window.SIPAV || {};
     var rep = ordemDasLinhas(pacote.linhas.filter(function (l) { return pacote.reprovadas[l.id] !== undefined; }));
     if (!rep.length) return '';
     return '<div class="sol-reprovadas"><div class="sol-rep-topo"><div><b>Reprovadas (' + rep.length + ')</b>' +
-      '<p class="sup-fraco">Só valem quando você concluir a análise. Dá para voltar atrás em qualquer uma.</p></div>' +
+      '<p class="sup-fraco">Voltam para o supervisor corrigir quando você concluir a análise. Dá para voltar atrás em qualquer uma.</p></div>' +
       '<button type="button" class="btn-lancar" onclick="SIPAV.supervisor.voltarTodasParaAnalise()">Voltar todas para análise</button></div>' +
       rep.map(function (l) {
         return '<div class="sol-rep-linha"><div class="min-w-0">' + (rotuloDaLinha(l) ? '<em class="sol-tag-mini' + (l.exclusao ? ' apagar' : '') + '">' + esc(rotuloDaLinha(l).toUpperCase()) + '</em> ' : '') +
@@ -1893,7 +1893,6 @@ window.SIPAV = window.SIPAV || {};
       corpoHtml: corpo,
       botoes: [
         { rotulo: 'Voltar', classe: 'btn-secundario', acao: abrirSolicitacoes },
-        { rotulo: 'Devolver para corrigir…', classe: 'btn-secundario', acao: pedirMotivoDeDevolucao },
         { rotulo: 'Reprovar', classe: 'btn-secundario btn-secundario-perigo', acao: reprovar },
         { rotulo: 'Aprovar', classe: 'btn-primario', acao: aprovar }
       ]
@@ -1901,7 +1900,7 @@ window.SIPAV = window.SIPAV || {};
 
     document.querySelector('#modalGenerico .modal-caixa').classList.add('sol-larga');
     var bs = document.querySelectorAll('#genericoRodape button');
-    p.btnReprovar = bs[2]; p.btnAprovar = bs[3];
+    p.btnReprovar = bs[1]; p.btnAprovar = bs[2];
 
     Array.prototype.forEach.call(document.querySelectorAll('#genericoCorpo [data-ed]'), function (b) {
       b.onclick = function () { editarLinhaDoPacote(b.getAttribute('data-ed')); };
@@ -2078,30 +2077,6 @@ window.SIPAV = window.SIPAV || {};
     });
   }
 
-  /** Devolver o pacote inteiro para o supervisor corrigir e enviar de novo. */
-  function pedirMotivoDeDevolucao() {
-    ui.modalGenerico({
-      titulo: 'Devolver para o supervisor corrigir',
-      corpoHtml: '<p class="text-sm" style="margin-bottom:.5rem;color:var(--texto-suave)">A solicitação inteira volta para ele editar e enviar de novo. ' +
-        'Nada é aprovado nem reprovado agora.</p>' +
-        '<label class="rotulo">O que está errado? (o supervisor vai ler isto)</label>' +
-        '<textarea id="solMotivo" class="campo" rows="4" placeholder="Ex.: a torre 88/2 não é desta semana; falta a atividade do dia 15."></textarea>',
-      botoes: [
-        { rotulo: 'Voltar', classe: 'btn-secundario', acao: function () { desenharPacote(); } },
-        { rotulo: 'Devolver', classe: 'btn-primario', acao: function () {
-          var motivo = $('solMotivo').value.trim();
-          if (!motivo) { ui.avisar('Diga o que está errado.', 'alerta'); return; }
-          ui.processando('Devolvendo…');
-          db.devolverSolicitacao(pacote.sol.id, motivo).then(function () {
-            ui.pronto(); ui.fecharModal('modalGenerico'); pacote = null;
-            ui.avisar('Devolvida para o supervisor corrigir.', 'sucesso', 5000);
-            atualizarContador(false);
-          }).catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro', 7000); });
-        } }
-      ]
-    });
-  }
-
   /* -- Aprovar e reprovar --------------------------------------------------- */
 
   /**
@@ -2137,8 +2112,8 @@ window.SIPAV = window.SIPAV || {};
     ui.modalGenerico({
       titulo: 'Reprovar ' + ids.length + (ids.length === 1 ? ' programação' : ' programações'),
       corpoHtml: '<div class="space-y-2">' +
-        '<p class="sup-fraco">Elas vão para a caixa das reprovadas, aqui embaixo. Nada é decidido agora: ' +
-          'só vale quando você concluir a análise, e dá para voltar atrás.</p>' +
+        '<p class="sup-fraco">Elas voltam para o supervisor corrigir e reapresentar: ele vê o motivo que você escrever. ' +
+          'Por enquanto ficam na caixa das reprovadas, aqui embaixo. Nada é decidido agora: só vale quando você concluir a análise, e dá para voltar atrás.</p>' +
         '<ul class="text-xs sol-resumo">' + resumoDeLinhas(ids.slice(0, 12)) + '</ul>' +
         (ids.length > 12 ? '<p class="sup-fraco">e mais ' + (ids.length - 12) + '…</p>' : '') +
         '<label class="rotulo">Justificativa da reprovação (o supervisor vai ler)</label>' +
@@ -2209,7 +2184,7 @@ window.SIPAV = window.SIPAV || {};
           (aprovar.length <= 8 ? '<ul class="text-xs sol-resumo">' + resumoDeLinhas(aprovar) + '</ul>' : '') + '</div>'
         : '') +
       (idsRep.length
-        ? '<div><p class="text-sm font-bold" style="color:#E11D48">Reprovar ' + idsRep.length + (idsRep.length === 1 ? ' programação' : ' programações') + '</p>' +
+        ? '<div><p class="text-sm font-bold" style="color:#E11D48">Reprovar ' + idsRep.length + (idsRep.length === 1 ? ' programação' : ' programações') + ' <span class="sup-fraco" style="font-weight:400">(voltam para o supervisor corrigir)</span></p>' +
           '<ul class="text-xs sol-resumo">' + idsRep.slice(0, 12).map(function (id) {
             var l = pacote.linhas.filter(function (x) { return x.id === id; })[0];
             return '<li>' + resumoDaLinha(l) + '<br><span class="sup-fraco">' + esc(reprovar[id]) + '</span></li>';
