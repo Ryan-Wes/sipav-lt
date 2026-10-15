@@ -16,6 +16,16 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 15/10/2026
 
+### Reprovar não fecha a análise, e dá para reanalisar — [WR]
+
+Antes, reprovar as marcadas já aprovava todas as outras e encerrava a solicitação. Agora **Reprovar** só separa as linhas numa caixa **Reprovadas**, no pé da janela, com a justificativa de cada uma (a que eu escrevi na hora). As outras ficam em análise até eu concluir, e dá para **Voltar para análise** numa reprovada, ou em todas. Nada vai para o banco enquanto não concluo.
+
+- **Concluir** é o botão de aprovar: sem nada marcado, aprova o que sobrou e reprova o que está na caixa (**Aprovar o que sobrou**, ou **Concluir** se só sobraram reprovadas). A confirmação lista as duas coisas, com a justificativa de cada reprovada.
+- **Aprovar marcadas** aprova só aquelas, na hora, e o resto continua em análise. A solicitação só sai da fila quando não sobra linha esperando.
+- A separação das reprovadas fica só na tela: se eu fechar a janela antes de concluir, elas voltam para a análise.
+
+**Reanalisar.** Na lista de solicitações, a última de cada supervisor em cada trecho, se já foi decidida, ganha **Reanalisar**: as aprovadas saem da programação oficial e voltam a ser pré-programação, as reprovadas voltam para a análise, uma alteração aprovada devolve à oficial o que ela tinha, e um pedido de apagar aprovado traz a oficial de volta. Também dá para reanalisar linha a linha, na lista **Já decididas neste pacote**. Só vale para a última solicitação dele no trecho: se ele já começou outra, não reabre a anterior. O pedido de alteração ou de apagar passou a guardar a oficial como era na hora da aprovação (alores_anteriores), e o que foi aprovado antes disso não dá para restaurar. O histórico registra REABRIU, com o nome de quem reabriu e de quem era. Migração `db/57`.
+
 ### Supervisor programa com seleção no mesmo lote do planejamento — [AM]
 
 O Alessandro sentiu falta, na tela do supervisor, de programar várias torres de uma vez do jeito do

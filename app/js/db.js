@@ -662,10 +662,31 @@ window.SIPAV = window.SIPAV || {};
    * justificativa (db/55). Devolve {aprovadas, reprovadas, falhas:[{id, torre, atividade, data, motivo}]}.
    * A linha que a sequência barrar volta em `falhas` e continua no pacote.
    */
-  function decidirSolicitacao(id, aprovarIds, motivo, liberar) {
+  function decidirSolicitacao(id, aprovarIds, reprovar, liberar) {
     return cliente().rpc('decidir_solicitacao', {
-      p_id: id, p_aprovar: aprovarIds || [], p_motivo: motivo || null, p_liberar: !!liberar
+      p_id: id, p_aprovar: aprovarIds || [], p_reprovar: reprovar || {}, p_liberar: !!liberar
     }).then(function (r) { return ok(r, 'Falha ao decidir a solicitação'); });
+  }
+
+  /**
+   * Desfaz decisões (db/57): o pacote inteiro ou só as linhas dadas. Devolve {reabertas, falhas}.
+   * Só vale para a última solicitação do supervisor naquele trecho.
+   */
+  function reabrirSolicitacao(id, linhaIds) {
+    return cliente().rpc('reabrir_solicitacao', { p_id: id, p_linhas: linhaIds && linhaIds.length ? linhaIds : null })
+      .then(function (r) { return ok(r, 'Falha ao reanalisar'); });
+  }
+
+  /** As últimas solicitações de todos os supervisores, de qualquer situação, para achar as já decididas. */
+  function solicitacoesRecentes() {
+    return cliente()
+      .from('solicitacao')
+      .select('id, status, criada_em, enviada_em, decidida_em, supervisor_id, trecho_id, ' +
+              'supervisor:perfil!solicitacao_supervisor_id_fkey ( nome ), trecho:trecho_id ( nome ), ' +
+              'decididor:perfil!solicitacao_decidida_por_fkey ( nome )')
+      .order('criada_em', { ascending: false })
+      .limit(80)
+      .then(function (r) { return ok(r, 'Falha ao carregar as solicitações'); });
   }
 
   /** Quantos pacotes esperam análise (o número do botão do planejamento). */
@@ -1812,6 +1833,8 @@ window.SIPAV = window.SIPAV || {};
     programacoesDaSolicitacao: programacoesDaSolicitacao,
     programacoesParaConsulta: programacoesParaConsulta,
     programacoesPorIds: programacoesPorIds,
+    reabrirSolicitacao: reabrirSolicitacao,
+    solicitacoesRecentes: solicitacoesRecentes,
     enviarSolicitacao: enviarSolicitacao,
     solicitacoesParaAnalise: solicitacoesParaAnalise,
     devolverSolicitacao: devolverSolicitacao,

@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v184 · 2026-10-15';
+  var VERSAO = 'v185 · 2026-10-15';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -2860,7 +2860,8 @@ window.SIPAV = window.SIPAV || {};
     // A decisão do planejamento sobre o que o supervisor pediu (db/56)
     APROVOU:  { cor: '#16A34A', icone: 'check-circle', verbo: 'aprovou' },
     REPROVOU: { cor: '#E11D48', icone: 'x-circle',     verbo: 'reprovou' },
-    PEDIU:    { cor: '#0284C7', icone: 'send',         verbo: 'pediu' }
+    PEDIU:    { cor: '#0284C7', icone: 'send',         verbo: 'pediu' },
+    REABRIU:  { cor: '#7C3AED', icone: 'undo-2',       verbo: 'reabriu' }
   };
 
   var ROTULO_CAMPO = {
@@ -2876,13 +2877,14 @@ window.SIPAV = window.SIPAV || {};
     var o = tipo === 'EXCLUSAO' ? 'o pedido' + de + ' para apagar'
       : tipo === 'EDICAO' ? 'a alteração' + de
       : 'a programação' + de;
+    if (h.acao === 'REABRIU') return 'voltou para análise ' + (tipo === 'EXCLUSAO' ? 'o pedido' + de + ' para apagar' : tipo === 'EDICAO' ? 'a alteração' + de : 'a programação' + de) + ':';
     if (h.acao === 'PEDIU') return tipo === 'EXCLUSAO' ? 'pediu para apagar a programação' : 'pediu para alterar a programação';
     return (h.acao === 'APROVOU' ? 'aprovou ' : 'reprovou ') + o + ':';
   }
 
   function linhaHistorico(h, mostrarTorre) {
     var e = ESTILO_ACAO[h.acao] || ESTILO_ACAO.ALTEROU;
-    var decisao = h.acao === 'APROVOU' || h.acao === 'REPROVOU' || h.acao === 'PEDIU';
+    var decisao = h.acao === 'APROVOU' || h.acao === 'REPROVOU' || h.acao === 'PEDIU' || h.acao === 'REABRIU';
     var verbo = decisao ? fraseDaDecisao(h)
       : (h.acao === 'CRIOU' && h.situacao === 'SOLICITADA') ? 'pré-programou' : e.verbo;
 
@@ -2990,7 +2992,7 @@ window.SIPAV = window.SIPAV || {};
 
   /** "12 programações de uma vez", ou, numa decisão, "12 programações de Fulano" (com o tipo do pedido). */
   function sufixoDoGrupo(g, n) {
-    if (g.acao !== 'APROVOU' && g.acao !== 'REPROVOU' && g.acao !== 'PEDIU') {
+    if (g.acao !== 'APROVOU' && g.acao !== 'REPROVOU' && g.acao !== 'PEDIU' && g.acao !== 'REABRIU') {
       return '<strong>' + n + ' programações</strong> de uma vez';
     }
     var o = g.tipo === 'EXCLUSAO' ? 'pedidos para apagar' : g.tipo === 'EDICAO' ? 'alterações' : 'programações';
