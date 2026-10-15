@@ -16,6 +16,10 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 15/10/2026
 
+### Cabeçalho e filtros do celular arrumados — [WR]
+
+No celular a marca fica no canto esquerdo, com o símbolo da torre e o nome SIPAV LT da mesma largura (o símbolo ficou maior). No supervisor o cabeçalho é uma grade de duas colunas: a marca de um lado e, do outro, o seletor de trecho em cima e a bolinha do ao vivo com a engrenagem embaixo, alinhados pela borda do seletor e do mesmo tamanho. Nos filtros, a busca de torre e o resumo (torres, programadas e km) ficam na mesma linha; a busca encolhe para o resumo caber, e só se nem assim couber o resumo desce.
+
 ### Celular e supervisor: logos, 2 a 8 por linha, arrastar para selecionar, calendário dele — [WR]
 
 - **Cabeçalho no celular:** o símbolo da torre fica em cima do nome SIPAV LT. O "Ao vivo" é só a bolinha e o número, sem o ponto no meio.

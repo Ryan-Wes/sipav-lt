@@ -2053,13 +2053,7 @@ body.modo-supervisor .item-prog-toque:hover, body.modo-supervisor .item-prog-toq
 .sup-secao-topo { align-items: flex-start; }
 .sup-secao-topo > p.sup-fraco { flex: 1 1 14rem; margin: 0 0 .5rem; }
 .sup-secao-botoes { display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: .5rem; }
-/* Celular: o símbolo da torre em cima do nome SIPAV LT */
-@media (max-width: 767px) {
-  .marca-link { flex-direction: column; align-items: center; gap: .25rem !important; }
-  .marca-link #logoSimbolo { height: 30px !important; }
-  .marca-link .bloco-marca { display: block !important; line-height: 1; }
-  .marca-link #logoTexto { height: 12px !important; }
-}
+
 /* O calendário dele: só os dias que pode programar, semanal e quinzenal, com o dia da semana em destaque */
 .sup-cal { display: flex; flex-direction: column; gap: 1rem; }
 .sup-cal-titulo { display: flex; align-items: baseline; gap: .5rem; margin-bottom: .375rem; }
@@ -2104,3 +2098,40 @@ body.modo-supervisor .item-prog-toque:hover, body.modo-supervisor .item-prog-toq
    (pan-y) e entrega o arrasto para o lado ao script. Texto não se seleciona, para o arrasto não virar cópia. */
 body.modo-supervisor #visaoGrade { touch-action: pan-y; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 .sup-dica { display: block; margin-top: .25rem; font-size: .75rem; color: var(--texto-fraco); }
+/* Celular: o símbolo da torre em cima do nome SIPAV LT, os dois da mesma largura e no canto esquerdo */
+@media (max-width: 767px) {
+  .barra-cabecalho { justify-content: flex-start; }
+  .marca-link { flex-direction: column; align-items: flex-start; gap: .3125rem !important; width: 80px; flex-shrink: 0; }
+  .marca-link #logoSimbolo, .marca-link #logoTexto { width: 80px !important; height: auto !important; }
+  .marca-link .bloco-marca { display: block !important; width: 100%; line-height: 0; }
+}
+
+/* Celular, supervisor: logo à esquerda e, ao lado, o trecho em cima e o ao vivo e a engrenagem embaixo,
+   os dois na mesma borda esquerda do seletor */
+@media (max-width: 767px) {
+  body.modo-supervisor .barra-cabecalho {
+    display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto;
+    column-gap: .875rem; row-gap: .5rem; align-items: center; justify-items: stretch;
+  }
+  body.modo-supervisor .barra-cabecalho > div:first-child { display: contents; }
+  body.modo-supervisor .marca-link { grid-column: 1; grid-row: 1 / span 2; align-self: center; }
+  body.modo-supervisor .bloco-trecho { grid-column: 2; grid-row: 1; margin: 0 !important; padding: 0 !important; border-left: 0 !important; min-width: 0; }
+  body.modo-supervisor #seletorTrecho { width: 100%; max-width: none; }
+  body.modo-supervisor .barra-cabecalho > div:last-child { grid-column: 2; grid-row: 2; justify-content: flex-start; min-width: 0; }
+  body.modo-supervisor .barra-cabecalho > div:last-child > div { margin: 0 !important; padding: 0 !important; border-left: 0 !important; }
+  /* A bolinha e a engrenagem do mesmo tamanho */
+  body.modo-supervisor #indicadorTempoReal, body.modo-supervisor .btn-tema { height: 40px; min-width: 40px; justify-content: center; }
+}
+
+/* Celular: os filtros em linhas que se enchem, e a busca com o resumo na mesma linha */
+@media (max-width: 639px) {
+  .barra-ferramentas > .linha-filtros { display: flex !important; flex-wrap: wrap; align-items: stretch; gap: .5rem; }
+  .linha-filtros > .caixa-filtro { width: auto; flex: 1 1 calc(50% - .25rem); min-width: 0; }
+  .linha-filtros > .caixa-colunas-cel { flex: 1 1 100%; }
+  /* A busca encolhe para o resumo caber ao lado dela; se nem assim couber, o resumo desce */
+  /* !important: as regras de 700px para baixo pedem a busca em linha inteira, e têm especificidade maior */
+  .linha-filtros > .caixa-busca { flex: 1 1 4.5rem !important; min-width: 4.5rem; }
+  .caixa-busca #filtroBusca { width: 100% !important; min-width: 0; }
+  .linha-filtros > #resumoEstatisticas { flex: 0 1 auto; white-space: nowrap; font-size: .6875rem; padding-left: .5rem; padding-right: .5rem;
+    display: inline-flex; align-items: center; justify-content: center; }
+}
