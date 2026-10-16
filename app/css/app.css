@@ -2165,12 +2165,15 @@ body.modo-supervisor #visaoGrade { touch-action: pan-y; user-select: none; -webk
    no cartão quase todo. O cartão vira um contexto de empilhamento para a marca d'água ficar atrás do texto
    e na frente do fundo. */
 .cartao-torre { isolation: isolate; }
-.cartao-torre .icone-legenda { display: inline-block; vertical-align: middle; width: 12px; height: 12px; margin-right: .3125rem; margin-top: -2px; stroke-width: 2.4; }
+.cartao-torre .icone-legenda { display: inline-block; vertical-align: middle; width: 12px; height: 12px; margin-right: .3125rem; margin-top: -2px; stroke-width: 2.4; color: var(--marca); }
 .cartao-torre .marca-dagua {
   position: absolute; left: 50%; top: 50%; z-index: -1; width: 82%; height: auto; aspect-ratio: 1;
-  transform: translate(-50%, -50%); opacity: .08; stroke-width: 1.4; pointer-events: none;
+  transform: translate(-50%, -50%); opacity: .08; stroke-width: 1.4; pointer-events: none; color: var(--marca);
 }
-html:not(.dark) .cartao-torre .marca-dagua { opacity: .12; }
+/* No tema claro as cores claras das atividades (revisão, supressão…) somem no fundo branco: o ícone e a marca
+   d'água usam a cor da atividade escurecida, e a marca d'água fica mais presente. */
+html:not(.dark) .cartao-torre .icone-legenda { color: color-mix(in srgb, var(--marca) 55%, #0f172a); }
+html:not(.dark) .cartao-torre .marca-dagua { color: color-mix(in srgb, var(--marca) 60%, #0f172a); opacity: .17; }
 @media (max-width: 639px) {
   body[data-cols-cel="4"] .cartao-torre .icone-legenda { width: 8px; height: 8px; margin-right: .125rem; }
   /* Com 6 e 8 por linha a marca d'água é o que sobra do estágio: fica um pouco mais forte */

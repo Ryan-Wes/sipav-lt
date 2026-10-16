@@ -16,6 +16,10 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 16/10/2026
 
+### Marca d'água no tema claro — [WR]
+
+No tema claro as cores claras das atividades (revisão, supressão de área de torre, teste de arrancamento) quase sumiam no fundo branco. O ícone da legenda e a marca d'água passaram a usar a cor da atividade escurecida (60% dela com um azul bem escuro, por color-mix), e a marca d'água fica mais presente (17% de opacidade, contra 8% no escuro). A cor vem da própria atividade, por uma variável do cartão; no tema escuro nada muda.
+
 ### Vão da torre no cartão, soma dos vãos na seleção e seleção com Ctrl — [WR]
 
 - **Vão no cartão:** a grade mostra "Vão: 0,542 km" logo abaixo do número da torre, como no protótipo. No celular com 4 por linha fica só "0,542 km" e com 6 e 8 some.

@@ -382,10 +382,10 @@ window.SIPAV = window.SIPAV || {};
     var nomeDoIcone = torre.ultima_atividade ? iconeDaAtividade(torre.ultima_atividade) : null;
     var corDoIcone = torre.ultima_atividade_cor || 'var(--texto-fraco)';
     var marcaDagua = nomeDoIcone
-      ? '<i data-lucide="' + nomeDoIcone + '" class="marca-dagua" aria-hidden="true" style="color:' + corDoIcone + '"></i>'
+      ? '<i data-lucide="' + nomeDoIcone + '" class="marca-dagua" aria-hidden="true" style="--marca:' + corDoIcone + '"></i>'
       : '';
     var marcadorDaLegenda = (nomeDoIcone && !restrito)
-      ? '<i data-lucide="' + nomeDoIcone + '" class="icone-legenda" title="Última atividade executada: ' + esc(torre.ultima_atividade) + '" style="color:' + corDoIcone + '"></i>'
+      ? '<i data-lucide="' + nomeDoIcone + '" class="icone-legenda" title="Última atividade executada: ' + esc(torre.ultima_atividade) + '" style="--marca:' + corDoIcone + '"></i>'
       : '<span class="ponto-atividade" style="background:' + (corEstado || 'var(--borda-forte)') + '"></span>';
 
     // O vão da torre (a extensão até a próxima), como no protótipo: "Vão: 0,542 km"
