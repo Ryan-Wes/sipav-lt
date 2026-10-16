@@ -852,8 +852,10 @@ window.SIPAV = window.SIPAV || {};
     var mostrar = E.aba === 'grade' && E.modoSupervisor && (marcadas.length > 0 || S.faixa);
     barra.classList.toggle('hidden', !mostrar);
     if (!mostrar) return;
+    // A soma dos vãos das torres marcadas: 500 m + 500 m = 1 km
+    var somaKm = Math.round(marcadas.reduce(function (s, t) { return s + (Number(t.km) || 0); }, 0) * 1000) / 1000;
     $('supBtInfo').innerHTML = marcadas.length
-      ? '<b>' + marcadas.length + (marcadas.length === 1 ? ' torre' : ' torres') + '</b><span>' +
+      ? '<b>' + marcadas.length + (marcadas.length === 1 ? ' torre' : ' torres') + (somaKm > 0 ? ' · ' + ui.km(somaKm) + ' km' : '') + '</b><span>' +
         esc(marcadas.slice(0, 5).map(function (t) { return t.identificador; }).join(', ')) + (marcadas.length > 5 ? '…' : '') + '</span>'
       : '<span>Toque na primeira torre da faixa</span>';
     $('supBtFaixa').classList.toggle('ativo', S.faixa);

@@ -388,6 +388,11 @@ window.SIPAV = window.SIPAV || {};
       ? '<i data-lucide="' + nomeDoIcone + '" class="icone-legenda" title="Última atividade executada: ' + esc(torre.ultima_atividade) + '" style="color:' + corDoIcone + '"></i>'
       : '<span class="ponto-atividade" style="background:' + (corEstado || 'var(--borda-forte)') + '"></span>';
 
+    // O vão da torre (a extensão até a próxima), como no protótipo: "Vão: 0,542 km"
+    var vao = Number(torre.km) > 0
+      ? '<span class="vao"><span class="vao-rotulo">Vão: </span>' + ui.km(torre.km) + ' km</span>'
+      : '';
+
     var estaiada = torre.estrutura === 'ESTAIADA';
     var pastilha = torre.estrutura
       ? '<span class="pastilha-estrutura ' + (estaiada ? 'est' : 'aup') + '">' +
@@ -423,6 +428,7 @@ window.SIPAV = window.SIPAV || {};
         seloObs +
         '<span class="identidade">' +
           '<span class="identificador">' + esc(torre.identificador) + '</span>' +
+          vao +
           pastilha +
           modelo +
           '<span class="legenda">' +

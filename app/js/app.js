@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v204 · 2026-10-16';
+  var VERSAO = 'v205 · 2026-10-16';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -131,6 +131,24 @@ window.SIPAV = window.SIPAV || {};
 
     // Arrastar pela grade marca as torres do retângulo, no modo seleção
     document.addEventListener('mousedown', iniciarLaco);
+
+    // Segurando Ctrl (ou Cmd), clicar numa torre marca ela, e arrastar marca várias: é assim que se
+    // seleciona no computador, sem botão. Vem antes do clique do cartão, que abriria a torre.
+    document.addEventListener('click', function (ev) {
+      if (E.modoSupervisor || !(ev.ctrlKey || ev.metaKey) || E.aba !== 'grade') return;
+      var cartao = ev.target.closest ? ev.target.closest('#visaoGrade .cartao-torre') : null;
+      var id = cartao ? cartao.getAttribute('data-torre') : null;
+      if (!id) return;
+      ev.preventDefault(); ev.stopPropagation();
+      if (arrastou) return;
+      if (!ligarSelecaoPorTecla()) return;
+      alternarTorreSelecionada(id);
+    }, true);
+
+    // Esc desfaz a seleção que o Ctrl começou
+    document.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Escape' && E.modoSelecao && E.selecaoPorTecla && !document.querySelector('.modal:not(.hidden)')) limparSelecao();
+    });
 
     // Clique fora fecha os menus suspensos
     document.addEventListener('click', function (ev) {
@@ -701,6 +719,7 @@ window.SIPAV = window.SIPAV || {};
 
   function trocarAba(aba) {
     E.aba = aba;
+    document.body.setAttribute('data-aba', aba);
     // Seletor de colunas só faz sentido na grade
     $('filtroColunas').parentNode.style.display = aba === 'grade' ? '' : 'none';
     if ($('caixaColunasCel')) $('caixaColunasCel').style.display = aba === 'grade' ? '' : 'none';
@@ -3270,9 +3289,33 @@ window.SIPAV = window.SIPAV || {};
    *
    * Enquanto o modo está ligado, clicar no cartão marca em vez de abrir a torre.
    */
+  /**
+   * No computador não há botão: o Ctrl liga a seleção sozinho e ela se desliga quando a última torre é
+   * desmarcada. `selecaoPorTecla` guarda que foi assim, para o modo ligado pelo botão (no celular)
+   * continuar ligado mesmo sem nenhuma torre marcada.
+   */
+  function ligarSelecaoPorTecla() {
+    if (E.modoSelecao) return true;
+    if (E.snapshot) { somenteConsulta(); return false; }
+    E.modoSelecao = true;
+    E.selecaoPorTecla = true;
+    document.body.classList.add('modo-selecao');
+    return true;
+  }
+
+  function sairDaSelecaoSeVazia() {
+    if (!E.modoSelecao || !E.selecaoPorTecla || Object.keys(E.selecionadas).length) return;
+    E.modoSelecao = false;
+    E.selecaoPorTecla = false;
+    document.body.classList.remove('modo-selecao');
+    render.tudo();
+    renderBarraSelecao();
+  }
+
   function alternarModoSelecao() {
     // Ligar a seleção é para programar ou apagar: não vale olhando uma foto
     if (E.snapshot && !E.modoSelecao) { somenteConsulta(); return; }
+    E.selecaoPorTecla = false;
     E.modoSelecao = !E.modoSelecao;
     if (!E.modoSelecao) E.selecionadas = {};
     document.body.classList.toggle('modo-selecao', E.modoSelecao);
@@ -3286,12 +3329,14 @@ window.SIPAV = window.SIPAV || {};
     else E.selecionadas[torreId] = true;
     render.tudo();
     renderBarraSelecao();
+    sairDaSelecaoSeVazia();
   }
 
   function limparSelecao() {
     E.selecionadas = {};
     render.tudo();
     renderBarraSelecao();
+    sairDaSelecaoSeVazia();
   }
 
   /** Marca tudo que está visível com os filtros atuais. */
@@ -3321,10 +3366,19 @@ window.SIPAV = window.SIPAV || {};
   var laco = null;   // { x0, y0, caixa, jaMarcadas, subtraindo, mexeu }
 
   function iniciarLaco(ev) {
-    if (!E.modoSelecao || ev.button !== 0) return;
+    if (ev.button !== 0) return;
 
     var grade = $('visaoGrade');
     if (!grade || !grade.contains(ev.target)) return;
+
+    // Sem o modo ligado, só o Ctrl (ou Cmd) segurado começa a seleção por arrasto, na grade do planejamento.
+    // O modo só liga quando o gesto vira arrasto de verdade (ver moverLaco): um Ctrl+clique simples é do
+    // clique do cartão, e ligar aqui redesenharia a grade entre o botão e o clique.
+    var silencioso = false;
+    if (!E.modoSelecao) {
+      if (!(ev.ctrlKey || ev.metaKey) || E.modoSupervisor || E.aba !== 'grade') return;
+      silencioso = true;
+    }
 
     // Não sequestra o que já é interativo dentro do cartão
     if (ev.target.closest && ev.target.closest('button, a, input, select')) return;
@@ -3342,7 +3396,8 @@ window.SIPAV = window.SIPAV || {};
       // Começou em cima de um cartão: se virar arrasto, ele entra junto mesmo
       // que o ponteiro saia dali antes de eu desenhar o retângulo.
       origem: ev.target.closest ? ev.target.closest('.cartao-torre') : null,
-      mexeu: false
+      mexeu: false,
+      silencioso: silencioso
     };
 
     document.addEventListener('mousemove', moverLaco);
@@ -3361,6 +3416,8 @@ window.SIPAV = window.SIPAV || {};
     // O retângulo só nasce quando vira arrasto de verdade. Criar no mousedown
     // deixava um ponto piscando a cada clique simples.
     if (!laco.mexeu) {
+      // Virou arrasto: se foi o Ctrl que começou, é agora que a seleção liga
+      if (laco.silencioso && !ligarSelecaoPorTecla()) { soltarLaco(); return; }
       laco.mexeu = true;
       laco.caixa = document.createElement('div');
       laco.caixa.className = 'laco-selecao';
@@ -3427,6 +3484,7 @@ window.SIPAV = window.SIPAV || {};
 
     render.tudo();
     renderBarraSelecao();
+    sairDaSelecaoSeVazia();
   }
 
   var arrastou = false;
@@ -3438,13 +3496,24 @@ window.SIPAV = window.SIPAV || {};
     barra.classList.toggle('hidden', !E.modoSelecao);
     if (!E.modoSelecao) return;
 
+    // A soma dos vãos das torres marcadas (500 m + 500 m = 1 km): a extensão da frente que se está escolhendo
     $('contagemSelecao').textContent =
-      n ? n + (n === 1 ? ' torre selecionada' : ' torres selecionadas')
+      n ? n + (n === 1 ? ' torre selecionada' : ' torres selecionadas') + ' · ' + ui.km(somaDosVaos(Object.keys(E.selecionadas))) + ' km'
         : 'Clique nos cartões para escolher';
     $('btnProgramarSelecao').disabled = !n;
     $('btnEditarSelecao').disabled = !n;
     $('btnApagarSelecao').disabled = !n;
     $('btnLimparSelecao').classList.toggle('hidden', !n);
+  }
+
+  /** Soma dos vãos (km) das torres dadas, arredondada ao metro. */
+  function somaDosVaos(ids) {
+    var soma = 0;
+    ids.forEach(function (id) {
+      var t = E.torres.find(function (x) { return x.torre_id === id; });
+      if (t) soma += Number(t.km) || 0;
+    });
+    return Math.round(soma * 1000) / 1000;
   }
 
   /** Abre o lote já com o que está marcado na grade. */
@@ -3761,7 +3830,10 @@ window.SIPAV = window.SIPAV || {};
     ui.modalGenerico({
       titulo: opcoes.titulo
         ? opcoes.titulo + ' — ' + E.trechoAtual.nome
-        : 'Programar ' + loteTorres.length + ' torres — ' + E.trechoAtual.nome,
+        : 'Programar ' + loteTorres.length + ' torres' +
+          (somaDosVaos(loteTorres.map(function (t) { return t.torreId; })) > 0
+            ? ' · ' + ui.km(somaDosVaos(loteTorres.map(function (t) { return t.torreId; }))) + ' km' : '') +
+          ' — ' + E.trechoAtual.nome,
       corpoHtml: corpo,
       botoes: [
         { rotulo: 'Cancelar', classe: 'btn-secundario' },

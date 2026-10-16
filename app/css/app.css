@@ -2176,3 +2176,20 @@ html:not(.dark) .cartao-torre .marca-dagua { opacity: .12; }
   /* Com 6 e 8 por linha a marca d'água é o que sobra do estágio: fica um pouco mais forte */
   body[data-cols-cel="6"] .cartao-torre .marca-dagua, body[data-cols-cel="8"] .cartao-torre .marca-dagua { opacity: .16; width: 90%; }
 }
+/* Vão da torre no cartão ("Vão: 0,542 km"), como no protótipo */
+.cartao-torre .vao { font-size: .6875rem; font-weight: 500; color: var(--texto-fraco); line-height: 1; }
+@media (max-width: 639px) {
+  body[data-cols-cel="4"] .cartao-torre .vao { font-size: .5rem; }
+  body[data-cols-cel="4"] .cartao-torre .vao-rotulo { display: none; }
+  body[data-cols-cel="6"] .cartao-torre .vao, body[data-cols-cel="8"] .cartao-torre .vao { display: none; }
+}
+
+/* Seleção: no computador é com o Ctrl, então o botão sai (no celular do planejamento ele continua) e fica a dica,
+   só na grade e só para quem usa o mouse */
+.dica-ctrl { display: none; align-items: center; gap: .375rem; margin-left: .75rem; font-size: .6875rem; color: var(--texto-fraco); white-space: nowrap; }
+@media (min-width: 768px) {
+  #btnModoSelecao { display: none !important; }
+  body:not(.modo-supervisor) .dica-ctrl { display: inline-flex; }
+  body[data-aba="datas"] .dica-ctrl, body[data-aba="encarregados"] .dica-ctrl, body[data-aba="atividades"] .dica-ctrl,
+  body[data-aba="movimentacoes"] .dica-ctrl, body[data-aba="solicitacao"] .dica-ctrl { display: none; }
+}

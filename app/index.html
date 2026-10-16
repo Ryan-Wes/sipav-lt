@@ -41,7 +41,7 @@
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 
   <!-- ?v= força o navegador a buscar de novo quando o código muda. -->
-  <link rel="stylesheet" href="css/app.css?v=204">
+  <link rel="stylesheet" href="css/app.css?v=205">
 </head>
 <body class="h-full flex flex-col antialiased">
 
@@ -328,6 +328,10 @@
           <i data-lucide="send" class="w-4 h-4"></i> Minhas programações
           <span id="seloMinhaSol" class="selo-minha-sol hidden">0</span>
         </button>
+        <!-- No computador não há botão de selecionar: o Ctrl faz isso. A dica fica aqui, onde sobra espaço. -->
+        <span id="dicaCtrl" class="dica-ctrl" title="Segure Ctrl e clique numa torre para marcar; segure Ctrl e arraste para marcar várias; Alt com o arrasto desmarca">
+          <i data-lucide="mouse-pointer-click" class="w-3.5 h-3.5"></i> Ctrl + clique seleciona torres, Ctrl + arrastar marca várias
+        </span>
       </div>
 
       <div class="linha-filtros">
@@ -817,12 +821,12 @@
   </div>
 </div>
 
-<script src="js/config.js?v=204"></script>
-<script src="js/db.js?v=204"></script>
-<script src="js/ui.js?v=204"></script>
-<script src="js/render.js?v=204"></script>
-<script src="js/isa.js?v=204"></script>
-<script src="js/supervisor.js?v=204"></script>
-<script src="js/app.js?v=204"></script>
+<script src="js/config.js?v=205"></script>
+<script src="js/db.js?v=205"></script>
+<script src="js/ui.js?v=205"></script>
+<script src="js/render.js?v=205"></script>
+<script src="js/isa.js?v=205"></script>
+<script src="js/supervisor.js?v=205"></script>
+<script src="js/app.js?v=205"></script>
 </body>
 </html>
