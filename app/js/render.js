@@ -376,10 +376,17 @@ window.SIPAV = window.SIPAV || {};
         '</span>'
       : '';
 
-    var iconeDoEstagio = torre.ultima_atividade
-      ? '<i data-lucide="' + iconeDaAtividade(torre.ultima_atividade) + '" class="icone-estagio" title="Última atividade executada: ' + esc(torre.ultima_atividade) + '"' +
-          (torre.ultima_atividade_cor ? ' style="color:' + torre.ultima_atividade_cor + '"' : '') + '></i>'
+    // Última atividade executada: o ícone dela no lugar da bolinha da legenda e, bem apagado, como marca d'água
+    // no cartão quase todo. Com restrição a legenda diz a restrição, então fica a bolinha vermelha; a marca
+    // d'água continua, porque o estágio da torre não mudou.
+    var nomeDoIcone = torre.ultima_atividade ? iconeDaAtividade(torre.ultima_atividade) : null;
+    var corDoIcone = torre.ultima_atividade_cor || 'var(--texto-fraco)';
+    var marcaDagua = nomeDoIcone
+      ? '<i data-lucide="' + nomeDoIcone + '" class="marca-dagua" aria-hidden="true" style="color:' + corDoIcone + '"></i>'
       : '';
+    var marcadorDaLegenda = (nomeDoIcone && !restrito)
+      ? '<i data-lucide="' + nomeDoIcone + '" class="icone-legenda" title="Última atividade executada: ' + esc(torre.ultima_atividade) + '" style="color:' + corDoIcone + '"></i>'
+      : '<span class="ponto-atividade" style="background:' + (corEstado || 'var(--borda-forte)') + '"></span>';
 
     var estaiada = torre.estrutura === 'ESTAIADA';
     var pastilha = torre.estrutura
@@ -411,16 +418,15 @@ window.SIPAV = window.SIPAV || {};
            (estilo ? 'style="' + estilo + '" ' : '') +
            'onclick="' + acaoDaTorre(torre.torre_id) + '" ' +
            'title="' + dica + '">' +
+        marcaDagua +
         selo +
         seloObs +
         '<span class="identidade">' +
-          // O ícone da última atividade executada fica ao lado do número da torre; o nome dela segue escrito embaixo
-          '<span class="linha-id">' + iconeDoEstagio + '<span class="identificador">' + esc(torre.identificador) + '</span></span>' +
+          '<span class="identificador">' + esc(torre.identificador) + '</span>' +
           pastilha +
           modelo +
           '<span class="legenda">' +
-            '<span class="ponto-atividade" style="background:' +
-              (corEstado || 'var(--borda-forte)') + '"></span>' +
+            marcadorDaLegenda +
             esc(estado) +
           '</span>' +
         '</span>' +

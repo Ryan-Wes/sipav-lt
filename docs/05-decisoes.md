@@ -16,9 +16,9 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 16/10/2026
 
-### Ícone da última atividade executada ao lado do número da torre — [AM]
+### Ícone da última atividade executada: na legenda e como marca d'água — [AM]
 
-Para achar de relance, na grade, onde a obra está (por exemplo, o supervisor que procura torre com o contrapeso liberado para a pré-montagem), cada cartão mostra ao lado do número da torre o ícone da última atividade executada, na cor dela. O nome continua escrito embaixo. O ícone vem do cadastro da atividade; se o nome dele não existe na versão da biblioteca de ícones, entra um padrão (círculo com check). Torre sem nada executado não tem ícone. No celular ele encolhe com 4 e com 6 por linha e some com 8. Foi pensado ao lado do número, e não como marca d'água no centro, porque no centro atrapalha a leitura.
+Para achar de relance, na grade, onde a obra está (por exemplo, quem procura torre com o contrapeso liberado para a pré-montagem), o cartão mostra o ícone da última atividade executada em dois lugares: no lugar da bolinha da legenda, ao lado do nome da atividade, e, bem apagado, como marca d'água cobrindo quase o cartão todo, na cor da atividade. O número da torre não se mexe: fica centralizado. Com restrição a legenda continua com a bolinha vermelha, porque ela diz a restrição, e a marca d'água fica. Torre sem nada executado não tem ícone nem marca. O ícone vem do cadastro da atividade; se o nome dele não existe na versão da biblioteca, entra um círculo com check. No celular, com 6 e 8 por linha, onde o cartão é só o número, a marca d'água é o que mostra o estágio, então fica um pouco mais forte.
 
 ## 15/10/2026
 
