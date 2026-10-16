@@ -14,6 +14,12 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ---
 
+## 16/10/2026
+
+### Ícone da última atividade executada ao lado do número da torre — [AM]
+
+Para achar de relance, na grade, onde a obra está (por exemplo, o supervisor que procura torre com o contrapeso liberado para a pré-montagem), cada cartão mostra ao lado do número da torre o ícone da última atividade executada, na cor dela. O nome continua escrito embaixo. O ícone vem do cadastro da atividade; se o nome dele não existe na versão da biblioteca de ícones, entra um padrão (círculo com check). Torre sem nada executado não tem ícone. No celular ele encolhe com 4 e com 6 por linha e some com 8. Foi pensado ao lado do número, e não como marca d'água no centro, porque no centro atrapalha a leitura.
+
 ## 15/10/2026
 
 ### Cabeçalho do celular numa linha só, com o trecho em sigla — [WR]

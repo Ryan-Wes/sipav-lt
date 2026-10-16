@@ -272,6 +272,21 @@ window.SIPAV = window.SIPAV || {};
       : 'SIPAV.app.abrirTorre(\'' + torreId + '\')';
   }
 
+  /**
+   * O ícone da última atividade executada na torre, para o olho achar de longe onde a obra está
+   * (quem procura torre liberada para pré-montagem procura a do contrapeso feito).
+   * Vem do cadastro da atividade; se o nome do ícone não existe na versão da biblioteca, usa um padrão.
+   */
+  function iconeDaAtividade(nome) {
+    var a = (E.atividades || []).filter(function (x) { return x.nome === nome; })[0];
+    var ic = a && a.icone ? a.icone : null;
+    if (ic && window.lucide && window.lucide.icons) {
+      var chave = ic.replace(/(^|-)(\w)/g, function (m, p, c) { return c.toUpperCase(); });
+      if (!window.lucide.icons[chave]) ic = null;
+    }
+    return ic || 'circle-check';
+  }
+
   function cartaoTorre(torre) {
     if (ehPortico(torre)) return cartaoPortico(torre);    // A view torre_situacao expõe a chave como torre_id, não id.
     //
@@ -361,6 +376,11 @@ window.SIPAV = window.SIPAV || {};
         '</span>'
       : '';
 
+    var iconeDoEstagio = torre.ultima_atividade
+      ? '<i data-lucide="' + iconeDaAtividade(torre.ultima_atividade) + '" class="icone-estagio" title="Última atividade executada: ' + esc(torre.ultima_atividade) + '"' +
+          (torre.ultima_atividade_cor ? ' style="color:' + torre.ultima_atividade_cor + '"' : '') + '></i>'
+      : '';
+
     var estaiada = torre.estrutura === 'ESTAIADA';
     var pastilha = torre.estrutura
       ? '<span class="pastilha-estrutura ' + (estaiada ? 'est' : 'aup') + '">' +
@@ -394,7 +414,8 @@ window.SIPAV = window.SIPAV || {};
         selo +
         seloObs +
         '<span class="identidade">' +
-          '<span class="identificador">' + esc(torre.identificador) + '</span>' +
+          // O ícone da última atividade executada fica ao lado do número da torre; o nome dela segue escrito embaixo
+          '<span class="linha-id">' + iconeDoEstagio + '<span class="identificador">' + esc(torre.identificador) + '</span></span>' +
           pastilha +
           modelo +
           '<span class="legenda">' +
