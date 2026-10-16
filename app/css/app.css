@@ -2161,12 +2161,12 @@ body.modo-supervisor #visaoGrade { touch-action: pan-y; user-select: none; -webk
 .subtitulo-marca { width: 95px; margin-top: .3125rem; font-size: 5.4px; line-height: 1.2; letter-spacing: 0; font-weight: 500;
   white-space: nowrap; overflow: hidden; text-align: justify; text-align-last: justify; color: var(--texto-fraco); }
 /* O ícone da última atividade executada, ao lado do número da torre (auxílio visual na grade) */
-.cartao-torre .linha-id { display: inline-flex; align-items: center; justify-content: center; gap: .375rem; max-width: 100%; }
-.cartao-torre .icone-estagio { width: 15px; height: 15px; flex-shrink: 0; stroke-width: 2.25; }
+/* O número da torre fica centralizado de verdade: o ícone sai do fluxo e fica encostado à esquerda dele,\n   sem empurrar nada. */
+.cartao-torre .linha-id { position: relative; display: inline-block; max-width: 100%; }
+.cartao-torre .icone-estagio { position: absolute; right: 100%; top: 50%; transform: translateY(-50%); margin-right: .375rem;
+  width: 15px; height: 15px; stroke-width: 2.25; }
 @media (max-width: 639px) {
-  body[data-cols-cel="4"] .cartao-torre .icone-estagio { width: 11px; height: 11px; }
-  body[data-cols-cel="4"] .cartao-torre .linha-id { gap: .1875rem; }
-  body[data-cols-cel="6"] .cartao-torre .icone-estagio { width: 9px; height: 9px; }
-  body[data-cols-cel="6"] .cartao-torre .linha-id { gap: .125rem; }
+  body[data-cols-cel="4"] .cartao-torre .icone-estagio { width: 11px; height: 11px; margin-right: .1875rem; }
+  body[data-cols-cel="6"] .cartao-torre .icone-estagio { width: 9px; height: 9px; margin-right: .125rem; }
   body[data-cols-cel="8"] .cartao-torre .icone-estagio { display: none; }
 }
