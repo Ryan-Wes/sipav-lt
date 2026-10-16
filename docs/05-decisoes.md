@@ -16,10 +16,6 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 16/10/2026
 
-### Importação de torres: zero e traço na coluna do estágio são "sem estágio" — [WR]
-
-A conferência da importação listou o "0" como "1 estágio(s) que o SIPAV não conhece" e travou tudo, porque a planilha põe 0 na coluna do estágio quando a torre não tem nada executado. Agora 0, 0%, os traços (-, --, –, —), "nenhum" e "vazio" valem como a torre sem estágio, junto com "Não iniciada" e "n/a". Estágio com nome de verdade que o cadastro não conhece continua barrando a importação.
-
 ### Vão da torre no cartão, soma dos vãos na seleção e seleção com Ctrl — [WR]
 
 - **Vão no cartão:** a grade mostra "Vão: 0,542 km" logo abaixo do número da torre, como no protótipo. No celular com 4 por linha fica só "0,542 km" e com 6 e 8 some.

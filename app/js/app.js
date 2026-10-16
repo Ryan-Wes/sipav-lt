@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v209 · 2026-10-16';
+  var VERSAO = 'v210 · 2026-10-16';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -6791,14 +6791,11 @@ window.SIPAV = window.SIPAV || {};
 
   /**
    * "Não iniciada" não é atividade, é a ausência dela: a torre não tem nada
-   * executado. Some, em vez de virar erro de estágio desconhecido. O mesmo vale para o zero e para os
-   * traços que a planilha põe na coluna quando não há estágio (o "0" já apareceu como estágio desconhecido
-   * na conferência da importação).
+   * executado. Some, em vez de virar erro de estágio desconhecido.
    */
   var ESTAGIO_VAZIO = [
     'nao iniciada', 'nao iniciado', 'nao iniciadas', 'nao iniciados',
-    'sem estagio', 'nenhum', 'nenhuma', 'vazio', 'n/a', 'na', '0', '0%', '0,0', '0.0',
-    '-', '--', '---', '–', '—'
+    'sem estagio', 'n/a', 'na', '-', '--'
   ];
 
   function estagioValido(valor) {
