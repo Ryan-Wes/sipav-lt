@@ -376,12 +376,12 @@ window.SIPAV = window.SIPAV || {};
         '</span>'
       : '';
 
-    // Última atividade executada: o ícone dela ao lado do número da torre (fora do fluxo, para o número ficar
-    // centralizado de verdade). O nome dela segue escrito na legenda, com a bolinha de sempre.
-    var iconeDoEstagio = torre.ultima_atividade
-      ? '<i data-lucide="' + iconeDaAtividade(torre.ultima_atividade) + '" class="icone-estagio" title="Última atividade executada: ' +
+    // Última atividade executada: o ícone dela no lugar da bolinha da legenda, ao lado do nome da atividade.
+    // Com restrição a legenda diz a restrição, então fica a bolinha vermelha.
+    var marcadorDaLegenda = (torre.ultima_atividade && !restrito)
+      ? '<i data-lucide="' + iconeDaAtividade(torre.ultima_atividade) + '" class="icone-legenda" title="Última atividade executada: ' +
         esc(torre.ultima_atividade) + '" style="--marca:' + (torre.ultima_atividade_cor || 'var(--texto-fraco)') + '"></i>'
-      : '';
+      : '<span class="ponto-atividade" style="background:' + (corEstado || 'var(--borda-forte)') + '"></span>';
     // O vão da torre (a extensão até a próxima), como no protótipo: "Vão: 0,542 km"
     var vao = Number(torre.km) > 0
       ? '<span class="vao"><span class="vao-rotulo">Vão: </span>' + ui.km(torre.km) + ' km</span>'
@@ -420,13 +420,12 @@ window.SIPAV = window.SIPAV || {};
         selo +
         seloObs +
         '<span class="identidade">' +
-          '<span class="linha-id">' + iconeDoEstagio + '<span class="identificador">' + esc(torre.identificador) + '</span></span>' +
+          '<span class="identificador">' + esc(torre.identificador) + '</span>' +
           vao +
           pastilha +
           modelo +
           '<span class="legenda">' +
-            '<span class="ponto-atividade" style="background:' +
-              (corEstado || 'var(--borda-forte)') + '"></span>' +
+            marcadorDaLegenda +
             esc(estado) +
           '</span>' +
         '</span>' +
