@@ -1159,6 +1159,24 @@ window.SIPAV = window.SIPAV || {};
   }
 
   /**
+   * Regrava só a ordem de torres que já existem (as que a importação não colou, mas que mudaram de posição
+   * quando entrou uma torre nova antes delas). Vai pelo id, só com as colunas obrigatórias mais a ordem, para
+   * as outras (canteiro, estrutura, modelo, observação) ficarem como estão.
+   * @param {Array} torres [{id, identificador, km, ordem}]
+   */
+  function reordenarTorres(trechoId, torres) {
+    if (!torres.length) return Promise.resolve([]);
+    var registros = torres.map(function (t) {
+      return { id: t.id, trecho_id: trechoId, identificador: t.identificador, km: t.km, ordem: t.ordem };
+    });
+    return cliente()
+      .from('torre')
+      .upsert(registros, { onConflict: 'id' })
+      .select('id')
+      .then(function (r) { return ok(r, 'Falha ao reordenar as torres'); });
+  }
+
+  /**
    * Tira uma torre que não tem nada: nem programação, nem apontamento. As duas
    * tabelas apagam junto com a torre (on delete cascade), então a conferência vem antes.
    * Serve para o pórtico cadastrado por engano.
@@ -1877,6 +1895,7 @@ window.SIPAV = window.SIPAV || {};
     salvarDependencias: salvarDependencias,
     reordenarAtividades: reordenarAtividades,
     importarTorres: importarTorres,
+    reordenarTorres: reordenarTorres,
     removerTorreVazia: removerTorreVazia,
     planejamentosSalvos: planejamentosSalvos,
     planejamentoSalvo: planejamentoSalvo,

@@ -16,6 +16,12 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 16/10/2026
 
+### A importação de torres não manda mais na ordem das torres — [WR]
+
+A grade de Campo Formoso - Barra saiu de ordem duas vezes. A causa: ao importar torres coladas da planilha, cada linha gravava a própria posição na colagem como ordem da torre, inclusive das que já existiam. Colar só um pedaço da linha, um canteiro de cada vez ou numa sequência diferente reescrevia a ordem de quem já estava lá, e com dois canteiros numerados do zero a grade intercalava as duas sequências.
+
+Agora as torres que já existem **mantêm a ordem que têm**. As novas entram logo depois da torre colada que vem antes delas (ou antes da que vem depois; sem nenhuma conhecida por perto, vão para o fim), e o trecho é renumerado em sequência, sem buracos nem repetição. Quando entra torre nova no meio, as torres de baixo que não vieram na colagem descem junto (gravadas pela função nova eordenarTorres, que só mexe na ordem). Empate de ordem num trecho que já estava bagunçado se desfaz pelo número da torre.
+
 ### Vão da torre no cartão, soma dos vãos na seleção e seleção com Ctrl — [WR]
 
 - **Vão no cartão:** a grade mostra "Vão: 0,542 km" logo abaixo do número da torre, como no protótipo. No celular com 4 por linha fica só "0,542 km" e com 6 e 8 some.

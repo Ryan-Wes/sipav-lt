@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v210 · 2026-10-16';
+  var VERSAO = 'v211 · 2026-10-16';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -7717,9 +7717,63 @@ window.SIPAV = window.SIPAV || {};
     }).filter(Boolean);
   }
 
+  /**
+   * A ordem das torres no trecho depois da importação.
+   *
+   * Quem manda na ordem NÃO é a colagem. Antes, cada linha colada gravava a própria posição na colagem como
+   * ordem, então colar só um pedaço da linha, ou um canteiro de cada vez, ou numa sequência diferente,
+   * reescrevia a ordem das torres que já existiam e a grade ficava fora de ordem (foi o que aconteceu duas
+   * vezes em Campo Formoso - Barra). Agora as torres que já existem mantêm a ordem que têm, e as novas
+   * entram logo depois da torre colada que vem antes delas (ou antes da que vem depois). O trecho sai
+   * numerado em sequência, sem buracos nem repetição. Devolve { chave da torre → ordem }.
+   */
+  function calcularOrdemDaImportacao(linhas) {
+    // Empate de ordem (trecho que já estava bagunçado) se desfaz pelo número da torre, não pela sorte do banco
+    function chaveNatural(t) {
+      var m = /^(\d+)\/(\d+)/.exec(String(t.identificador || ''));
+      return m ? Number(m[1]) * 1000 + Number(m[2]) : 1e9;
+    }
+    var seq = (E.torres || []).slice().sort(function (a, b) {
+      return ((a.ordem || 0) - (b.ordem || 0)) || (chaveNatural(a) - chaveNatural(b));
+    }).map(function (t) { return normalizar(t.identificador); });
+
+    linhas.forEach(function (l, i) {
+      var k = normalizar(l.identificador);
+      if (seq.indexOf(k) !== -1) return;
+      var j, p, em = -1;
+      for (j = i - 1; j >= 0 && em === -1; j--) {
+        p = seq.indexOf(normalizar(linhas[j].identificador));
+        if (p !== -1) em = p + 1;
+      }
+      for (j = i + 1; j < linhas.length && em === -1; j++) {
+        p = seq.indexOf(normalizar(linhas[j].identificador));
+        if (p !== -1) em = p;
+      }
+      if (em === -1) em = seq.length;
+      seq.splice(em, 0, k);
+    });
+
+    var ordemDe = {};
+    seq.forEach(function (k, i) { ordemDe[k] = i; });
+    return ordemDe;
+  }
+
   function executarImportacao() {
     var linhas = importacaoPendente;
     if (!linhas || !linhas.length) { ui.avisar('Nada para importar.', 'alerta'); return; }
+
+    // A ordem vem do trecho, não da colagem (ver calcularOrdemDaImportacao)
+    var ordemDe = calcularOrdemDaImportacao(linhas);
+    linhas.forEach(function (l) { l.ordem = ordemDe[normalizar(l.identificador)]; });
+    var coladas = {};
+    linhas.forEach(function (l) { coladas[normalizar(l.identificador)] = true; });
+    // As torres que não vieram na colagem, mas mudaram de lugar porque entrou torre nova antes delas
+    var deslocadas = (E.torres || []).filter(function (t) {
+      var k = normalizar(t.identificador);
+      return !coladas[k] && ordemDe[k] !== (Number(t.ordem) || 0);
+    }).map(function (t) {
+      return { id: t.torre_id, identificador: t.identificador, km: t.km, ordem: ordemDe[normalizar(t.identificador)] };
+    });
 
     // Lidas antes de fechar a janela: depois dela as caixas já não existem
     var conferir = coberturasMarcadas().map(function (c) { return c.p; });
@@ -7727,7 +7781,9 @@ window.SIPAV = window.SIPAV || {};
     ui.processando('Importando ' + linhas.length + ' torres…');
     resolverCanteiros(linhas)
       .then(function () { return db.importarTorres(E.trechoAtual.id, linhas); })
-      .then(function (torres) { return gravarEstagios(torres, linhas); })
+      .then(function (torres) {
+        return db.reordenarTorres(E.trechoAtual.id, deslocadas).then(function () { return gravarEstagios(torres, linhas); });
+      })
       .then(function () { return db.registrarExecucoesPorStatus(conferir); })
       .then(carregarTrecho)
       .then(function () {
