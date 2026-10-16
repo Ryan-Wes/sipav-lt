@@ -376,18 +376,12 @@ window.SIPAV = window.SIPAV || {};
         '</span>'
       : '';
 
-    // Última atividade executada: o ícone dela no lugar da bolinha da legenda e, bem apagado, como marca d'água
-    // no cartão quase todo. Com restrição a legenda diz a restrição, então fica a bolinha vermelha; a marca
-    // d'água continua, porque o estágio da torre não mudou.
-    var nomeDoIcone = torre.ultima_atividade ? iconeDaAtividade(torre.ultima_atividade) : null;
-    var corDoIcone = torre.ultima_atividade_cor || 'var(--texto-fraco)';
-    var marcaDagua = nomeDoIcone
-      ? '<i data-lucide="' + nomeDoIcone + '" class="marca-dagua" aria-hidden="true" style="--marca:' + corDoIcone + '"></i>'
+    // Última atividade executada: o ícone dela ao lado do número da torre (fora do fluxo, para o número ficar
+    // centralizado de verdade). O nome dela segue escrito na legenda, com a bolinha de sempre.
+    var iconeDoEstagio = torre.ultima_atividade
+      ? '<i data-lucide="' + iconeDaAtividade(torre.ultima_atividade) + '" class="icone-estagio" title="Última atividade executada: ' +
+        esc(torre.ultima_atividade) + '" style="--marca:' + (torre.ultima_atividade_cor || 'var(--texto-fraco)') + '"></i>'
       : '';
-    var marcadorDaLegenda = (nomeDoIcone && !restrito)
-      ? '<i data-lucide="' + nomeDoIcone + '" class="icone-legenda" title="Última atividade executada: ' + esc(torre.ultima_atividade) + '" style="--marca:' + corDoIcone + '"></i>'
-      : '<span class="ponto-atividade" style="background:' + (corEstado || 'var(--borda-forte)') + '"></span>';
-
     // O vão da torre (a extensão até a próxima), como no protótipo: "Vão: 0,542 km"
     var vao = Number(torre.km) > 0
       ? '<span class="vao"><span class="vao-rotulo">Vão: </span>' + ui.km(torre.km) + ' km</span>'
@@ -423,16 +417,16 @@ window.SIPAV = window.SIPAV || {};
            (estilo ? 'style="' + estilo + '" ' : '') +
            'onclick="' + acaoDaTorre(torre.torre_id) + '" ' +
            'title="' + dica + '">' +
-        marcaDagua +
         selo +
         seloObs +
         '<span class="identidade">' +
-          '<span class="identificador">' + esc(torre.identificador) + '</span>' +
+          '<span class="linha-id">' + iconeDoEstagio + '<span class="identificador">' + esc(torre.identificador) + '</span></span>' +
           vao +
           pastilha +
           modelo +
           '<span class="legenda">' +
-            marcadorDaLegenda +
+            '<span class="ponto-atividade" style="background:' +
+              (corEstado || 'var(--borda-forte)') + '"></span>' +
             esc(estado) +
           '</span>' +
         '</span>' +

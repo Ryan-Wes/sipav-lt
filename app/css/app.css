@@ -2161,23 +2161,19 @@ body.modo-supervisor #visaoGrade { touch-action: pan-y; user-select: none; -webk
 .subtitulo-marca { width: 95px; margin-top: .3125rem; font-size: 5.4px; line-height: 1.2; letter-spacing: 0; font-weight: 500;
   white-space: nowrap; overflow: hidden; text-align: justify; text-align-last: justify; color: var(--texto-fraco); }
 
-/* O ícone da última atividade executada: no lugar da bolinha da legenda e, bem apagado, como marca d'água
-   no cartão quase todo. O cartão vira um contexto de empilhamento para a marca d'água ficar atrás do texto
-   e na frente do fundo. */
-.cartao-torre { isolation: isolate; }
-.cartao-torre .icone-legenda { display: inline-block; vertical-align: middle; width: 12px; height: 12px; margin-right: .3125rem; margin-top: -2px; stroke-width: 2.4; color: var(--marca); }
-.cartao-torre .marca-dagua {
-  position: absolute; left: 50%; top: 50%; z-index: -1; width: 82%; height: auto; aspect-ratio: 1;
-  transform: translate(-50%, -50%); opacity: .08; stroke-width: 1.4; pointer-events: none; color: var(--marca);
+/* O ícone da última atividade executada, ao lado do número da torre. Ele sai do fluxo e fica encostado à
+   esquerda do número, que continua centralizado de verdade. */
+.cartao-torre .linha-id { position: relative; display: inline-block; max-width: 100%; }
+.cartao-torre .icone-estagio {
+  position: absolute; right: 100%; top: 50%; transform: translateY(-50%); margin-right: .375rem;
+  width: 15px; height: 15px; stroke-width: 2.25; color: var(--marca);
 }
-/* No tema claro as cores claras das atividades (revisão, supressão…) somem no fundo branco: o ícone e a marca
-   d'água usam a cor da atividade escurecida, e a marca d'água fica mais presente. */
-html:not(.dark) .cartao-torre .icone-legenda { color: color-mix(in srgb, var(--marca) 55%, #0f172a); }
-html:not(.dark) .cartao-torre .marca-dagua { color: color-mix(in srgb, var(--marca) 60%, #0f172a); opacity: .17; }
+/* No tema claro as cores claras (revisão, supressão…) somem no branco: o ícone usa a cor escurecida */
+html:not(.dark) .cartao-torre .icone-estagio { color: color-mix(in srgb, var(--marca) 55%, #0f172a); }
 @media (max-width: 639px) {
-  body[data-cols-cel="4"] .cartao-torre .icone-legenda { width: 8px; height: 8px; margin-right: .125rem; }
-  /* Com 6 e 8 por linha a marca d'água é o que sobra do estágio: fica um pouco mais forte */
-  body[data-cols-cel="6"] .cartao-torre .marca-dagua, body[data-cols-cel="8"] .cartao-torre .marca-dagua { opacity: .16; width: 90%; }
+  body[data-cols-cel="4"] .cartao-torre .icone-estagio { width: 11px; height: 11px; margin-right: .1875rem; }
+  body[data-cols-cel="6"] .cartao-torre .icone-estagio { width: 9px; height: 9px; margin-right: .125rem; }
+  body[data-cols-cel="8"] .cartao-torre .icone-estagio { display: none; }
 }
 /* Vão da torre no cartão ("Vão: 0,542 km"), como no protótipo */
 .cartao-torre .vao { font-size: .6875rem; font-weight: 500; color: var(--texto-fraco); line-height: 1; }

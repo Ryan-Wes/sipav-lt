@@ -16,19 +16,15 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 16/10/2026
 
-### Marca d'água no tema claro — [WR]
-
-No tema claro as cores claras das atividades (revisão, supressão de área de torre, teste de arrancamento) quase sumiam no fundo branco. O ícone da legenda e a marca d'água passaram a usar a cor da atividade escurecida (60% dela com um azul bem escuro, por color-mix), e a marca d'água fica mais presente (17% de opacidade, contra 8% no escuro). A cor vem da própria atividade, por uma variável do cartão; no tema escuro nada muda.
-
 ### Vão da torre no cartão, soma dos vãos na seleção e seleção com Ctrl — [WR]
 
 - **Vão no cartão:** a grade mostra "Vão: 0,542 km" logo abaixo do número da torre, como no protótipo. No celular com 4 por linha fica só "0,542 km" e com 6 e 8 some.
 - **Soma dos vãos:** na seleção aparece a soma, no planejamento ("2 torres selecionadas · 1,00 km", e também no título da janela do lote) e na barra de baixo do supervisor. 500 m mais 500 m dá 1 km.
 - **Seleção com Ctrl no computador:** o botão Selecionar saiu da tela larga (continua no celular do planejamento). Segurando Ctrl (ou Cmd), clicar numa torre marca ela, e arrastar marca várias (Alt com o arrasto desmarca). A seleção liga sozinha com o primeiro Ctrl e desliga quando a última torre é desmarcada, ou com Esc. Com a seleção ligada, o clique simples também marca; sem seleção, o clique simples abre a torre como sempre. A dica fica na linha das abas.
 
-### Ícone da última atividade executada: na legenda e como marca d'água — [AM]
+### Ícone da última atividade executada, ao lado do número da torre — [AM]
 
-Para achar de relance, na grade, onde a obra está (por exemplo, quem procura torre com o contrapeso liberado para a pré-montagem), o cartão mostra o ícone da última atividade executada em dois lugares: no lugar da bolinha da legenda, ao lado do nome da atividade, e, bem apagado, como marca d'água cobrindo quase o cartão todo, na cor da atividade. O número da torre não se mexe: fica centralizado. Com restrição a legenda continua com a bolinha vermelha, porque ela diz a restrição, e a marca d'água fica. Torre sem nada executado não tem ícone nem marca. O ícone vem do cadastro da atividade; se o nome dele não existe na versão da biblioteca, entra um círculo com check. No celular, com 6 e 8 por linha, onde o cartão é só o número, a marca d'água é o que mostra o estágio, então fica um pouco mais forte.
+Para achar de relance, na grade, onde a obra está (por exemplo, quem procura torre com o contrapeso liberado para a pré-montagem), o cartão mostra o ícone da última atividade executada ao lado do número da torre, na cor dela. O ícone sai do fluxo do texto e fica encostado à esquerda do número, que continua centralizado de verdade (conferido: 0 px de desvio). O nome da atividade segue escrito na legenda, com a bolinha de sempre. Tentei no lugar da bolinha e como marca d'água apagada cobrindo o cartão, e o campo preferiu só o ícone ao lado do número. Torre sem nada executado não tem ícone. O ícone vem do cadastro da atividade; se o nome dele não existe na versão da biblioteca, entra um círculo com check. No tema claro a cor da atividade é escurecida (color-mix), porque as cores claras sumiam no branco. No celular o ícone encolhe com 4 e com 6 por linha e some com 8.
 
 ## 15/10/2026
 
