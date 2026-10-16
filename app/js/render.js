@@ -1525,29 +1525,37 @@ window.SIPAV = window.SIPAV || {};
   }
 
   /**
-   * Como a obra chama a semana: a de hoje é a semanal, a seguinte é a
-   * quinzenal. É o vocabulário da reunião de sexta e o da planilha da ISA.
+   * Como a obra chama a semana: o semanal é a primeira semana do plano e o quinzenal a seguinte. É o
+   * vocabulário da reunião de quinta e sexta e o da planilha da ISA.
    *
-   * O que cair fora dessas duas ganha a data, sem apelido — inventar "terceira
-   * semana" seria criar nome que ninguém usa.
+   * Qual é a "primeira semana do plano": se o período é o "semanal e quinzenal de…", é a semana que a
+   * pessoa escolheu (a segunda-feira dela é o semanal, a seguinte o quinzenal). Fora disso vale a regra da
+   * obra (ver ui.segundaDoPlano): de quinta a domingo é a semana que vem, de segunda a quarta a em curso.
+   * Então numa sexta, 19/10 já é o semanal e 26/10 o quinzenal, e a semana de hoje, que ainda não acabou,
+   * fica com a data.
+   *
+   * O que cair fora dessas duas ganha a data, sem apelido — inventar "terceira semana" seria criar nome que
+   * ninguém usa.
    */
   function nomeDaSemana(segundaIso) {
-    var desta = ui.iso(ui.segundaDaSemana());
-    var proxima = ui.iso(ui.somarDias(ui.segundaDaSemana(), 7));
-
     // Para o supervisor o semanal é a primeira semana da janela dele (a próxima segunda), e o quinzenal a seguinte
     if (E.modoSupervisor && E.periodo && E.periodo.de) {
       if (segundaIso === E.periodo.de) return 'Semanal';
       if (segundaIso === ui.iso(ui.somarDias(ui.paraData(E.periodo.de), 7))) return 'Quinzenal';
     }
 
-    if (segundaIso === desta) return 'Semanal';
-    if (segundaIso === proxima) return 'Quinzenal';
+    var semanal = (E.periodo && E.periodo.modo === 'plano' && E.periodo.de)
+      ? ui.iso(ui.segundaDaSemana(ui.paraData(E.periodo.de)))
+      : ui.segundaDoPlano();
+    var quinzenal = ui.iso(ui.somarDias(ui.paraData(semanal), 7));
 
-    var passada = segundaIso < desta;
-    return (passada ? 'Semana passada de ' : 'Semana de ') + ui.dataCurta(segundaIso);
+    if (segundaIso === semanal) return 'Semanal';
+    if (segundaIso === quinzenal) return 'Quinzenal';
+
+    var atual = ui.iso(ui.segundaDaSemana());
+    if (segundaIso === atual) return 'Semana atual de ' + ui.dataCurta(segundaIso);
+    return (segundaIso < atual ? 'Semana passada de ' : 'Semana de ') + ui.dataCurta(segundaIso);
   }
-
   function renderPorAtividade() {
     var lista = programacoesVisiveis();
     var movs = movimentacoesVisiveis();

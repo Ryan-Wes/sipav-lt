@@ -16,6 +16,10 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 16/10/2026
 
+### Semanal e quinzenal pela regra da obra: de quinta em diante, o semanal é a semana que vem — [WR]
+
+Numa sexta (16/10), a tela chamava a semana de 19/10 de "Quinzenal" e a de 26/10 de "Semana de 26/10", porque o nome contava a partir da semana de hoje. Mas a obra planeja na quinta ou na sexta o que começa na segunda seguinte. Agora o nome segue a regra: se o período é o "semanal e quinzenal de…", a semana escolhida é o **Semanal** e a seguinte o **Quinzenal**; nos outros períodos, de quinta a domingo o semanal é a semana que vem (19/10) e o quinzenal a outra (26/10), e de segunda a quarta é a semana em curso. A semana de hoje, que ainda não acabou, fica como "Semana atual de 12/10". O campo da data do "semanal e quinzenal de…" também já vem preenchido com essa semana (a regra mora em um lugar só, ui.segundaDoPlano, que a janela de Planejamentos já usava).
+
 ### A importação de torres não manda mais na ordem das torres — [WR]
 
 A grade de Campo Formoso - Barra saiu de ordem duas vezes. A causa: ao importar torres coladas da planilha, cada linha gravava a própria posição na colagem como ordem da torre, inclusive das que já existiam. Colar só um pedaço da linha, um canteiro de cada vez ou numa sequência diferente reescrevia a ordem de quem já estava lá, e com dois canteiros numerados do zero a grade intercalava as duas sequências.

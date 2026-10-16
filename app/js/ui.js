@@ -195,6 +195,17 @@ window.SIPAV = window.SIPAV || {};
     return d;
   }
 
+  /**
+   * A segunda-feira do semanal que a obra propõe agora (texto AAAA-MM-DD). A obra planeja na quinta ou na
+   * sexta o que começa na segunda seguinte: de quinta a domingo o semanal é a semana que vem (e o quinzenal a
+   * outra depois dela); de segunda a quarta é a semana em curso, que é quando se ajusta o que já foi planejado.
+   */
+  function segundaDoPlano() {
+    var dia = new Date().getDay();                      // 0 = domingo
+    var seg = segundaDaSemana();
+    return iso((dia === 0 || dia >= 4) ? somarDias(seg, 7) : seg);
+  }
+
   /** 'de'/'ate' em texto curto, para o resumo e para o cabeçalho do PDF. */
   function rotuloPeriodo(de, ate) {
     if (!de && !ate) return 'todo o período';
@@ -257,7 +268,7 @@ window.SIPAV = window.SIPAV || {};
     processando: processando, pronto: pronto,
     paraData: paraData, dataCurta: dataCurta, dataLonga: dataLonga, hoje: hoje,
     diaDaSemana: diaDaSemana, fimDeSemana: fimDeSemana,
-    iso: iso, somarDias: somarDias, segundaDaSemana: segundaDaSemana,
+    iso: iso, somarDias: somarDias, segundaDaSemana: segundaDaSemana, segundaDoPlano: segundaDoPlano,
     primeiroDiaDoMes: primeiroDiaDoMes, ultimoDiaDoMes: ultimoDiaDoMes,
     rotuloPeriodo: rotuloPeriodo, quandoRelativo: quandoRelativo,
     km: km, esc: esc, corDoTexto: corDoTexto, rgba: rgba

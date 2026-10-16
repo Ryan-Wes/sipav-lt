@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v211 · 2026-10-16';
+  var VERSAO = 'v212 · 2026-10-16';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -649,7 +649,7 @@ window.SIPAV = window.SIPAV || {};
         // O semanal e o quinzenal de uma semana qualquer: a segunda-feira dela e a
         // seguinte, inteiras
         var dia = $('periodoSemana') && $('periodoSemana').value;
-        var base = dia ? ui.segundaDaSemana(ui.paraData(dia)) : seg;
+        var base = dia ? ui.segundaDaSemana(ui.paraData(dia)) : ui.paraData(ui.segundaDoPlano());
         return { de: ui.iso(base), ate: ui.iso(ui.somarDias(base, 13)) };
       }
       case 'mes':
@@ -669,7 +669,7 @@ window.SIPAV = window.SIPAV || {};
 
     var plano = modo === 'plano';
     $('periodoSemana').classList.toggle('hidden', !plano);
-    if (plano && !$('periodoSemana').value) $('periodoSemana').value = ui.iso(ui.segundaDaSemana());
+    if (plano && !$('periodoSemana').value) $('periodoSemana').value = ui.segundaDoPlano();
 
     if (custom) {
       // Ao entrar no personalizado, começa com o que estava valendo
@@ -7893,9 +7893,7 @@ window.SIPAV = window.SIPAV || {};
    * curso, que é quando se ajusta o que já foi planejado.
    */
   function segundaDoPlano() {
-    var dia = new Date().getDay();                      // 0 = domingo
-    var seg = ui.segundaDaSemana();
-    return ui.iso((dia === 0 || dia >= 4) ? ui.somarDias(seg, 7) : seg);
+    return ui.segundaDoPlano();
   }
 
   function montarJanelaDosPlanejamentos(r) {
