@@ -2196,4 +2196,5 @@ body.modo-consulta .so-escrita,
 body.modo-consulta .so-escrita * { cursor: not-allowed !important; }
 body.modo-consulta .so-escrita { opacity: .5; }
 body.modo-consulta #caixaSelecaoProg,
-body.modo-consulta #dicaCtrl { display: none !important; }
+body.modo-consulta #dicaCtrl,
+body.modo-consulta .so-planejamento { display: none !important; }

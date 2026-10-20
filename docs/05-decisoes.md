@@ -46,7 +46,10 @@ Os botões que escrevem continuam na tela, para a pessoa ver que existem, mas
 esmaecidos e com o cursor de proibido; clicar neles (Importar, Cadastros,
 Importar programação da ISA, Dias sem atividade, Solicitações, Selecionar e o
 Ctrl+clique, Limpar programação, os botões de lançar, a lixeira dos cartões) não
-faz nada e mostra o aviso \
+faz nada e mostra o aviso "Seu usuário não tem permissão para editar, apenas
+consulta". O Histórico, que mostra quem mexeu no quê, nem aparece para quem só
+consulta: é coisa do planejamento (administração e planejamento). A tela não é
+a barreira de segurança, o banco é; o bloqueio só evita botão que daria erro.
 
 ## 16/10/2026
 

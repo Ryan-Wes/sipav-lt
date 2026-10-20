@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v215 · 2026-10-20';
+  var VERSAO = 'v216 · 2026-10-20';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -3267,6 +3267,7 @@ window.SIPAV = window.SIPAV || {};
   }
 
   function abrirHistoricoDaTorre() {
+    if (!podeEditarTorre()) return;
     if (!torreAberta) return;
     var torre = torreAberta;
     ui.processando('Carregando histórico…');
@@ -3288,6 +3289,7 @@ window.SIPAV = window.SIPAV || {};
   var historicoCarregado = [];
 
   function abrirHistoricoDoTrecho() {
+    if (!podeEditarTorre()) return;
     ui.processando('Carregando histórico…');
     carregarHistoricoEmPaginas([], 0)
       .then(function (lista) {
