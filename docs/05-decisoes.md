@@ -26,8 +26,9 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
   para a lista. A aba Dias sem atividade, na tela, continua como estava.
 - **Encarregados** ganhou busca pelo nome.
 - **Observação nas torres** ganhou escolha de ícone: nota, serra, queimada, alagado, travessia, mata
-  fechada, acesso difícil e cruza linha de energia. O ícone fica guardado na torre
-  (`torre.observacao_icone`, migração 60) e o cartão e o chip usam a cor dele. Sem escolher, vale a regra
+  fechada, acesso difícil e cruza linha de energia. Dá para marcar mais de um na mesma torre (serra e
+  queimada, por exemplo): ficam guardados juntos, separados por vírgula, em `torre.observacao_icone` 
+  (migração 60), e o cartão mostra um selo por ícone, cada um na sua cor. Sem escolher, vale a regra
   antiga: a palavra "serra" no texto põe a montanha, então o que já estava anotado não muda. Antes de
   aplicar a 60 a tela funciona como era, só não guarda o ícone (e avisa que falta a migração).
 

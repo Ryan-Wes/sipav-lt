@@ -182,23 +182,50 @@ window.SIPAV = window.SIPAV || {};
     { id: 'zap',            rotulo: 'Cruza linha de energia', cor: '#EC4899' }
   ];
 
-  function iconeDaObservacao(texto, icone) {
-    if (icone && ICONES_OBS.some(function (i) { return i.id === icone; })) return icone;
-    return ehSerra(texto) ? 'mountain' : 'sticky-note';
+  /**
+   * Os ícones de uma observação: a torre pode ter mais de um (serra e queimada, por exemplo). Ficam guardados
+   * em `torre.observacao_icone`, ids separados por vírgula, sempre na ordem de ICONES_OBS. Sem nenhum
+   * válido vale a regra antiga: montanha se o texto diz "serra", bloco de notas no resto.
+   */
+  function iconesDaObservacao(texto, icone) {
+    var ids = String(icone || '').split(',').map(function (s) { return s.trim(); }).filter(function (id) {
+      return ICONES_OBS.some(function (i) { return i.id === id; });
+    });
+    return ids.length ? ids : [ehSerra(texto) ? 'mountain' : 'sticky-note'];
   }
 
-  function corDoIconeDaObservacao(texto, icone) {
-    var id = iconeDaObservacao(texto, icone);
+  /** O primeiro dos ícones (o que vale quando só cabe um). */
+  function iconeDaObservacao(texto, icone) {
+    return iconesDaObservacao(texto, icone)[0];
+  }
+
+  function corDoIcone(id) {
     var achado = ICONES_OBS.filter(function (i) { return i.id === id; })[0];
     return achado ? achado.cor : '#0EA5E9';
   }
 
-  /** O selo do cartão e o ícone do chip, na cor do ícone escolhido. */
-  function estiloDoSeloDaObservacao(texto, icone) {
-    var cor = corDoIconeDaObservacao(texto, icone);
-    return 'color:' + cor + ';background:' + ui.rgba(cor, 0.15) + ';border-color:' + ui.rgba(cor, 0.45);
+  function corDoIconeDaObservacao(texto, icone) {
+    return corDoIcone(iconeDaObservacao(texto, icone));
   }
 
+  /** Os selos do cartão: um por ícone, lado a lado, cada um na sua cor. O texto vai na dica do conjunto. */
+  function selosDaObservacao(texto, icone) {
+    return '<span class="selos-obs" title="' + esc(texto) + '">' +
+      iconesDaObservacao(texto, icone).map(function (id) {
+        var cor = corDoIcone(id);
+        return '<span class="selo-obs" style="color:' + cor + ';background:' + ui.rgba(cor, 0.15) +
+          ';border-color:' + ui.rgba(cor, 0.45) + '">' +
+          '<i data-lucide="' + id + '" style="width:11px;height:11px"></i></span>';
+      }).join('') + '</span>';
+  }
+
+  /** Só os ícones, soltos, cada um na sua cor: o chip da programação, a lista, a janela da torre. */
+  function iconesSoltosDaObservacao(texto, icone, tamanho) {
+    var t = tamanho || 12;
+    return iconesDaObservacao(texto, icone).map(function (id) {
+      return '<i data-lucide="' + id + '" style="width:' + t + 'px;height:' + t + 'px;flex:none;color:' + corDoIcone(id) + '"></i>';
+    }).join('');
+  }
   /**
    * O cabo da programação, quando tem: sem isto, o para-raio e o OPGW da mesma torre, no
    * mesmo dia, pareciam duas linhas iguais.
@@ -393,9 +420,7 @@ window.SIPAV = window.SIPAV || {};
     // A observação da torre, no canto de cima à esquerda: de relance, sem abrir.
     // Serra tem símbolo próprio (uma montanha); o resto, um bloco de notas.
     var seloObs = torre.observacao
-      ? '<span class="selo-obs" style="' + estiloDoSeloDaObservacao(torre.observacao, torre.observacao_icone) +
-          '" title="' + esc(torre.observacao) + '">' +
-          '<i data-lucide="' + iconeDaObservacao(torre.observacao, torre.observacao_icone) + '" style="width:11px;height:11px"></i></span>'
+      ? selosDaObservacao(torre.observacao, torre.observacao_icone)
       : '';
 
     var selo = ordenadas.length
@@ -568,9 +593,8 @@ window.SIPAV = window.SIPAV || {};
     var torre = op.torre === false ? ''
       : '<span class="chip-torre">' + esc(p.torre ? p.torre.identificador : '?') +
           (obsTorre
-            ? '<span class="chip-obs" style="color:' + corDoIconeDaObservacao(obsTorre, iconeDaObsDaTorre(p.torre.id)) +
-                '" title="' + esc(obsTorre) + '">' +
-                '<i data-lucide="' + iconeDaObservacao(obsTorre, iconeDaObsDaTorre(p.torre.id)) + '"></i></span>'
+            ? '<span class="chip-obs" title="' + esc(obsTorre) + '">' +
+                iconesSoltosDaObservacao(obsTorre, iconeDaObsDaTorre(p.torre.id), 11) + '</span>'
             : '') +
         '</span>';
 
@@ -1890,7 +1914,8 @@ window.SIPAV = window.SIPAV || {};
     escondida: escondida,
     nomeExibido: nomeExibido,
     ehPortico: ehPortico,
-    iconeDaObservacao: iconeDaObservacao, corDoIconeDaObservacao: corDoIconeDaObservacao,
+    iconeDaObservacao: iconeDaObservacao, iconesDaObservacao: iconesDaObservacao,
+    corDoIconeDaObservacao: corDoIconeDaObservacao, iconesSoltosDaObservacao: iconesSoltosDaObservacao,
     limparIndiceDeObservacoes: limparIndiceDeObservacoes,
     ICONES_OBS: ICONES_OBS,
     ehSerra: ehSerra,

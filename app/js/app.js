@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v217 · 2026-10-20';
+  var VERSAO = 'v218 · 2026-10-20';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -1230,11 +1230,11 @@ window.SIPAV = window.SIPAV || {};
     return partesMarcadas.letras.join(',');
   }
 
-  /** O ícone ao lado do campo: montanha para serra, bloco de notas para o resto. */
+  /** Os ícones ao lado do campo: os escolhidos, ou montanha para serra e bloco de notas para o resto. */
   function atualizarIconeDaObsTorre(texto, icone) {
-    var cor = (texto || icone) ? render.corDoIconeDaObservacao(texto, icone) : 'var(--acento)';
-    $('iconeObsTorre').innerHTML = '<i data-lucide="' + render.iconeDaObservacao(texto, icone) +
-      '" class="w-4 h-4" style="color:' + cor + '"></i>';
+    $('iconeObsTorre').innerHTML = (texto || icone)
+      ? '<span class="inline-flex gap-1">' + render.iconesSoltosDaObservacao(texto, icone, 16) + '</span>'
+      : '<i data-lucide="sticky-note" class="w-4 h-4" style="color:var(--acento)"></i>';
     ui.icones();
   }
 
@@ -1259,24 +1259,29 @@ window.SIPAV = window.SIPAV || {};
   /* ---------------------------------------------- Observação em várias torres -- */
 
   var obsExistentes = [];   // as torres que já têm observação, para a lista da janela
-  var obsIconeEscolhido = 'sticky-note';
+  var obsIconesEscolhidos = ['sticky-note'];   // pode ser mais de um (serra e queimada, por exemplo)
   var obsIconeTocou = false;   // false: o ícone acompanha o texto (a palavra "serra" põe a montanha)
 
   function marcarIconeDaObs() {
     Array.prototype.forEach.call(document.querySelectorAll('#obsIcones .obs-icone-op'), function (b) {
-      b.classList.toggle('ativo', b.getAttribute('data-icone') === obsIconeEscolhido);
+      b.classList.toggle('ativo', obsIconesEscolhidos.indexOf(b.getAttribute('data-icone')) !== -1);
     });
   }
 
+  /** Cada clique liga ou desliga um ícone; o que sobra fica na ordem da lista, não na ordem dos cliques. */
   function escolherIconeDaObs(id) {
-    obsIconeEscolhido = id;
+    var i = obsIconesEscolhidos.indexOf(id);
+    if (i === -1) obsIconesEscolhidos.push(id); else obsIconesEscolhidos.splice(i, 1);
+    obsIconesEscolhidos = render.ICONES_OBS.map(function (o) { return o.id; }).filter(function (o) {
+      return obsIconesEscolhidos.indexOf(o) !== -1;
+    });
     obsIconeTocou = true;
     marcarIconeDaObs();
   }
 
   function seguirTextoDaObs() {
     if (obsIconeTocou) return;
-    obsIconeEscolhido = render.iconeDaObservacao($('obsTorresObs').value, null);
+    obsIconesEscolhidos = render.iconesDaObservacao($('obsTorresObs').value, null);
     marcarIconeDaObs();
   }
   /**
@@ -1299,15 +1304,15 @@ window.SIPAV = window.SIPAV || {};
       .map(function (t) { return t.identificador; }).join(', ');
 
     obsExistentes = E.torres.filter(function (t) { return t.observacao; });
-    obsIconeEscolhido = 'sticky-note';
+    obsIconesEscolhidos = ['sticky-note'];
     obsIconeTocou = false;
 
     var corpo =
       '<div class="space-y-3">' +
         '<p class="text-xs" style="color:var(--texto-fraco)">' +
           'Uma anotação que fica na torre, para ver no cartão onde há dificuldade ' +
-          '(serra, queimada, travessia, alagado…). Não bloqueia nada. Escolha o ícone que aparece ' +
-          'no cartão; sem escolher, a palavra <strong>serra</strong> no texto já põe a montanha.' +
+          '(serra, queimada, travessia, alagado…). Não bloqueia nada. Escolha os ícones que aparecem ' +
+          'no cartão (pode ser mais de um); sem escolher, a palavra <strong>serra</strong> no texto já põe a montanha.' +
         '</p>' +
         '<div><label class="rotulo">Torres</label>' +
           '<input id="obsTorresTexto" class="campo" autocomplete="off" ' +
@@ -1319,7 +1324,7 @@ window.SIPAV = window.SIPAV || {};
           '<input id="obsTorresObs" class="campo" autocomplete="off" placeholder="Ex.: serra" ' +
                  'oninput="SIPAV.app.seguirTextoDaObs()">' +
         '</div>' +
-        '<div><label class="rotulo">Ícone no cartão</label>' +
+        '<div><label class="rotulo">Ícones no cartão <span style="font-weight:400">(pode marcar mais de um)</span></label>' +
           '<div id="obsIcones" class="flex flex-wrap gap-1.5">' +
             render.ICONES_OBS.map(function (i) {
               return '<button type="button" class="obs-icone-op" data-icone="' + i.id + '" title="' + esc(i.rotulo) + '" ' +
@@ -1336,9 +1341,7 @@ window.SIPAV = window.SIPAV || {};
                            'onclick="SIPAV.app.usarObservacaoExistente(' + i + ')" ' +
                            'title="Clique para corrigir ou tirar">' +
                            '<span class="resumo-enc-data">' + esc(t.identificador) + '</span>' +
-                           '<i data-lucide="' + render.iconeDaObservacao(t.observacao, t.observacao_icone) +
-                             '" style="width:13px;height:13px;flex:none;color:' +
-                             render.corDoIconeDaObservacao(t.observacao, t.observacao_icone) + '"></i>' +
+                           render.iconesSoltosDaObservacao(t.observacao, t.observacao_icone, 13) +
                            '<span>' + esc(t.observacao) + '</span>' +
                          '</button>';
                 }).join('') +
@@ -1386,7 +1389,7 @@ window.SIPAV = window.SIPAV || {};
     if (!t) return;
     $('obsTorresTexto').value = t.identificador;
     $('obsTorresObs').value = t.observacao;
-    obsIconeEscolhido = render.iconeDaObservacao(t.observacao, t.observacao_icone);
+    obsIconesEscolhidos = render.iconesDaObservacao(t.observacao, t.observacao_icone);
     obsIconeTocou = true;
     marcarIconeDaObs();
     previaObservacaoDasTorres();
@@ -1410,7 +1413,7 @@ window.SIPAV = window.SIPAV || {};
     function gravar() {
       ui.processando('Salvando…');
       // Sem mexer no seletor, o ícone acompanha o texto (fica vazio): vale a regra pela palavra serra
-      var icone = obsIconeTocou ? obsIconeEscolhido : null;
+      var icone = obsIconeTocou && obsIconesEscolhidos.length ? obsIconesEscolhidos.join(',') : null;
       return db.salvarObservacaoDasTorres(r.torres.map(function (t) { return t.torre_id; }), texto, icone)
         .then(function () {
           r.torres.forEach(function (t) {
