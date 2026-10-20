@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v213 · 2026-10-20';
+  var VERSAO = 'v214 · 2026-10-20';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -269,6 +269,7 @@ window.SIPAV = window.SIPAV || {};
         // Só quem pode registrar vê o botão: o banco recusaria o resto, e um botão
         // que sempre dá "sem permissão" é pior que botão nenhum.
         $('btnMovimentacao').classList.toggle('hidden', !podeRegistrarMovimentacao());
+        $('itemUsuarios').classList.toggle('hidden', perfil.papel !== 'ADMIN');
 
         return Promise.all([
           db.obra(), db.trechos(), db.atividades(), db.encarregados(), db.canteiros(),
@@ -6184,6 +6185,98 @@ window.SIPAV = window.SIPAV || {};
     ui.modalGenerico({ titulo: 'Encarregados', corpoHtml: corpo });
   }
 
+  /* ---------------------------------------------------------------- Usuários -- */
+
+  var usuariosLista = [];
+
+  /** Quem tem login no sistema e o papel de cada um. Só a administração abre. */
+  function abrirUsuarios() {
+    if (!E.perfil || E.perfil.papel !== 'ADMIN') {
+      ui.avisar('Só a administração dá e tira acesso.', 'alerta');
+      return;
+    }
+    ui.processando('Carregando os usuários…');
+    db.usuariosDoSistema()
+      .then(function (lista) { ui.pronto(); usuariosLista = lista || []; montarUsuarios(); })
+      .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro', 6000); });
+  }
+
+  function montarUsuarios() {
+    var semPerfil = usuariosLista.filter(function (u) { return !u.tem_perfil; }).length;
+
+    var corpo =
+      '<div class="space-y-3">' +
+        '<p class="text-xs" style="color:var(--texto-fraco)">' +
+          'O login (e-mail e senha) se cria no Supabase, em Authentication. Quem já tem login aparece aqui, ' +
+          'e é aqui que se escolhe o que cada um pode fazer. Consulta só vê; Supervisor pré-programa; ' +
+          'Planejamento programa; Administrador também cuida dos acessos.' +
+        '</p>' +
+        (semPerfil
+          ? '<p class="text-sm font-semibold" style="color:var(--acento)">' + semPerfil +
+            (semPerfil === 1 ? ' login ainda sem acesso definido' : ' logins ainda sem acesso definido') + '</p>'
+          : '') +
+        '<div class="space-y-2">' + usuariosLista.map(linhaDoUsuario).join('') + '</div>' +
+      '</div>';
+
+    ui.modalGenerico({ titulo: 'Usuários e acessos', corpoHtml: corpo });
+  }
+
+  function linhaDoUsuario(u, i) {
+    var eu = E.perfil && u.id === E.perfil.id;
+    var opcoes = ['LEITURA', 'SUPERVISOR', 'PLANEJAMENTO', 'ADMIN'].map(function (p) {
+      return '<option value="' + p + '"' + (u.papel === p ? ' selected' : '') + '>' + ROTULO_PAPEL[p] + '</option>';
+    }).join('');
+    var acesso = u.ultimo_acesso ? 'último acesso ' + ui.quandoRelativo(u.ultimo_acesso) : 'nunca entrou';
+    var selo = !u.tem_perfil
+      ? '<span class="text-xs font-bold px-2 py-0.5 rounded" style="background:var(--acento);color:#fff">Sem acesso</span>'
+      : (!u.ativo ? '<span class="text-xs font-bold px-2 py-0.5 rounded" style="background:#64748B;color:#fff">Desativado</span>' : '');
+
+    return '<div class="rounded-lg px-3 py-3 space-y-2" style="border:1px solid var(--borda)">' +
+      '<div class="flex flex-wrap items-center gap-2">' +
+        '<span class="text-sm font-semibold" style="word-break:break-all">' + esc(u.email || '—') + '</span>' + selo +
+        '<span class="text-xs" style="color:var(--texto-fraco)">' + esc(acesso) + (eu ? ' · você' : '') + '</span>' +
+      '</div>' +
+      '<div class="flex flex-wrap items-center gap-2">' +
+        '<input id="usrNome' + i + '" class="campo" style="flex:1 1 11rem;min-width:0" placeholder="Nome" value="' + esc(u.nome || '') + '">' +
+        '<select id="usrPapel' + i + '" class="campo" style="flex:0 1 10rem"' + (eu ? ' disabled' : '') + '>' +
+          (u.tem_perfil ? '' : '<option value="" selected disabled>Escolha o papel</option>') + opcoes +
+        '</select>' +
+        '<label class="text-xs flex items-center gap-1.5" style="cursor:pointer">' +
+          '<input type="checkbox" id="usrAtivo' + i + '"' + (u.tem_perfil && !u.ativo ? '' : ' checked') + (eu ? ' disabled' : '') + '> Ativo' +
+        '</label>' +
+        '<button type="button" class="btn-primario" onclick="SIPAV.app.salvarUsuario(' + i + ')">Salvar</button>' +
+      '</div>' +
+    '</div>';
+  }
+
+  function salvarUsuario(i) {
+    var u = usuariosLista[i];
+    if (!u) return;
+    var nome = $('usrNome' + i).value.trim();
+    var papel = $('usrPapel' + i).value;
+    var ativo = $('usrAtivo' + i).checked;
+
+    if (!nome) { ui.avisar('Escreva o nome da pessoa.', 'alerta'); return; }
+    if (!papel) { ui.avisar('Escolha o papel dessa pessoa.', 'alerta'); return; }
+
+    var confirma = (papel === 'ADMIN' && u.papel !== 'ADMIN')
+      ? ui.confirmar('Dar administração?', nome + ' vai poder mexer em tudo, inclusive nos acessos dos outros.', 'Dar administração')
+      : Promise.resolve(true);
+
+    confirma.then(function (vai) {
+      if (!vai) return;
+      ui.processando('Salvando…');
+      return db.definirAcesso(u.id, nome, papel, ativo)
+        .then(function () { return db.usuariosDoSistema(); })
+        .then(function (lista) {
+          ui.pronto();
+          usuariosLista = lista || [];
+          montarUsuarios();
+          ui.avisar(nome + ' agora é ' + ROTULO_PAPEL[papel].toLowerCase() + (ativo ? '.' : ' e está desativado.'));
+        });
+    }).catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro', 6000); });
+  }
+
   function linhaEncarregado(e) {
     if (encarregadoEmEdicao === e.id) {
       return '' +
@@ -10165,6 +10258,7 @@ window.SIPAV = window.SIPAV || {};
     filtrarHistorico: filtrarHistorico,
 
     abrirEncarregados: abrirEncarregados,
+    abrirUsuarios: abrirUsuarios, salvarUsuario: salvarUsuario,
     adicionarEncarregado: adicionarEncarregado,
     editarEncarregado: editarEncarregado,
     salvarNomeEncarregado: salvarNomeEncarregado,

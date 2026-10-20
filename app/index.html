@@ -41,7 +41,7 @@
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 
   <!-- ?v= força o navegador a buscar de novo quando o código muda. -->
-  <link rel="stylesheet" href="css/app.css?v=213">
+  <link rel="stylesheet" href="css/app.css?v=214">
 </head>
 <body class="h-full flex flex-col antialiased">
 
@@ -180,6 +180,10 @@
             </button>
             <button class="menu-item" onclick="SIPAV.app.fecharMenus();SIPAV.app.abrirEncarregados()">
               <i data-lucide="users" class="w-4 h-4"></i> Encarregados
+            </button>
+            <div class="menu-sep"></div>
+            <button id="itemUsuarios" class="menu-item hidden" onclick="SIPAV.app.fecharMenus();SIPAV.app.abrirUsuarios()">
+              <i data-lucide="user-cog" class="w-4 h-4"></i> Usuários e acessos
             </button>
           </div>
         </div>
@@ -821,12 +825,12 @@
   </div>
 </div>
 
-<script src="js/config.js?v=213"></script>
-<script src="js/db.js?v=213"></script>
-<script src="js/ui.js?v=213"></script>
-<script src="js/render.js?v=213"></script>
-<script src="js/isa.js?v=213"></script>
-<script src="js/supervisor.js?v=213"></script>
-<script src="js/app.js?v=213"></script>
+<script src="js/config.js?v=214"></script>
+<script src="js/db.js?v=214"></script>
+<script src="js/ui.js?v=214"></script>
+<script src="js/render.js?v=214"></script>
+<script src="js/isa.js?v=214"></script>
+<script src="js/supervisor.js?v=214"></script>
+<script src="js/app.js?v=214"></script>
 </body>
 </html>

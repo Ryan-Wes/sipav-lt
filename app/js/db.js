@@ -702,6 +702,34 @@ window.SIPAV = window.SIPAV || {};
       .then(function (r) { return ok(r, 'Falha ao corrigir'); });
   }
 
+  /** As funções da 59 ainda não entraram no banco? */
+  function semFuncaoDeUsuarios(erro) {
+    return !!erro && (erro.code === 'PGRST202' || erro.code === '42883' ||
+                      /usuarios_do_sistema|definir_acesso/i.test(erro.message || ''));
+  }
+
+  function erroSemUsuarios() {
+    return new Error('A tela de usuários ainda não tem o que precisa no banco. ' +
+                     'Falta aplicar a migração 59 (db/59-usuarios-e-acessos.sql).');
+  }
+
+  /** Quem tem login, com ou sem perfil. Só a administração consegue chamar. */
+  function usuariosDoSistema() {
+    return cliente().rpc('usuarios_do_sistema').then(function (r) {
+      if (semFuncaoDeUsuarios(r.error)) throw erroSemUsuarios();
+      return ok(r, 'Falha ao carregar os usuários');
+    });
+  }
+
+  /** Cria o perfil do login ou muda nome, papel e se está ativo. */
+  function definirAcesso(id, nome, papel, ativo) {
+    return cliente().rpc('definir_acesso', { p_id: id, p_nome: nome, p_papel: papel, p_ativo: ativo })
+      .then(function (r) {
+        if (semFuncaoDeUsuarios(r.error)) throw erroSemUsuarios();
+        return ok(r, 'Falha ao salvar o acesso');
+      });
+  }
+
   /** As últimas solicitações de todos os supervisores, de qualquer situação, para achar as já decididas. */
   function solicitacoesRecentes() {
     return cliente()
@@ -1878,6 +1906,7 @@ window.SIPAV = window.SIPAV || {};
     programacoesPorIds: programacoesPorIds,
     reabrirSolicitacao: reabrirSolicitacao,
     reapresentarReprovadas: reapresentarReprovadas,
+    usuariosDoSistema: usuariosDoSistema, definirAcesso: definirAcesso,
     reprovadasRecentes: reprovadasRecentes,
     solicitacoesRecentes: solicitacoesRecentes,
     enviarSolicitacao: enviarSolicitacao,

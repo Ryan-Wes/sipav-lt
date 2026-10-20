@@ -16,6 +16,20 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 20/10/2026
 
+### Usuários e acessos pela tela, sem SQL **[WR]**
+
+Dar acesso a alguém exigia criar o login no Authentication e rodar um SQL que
+escrevia o perfil. Agora o administrador abre Cadastros > Usuários e acessos,
+vê todo mundo que tem login (os que ainda não têm perfil aparecem primeiro, com
+o selo "Sem acesso") e escolhe nome, papel e se está ativo. O login em si
+(e-mail e senha) continua sendo criado no Supabase.
+
+O banco é quem confere (migração 59): só administrador ativo chama as duas
+funções, o nome não vem vazio e o administrador não rebaixa nem desativa o
+próprio acesso, para a obra não ficar sem ninguém que consiga entrar ali. Dar
+administração a outra pessoa pede confirmação na tela. Sem a 59 aplicada, o
+menu abre e avisa que falta a migração.
+
 ### Acesso só para consulta, para os engenheiros responsáveis pelas linhas **[WR]**
 
 Os engenheiros que respondem pelas linhas mas não são do planejamento precisam
