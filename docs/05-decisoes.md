@@ -16,6 +16,21 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 20/10/2026
 
+### Menus e cadastros arrumados **[WR]**
+
+- **Importar** virou menu com duas portas: "Torres da planilha" e "Programação da ISA". A programação da ISA
+  estava dentro do Exportar, que é o lugar errado para algo que entra no sistema.
+- **Dias sem atividade** saiu do cabeçalho e foi para Cadastros. A janela agora lista os registros do
+  trecho (do mais novo para o mais antigo, com busca por data, motivo ou encarregado) e cada linha tem
+  alterar e remover. Registrar um novo sai da mesma janela, e depois de salvar, remover ou cancelar volta
+  para a lista. A aba Dias sem atividade, na tela, continua como estava.
+- **Encarregados** ganhou busca pelo nome.
+- **Observação nas torres** ganhou escolha de ícone: nota, serra, queimada, alagado, travessia, mata
+  fechada, acesso difícil e cruza linha de energia. O ícone fica guardado na torre
+  (`torre.observacao_icone`, migração 60) e o cartão e o chip usam a cor dele. Sem escolher, vale a regra
+  antiga: a palavra "serra" no texto põe a montanha, então o que já estava anotado não muda. Antes de
+  aplicar a 60 a tela funciona como era, só não guarda o ícone (e avisa que falta a migração).
+
 ### Usuários e acessos pela tela, sem SQL **[WR]**
 
 Dar acesso a alguém exigia criar o login no Authentication e rodar um SQL que

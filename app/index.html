@@ -41,7 +41,7 @@
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 
   <!-- ?v= força o navegador a buscar de novo quando o código muda. -->
-  <link rel="stylesheet" href="css/app.css?v=216">
+  <link rel="stylesheet" href="css/app.css?v=217">
 </head>
 <body class="h-full flex flex-col antialiased">
 
@@ -134,10 +134,21 @@
 
       <div class="flex flex-wrap items-center justify-center gap-2">
 
-        <button onclick="SIPAV.app.abrirImportacao()" class="btn-header so-escrita" title="Importar torres colando da planilha">
-          <i data-lucide="clipboard-paste" class="w-4 h-4" style="color:var(--acento)"></i>
-          <span class="rotulo-btn">Importar</span>
-        </button>
+        <div class="menu-wrap so-escrita">
+          <button onclick="SIPAV.app.alternarMenu('menuImportar')" class="btn-header" title="Importar torres e programação">
+            <i data-lucide="clipboard-paste" class="w-4 h-4" style="color:var(--acento)"></i>
+            <span class="rotulo-btn">Importar</span>
+            <i data-lucide="chevron-down" class="w-3 h-3 opacity-60"></i>
+          </button>
+          <div id="menuImportar" class="menu hidden">
+            <button class="menu-item" onclick="SIPAV.app.fecharMenus();SIPAV.app.abrirImportacao()">
+              <i data-lucide="clipboard-paste" class="w-4 h-4"></i> Torres da planilha
+            </button>
+            <button class="menu-item" onclick="SIPAV.app.fecharMenus();SIPAV.app.abrirImportarIsa()">
+              <i data-lucide="upload" class="w-4 h-4 icone-excel"></i> Programação da ISA
+            </button>
+          </div>
+        </div>
 
         <div class="menu-wrap">
           <button onclick="SIPAV.app.alternarMenu('menuExportar')" class="btn-header" title="Exportar e compartilhar">
@@ -149,10 +160,7 @@
             <button class="menu-item" onclick="SIPAV.app.fecharMenus();SIPAV.app.abrirRelatorioIsa()">
               <i data-lucide="table-2" class="w-4 h-4 icone-excel"></i> Relatório da ISA
             </button>
-            <button class="menu-item so-escrita" onclick="SIPAV.app.fecharMenus();SIPAV.app.abrirImportarIsa()">
-              <i data-lucide="upload" class="w-4 h-4 icone-excel"></i> Importar programação da ISA
-            </button>
-            <div class="menu-sep"></div>
+
             <button class="menu-item" onclick="SIPAV.app.fecharMenus();SIPAV.app.abrirExportarPdf()">
               <i data-lucide="file-text" class="w-4 h-4 icone-pdf"></i> Exportar em PDF
             </button>
@@ -181,6 +189,11 @@
             <button class="menu-item" onclick="SIPAV.app.fecharMenus();SIPAV.app.abrirEncarregados()">
               <i data-lucide="users" class="w-4 h-4"></i> Encarregados
             </button>
+            <!-- Dia sem atividade na torre: encarregado ou máquina mudando de trecho, folga, feriado
+                 ou outro motivo. Sem isto o dia aparecia vazio nos painéis. -->
+            <button class="menu-item" onclick="SIPAV.app.fecharMenus();SIPAV.app.abrirListaDeMovimentacoes()">
+              <i data-lucide="calendar-x" class="w-4 h-4"></i> Dias sem atividade
+            </button>
             <div class="menu-sep"></div>
             <button id="itemUsuarios" class="menu-item hidden" onclick="SIPAV.app.fecharMenus();SIPAV.app.abrirUsuarios()">
               <i data-lucide="user-cog" class="w-4 h-4"></i> Usuários e acessos
@@ -188,14 +201,6 @@
           </div>
         </div>
 
-        <!-- Dia sem atividade na torre: encarregado ou máquina mudando de trecho,
-             ou outro motivo. Sem isto o dia aparecia vazio nos painéis. -->
-        <button onclick="SIPAV.app.abrirMovimentacao()" class="btn-header hidden so-escrita"
-                id="btnMovimentacao"
-                title="Registrar mudança de trecho, deslocamento de máquina, folga de campo ou outro dia sem atividade">
-          <i data-lucide="calendar-x" class="w-4 h-4" style="color:var(--acento)"></i>
-          <span class="rotulo-btn">Dias sem atividade</span>
-        </button>
 
         <!-- O planejamento salvo da semana (semanal + quinzenal), e rever os
              anteriores -->
@@ -825,12 +830,12 @@
   </div>
 </div>
 
-<script src="js/config.js?v=216"></script>
-<script src="js/db.js?v=216"></script>
-<script src="js/ui.js?v=216"></script>
-<script src="js/render.js?v=216"></script>
-<script src="js/isa.js?v=216"></script>
-<script src="js/supervisor.js?v=216"></script>
-<script src="js/app.js?v=216"></script>
+<script src="js/config.js?v=217"></script>
+<script src="js/db.js?v=217"></script>
+<script src="js/ui.js?v=217"></script>
+<script src="js/render.js?v=217"></script>
+<script src="js/isa.js?v=217"></script>
+<script src="js/supervisor.js?v=217"></script>
+<script src="js/app.js?v=217"></script>
 </body>
 </html>

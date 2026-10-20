@@ -1444,7 +1444,6 @@ button.obs-existente:hover { background: var(--superficie-3); }
 html.dark .banner-historico-titulo { color: #FBBF24; }
 
 /* O que altera programação some enquanto se olha uma foto */
-body.modo-historico #btnMovimentacao,
 body.modo-historico .btn-lancar,
 body.modo-historico .barra-lancamento,
 body.modo-historico .chip-lixeira { display: none !important; }
@@ -2198,3 +2197,12 @@ body.modo-consulta .so-escrita { opacity: .5; }
 body.modo-consulta #caixaSelecaoProg,
 body.modo-consulta #dicaCtrl,
 body.modo-consulta .so-planejamento { display: none !important; }
+
+/* O seletor de ícone da observação da torre */
+.obs-icone-op {
+  display: inline-flex; align-items: center; gap: .375rem; padding: .3125rem .625rem;
+  border: 1px solid var(--borda); border-radius: .5rem; font-size: .75rem; font-weight: 600;
+  color: var(--texto-suave); background: transparent; cursor: pointer;
+}
+.obs-icone-op:hover { border-color: var(--acento); }
+.obs-icone-op.ativo { border-color: var(--acento); background: rgba(247,128,30,.14); color: var(--texto); }

@@ -1,7 +1,7 @@
 -- =============================================================================
 -- PARA COLAR NO SQL EDITOR DO SUPABASE — atualizado em 20/10/2026
 -- =============================================================================
--- Pendente: a 39-movimentacao.sql, a 40-partes-da-escavacao.sql, a 41-opgw-direito-esquerdo.sql e a 42-segundo-encarregado.sql e a 43-folga-de-campo.sql e a 44-observacao-da-torre.sql, a 45-execucao-sem-data.sql e a 46-planejamento-semanal.sql e a 47-feriado.sql e a 48-mudanca-sem-origem.sql e a 49-cabo-na-chave.sql e a 50-desforma-e-cercas.sql e a 51-concretagem.sql e a 52-atividades-da-isa.sql e a 53-sinalizacao-em-tres.sql e a 54-solicitacoes-do-supervisor.sql e a 55-aprovacao-por-linha.sql e a 56-alteracao-do-supervisor-e-quem-decidiu.sql e a 57-reprovar-sem-fechar-e-reanalisar.sql e a 58-corrigir-reprovadas.sql e a 59-usuarios-e-acessos.sql (e a 38, se ainda não entrou).
+-- Pendente: a 39-movimentacao.sql, a 40-partes-da-escavacao.sql, a 41-opgw-direito-esquerdo.sql e a 42-segundo-encarregado.sql e a 43-folga-de-campo.sql e a 44-observacao-da-torre.sql, a 45-execucao-sem-data.sql e a 46-planejamento-semanal.sql e a 47-feriado.sql e a 48-mudanca-sem-origem.sql e a 49-cabo-na-chave.sql e a 50-desforma-e-cercas.sql e a 51-concretagem.sql e a 52-atividades-da-isa.sql e a 53-sinalizacao-em-tres.sql e a 54-solicitacoes-do-supervisor.sql e a 55-aprovacao-por-linha.sql e a 56-alteracao-do-supervisor-e-quem-decidiu.sql e a 57-reprovar-sem-fechar-e-reanalisar.sql e a 58-corrigir-reprovadas.sql e a 59-usuarios-e-acessos.sql e a 60-icone-da-observacao.sql (e a 38, se ainda não entrou).
 --
 -- Confere antes o que já entrou. A 36, a 37 e a 38 também precisam estar aplicadas:
 --

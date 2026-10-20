@@ -1106,18 +1106,25 @@ window.SIPAV = window.SIPAV || {};
    * por aplicar) volta vazio, e a tela segue sem as anotações.
    */
   function observacoesDasTorres(trechoId) {
-    return cliente()
-      .from('torre')
-      .select('id, observacao')
-      .eq('trecho_id', trechoId)
-      .not('observacao', 'is', null)
+    function consultar(colunas) {
+      return cliente().from('torre').select(colunas).eq('trecho_id', trechoId).not('observacao', 'is', null);
+    }
+
+    return consultar('id, observacao, observacao_icone')
+      .then(function (r) {
+        // Sem a 60 a coluna do ícone não existe: refaz sem ela, e as observações seguem aparecendo
+        if (r.error && /observacao_icone/i.test(r.error.message || '')) return consultar('id, observacao');
+        return r;
+      })
       .then(function (r) {
         if (r.error) {
           if (/observacao/i.test(r.error.message || '')) return {};
           throw traduzErro(r.error, 'Falha ao carregar as observações das torres');
         }
         var mapa = {};
-        (r.data || []).forEach(function (x) { if (x.observacao) mapa[x.id] = x.observacao; });
+        (r.data || []).forEach(function (x) {
+          if (x.observacao) mapa[x.id] = { texto: x.observacao, icone: x.observacao_icone || null };
+        });
         return mapa;
       });
   }
@@ -1125,18 +1132,27 @@ window.SIPAV = window.SIPAV || {};
   /**
    * Grava (ou limpa, com texto vazio) a observação de várias torres de uma vez.
    * Em pedaços: uma lista grande de ids estoura o tamanho da consulta.
+   * icone é o nome do ícone escolhido; sem ele (undefined) o que a torre já tem fica como está, e texto
+   * vazio limpa os dois.
    */
-  function salvarObservacaoDasTorres(torreIds, texto) {
+  function salvarObservacaoDasTorres(torreIds, texto, icone) {
     var valor = (texto || '').trim() || null;
+    var campos = { observacao: valor };
+    if (!valor) campos.observacao_icone = null;
+    else if (icone !== undefined) campos.observacao_icone = icone || null;
     var pedacos = [];
     for (var i = 0; i < torreIds.length; i += 100) pedacos.push(torreIds.slice(i, i + 100));
 
     return pedacos.reduce(function (antes, ids) {
       return antes.then(function () {
-        return cliente().from('torre').update({ observacao: valor }).in('id', ids)
+        return cliente().from('torre').update(campos).in('id', ids)
           .select('id')
           .then(function (r) {
             if (r.error) {
+              if (/observacao_icone/i.test(r.error.message || '')) {
+                throw new Error('A coluna do ícone ainda não existe no banco. ' +
+                                'Falta aplicar a migração 60 (db/60-icone-da-observacao.sql).');
+              }
               if (/observacao/i.test(r.error.message || '')) {
                 throw new Error('A coluna da observação ainda não existe no banco. ' +
                                 'Falta aplicar a migração 44 (db/44-observacao-da-torre.sql).');

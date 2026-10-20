@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v216 · 2026-10-20';
+  var VERSAO = 'v217 · 2026-10-20';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -279,7 +279,6 @@ window.SIPAV = window.SIPAV || {};
 
         // Só quem pode registrar vê o botão: o banco recusaria o resto, e um botão
         // que sempre dá "sem permissão" é pior que botão nenhum.
-        $('btnMovimentacao').classList.toggle('hidden', !(podeRegistrarMovimentacao() || perfil.papel === 'LEITURA'));
         $('itemUsuarios').classList.toggle('hidden', perfil.papel !== 'ADMIN');
 
         return Promise.all([
@@ -380,7 +379,12 @@ window.SIPAV = window.SIPAV || {};
    */
   function aplicarObservacoesDasTorres(mapa) {
     mapa = mapa || {};
-    E.torres.forEach(function (t) { t.observacao = mapa[t.torre_id] || null; });
+    E.torres.forEach(function (t) {
+      var o = mapa[t.torre_id];
+      t.observacao = o ? o.texto : null;
+      t.observacao_icone = o ? o.icone : null;
+    });
+    render.limparIndiceDeObservacoes();
   }
 
   /** Só administração e planejamento escrevem na torre (política do banco). */
@@ -910,7 +914,7 @@ window.SIPAV = window.SIPAV || {};
     // ela estiver vazia
     var podeObs = podeEditarTorre();
     $('campoObsTorre').value = torreAberta.observacao || '';
-    atualizarIconeDaObsTorre(torreAberta.observacao);
+    atualizarIconeDaObsTorre(torreAberta.observacao, torreAberta.observacao_icone);
     $('campoObsTorre').readOnly = !podeObs;
     $('btnSalvarObsTorre').classList.toggle('hidden', !podeObs);
     $('blocoObsTorre').classList.toggle('hidden', !podeObs && !torreAberta.observacao);
@@ -1227,9 +1231,9 @@ window.SIPAV = window.SIPAV || {};
   }
 
   /** O ícone ao lado do campo: montanha para serra, bloco de notas para o resto. */
-  function atualizarIconeDaObsTorre(texto) {
-    var cor = render.ehSerra(texto) ? '#D97706' : 'var(--acento)';
-    $('iconeObsTorre').innerHTML = '<i data-lucide="' + render.iconeDaObservacao(texto) +
+  function atualizarIconeDaObsTorre(texto, icone) {
+    var cor = (texto || icone) ? render.corDoIconeDaObservacao(texto, icone) : 'var(--acento)';
+    $('iconeObsTorre').innerHTML = '<i data-lucide="' + render.iconeDaObservacao(texto, icone) +
       '" class="w-4 h-4" style="color:' + cor + '"></i>';
     ui.icones();
   }
@@ -1243,7 +1247,9 @@ window.SIPAV = window.SIPAV || {};
     db.salvarObservacaoDasTorres([torreAberta.torre_id], texto)
       .then(function () {
         torreAberta.observacao = texto || null;
-        atualizarIconeDaObsTorre(texto);
+        if (!texto) torreAberta.observacao_icone = null;
+        render.limparIndiceDeObservacoes();
+        atualizarIconeDaObsTorre(texto, torreAberta.observacao_icone);
         render.tudo();
         ui.avisar(texto ? 'Observação da torre salva.' : 'Observação da torre removida.', 'sucesso');
       })
@@ -1253,7 +1259,26 @@ window.SIPAV = window.SIPAV || {};
   /* ---------------------------------------------- Observação em várias torres -- */
 
   var obsExistentes = [];   // as torres que já têm observação, para a lista da janela
+  var obsIconeEscolhido = 'sticky-note';
+  var obsIconeTocou = false;   // false: o ícone acompanha o texto (a palavra "serra" põe a montanha)
 
+  function marcarIconeDaObs() {
+    Array.prototype.forEach.call(document.querySelectorAll('#obsIcones .obs-icone-op'), function (b) {
+      b.classList.toggle('ativo', b.getAttribute('data-icone') === obsIconeEscolhido);
+    });
+  }
+
+  function escolherIconeDaObs(id) {
+    obsIconeEscolhido = id;
+    obsIconeTocou = true;
+    marcarIconeDaObs();
+  }
+
+  function seguirTextoDaObs() {
+    if (obsIconeTocou) return;
+    obsIconeEscolhido = render.iconeDaObservacao($('obsTorresObs').value, null);
+    marcarIconeDaObs();
+  }
   /**
    * Põe (ou tira) a mesma observação em várias torres de uma vez.
    *
@@ -1274,13 +1299,15 @@ window.SIPAV = window.SIPAV || {};
       .map(function (t) { return t.identificador; }).join(', ');
 
     obsExistentes = E.torres.filter(function (t) { return t.observacao; });
+    obsIconeEscolhido = 'sticky-note';
+    obsIconeTocou = false;
 
     var corpo =
       '<div class="space-y-3">' +
         '<p class="text-xs" style="color:var(--texto-fraco)">' +
           'Uma anotação que fica na torre, para ver no cartão onde há dificuldade ' +
-          '(serra, acesso difícil…). Não bloqueia nada. Se o texto tiver a palavra ' +
-          '<strong>serra</strong>, o cartão ganha o símbolo de montanha.' +
+          '(serra, queimada, travessia, alagado…). Não bloqueia nada. Escolha o ícone que aparece ' +
+          'no cartão; sem escolher, a palavra <strong>serra</strong> no texto já põe a montanha.' +
         '</p>' +
         '<div><label class="rotulo">Torres</label>' +
           '<input id="obsTorresTexto" class="campo" autocomplete="off" ' +
@@ -1289,8 +1316,18 @@ window.SIPAV = window.SIPAV || {};
           '<p id="obsTorresPrevia" class="text-xs mt-1" style="color:var(--texto-fraco)"></p></div>' +
         '<div><label class="rotulo">Observação ' +
             '<span style="font-weight:400">(vazio tira a observação das torres)</span></label>' +
-          '<input id="obsTorresObs" class="campo" autocomplete="off" placeholder="Ex.: serra">' +
+          '<input id="obsTorresObs" class="campo" autocomplete="off" placeholder="Ex.: serra" ' +
+                 'oninput="SIPAV.app.seguirTextoDaObs()">' +
         '</div>' +
+        '<div><label class="rotulo">Ícone no cartão</label>' +
+          '<div id="obsIcones" class="flex flex-wrap gap-1.5">' +
+            render.ICONES_OBS.map(function (i) {
+              return '<button type="button" class="obs-icone-op" data-icone="' + i.id + '" title="' + esc(i.rotulo) + '" ' +
+                       'onclick="SIPAV.app.escolherIconeDaObs(\'' + i.id + '\')">' +
+                       '<i data-lucide="' + i.id + '" class="w-4 h-4" style="color:' + i.cor + '"></i>' +
+                       '<span>' + esc(i.rotulo) + '</span></button>';
+            }).join('') +
+          '</div></div>' +
         (obsExistentes.length
           ? '<div><label class="rotulo">Já anotadas neste trecho (' + obsExistentes.length + ')</label>' +
               '<div class="resumo-enc-lista barra-fina" style="max-height:11rem">' +
@@ -1299,6 +1336,9 @@ window.SIPAV = window.SIPAV || {};
                            'onclick="SIPAV.app.usarObservacaoExistente(' + i + ')" ' +
                            'title="Clique para corrigir ou tirar">' +
                            '<span class="resumo-enc-data">' + esc(t.identificador) + '</span>' +
+                           '<i data-lucide="' + render.iconeDaObservacao(t.observacao, t.observacao_icone) +
+                             '" style="width:13px;height:13px;flex:none;color:' +
+                             render.corDoIconeDaObservacao(t.observacao, t.observacao_icone) + '"></i>' +
                            '<span>' + esc(t.observacao) + '</span>' +
                          '</button>';
                 }).join('') +
@@ -1317,6 +1357,7 @@ window.SIPAV = window.SIPAV || {};
 
     $('obsTorresTexto').value = marcadas;
     previaObservacaoDasTorres();
+    marcarIconeDaObs();
   }
 
   function previaObservacaoDasTorres() {
@@ -1345,6 +1386,9 @@ window.SIPAV = window.SIPAV || {};
     if (!t) return;
     $('obsTorresTexto').value = t.identificador;
     $('obsTorresObs').value = t.observacao;
+    obsIconeEscolhido = render.iconeDaObservacao(t.observacao, t.observacao_icone);
+    obsIconeTocou = true;
+    marcarIconeDaObs();
     previaObservacaoDasTorres();
     $('obsTorresObs').focus();
   }
@@ -1365,9 +1409,15 @@ window.SIPAV = window.SIPAV || {};
 
     function gravar() {
       ui.processando('Salvando…');
-      return db.salvarObservacaoDasTorres(r.torres.map(function (t) { return t.torre_id; }), texto)
+      // Sem mexer no seletor, o ícone acompanha o texto (fica vazio): vale a regra pela palavra serra
+      var icone = obsIconeTocou ? obsIconeEscolhido : null;
+      return db.salvarObservacaoDasTorres(r.torres.map(function (t) { return t.torre_id; }), texto, icone)
         .then(function () {
-          r.torres.forEach(function (t) { t.observacao = texto || null; });
+          r.torres.forEach(function (t) {
+            t.observacao = texto || null;
+            t.observacao_icone = texto ? icone : null;
+          });
+          render.limparIndiceDeObservacoes();
           render.tudo();
           ui.pronto();
           ui.fecharModal('modalGenerico');
@@ -6183,6 +6233,31 @@ window.SIPAV = window.SIPAV || {};
   // id do encarregado com o nome aberto para edição
   var encarregadoEmEdicao = null;
 
+  var buscaEncarregado = '';
+
+  /** Abre a lista do zero: a busca da vez anterior não fica na caixa. */
+  function abrirEncarregadosDoMenu() {
+    buscaEncarregado = '';
+    abrirEncarregados();
+  }
+
+  function casaComABuscaDoEncarregado(nome) {
+    return !buscaEncarregado || normalizar(nome).indexOf(normalizar(buscaEncarregado)) !== -1;
+  }
+
+  function filtrarEncarregados() {
+    buscaEncarregado = $('buscaEncarregado').value;
+    var linhas = document.querySelectorAll('#genericoCorpo .linha-enc');
+    var n = 0;
+    Array.prototype.forEach.call(linhas, function (l) {
+      var mostra = casaComABuscaDoEncarregado(l.getAttribute('data-nome'));
+      l.style.display = mostra ? '' : 'none';
+      if (mostra) n++;
+    });
+    var vazio = $('semResultadoEncarregado');
+    if (vazio) vazio.classList.toggle('hidden', n > 0);
+  }
+
   function abrirEncarregados() {
     var corpo =
       '<div class="space-y-4">' +
@@ -6190,8 +6265,10 @@ window.SIPAV = window.SIPAV || {};
           '<input id="novoEncarregado" class="campo" placeholder="Nome do encarregado">' +
           '<button onclick="SIPAV.app.adicionarEncarregado()" class="btn-primario whitespace-nowrap">Adicionar</button>' +
         '</div>' +
-        '<div class="space-y-1.5">' +
+        '<input id="buscaEncarregado" class="campo" autocomplete="off" placeholder="Buscar encarregado pelo nome" ' +
+               'value="' + esc(buscaEncarregado) + '" oninput="SIPAV.app.filtrarEncarregados()">' +        '<div class="space-y-1.5">' +
           E.encarregados.map(linhaEncarregado).join('') +
+          '<p id="semResultadoEncarregado" class="text-sm hidden" style="color:var(--texto-fraco)">Nenhum encarregado com esse nome.</p>' +
         '</div>' +
         '<p class="text-xs text-slate-400">' +
           'Corrigir o nome vale para tudo, inclusive o que já foi programado — é a ' +
@@ -6201,6 +6278,7 @@ window.SIPAV = window.SIPAV || {};
       '</div>';
 
     ui.modalGenerico({ titulo: 'Encarregados', corpoHtml: corpo });
+    if (buscaEncarregado) filtrarEncarregados();
   }
 
   /* ---------------------------------------------------------------- Usuários -- */
@@ -6298,7 +6376,7 @@ window.SIPAV = window.SIPAV || {};
   function linhaEncarregado(e) {
     if (encarregadoEmEdicao === e.id) {
       return '' +
-        '<div class="flex items-center gap-2 rounded-lg border border-indigo-300 px-3 py-2">' +
+        '<div class="linha-enc flex items-center gap-2 rounded-lg border border-indigo-300 px-3 py-2" data-nome="' + esc(e.nome) + '">' +
           '<i data-lucide="user" class="w-4 h-4 text-slate-400 shrink-0"></i>' +
           '<input id="nomeEncarregado" class="campo py-1" value="' + esc(e.nome) + '">' +
           '<button onclick="SIPAV.app.salvarNomeEncarregado(\'' + e.id + '\')" ' +
@@ -6311,7 +6389,8 @@ window.SIPAV = window.SIPAV || {};
     }
 
     return '' +
-      '<div class="flex items-center gap-3 rounded-lg border border-slate-200 px-3 py-2">' +
+      '<div class="linha-enc flex items-center gap-3 rounded-lg border border-slate-200 px-3 py-2" data-nome="' + esc(e.nome) + '"' +
+        (casaComABuscaDoEncarregado(e.nome) ? '' : ' style="display:none"') + '>' +
         '<i data-lucide="user" class="w-4 h-4 text-slate-400 shrink-0"></i>' +
         '<span class="flex-1 text-sm font-medium text-slate-700 truncate">' + esc(e.nome) + '</span>' +
         '<button onclick="SIPAV.app.editarEncarregado(\'' + e.id + '\')" ' +
@@ -7166,7 +7245,99 @@ window.SIPAV = window.SIPAV || {};
     return !!E.perfil && (E.perfil.papel === 'ADMIN' || E.perfil.papel === 'PLANEJAMENTO');
   }
 
-  function abrirMovimentacao(id) {
+  // Quando o registro foi aberto pela lista de Cadastros, salvar, remover ou cancelar volta para ela
+  var movVoltaParaLista = false;
+
+  /**
+   * Os dias sem atividade já registrados neste trecho, do mais novo para o mais antigo, com editar e
+   * remover em cada linha. É a porta de Cadastros > Dias sem atividade; registrar um novo sai daqui.
+   */
+  function abrirListaDeMovimentacoes() {
+    if (!E.trechoAtual) return;
+    if (somenteConsulta()) return;
+    if (!podeRegistrarMovimentacao()) {
+      ui.avisar('Só administração e planejamento registram dias sem atividade.', 'alerta');
+      return;
+    }
+    movVoltaParaLista = false;
+
+    var lista = (E.movimentacoes || []).filter(render.movimentacaoDoTrecho).slice()
+      .sort(function (a, b) { return a.data < b.data ? 1 : a.data > b.data ? -1 : 0; });
+
+    var linhas = lista.map(function (m) {
+      var texto = render.textoDaMovimentacao(m);
+      var quem = m.encarregado ? render.nomesDosEncarregados(m) : '';
+      var busca = (ui.dataCurta(m.data) + ' ' + texto + ' ' + quem).toLowerCase();
+      return '<div class="linha-mov flex items-center gap-2 rounded-lg px-3 py-2" data-busca="' + esc(busca) + '" ' +
+          'style="border:1px solid var(--borda)">' +
+        '<span class="font-bold text-sm shrink-0" style="min-width:5.25rem">' + esc(ui.dataCurta(m.data)) + ' ' +
+          '<span style="color:var(--texto-fraco);font-weight:600">' +
+            esc(ui.diaDaSemana(m.data).slice(0, 3).toUpperCase()) + '</span></span>' +
+        '<span class="flex-1 min-w-0 text-sm">' + esc(texto) +
+          (quem ? '<span class="block text-xs" style="color:var(--texto-fraco)">' + esc(quem) + '</span>' : '') +
+        '</span>' +
+        '<button type="button" class="p-1.5 rounded-lg shrink-0" title="Alterar" ' +
+                'onclick="SIPAV.app.editarMovimentacaoDaLista(\'' + m.id + '\')">' +
+          '<i data-lucide="pencil" class="w-4 h-4" style="color:var(--texto-fraco)"></i></button>' +
+        '<button type="button" class="p-1.5 rounded-lg shrink-0" title="Remover" ' +
+                'onclick="SIPAV.app.removerMovimentacaoDaLista(\'' + m.id + '\')">' +
+          '<i data-lucide="trash-2" class="w-4 h-4" style="color:#E11D48"></i></button>' +
+      '</div>';
+    }).join('');
+
+    var corpo =
+      '<div class="space-y-3">' +
+        '<p class="text-xs" style="color:var(--texto-fraco)">' +
+          'Mudança de trecho, deslocamento de máquina, folga de campo, feriado ou outro dia sem atividade. ' +
+          'Não é programação: aparece nos painéis Por Encarregado e Por Data, para o dia não ficar vazio sem explicação.' +
+        '</p>' +
+        (lista.length
+          ? '<input id="buscaMov" class="campo" autocomplete="off" placeholder="Buscar por data, motivo ou encarregado" ' +
+                   'oninput="SIPAV.app.filtrarListaDeMovimentacoes()">' +
+            '<p id="contaMov" class="text-xs" style="color:var(--texto-fraco)">' + lista.length +
+              (lista.length === 1 ? ' registro neste trecho' : ' registros neste trecho') + '</p>' +
+            '<div class="space-y-1.5 barra-fina" style="max-height:55vh;overflow-y:auto">' + linhas + '</div>'
+          : '<p class="text-sm" style="color:var(--texto-fraco)">Nenhum registro neste trecho ainda.</p>') +
+      '</div>';
+
+    ui.modalGenerico({
+      titulo: 'Dias sem atividade — ' + E.trechoAtual.nome,
+      corpoHtml: corpo,
+      botoes: [
+        { rotulo: 'Fechar', classe: 'btn-secundario' },
+        { rotulo: 'Registrar novo', classe: 'btn-primario', acao: function () { abrirMovimentacao(null, true); } }
+      ]
+    });
+  }
+
+  function filtrarListaDeMovimentacoes() {
+    var q = ($('buscaMov').value || '').trim().toLowerCase();
+    var linhas = document.querySelectorAll('#genericoCorpo .linha-mov');
+    var n = 0;
+    Array.prototype.forEach.call(linhas, function (l) {
+      var mostra = !q || l.getAttribute('data-busca').indexOf(q) !== -1;
+      l.style.display = mostra ? '' : 'none';
+      if (mostra) n++;
+    });
+    $('contaMov').textContent = q ? n + ' de ' + linhas.length + ' registros' : linhas.length +
+      (linhas.length === 1 ? ' registro neste trecho' : ' registros neste trecho');
+  }
+
+  function editarMovimentacaoDaLista(id) { abrirMovimentacao(id, true); }
+
+  function removerMovimentacaoDaLista(id) {
+    var m = (E.movimentacoes || []).find(function (x) { return x.id === id; });
+    if (!m) return;
+    movVoltaParaLista = true;
+    removerMovimentacao(m);
+  }
+
+  /** Depois de salvar ou remover: volta para a lista, se foi de lá que veio. */
+  function voltarParaListaDeMovimentacoes() {
+    if (movVoltaParaLista) abrirListaDeMovimentacoes();
+  }
+
+  function abrirMovimentacao(id, daLista) {
     if (!E.trechoAtual) return;
     if (somenteConsulta()) return;
 
@@ -7174,7 +7345,7 @@ window.SIPAV = window.SIPAV || {};
       ui.avisar('Só administração e planejamento registram dias sem atividade.', 'alerta');
       return;
     }
-
+    movVoltaParaLista = !!daLista;
     var m = id ? (E.movimentacoes || []).find(function (x) { return x.id === id; }) : null;
     if (id && !m) return;
 
@@ -7264,7 +7435,9 @@ window.SIPAV = window.SIPAV || {};
                  'placeholder="Ex.: sai depois do almoço"></div>' +
       '</div>';
 
-    var botoes = [{ rotulo: 'Cancelar', classe: 'btn-secundario' }];
+    var botoes = [{ rotulo: 'Cancelar', classe: 'btn-secundario', acao: function () {
+      if (movVoltaParaLista) abrirListaDeMovimentacoes(); else ui.fecharModal('modalGenerico');
+    } }];
     if (m) {
       botoes.push({ rotulo: 'Remover', classe: 'btn-perigo', acao: function () {
         removerMovimentacao(m);
@@ -7450,6 +7623,7 @@ window.SIPAV = window.SIPAV || {};
           ui.fecharModal('modalGenerico');
           ui.avisar(id ? 'Registro atualizado.'
                        : datas.length > 1 ? datas.length + ' dias registrados.' : 'Registrado.', 'sucesso');
+          voltarParaListaDeMovimentacoes();
         });
     }
 
@@ -7479,6 +7653,7 @@ window.SIPAV = window.SIPAV || {};
             ui.pronto();
             ui.fecharModal('modalGenerico');
             ui.avisar('Registro removido.', 'sucesso');
+            voltarParaListaDeMovimentacoes();
           });
       })
       .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro'); });
@@ -8248,7 +8423,8 @@ window.SIPAV = window.SIPAV || {};
         var programacoes = deixarDe ? r[1].filter(function (p) { return !deixarDe[p.id]; }) : r[1];
         var torres = r[0].map(function (t) {
           var c = Object.assign({}, t);
-          c.observacao = obs[t.torre_id] || null;
+          c.observacao = obs[t.torre_id] ? obs[t.torre_id].texto : null;
+          c.observacao_icone = obs[t.torre_id] ? obs[t.torre_id].icone : null;
           return c;
         });
 
@@ -10275,8 +10451,11 @@ window.SIPAV = window.SIPAV || {};
     abrirGrupoDoHistorico: abrirGrupoDoHistorico,
     filtrarHistorico: filtrarHistorico,
 
-    abrirEncarregados: abrirEncarregados,
+    abrirEncarregados: abrirEncarregadosDoMenu, filtrarEncarregados: filtrarEncarregados,
     abrirUsuarios: abrirUsuarios, salvarUsuario: salvarUsuario,
+    escolherIconeDaObs: escolherIconeDaObs, seguirTextoDaObs: seguirTextoDaObs,
+    abrirListaDeMovimentacoes: abrirListaDeMovimentacoes, filtrarListaDeMovimentacoes: filtrarListaDeMovimentacoes,
+    editarMovimentacaoDaLista: editarMovimentacaoDaLista, removerMovimentacaoDaLista: removerMovimentacaoDaLista,
     adicionarEncarregado: adicionarEncarregado,
     editarEncarregado: editarEncarregado,
     salvarNomeEncarregado: salvarNomeEncarregado,

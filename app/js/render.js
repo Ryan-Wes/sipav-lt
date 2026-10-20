@@ -167,8 +167,36 @@ window.SIPAV = window.SIPAV || {};
       .toLowerCase().indexOf('serra') !== -1;
   }
 
-  function iconeDaObservacao(texto) {
+  /**
+   * Os ícones que se escolhem ao anotar a torre. O que fica guardado é só o `id` (nome do ícone Lucide);
+   * a cor e o rótulo moram aqui. Sem escolha, vale a regra antiga: montanha se o texto diz "serra".
+   */
+  var ICONES_OBS = [
+    { id: 'sticky-note',    rotulo: 'Nota',               cor: '#0EA5E9' },
+    { id: 'mountain',       rotulo: 'Serra',              cor: '#D97706' },
+    { id: 'flame',          rotulo: 'Queimada',           cor: '#EF4444' },
+    { id: 'waves',          rotulo: 'Alagado',            cor: '#0891B2' },
+    { id: 'route',          rotulo: 'Travessia',          cor: '#8B5CF6' },
+    { id: 'trees',          rotulo: 'Mata fechada',       cor: '#16A34A' },
+    { id: 'alert-triangle', rotulo: 'Acesso difícil',     cor: '#EAB308' },
+    { id: 'zap',            rotulo: 'Cruza linha de energia', cor: '#EC4899' }
+  ];
+
+  function iconeDaObservacao(texto, icone) {
+    if (icone && ICONES_OBS.some(function (i) { return i.id === icone; })) return icone;
     return ehSerra(texto) ? 'mountain' : 'sticky-note';
+  }
+
+  function corDoIconeDaObservacao(texto, icone) {
+    var id = iconeDaObservacao(texto, icone);
+    var achado = ICONES_OBS.filter(function (i) { return i.id === id; })[0];
+    return achado ? achado.cor : '#0EA5E9';
+  }
+
+  /** O selo do cartão e o ícone do chip, na cor do ícone escolhido. */
+  function estiloDoSeloDaObservacao(texto, icone) {
+    var cor = corDoIconeDaObservacao(texto, icone);
+    return 'color:' + cor + ';background:' + ui.rgba(cor, 0.15) + ';border-color:' + ui.rgba(cor, 0.45);
   }
 
   /**
@@ -365,8 +393,9 @@ window.SIPAV = window.SIPAV || {};
     // A observação da torre, no canto de cima à esquerda: de relance, sem abrir.
     // Serra tem símbolo próprio (uma montanha); o resto, um bloco de notas.
     var seloObs = torre.observacao
-      ? '<span class="selo-obs' + (ehSerra(torre.observacao) ? ' serra' : '') + '" title="' + esc(torre.observacao) + '">' +
-          '<i data-lucide="' + iconeDaObservacao(torre.observacao) + '" style="width:11px;height:11px"></i></span>'
+      ? '<span class="selo-obs" style="' + estiloDoSeloDaObservacao(torre.observacao, torre.observacao_icone) +
+          '" title="' + esc(torre.observacao) + '">' +
+          '<i data-lucide="' + iconeDaObservacao(torre.observacao, torre.observacao_icone) + '" style="width:11px;height:11px"></i></span>'
       : '';
 
     var selo = ordenadas.length
@@ -539,8 +568,9 @@ window.SIPAV = window.SIPAV || {};
     var torre = op.torre === false ? ''
       : '<span class="chip-torre">' + esc(p.torre ? p.torre.identificador : '?') +
           (obsTorre
-            ? '<span class="chip-obs' + (ehSerra(obsTorre) ? ' serra' : '') + '" title="' + esc(obsTorre) + '">' +
-                '<i data-lucide="' + iconeDaObservacao(obsTorre) + '"></i></span>'
+            ? '<span class="chip-obs" style="color:' + corDoIconeDaObservacao(obsTorre, iconeDaObsDaTorre(p.torre.id)) +
+                '" title="' + esc(obsTorre) + '">' +
+                '<i data-lucide="' + iconeDaObservacao(obsTorre, iconeDaObsDaTorre(p.torre.id)) + '"></i></span>'
             : '') +
         '</span>';
 
@@ -809,16 +839,28 @@ window.SIPAV = window.SIPAV || {};
    * ela, então procura-se na lista de torres do trecho, que é indexada uma vez por
    * carga.
    */
-  var indiceObsTorre = { lista: null, mapa: {} };
+  var indiceObsTorre = { lista: null, mapa: {}, icones: {} };
+
+  /** Depois de mudar observação ou ícone na memória: o índice se refaz na próxima consulta. */
+  function limparIndiceDeObservacoes() { indiceObsTorre.lista = null; }
 
   function observacaoDaTorre(torreId) {
     if (indiceObsTorre.lista !== E.torres) {
-      indiceObsTorre = { lista: E.torres, mapa: {} };
+      indiceObsTorre = { lista: E.torres, mapa: {}, icones: {} };
       (E.torres || []).forEach(function (t) {
-        if (t.observacao) indiceObsTorre.mapa[t.torre_id] = t.observacao;
+        if (t.observacao) {
+          indiceObsTorre.mapa[t.torre_id] = t.observacao;
+          indiceObsTorre.icones[t.torre_id] = t.observacao_icone || null;
+        }
       });
     }
     return indiceObsTorre.mapa[torreId] || null;
+  }
+
+  /** O ícone escolhido para a observação da torre, ou nulo (vale a regra pelo texto). */
+  function iconeDaObsDaTorre(torreId) {
+    observacaoDaTorre(torreId);
+    return indiceObsTorre.icones[torreId] || null;
   }
 
   /** Agrupa programações por uma chave, preservando ordem de inserção. */
@@ -1848,7 +1890,9 @@ window.SIPAV = window.SIPAV || {};
     escondida: escondida,
     nomeExibido: nomeExibido,
     ehPortico: ehPortico,
-    iconeDaObservacao: iconeDaObservacao,
+    iconeDaObservacao: iconeDaObservacao, corDoIconeDaObservacao: corDoIconeDaObservacao,
+    limparIndiceDeObservacoes: limparIndiceDeObservacoes,
+    ICONES_OBS: ICONES_OBS,
     ehSerra: ehSerra,
     movimentacaoDoTrecho: movimentacaoDoTrecho,
     tagTrecho: tagTrecho,
