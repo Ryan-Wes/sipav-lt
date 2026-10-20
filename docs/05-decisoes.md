@@ -14,6 +14,25 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ---
 
+## 20/10/2026
+
+### Acesso só para consulta, para os engenheiros responsáveis pelas linhas **[WR]**
+
+Os engenheiros que respondem pelas linhas mas não são do planejamento precisam
+ver o que está programado, sem poder mexer em nada. O papel já existia no banco
+(`LEITURA`, que na tela aparece como "Consulta") e as regras de segurança já
+negam qualquer escrita a ele; faltava a tela se comportar como tal.
+
+Quem entra com esse papel vê a mesma grade, Por Data, Por Encarregado e Por
+Atividade, os Planejamentos salvos (Ver e Meta), o Relatório da ISA, o PDF e o
+WhatsApp. Clicar numa torre abre uma janela só de leitura (vão, última
+atividade e o que está programado nela no período), nunca o formulário.
+
+Some tudo o que escreve: Importar, Cadastros, Importar programação da ISA,
+Dias sem atividade, Solicitações, Selecionar (e o Ctrl+clique), Histórico,
+Limpar programação, os botões de lançar, a lixeira dos cartões. A tela não é a
+barreira de segurança, o banco é; esconder só evita botão que daria erro.
+
 ## 16/10/2026
 
 ### Semanal e quinzenal pela regra da obra: de quinta em diante, o semanal é a semana que vem — [WR]

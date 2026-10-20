@@ -2188,3 +2188,11 @@ html:not(.dark) .cartao-torre .icone-legenda { color: color-mix(in srgb, var(--m
   body[data-aba="datas"] .dica-ctrl, body[data-aba="encarregados"] .dica-ctrl, body[data-aba="atividades"] .dica-ctrl,
   body[data-aba="movimentacoes"] .dica-ctrl, body[data-aba="solicitacao"] .dica-ctrl { display: none; }
 }
+
+/* Consulta (papel LEITURA): os engenheiros responsáveis pelas linhas veem tudo o que está programado e
+   não mexem em nada. Some o que escreve; o banco também recusa qualquer escrita desse papel. */
+body.modo-consulta .so-escrita,
+body.modo-consulta #btnMovimentacao,
+body.modo-consulta #btnSolicitacoes,
+body.modo-consulta #caixaSelecaoProg,
+body.modo-consulta #dicaCtrl { display: none !important; }

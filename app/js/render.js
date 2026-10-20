@@ -579,7 +579,7 @@ window.SIPAV = window.SIPAV || {};
     // A lixeira some no modo seleção: lá o apagar é o da barra, e duas portas
     // para a mesma coisa na mesma tela é convite para clicar na errada. E some para o
     // supervisor, que apaga pela folha que abre ao tocar na programação dele.
-    var lixeira = (op.apagar === false || marcando || E.modoSupervisor) ? ''
+    var lixeira = (op.apagar === false || marcando || E.modoSupervisor || E.modoConsulta) ? ''
       : '<button class="chip-lixeira" title="Apagar esta programação" ' +
           'onclick="event.stopPropagation();SIPAV.app.apagarUmaProgramacao(\'' + p.id + '\')">' +
           '<i data-lucide="trash-2" class="w-3 h-3"></i></button>';

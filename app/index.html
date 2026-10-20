@@ -41,7 +41,7 @@
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 
   <!-- ?v= força o navegador a buscar de novo quando o código muda. -->
-  <link rel="stylesheet" href="css/app.css?v=212">
+  <link rel="stylesheet" href="css/app.css?v=213">
 </head>
 <body class="h-full flex flex-col antialiased">
 
@@ -134,7 +134,7 @@
 
       <div class="flex flex-wrap items-center justify-center gap-2">
 
-        <button onclick="SIPAV.app.abrirImportacao()" class="btn-header" title="Importar torres colando da planilha">
+        <button onclick="SIPAV.app.abrirImportacao()" class="btn-header so-escrita" title="Importar torres colando da planilha">
           <i data-lucide="clipboard-paste" class="w-4 h-4" style="color:var(--acento)"></i>
           <span class="rotulo-btn">Importar</span>
         </button>
@@ -149,7 +149,7 @@
             <button class="menu-item" onclick="SIPAV.app.fecharMenus();SIPAV.app.abrirRelatorioIsa()">
               <i data-lucide="table-2" class="w-4 h-4 icone-excel"></i> Relatório da ISA
             </button>
-            <button class="menu-item" onclick="SIPAV.app.fecharMenus();SIPAV.app.abrirImportarIsa()">
+            <button class="menu-item so-escrita" onclick="SIPAV.app.fecharMenus();SIPAV.app.abrirImportarIsa()">
               <i data-lucide="upload" class="w-4 h-4 icone-excel"></i> Importar programação da ISA
             </button>
             <div class="menu-sep"></div>
@@ -162,7 +162,7 @@
           </div>
         </div>
 
-        <div class="menu-wrap">
+        <div class="menu-wrap so-escrita">
           <button onclick="SIPAV.app.alternarMenu('menuCadastros')" class="btn-header" title="Atividades e encarregados">
             <i data-lucide="library" class="w-4 h-4"></i>
             <span class="rotulo-btn">Cadastros</span>
@@ -211,18 +211,18 @@
           <span id="seloSolicitacoes" class="selo-solicitacoes hidden">0</span>
         </button>
 
-        <button onclick="SIPAV.app.alternarModoSelecao()" class="btn-header"
+        <button onclick="SIPAV.app.alternarModoSelecao()" class="btn-header so-escrita"
                 id="btnModoSelecao" title="Marcar torres na grade para programar, editar ou apagar de uma vez">
           <i data-lucide="box-select" class="w-4 h-4" style="color:var(--acento)"></i>
           <span class="rotulo-btn">Selecionar</span>
         </button>
 
-        <button onclick="SIPAV.app.abrirHistoricoDoTrecho()" class="btn-header" title="Quem mexeu no quê na obra inteira">
+        <button onclick="SIPAV.app.abrirHistoricoDoTrecho()" class="btn-header so-escrita" title="Quem mexeu no quê na obra inteira">
           <i data-lucide="history" class="w-4 h-4"></i>
           <span class="rotulo-btn">Histórico</span>
         </button>
 
-        <button onclick="SIPAV.app.limparProgramacoesDoPeriodo()" class="btn-header" title="Remover as programações e os dias sem atividade (menos o feriado) deste trecho no período exibido">
+        <button onclick="SIPAV.app.limparProgramacoesDoPeriodo()" class="btn-header so-escrita" title="Remover as programações e os dias sem atividade (menos o feriado) deste trecho no período exibido">
           <i data-lucide="eraser" class="w-4 h-4 icone-perigo"></i>
           <span class="rotulo-btn">Limpar programação</span>
         </button>
@@ -821,12 +821,12 @@
   </div>
 </div>
 
-<script src="js/config.js?v=212"></script>
-<script src="js/db.js?v=212"></script>
-<script src="js/ui.js?v=212"></script>
-<script src="js/render.js?v=212"></script>
-<script src="js/isa.js?v=212"></script>
-<script src="js/supervisor.js?v=212"></script>
-<script src="js/app.js?v=212"></script>
+<script src="js/config.js?v=213"></script>
+<script src="js/db.js?v=213"></script>
+<script src="js/ui.js?v=213"></script>
+<script src="js/render.js?v=213"></script>
+<script src="js/isa.js?v=213"></script>
+<script src="js/supervisor.js?v=213"></script>
+<script src="js/app.js?v=213"></script>
 </body>
 </html>

@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v212 · 2026-10-16';
+  var VERSAO = 'v213 · 2026-10-20';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -135,7 +135,7 @@ window.SIPAV = window.SIPAV || {};
     // Segurando Ctrl (ou Cmd), clicar numa torre marca ela, e arrastar marca várias: é assim que se
     // seleciona no computador, sem botão. Vem antes do clique do cartão, que abriria a torre.
     document.addEventListener('click', function (ev) {
-      if (E.modoSupervisor || !(ev.ctrlKey || ev.metaKey) || E.aba !== 'grade') return;
+      if (E.modoSupervisor || E.modoConsulta || !(ev.ctrlKey || ev.metaKey) || E.aba !== 'grade') return;
       var cartao = ev.target.closest ? ev.target.closest('#visaoGrade .cartao-torre') : null;
       var id = cartao ? cartao.getAttribute('data-torre') : null;
       if (!id) return;
@@ -288,6 +288,11 @@ window.SIPAV = window.SIPAV || {};
         // O que ele lança vai para o banco como pré-programação, que o planejamento aprova.
         E.modoSupervisor = E.perfil.papel === 'SUPERVISOR';
         document.body.classList.toggle('modo-supervisor', E.modoSupervisor);
+
+        // Quem só consulta (os engenheiros responsáveis pelas linhas) vê as programações e não mexe em nada:
+        // a mesma tela, sem as ferramentas de escrita. O banco também recusa qualquer escrita desse papel.
+        E.modoConsulta = E.perfil.papel === 'LEITURA';
+        document.body.classList.toggle('modo-consulta', E.modoConsulta);
         $('abaSolicitacao').classList.toggle('hidden', !E.modoSupervisor);
 
         preencherSeletorTrecho();
@@ -803,12 +808,61 @@ window.SIPAV = window.SIPAV || {};
   /* ======================================================================== */
 
   /**
+   * A torre para quem só consulta: o estágio, o vão e o que está programado nela, sem nenhum campo
+   * para preencher. A janela de verdade (a do planejamento) tem formulário, apontamento e restrição.
+   */
+  function abrirTorreSomenteLeitura(torreId) {
+    var t = (E.torres || []).find(function (x) { return x.torre_id === torreId; });
+    var progs = render.programacoesDaTorre(torreId).slice()
+      .sort(function (a, b) { return a.data < b.data ? -1 : a.data > b.data ? 1 : 0; });
+    if (!t) return;
+
+    var ident = t.identificador;
+    var canteiro = t.canteiro;
+    var linhas = [];
+    if (Number(t.km) > 0) linhas.push('Vão: ' + ui.km(t.km) + ' km');
+    if (canteiro) linhas.push(esc(canteiro));
+    if (t.estrutura) linhas.push(t.estrutura === 'ESTAIADA' ? 'Estaiada' : 'Autoportante');
+    if (t.modelo) linhas.push(esc(t.modelo));
+
+    var estagio = t.ultima_atividade ? esc(t.ultima_atividade) : 'Não iniciada';
+    var restricao = t.tem_restricao
+      ? '<p class="text-sm font-semibold" style="color:#E11D48">Restrição ' + esc(String(t.restricao_tipo || '').toLowerCase()) + '</p>' : '';
+
+    var lista = progs.length
+      ? progs.map(function (p) {
+          var cor = p.atividade && p.atividade.cor_fundo ? p.atividade.cor_fundo : '#94A3B8';
+          return '<div class="flex flex-wrap items-center gap-2 rounded-lg px-3 py-2" style="border:1px solid var(--borda)">' +
+            '<span class="font-bold text-sm" style="min-width:5.5rem">' + esc(ui.dataCurta(p.data)) + ' <span style="color:var(--texto-fraco);font-weight:600">' +
+              esc(ui.diaDaSemana(p.data).slice(0, 3).toUpperCase()) + '</span></span>' +
+            '<span class="text-xs font-bold px-2 py-0.5 rounded" style="background:' + cor + ';color:' + ui.corDoTexto(cor) + '">' +
+              esc(p.atividade ? p.atividade.nome : '—') + '</span>' +
+            '<span class="text-sm" style="color:var(--texto-suave)">' +
+              esc(p.encarregado ? render.nomesDosEncarregados(p) : 'sem encarregado') +
+              (Number(p.percentual) < 100 ? ' · ' + esc(formatarPercentual(p.percentual)) : '') + '</span>' +
+            (p.observacao ? '<span class="text-xs w-full" style="color:var(--texto-fraco)">' + esc(p.observacao) + '</span>' : '') +
+          '</div>';
+        }).join('')
+      : '<p class="text-sm" style="color:var(--texto-fraco)">Nada programado para esta torre neste período.</p>';
+
+    ui.modalGenerico({
+      titulo: 'Torre ' + ident,
+      corpoHtml: '<div class="space-y-3">' +
+        (linhas.length ? '<p class="text-sm" style="color:var(--texto-suave)">' + linhas.join(' · ') + '</p>' : '') +
+        '<p class="text-sm">Última atividade: <strong>' + estagio + '</strong></p>' + restricao +
+        '<div class="space-y-2">' + lista + '</div></div>',
+      botoes: [{ rotulo: 'Fechar', classe: 'btn-secundario' }]
+    });
+  }
+
+  /**
    * @param {boolean} [forcar] abre mesmo no modo seleção. Usado por quem já
    *   sabe que quer a janela — o clique na linha do editar em lote, por
    *   exemplo, que sem isto só marcava a torre e não abria nada.
    */
   function abrirTorre(torreId, forcar) {
     if (E.modoSupervisor) { window.SIPAV.supervisor.tocarTorre(torreId); return; }
+    if (E.modoConsulta) { abrirTorreSomenteLeitura(torreId); return; }
     if (somenteConsulta()) return;
     // Fim de um arrasto, não um clique: o gesto já decidiu o que marcar
     if (arrastou && !forcar) return;
@@ -3376,7 +3430,7 @@ window.SIPAV = window.SIPAV || {};
     // clique do cartão, e ligar aqui redesenharia a grade entre o botão e o clique.
     var silencioso = false;
     if (!E.modoSelecao) {
-      if (!(ev.ctrlKey || ev.metaKey) || E.modoSupervisor || E.aba !== 'grade') return;
+      if (!(ev.ctrlKey || ev.metaKey) || E.modoSupervisor || E.modoConsulta || E.aba !== 'grade') return;
       silencioso = true;
     }
 
