@@ -2190,9 +2190,10 @@ html:not(.dark) .cartao-torre .icone-legenda { color: color-mix(in srgb, var(--m
 }
 
 /* Consulta (papel LEITURA): os engenheiros responsáveis pelas linhas veem tudo o que está programado e
-   não mexem em nada. Some o que escreve; o banco também recusa qualquer escrita desse papel. */
+   não mexem em nada. Os botões que escrevem continuam na tela, esmaecidos e com o cursor de proibido;
+   o clique é barrado no app.js e vira um aviso. O banco também recusa qualquer escrita desse papel. */
 body.modo-consulta .so-escrita,
-body.modo-consulta #btnMovimentacao,
-body.modo-consulta #btnSolicitacoes,
+body.modo-consulta .so-escrita * { cursor: not-allowed !important; }
+body.modo-consulta .so-escrita { opacity: .5; }
 body.modo-consulta #caixaSelecaoProg,
 body.modo-consulta #dicaCtrl { display: none !important; }

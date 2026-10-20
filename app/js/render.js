@@ -579,8 +579,8 @@ window.SIPAV = window.SIPAV || {};
     // A lixeira some no modo seleção: lá o apagar é o da barra, e duas portas
     // para a mesma coisa na mesma tela é convite para clicar na errada. E some para o
     // supervisor, que apaga pela folha que abre ao tocar na programação dele.
-    var lixeira = (op.apagar === false || marcando || E.modoSupervisor || E.modoConsulta) ? ''
-      : '<button class="chip-lixeira" title="Apagar esta programação" ' +
+    var lixeira = (op.apagar === false || marcando || E.modoSupervisor) ? ''
+      : '<button class="chip-lixeira so-escrita" title="Apagar esta programação" ' +
           'onclick="event.stopPropagation();SIPAV.app.apagarUmaProgramacao(\'' + p.id + '\')">' +
           '<i data-lucide="trash-2" class="w-3 h-3"></i></button>';
 
@@ -1193,16 +1193,16 @@ window.SIPAV = window.SIPAV || {};
     }).join('');
   }
 
-  /** Quem consulta não lança; quem programa (planejamento, supervisor) sim. */
+  /** Todos veem os botões de lançar; para quem só consulta eles aparecem bloqueados (classe so-escrita). */
   function podeLancar() {
-    return !!E.perfil && E.perfil.papel !== 'LEITURA';
+    return !!E.perfil;
   }
 
   /** O botão de cima da aba: lançar escolhendo o encarregado na própria janela. */
   function barraLancamento() {
     if (!podeLancar()) return '';
     return '<div class="barra-lancamento">' +
-             '<button type="button" class="btn-primario" ' +
+             '<button type="button" class="btn-primario so-escrita" ' +
                      'onclick="SIPAV.app.lancarPorEncarregado()">' +
                '<i data-lucide="plus" class="w-4 h-4"></i> Lançar por encarregado' +
              '</button>' +
@@ -1250,7 +1250,7 @@ window.SIPAV = window.SIPAV || {};
                    // O + no fim do dia: lança uma atividade para este encarregado neste dia,
                    // embaixo da última (ou sozinho, se o dia está vazio)
                    ((encarregadoId && podeLancar())
-                     ? '<button type="button" class="dia-mais" title="Lançar uma atividade para ' + esc(nome) + ' em ' +
+                     ? '<button type="button" class="dia-mais so-escrita" title="Lançar uma atividade para ' + esc(nome) + ' em ' +
                          esc(ui.dataCurta(iso)) + '" ' +
                          'onclick="SIPAV.app.lancarNoDia(\'' + encarregadoId + '\', \'' + iso + '\')">+</button>'
                      : '') +
@@ -1487,7 +1487,7 @@ window.SIPAV = window.SIPAV || {};
 
       // O botão de lançar para este encarregado, no cabeçalho do bloco dele
       var botaoLancar = (podeLancar() && dele)
-        ? '<button type="button" class="btn-lancar" ' +
+        ? '<button type="button" class="btn-lancar so-escrita" ' +
                   'title="Lançar atividades, torres e datas para ' + esc(nome) + '" ' +
                   'onclick="SIPAV.app.lancarPorEncarregado(\'' + dele.id + '\')">+ Lançar</button>'
         : '';

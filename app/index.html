@@ -41,7 +41,7 @@
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 
   <!-- ?v= força o navegador a buscar de novo quando o código muda. -->
-  <link rel="stylesheet" href="css/app.css?v=214">
+  <link rel="stylesheet" href="css/app.css?v=215">
 </head>
 <body class="h-full flex flex-col antialiased">
 
@@ -190,7 +190,7 @@
 
         <!-- Dia sem atividade na torre: encarregado ou máquina mudando de trecho,
              ou outro motivo. Sem isto o dia aparecia vazio nos painéis. -->
-        <button onclick="SIPAV.app.abrirMovimentacao()" class="btn-header hidden"
+        <button onclick="SIPAV.app.abrirMovimentacao()" class="btn-header hidden so-escrita"
                 id="btnMovimentacao"
                 title="Registrar mudança de trecho, deslocamento de máquina, folga de campo ou outro dia sem atividade">
           <i data-lucide="calendar-x" class="w-4 h-4" style="color:var(--acento)"></i>
@@ -207,7 +207,7 @@
         </button>
 
         <!-- O que os supervisores enviaram para analisar. O número é quantos pacotes esperam. -->
-        <button onclick="SIPAV.supervisor.abrirSolicitacoes()" class="btn-header hidden"
+        <button onclick="SIPAV.supervisor.abrirSolicitacoes()" class="btn-header hidden so-escrita"
                 id="btnSolicitacoes" style="position:relative"
                 title="Programações que os supervisores enviaram para analisar e aprovar">
           <i data-lucide="inbox" class="w-4 h-4" style="color:var(--acento)"></i>
@@ -221,7 +221,7 @@
           <span class="rotulo-btn">Selecionar</span>
         </button>
 
-        <button onclick="SIPAV.app.abrirHistoricoDoTrecho()" class="btn-header so-escrita" title="Quem mexeu no quê na obra inteira">
+        <button onclick="SIPAV.app.abrirHistoricoDoTrecho()" class="btn-header" title="Quem mexeu no quê na obra inteira">
           <i data-lucide="history" class="w-4 h-4"></i>
           <span class="rotulo-btn">Histórico</span>
         </button>
@@ -825,12 +825,12 @@
   </div>
 </div>
 
-<script src="js/config.js?v=214"></script>
-<script src="js/db.js?v=214"></script>
-<script src="js/ui.js?v=214"></script>
-<script src="js/render.js?v=214"></script>
-<script src="js/isa.js?v=214"></script>
-<script src="js/supervisor.js?v=214"></script>
-<script src="js/app.js?v=214"></script>
+<script src="js/config.js?v=215"></script>
+<script src="js/db.js?v=215"></script>
+<script src="js/ui.js?v=215"></script>
+<script src="js/render.js?v=215"></script>
+<script src="js/isa.js?v=215"></script>
+<script src="js/supervisor.js?v=215"></script>
+<script src="js/app.js?v=215"></script>
 </body>
 </html>

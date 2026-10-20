@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v214 · 2026-10-20';
+  var VERSAO = 'v215 · 2026-10-20';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -131,6 +131,17 @@ window.SIPAV = window.SIPAV || {};
 
     // Arrastar pela grade marca as torres do retângulo, no modo seleção
     document.addEventListener('mousedown', iniciarLaco);
+
+    // Quem só consulta vê todos os botões, mas nenhum que escreve funciona: o clique é barrado aqui,
+    // antes de chegar ao botão, e a pessoa recebe o aviso no lugar. Ctrl+clique (selecionar) também.
+    document.addEventListener('click', function (ev) {
+      if (!E.modoConsulta || !ev.target.closest) return;
+      var bloqueado = ev.target.closest('.so-escrita') ||
+        ((ev.ctrlKey || ev.metaKey) && ev.target.closest('#visaoGrade .cartao-torre'));
+      if (!bloqueado) return;
+      ev.preventDefault(); ev.stopPropagation();
+      avisarSoConsulta();
+    }, true);
 
     // Segurando Ctrl (ou Cmd), clicar numa torre marca ela, e arrastar marca várias: é assim que se
     // seleciona no computador, sem botão. Vem antes do clique do cartão, que abriria a torre.
@@ -268,7 +279,7 @@ window.SIPAV = window.SIPAV || {};
 
         // Só quem pode registrar vê o botão: o banco recusaria o resto, e um botão
         // que sempre dá "sem permissão" é pior que botão nenhum.
-        $('btnMovimentacao').classList.toggle('hidden', !podeRegistrarMovimentacao());
+        $('btnMovimentacao').classList.toggle('hidden', !(podeRegistrarMovimentacao() || perfil.papel === 'LEITURA'));
         $('itemUsuarios').classList.toggle('hidden', perfil.papel !== 'ADMIN');
 
         return Promise.all([
@@ -294,6 +305,7 @@ window.SIPAV = window.SIPAV || {};
         // a mesma tela, sem as ferramentas de escrita. O banco também recusa qualquer escrita desse papel.
         E.modoConsulta = E.perfil.papel === 'LEITURA';
         document.body.classList.toggle('modo-consulta', E.modoConsulta);
+        if (E.modoConsulta) ui.mostrar('btnSolicitacoes');
         $('abaSolicitacao').classList.toggle('hidden', !E.modoSupervisor);
 
         preencherSeletorTrecho();
@@ -812,6 +824,10 @@ window.SIPAV = window.SIPAV || {};
    * A torre para quem só consulta: o estágio, o vão e o que está programado nela, sem nenhum campo
    * para preencher. A janela de verdade (a do planejamento) tem formulário, apontamento e restrição.
    */
+  function avisarSoConsulta() {
+    ui.avisar('Seu usuário não tem permissão para editar, apenas consulta.', 'alerta', 4500);
+  }
+
   function abrirTorreSomenteLeitura(torreId) {
     var t = (E.torres || []).find(function (x) { return x.torre_id === torreId; });
     var progs = render.programacoesDaTorre(torreId).slice()

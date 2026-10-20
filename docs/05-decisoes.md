@@ -42,10 +42,11 @@ Atividade, os Planejamentos salvos (Ver e Meta), o Relatório da ISA, o PDF e o
 WhatsApp. Clicar numa torre abre uma janela só de leitura (vão, última
 atividade e o que está programado nela no período), nunca o formulário.
 
-Some tudo o que escreve: Importar, Cadastros, Importar programação da ISA,
-Dias sem atividade, Solicitações, Selecionar (e o Ctrl+clique), Histórico,
-Limpar programação, os botões de lançar, a lixeira dos cartões. A tela não é a
-barreira de segurança, o banco é; esconder só evita botão que daria erro.
+Os botões que escrevem continuam na tela, para a pessoa ver que existem, mas
+esmaecidos e com o cursor de proibido; clicar neles (Importar, Cadastros,
+Importar programação da ISA, Dias sem atividade, Solicitações, Selecionar e o
+Ctrl+clique, Limpar programação, os botões de lançar, a lixeira dos cartões) não
+faz nada e mostra o aviso \
 
 ## 16/10/2026
 
