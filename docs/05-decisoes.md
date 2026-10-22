@@ -16,11 +16,35 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 22/10/2026
 
-### Conferência das quatro planilhas de 12/10 contra o exportador **[WR]**
+### Exportação no layout por frente, e as atividades que faltavam **[WR]**
 
-Rodei o exportador nas quatro planilhas (Correntina, Buritirama–Barra, Campo Formoso–Barra e
-Juazeiro–Campo Formoso) com todas as atividades do de-para programadas, e li item por item o que
-cada planilha tem. Três lacunas eram do exportador e foram corrigidas:
+**Layout por frente (REV01).** O exportador agora preenche o bloco novo de cada item: uma linha por
+frente em cada semana, com o encarregado, as torres dos dias e o total. **A frente é o canteiro da
+torre** (Barra, Igarité, Wanderley; Itajubaquara, Central, Umburanas, Laje dos Negros; Buritirama;
+Juazeiro), comparado sem caixa, sem acento e sem o s do plural. A linha "Primeira/Segunda semana"
+recebe só os nomes de quem trabalhou; o resto dela é fórmula (concatenação das frentes e soma) e não
+se toca. Célula com fórmula nunca é sobrescrita. As três linhas antigas (EXEC., PROG. 1 e PROG. 2) que
+ficam escondidas dentro do bloco não valem e não são tocadas. Torre sem canteiro, ou com canteiro que a
+planilha não tem naquele item, não entra e aparece no relato como "sem frente". O bloco inteiro é
+reexibido quando recebe programação.
+
+**Item repetido na planilha: preenche todas as linhas.** Antes só a primeira ocorrência recebia (e a
+oculta podia ser a escolhida). Vale para os dois layouts.
+
+**Itens que repetem outras linhas** (só se escrevem, a importação não os lê, para a mesma torre não
+entrar duas vezes): a **Fundação 100% concluída** leva as torres do reaterro; a **Conclusão de montagem**
+(estaiada e autoportante) leva as da revisão e as do giro e prumo, uma vez por torre e dia e sem o
+comentário; o **complemento do contrapeso** preenche as duas linhas que as planilhas têm (instalação e
+cabo).
+
+**Atividades novas no SIPAV** (migração 61): **Supressão de área de queimada** (1.3.4) e **Corte de
+estais** (3.0.1, só estaiada). **Transporte de torre** já existia e agora vai para o 3.0.2.
+Alinhamento da faixa para supressão, croqui e placa de acesso, colchetes e porteiras e transporte de
+pré-moldados ficam de fora por enquanto.
+
+**Conferência.** Conferi as quatro planilhas REV01 de 12/10 (Google Drive, `10. Planejamento / 1 -
+Controles de Produção / novo`) contra o exportador. A primeira conferência, do mesmo dia, foi feita nas
+planilhas antigas por engano. Três lacunas eram do exportador e foram corrigidas:
 
 - **Desforma do mastro central (2.1.15)** existe em três das quatro planilhas e não era escrita.
   A desforma da estaiada agora preenche a do estai/pé e a do mastro central, como o reaterro e a
@@ -343,8 +367,7 @@ dependência. As três do OPGW pedem o cabo.
 
 "Conclusão de montagem" (estaiada e autoportante) é ignorada sem aviso: só repete a
 revisão e o giro e prumo, e é a ISA que pede.
-**Exportação.** Continua escrevendo só no layout antigo: os itens no layout novo saem
-como "não achados" no relato. A frente ainda não é escrita.
+**Exportação.** Escreve nos dois layouts (ver 22/10/2026).
 
 ## 09/10/2026
 

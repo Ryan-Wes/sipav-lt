@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v219 · 2026-10-22';
+  var VERSAO = 'v220 · 2026-10-22';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -10052,9 +10052,9 @@ window.SIPAV = window.SIPAV || {};
     var corpo =
       '<div class="space-y-4">' +
         '<p class="text-sm text-slate-600">' +
-          'Sobe a planilha <strong>RPSQ</strong> deste trecho e o SIPAV preenche as linhas ' +
-          '<strong>PROG. 1</strong> e <strong>PROG. 2</strong> com a programação da quinzena. ' +
-          'Nada mais é tocado: a linha EXEC., os totais, o cabeçalho e o rodapé ficam como estão.' +
+          'Sobe a planilha <strong>RPSQ</strong> deste trecho e o SIPAV preenche a programação da quinzena: ' +
+          'as linhas <strong>PROG. 1</strong> e <strong>PROG. 2</strong> e, no layout por frente, a linha de cada ' +
+          'frente (o canteiro da torre). Nada mais é tocado: a linha EXEC., os totais, o cabeçalho e o rodapé ficam como estão.' +
         '</p>' +
 
         '<div><label class="rotulo">Segunda-feira da semana 1</label>' +
@@ -10211,10 +10211,19 @@ window.SIPAV = window.SIPAV || {};
         esc(r.tortos.map(function (x) { return x.item + '@' + x.linha; }).join(', ')) + '.'));
     }
 
+    if (r.semFrente && r.semFrente.length) {
+      partes.push(bloco('border-rose-200 bg-rose-50 text-rose-800',
+        r.semFrente.length + ' torre(s) sem frente nesta planilha',
+        'A frente é o canteiro da torre, e a planilha não tem uma linha para ele neste item, então não escrevi: ' +
+        '<strong>' + esc(r.semFrente.slice(0, 8).join(' · ')) + '</strong>' +
+        (r.semFrente.length > 8 ? ' e mais ' + (r.semFrente.length - 8) : '') + '. ' +
+        'Confira o canteiro da torre em Cadastros.'));
+    }
+
     if (r.duplicados.length) {
       partes.push(bloco('border-amber-300 bg-amber-50 text-amber-800',
         r.duplicados.length + ' item(ns) repetido(s) na planilha',
-        'Escrevi só na primeira ocorrência. Linhas: ' +
+        'Preenchi todas as linhas repetidas. Linhas: ' +
         esc(r.duplicados.map(function (x) { return x.item + '@' + x.linha; }).join(', ')) + '.'));
     }
 

@@ -57,6 +57,7 @@ window.SIPAV = window.SIPAV || {};
     '1.3.1':  ['limpeza area de torre', 'limpeza de area de torre'],
     '1.3.2':  ['limpeza da faixa', 'limpeza vao entre estruturas'],
     '1.3.3':  ['corte seletivo'],
+    '1.3.4':  ['supressao area de queimada', 'limpeza area de queimada', 'supressao de area de queimada'],
     '1.3.5':  ['supressao de praca de lancamento', 'supressao praca de lancamento'],
 
     // ---- Fundação
@@ -87,15 +88,22 @@ window.SIPAV = window.SIPAV || {};
     '2.1.17': ['reaterro fundacao mastro central'],
     '2.1.18': ['ensaio de arrancamento fundacao estai', 'ensaio de arrancamento fundacao',
                'teste de arrancamento'],
+    // A ISA pede a conclusão da fundação: repete o reaterro (só se escreve, ver SO_EXPORTA)
+    '2.1.19': ['fundacao 100 concluida completa'],
     // Itens que ainda não existem em planilha nenhuma (A1 do Alessandro)
     '2.1.20': ['perfuracao de tubulao fundacao estai pe', 'perfuracao de tubulao'],
     '2.1.21': ['perfuracao de tubulao fundacao mastro central'],
 
     // ---- Aterramento
     '2.2.1':  ['instalacao de contra peso', 'instalacao de contrapeso'],
+    '2.2.2':  ['instalacao do contrapeso complemento'],
     '2.2.3':  ['medicao de resistencia'],
     '2.2.4':  ['complemento de cabo contrapeso', 'complemento de contrapeso'],
     '2.2.5':  ['seccionamento e aterramento de cercas', 'seccionamento de cercas'],
+
+    // ---- Transporte e corte de estais (seção 3.0, que em algumas planilhas fica sob o título 2.2)
+    '3.0.1':  ['corte de estais'],
+    '3.0.2':  ['transporte de estrutura', 'transporte de estruturas'],
 
     // ---- Montagem
     '3.1.1':  ['pre montagem de torre estaiada'],
@@ -103,11 +111,13 @@ window.SIPAV = window.SIPAV || {};
     '3.1.3':  ['icamento de torres estaiada montagem manual', 'icamento de torres estaiada'],
     '3.1.4':  ['revisao final estaiadas'],
     '3.1.5':  ['giro e prumo'],
+    '3.1.6':  ['conclusao de montagem de torre estaiada'],
     '3.2.1':  ['pre montagem de torre autoportante'],
     '3.2.2':  ['montagem de torres autoportante guindaste ou manual',
                'montagem de torres autoportante guindaste',
                'montagem mecanizada de torre autoportante'],
     '3.2.3':  ['revisao de torres autoportante', 'revisao de torre autoportante'],
+    '3.2.4':  ['conclusao de montagem de torre autoportante'],
 
     // ---- Empacadura e praça de lançamento
     '4.0.1':  ['instalacao de empacadura', 'instalacao de empancadura'],
@@ -155,6 +165,16 @@ window.SIPAV = window.SIPAV || {};
   };
 
   /**
+   * Itens que a planilha tem e que repetem o que já está em outras linhas: a fundação concluída repete o
+   * reaterro, a conclusão de montagem repete a revisão e o giro e prumo, e o complemento do contrapeso tem
+   * duas linhas. Só se escrevem. A importação não os lê de volta, senão a mesma torre entraria duas vezes.
+   */
+  var SO_EXPORTA = { '2.1.19': true, '2.2.2': true, '3.1.6': true, '3.2.4': true };
+
+  /** Os que vêm de mais de uma atividade: a mesma torre no mesmo dia entra uma vez só, e sem comentário. */
+  var DERIVADOS = { '2.1.19': true, '3.1.6': true, '3.2.4': true };
+
+  /**
    * As seis linhas de lançamento do cabo-guarda, nas quatro formas em que a
    * planilha as tem:
    *
@@ -192,6 +212,7 @@ window.SIPAV = window.SIPAV || {};
     'SUPRESSÃO DE ÁREA DE TORRE':               { itens: ['1.3.1'] },
     'SUPRESSÃO DA FAIXA':                       { itens: ['1.3.2'] },
     'CORTE SELETIVO':                           { itens: ['1.3.3'] },
+    'SUPRESSÃO DE ÁREA DE QUEIMADA':            { itens: ['1.3.4'] },
     'SUPRESSÃO DE PRAÇA DE LANÇAMENTO':         { itens: ['1.3.5'] },
 
     // Numa autoportante o mastro central não existe, então a escavação completa
@@ -210,7 +231,8 @@ window.SIPAV = window.SIPAV || {};
     // fica até a migração 51 renomear.
     'CONCRETAGEM':                              { est: ['2.1.12', '2.1.13'], aup: ['2.1.12'], basta: true },
     'CONCRETAGEM / TUBULÃO':                    { est: ['2.1.12', '2.1.13'], aup: ['2.1.12'], basta: true },
-    'REATERRO 100%':                            { est: ['2.1.16', '2.1.17'], aup: ['2.1.16'] },
+    // O reaterro também preenche a fundação concluída: é o que a ISA pede além dele
+    'REATERRO 100%':                            { est: ['2.1.16', '2.1.17', '2.1.19'], aup: ['2.1.16', '2.1.19'] },
     'DESFORMA FUNDAÇÃO':                        { est: ['2.1.14', '2.1.15'], aup: ['2.1.14'] },
     'TESTE DE ARRANCAMENTO':                    { itens: ['2.1.18'] },
 
@@ -219,15 +241,20 @@ window.SIPAV = window.SIPAV || {};
     'SECCIONAMENTO E ATERRAMENTO DE CERCAS':    { itens: ['2.2.5'] },
     // O nome da planilha é "Complemento de Cabo Contrapeso", mas quem cadastrou a
     // atividade no SIPAV pode ter escrito de outro jeito. Vale o que existir.
-    'COMPLEMENTO DE CABO CONTRAPESO':           { itens: ['2.2.4'] },
-    'COMPLEMENTO CONTRAPESO':                   { itens: ['2.2.4'] },
-    'COMPLEMENTO DE CONTRAPESO':                { itens: ['2.2.4'] },
+    // As planilhas têm duas linhas para o complemento (instalação e cabo): as duas saem preenchidas
+    'COMPLEMENTO DE CABO CONTRAPESO':           { itens: ['2.2.4', '2.2.2'] },
+    'COMPLEMENTO CONTRAPESO':                   { itens: ['2.2.4', '2.2.2'] },
+    'COMPLEMENTO DE CONTRAPESO':                { itens: ['2.2.4', '2.2.2'] },
+
+    'CORTE DE ESTAIS':                          { itens: ['3.0.1'] },
+    'TRANSPORTE DE TORRE':                      { itens: ['3.0.2'] },
 
     // Pré-montagem carrega a revisão em solo (DEC-7), que só existe em estaiada
     'PRÉ-MONTAGEM':                             { est: ['3.1.1', '3.1.2'], aup: ['3.2.1'] },
     'MONTAGEM':                                 { est: ['3.1.3'], aup: ['3.2.2'] },
-    'REVISÃO':                                  { est: ['3.1.4'], aup: ['3.2.3'] },
-    'GIRO E PRUMO':                             { itens: ['3.1.5'] },
+    // A conclusão de montagem repete a revisão e o giro e prumo
+    'REVISÃO':                                  { est: ['3.1.4', '3.1.6'], aup: ['3.2.3', '3.2.4'] },
+    'GIRO E PRUMO':                             { est: ['3.1.5', '3.1.6'], aup: ['3.1.5', '3.2.4'] },
 
     'INSTALAÇÃO DE BANDOLAS OPGW / PARA-RAIO':  cabo(1),
     'LANÇAMENTO DO PILOTINHO':                  cabo(2),
@@ -379,9 +406,11 @@ window.SIPAV = window.SIPAV || {};
    * Casa pelo nome porque os códigos divergiram: em Buritirama o `2.1.17`
    * aparece duas vezes e o `3.1.3` serve para duas coisas diferentes.
    */
-  function mapearLinhas(ws) {
+  function mapearLinhas(ws, exportar) {
     var porNome = {};
     Object.keys(CATALOGO).forEach(function (item) {
+      // Os itens que só se escrevem não são lidos de volta pela importação
+      if (SO_EXPORTA[item] && !exportar) return;
       CATALOGO[item].forEach(function (nome) { porNome[nome] = item; });
     });
 
@@ -390,6 +419,10 @@ window.SIPAV = window.SIPAV || {};
     var tortos = [];
     var ignorados = [];
     var achadosFrente = {};        // itens no layout novo, por frente de serviço
+    // Na exportação, o item que se repete na planilha é preenchido em todas as linhas: o que sobra aqui
+    // é a segunda ocorrência em diante (a primeira fica em achados / achadosFrente)
+    var repetidos = {}, repetidosFrente = {};
+    var pularAte = 0;               // linhas do layout antigo escondidas dentro de um bloco por frente
     var ultima = ws.rowCount;
 
     // Título da seção em que a linha está ("4.2  LANÇAMENTO DE CABO - PARA-RAIO
@@ -404,12 +437,13 @@ window.SIPAV = window.SIPAV || {};
      * "Segunda semana" e outra vez as frentes. Devolve as linhas de cada semana.
      */
     function blocoPorFrente(r, nomeDoItem) {
-      var bloco = { linhaItem: r, prog1: { agregada: null, frentes: [] }, prog2: { agregada: null, frentes: [] } };
+      var bloco = { linhaItem: r, fim: r, prog1: { agregada: null, frentes: [] }, prog2: { agregada: null, frentes: [] } };
       var semana = null;
       for (var q = r + 1; q <= ultima; q++) {
         if (norm(valor(ws.getCell(q, COL.ATIVIDADE))) !== nomeDoItem) break;
         var tq = norm(valor(ws.getCell(q, COL.TAREFA)));
         if (tq === 'executado') break;
+        bloco.fim = q;
         // As três linhas do layout antigo ficam metidas no meio do bloco novo: são lidas à parte
         if (tq === 'exec' || tq === 'prog 1' || tq === 'prog 2') continue;
         if (tq === 'primeira semana') { semana = 'prog1'; bloco.prog1.agregada = q; continue; }
@@ -421,6 +455,7 @@ window.SIPAV = window.SIPAV || {};
     }
 
     for (var r = 13; r <= ultima; r++) {
+      if (exportar && r <= pularAte) continue;
       var nome = norm(valor(ws.getCell(r, COL.ATIVIDADE)));
       if (!nome) continue;
 
@@ -461,18 +496,29 @@ window.SIPAV = window.SIPAV || {};
       // O nome se repete nas três linhas do bloco; o que as distingue é a
       // coluna TAREFA.
       if (tarefa === 'executado') {
-        if (achadosFrente[item]) { duplicados.push({ item: item, linha: r }); continue; }
-        achadosFrente[item] = blocoPorFrente(r, nome);
+        var blocoDoItem = blocoPorFrente(r, nome);
+        if (exportar) pularAte = blocoDoItem.fim;
+        if (achadosFrente[item]) {
+          duplicados.push({ item: item, linha: r });
+          (repetidosFrente[item] = repetidosFrente[item] || []).push(blocoDoItem);
+          continue;
+        }
+        achadosFrente[item] = blocoDoItem;
         continue;
       }
       if (norm(valor(ws.getCell(r, COL.TAREFA))) !== 'exec') continue;
 
-      if (achados[item]) { duplicados.push({ item: item, linha: r }); continue; }
-
       // Confere que o bloco de três linhas está inteiro antes de confiar nele
       var t1 = norm(valor(ws.getCell(r + 1, COL.TAREFA)));
       var t2 = norm(valor(ws.getCell(r + 2, COL.TAREFA)));
-      if (t1 !== 'prog 1' || t2 !== 'prog 2') {
+      var inteiro = t1 === 'prog 1' && t2 === 'prog 2';
+
+      if (achados[item]) {
+        duplicados.push({ item: item, linha: r });
+        if (inteiro) (repetidos[item] = repetidos[item] || []).push({ linhaItem: r, prog1: r + 1, prog2: r + 2 });
+        continue;
+      }
+      if (!inteiro) {
         tortos.push({ item: item, linha: r, achou: t1 + ' / ' + t2 });
         continue;
       }
@@ -483,7 +529,8 @@ window.SIPAV = window.SIPAV || {};
     // Planilha com OPGW dos dois lados, sem para-raio convencional
     var doisLados = Object.keys(achados).concat(Object.keys(achadosFrente)).some(function (i) { return /^4\.2[DE]\./.test(i); });
 
-    return { achados: achados, duplicados: duplicados, tortos: tortos, doisLados: doisLados, ignorados: ignorados, achadosFrente: achadosFrente };
+    return { achados: achados, duplicados: duplicados, tortos: tortos, doisLados: doisLados, ignorados: ignorados, achadosFrente: achadosFrente,
+             repetidos: repetidos, repetidosFrente: repetidosFrente };
   }
 
   /**
@@ -573,11 +620,17 @@ window.SIPAV = window.SIPAV || {};
           dados[item][semana][enc] = dados[item][semana][enc] || {};
           var caixa = dados[item][semana][enc];
           caixa[dia] = caixa[dia] || [];
+          var identTorre = p.torre ? p.torre.identificador : '?';
+          // O item que vem de mais de uma atividade (conclusão de montagem: revisão e giro e prumo) leva a torre
+          // uma vez só por dia, e sem o comentário da atividade de origem
+          if (DERIVADOS[item] && caixa[dia].some(function (x) { return x.torre === identTorre; })) return;
           caixa[dia].push({
-            torre: p.torre ? p.torre.identificador : '?',
+            torre: identTorre,
             percentual: Number(p.percentual) || 100,
-            notas: notasDaRevisao(p),
-            copia: i > 0
+            notas: DERIVADOS[item] ? [] : notasDaRevisao(p),
+            copia: i > 0,
+            // A frente do layout novo é o canteiro da torre
+            frente: norm(torre.canteiro || '')
           });
         });
       });
@@ -599,15 +652,28 @@ window.SIPAV = window.SIPAV || {};
    * Só vale para os itens do catálogo, que são os que o SIPAV programa. Os
    * cerca de 45 preenchidos à mão não são tocados.
    */
+  /** A célula tem fórmula? Quem escreve não passa por cima dela: o Excel refaz o resultado ao abrir. */
+  function temFormula(celula) {
+    var v = celula.value;
+    return !!v && typeof v === 'object' && !(v instanceof Date) && (!!v.formula || !!v.sharedFormula);
+  }
+
+  /** Escreve na célula, menos se ela for fórmula. */
+  function escrever(celula, conteudo) {
+    if (temFormula(celula)) return;
+    celula.value = conteudo;
+  }
+
   function limparLinha(ws, linha) {
     // A planilha marca "nada aqui" com hífen, não com célula vazia. Zerar para
     // vazio deixava buraco onde o resto do documento mostra '-'.
     var tinha = false;
 
     function vazia(col) {
-      var t = String(valor(ws.getCell(linha, col)) || '').trim();
+      var celula = ws.getCell(linha, col);
+      var t = String(valor(celula) || '').trim();
       if (t && t !== '-') tinha = true;
-      ws.getCell(linha, col).value = '-';
+      escrever(celula, '-');
     }
 
     vazia(COL.ENCARREGADO);
@@ -681,6 +747,7 @@ window.SIPAV = window.SIPAV || {};
      * Precisa de wrapText, senão o Excel mostra tudo grudado numa linha só.
      */
     function empilhar(celula, partes) {
+      if (temFormula(celula)) return;
       celula.value = partes.join('\n');
       celula.alignment = Object.assign({}, celula.alignment, { wrapText: true });
     }
@@ -706,11 +773,82 @@ window.SIPAV = window.SIPAV || {};
       }));
     }
     ws.getCell(linha, COL.SEGUNDA + 6).value = 'DSR';    // domingo
-    ws.getCell(linha, COL.TOTAL).value =
-      total ? Math.round(total * 100) / 100 : '-';
+    escrever(ws.getCell(linha, COL.TOTAL), total ? Math.round(total * 100) / 100 : '-');
 
     ws.getRow(linha).hidden = false;             // senão ninguém vê o que foi escrito
     return total;
+  }
+
+  /* ------------------------------------------- Layout por frente (REV01) --- */
+
+  /**
+   * A frente da planilha é o canteiro da torre ("Barra", "Igarité", "Wanderley"). Os nomes nem sempre
+   * batem na grafia (a planilha diz "Laje dos Negros", o canteiro é "Lajes dos Negros"), então se compara
+   * sem caixa, sem acento e sem o s do plural.
+   */
+  function mesmaFrente(a, b) {
+    if (!a || !b) return false;
+    function singular(t) { return t.split(' ').map(function (w) { return w.replace(/s$/, ''); }).join(' '); }
+    return a === b || singular(a) === singular(b);
+  }
+
+  /**
+   * Preenche um bloco por frente: uma linha por frente, em cada semana, com o encarregado e as torres dos dias.
+   * A linha "Primeira/Segunda semana" fica só com os nomes de quem trabalhou; o resto dela é a soma das
+   * frentes (fórmula, que o Excel refaz) e não se toca.
+   *
+   * Devolve { total, linhas, semFrente, tinha } — as torres que não caíram em nenhuma frente deste bloco, para o relato.
+   */
+  function escreverBloco(ws, bloco, porSemana, posicao) {
+    var total = 0, linhas = 0, semFrente = [], tinha = false;
+
+    ['prog1', 'prog2'].forEach(function (semana) {
+      var sem = bloco[semana];
+      var porEnc = (porSemana && porSemana[semana]) || {};
+      var porFrente = sem.frentes.map(function (fr) { return { fr: fr, norm: norm(fr.frente), enc: {} }; });
+
+      Object.keys(porEnc).forEach(function (enc) {
+        Object.keys(porEnc[enc]).forEach(function (dia) {
+          porEnc[enc][dia].forEach(function (x) {
+            var alvo = porFrente.filter(function (p) { return mesmaFrente(p.norm, x.frente); })[0];
+            if (!alvo) { semFrente.push(x); return; }
+            alvo.enc[enc] = alvo.enc[enc] || {};
+            (alvo.enc[enc][dia] = alvo.enc[enc][dia] || []).push(x);
+          });
+        });
+      });
+
+      var nomes = [];
+      porFrente.forEach(function (p) {
+        var encs = Object.keys(p.enc);
+        if (encs.length) {
+          var n = escreverLinha(ws, p.fr.linha, p.enc, posicao);
+          if (n) { linhas++; total += n; }
+          encs.forEach(function (e) { if (e !== '—' && nomes.indexOf(e.toUpperCase()) === -1) nomes.push(e.toUpperCase()); });
+        } else if (limparLinha(ws, p.fr.linha)) {
+          tinha = true;
+        }
+      });
+
+      if (sem.agregada) {
+        var celula = ws.getCell(sem.agregada, COL.ENCARREGADO);
+        if (String(valor(celula) || '').trim().replace(/^-$/, '')) tinha = true;
+        escrever(celula, nomes.length ? nomes.join(' / ') : '-');
+      }
+    });
+
+    return { total: total, linhas: linhas, semFrente: semFrente, tinha: tinha };
+  }
+
+  /** Reexibe o bloco por frente: o cabeçalho do item, as linhas das semanas e as das frentes. */
+  function mostrarBloco(ws, bloco) {
+    // O bloco inteiro, do EXECUTADO à última frente da segunda semana, menos as três linhas do layout
+    // antigo, que ficam escondidas dentro dele
+    for (var q = bloco.linhaItem; q <= bloco.fim; q++) {
+      var tarefa = norm(valor(ws.getCell(q, COL.TAREFA)));
+      if (tarefa === 'exec' || tarefa === 'prog 1' || tarefa === 'prog 2') continue;
+      ws.getRow(q).hidden = false;
+    }
   }
 
   /* ------------------------------------------------- Importar da planilha --- */
@@ -1858,12 +1996,25 @@ window.SIPAV = window.SIPAV || {};
         ws.getCell(LINHA_CABECALHO_DATA, COL_CABECALHO_DATA).value = new Date(Date.UTC(
           segundaS1.getFullYear(), segundaS1.getMonth(), segundaS1.getDate()
         ));
-        var mapa = mapearLinhas(ws);
+        var mapa = mapearLinhas(ws, true);
         var g = agrupar(progs, torresPorId, segundaS1, mapa.doisLados);
 
         var escritas = 0, torresEscritas = 0, limpas = 0;
         var naoAchados = [];
         var tinhamConteudo = {};
+        var semFrente = [];
+
+        // As linhas de cada item. O que se repete na planilha é preenchido em todas as ocorrências. No layout por
+        // frente as três linhas antigas (EXEC., PROG. 1 e PROG. 2) ficam escondidas dentro do bloco e não valem.
+        function linhasAntigas(item) {
+          if (mapa.achadosFrente[item]) return [];
+          return (mapa.achados[item] ? [mapa.achados[item]] : []).concat(mapa.repetidos[item] || []);
+        }
+        function blocosDe(item) {
+          return (mapa.achadosFrente[item] ? [mapa.achadosFrente[item]] : []).concat(mapa.repetidosFrente[item] || []);
+        }
+        var itensDaPlanilha = {};
+        Object.keys(mapa.achados).concat(Object.keys(mapa.achadosFrente)).forEach(function (i) { itensDaPlanilha[i] = true; });
 
         // Passo 1 — zera a programação de TODOS os itens do catálogo, esteja ou
         // não com serviço nesta quinzena. É o que impede a semana passada de
@@ -1873,29 +2024,49 @@ window.SIPAV = window.SIPAV || {};
         // aquilo era planejamento que só existia na planilha e acabou de sumir.
         // Quem confere precisa saber disso — é a diferença entre "o SIPAV é a
         // fonte da verdade" e "o SIPAV apagou meu trabalho".
-        Object.keys(mapa.achados).forEach(function (item) {
-          var alvo = mapa.achados[item];
-          var t1 = limparLinha(ws, alvo.prog1);
-          var t2 = limparLinha(ws, alvo.prog2);
-          limpas += 2;
-          if (t1 || t2) {
-            tinhamConteudo[item] = String(valor(ws.getCell(alvo.linhaItem, COL.ATIVIDADE)) || item);
-          }
+        Object.keys(itensDaPlanilha).forEach(function (item) {
+          linhasAntigas(item).forEach(function (alvo) {
+            var t1 = limparLinha(ws, alvo.prog1);
+            var t2 = limparLinha(ws, alvo.prog2);
+            limpas += 2;
+            if (t1 || t2) {
+              tinhamConteudo[item] = String(valor(ws.getCell(alvo.linhaItem, COL.ATIVIDADE)) || item);
+            }
+          });
+          blocosDe(item).forEach(function (bloco) {
+            var r = escreverBloco(ws, bloco, null, posicaoDasTorres);
+            limpas += 2;
+            if (r.tinha) {
+              tinhamConteudo[item] = String(valor(ws.getCell(bloco.linhaItem, COL.ATIVIDADE)) || item);
+            }
+          });
         });
 
         // Passo 2 — escreve o que há
         Object.keys(g.dados).forEach(function (item) {
-          var alvo = mapa.achados[item];
-          if (!alvo) { naoAchados.push(item); return; }
+          var antigas = linhasAntigas(item), blocos = blocosDe(item);
+          if (!antigas.length && !blocos.length) { naoAchados.push(item); return; }
 
-          ['prog1', 'prog2'].forEach(function (semana) {
-            var porEnc = g.dados[item][semana];
-            if (!porEnc) return;
-            var n = escreverLinha(ws, semana === 'prog1' ? alvo.prog1 : alvo.prog2, porEnc, posicaoDasTorres);
-            if (n) { escritas++; torresEscritas += n; }
+          antigas.forEach(function (alvo) {
+            ['prog1', 'prog2'].forEach(function (semana) {
+              var porEnc = g.dados[item][semana];
+              if (!porEnc) return;
+              var n = escreverLinha(ws, semana === 'prog1' ? alvo.prog1 : alvo.prog2, porEnc, posicaoDasTorres);
+              if (n) { escritas++; torresEscritas += n; }
+            });
+
+            ws.getRow(alvo.linhaItem).hidden = false;   // o cabeçalho do item também
           });
 
-          ws.getRow(alvo.linhaItem).hidden = false;   // o cabeçalho do item também
+          blocos.forEach(function (bloco) {
+            var r = escreverBloco(ws, bloco, g.dados[item], posicaoDasTorres);
+            if (r.linhas) { escritas += r.linhas; torresEscritas += r.total; }
+            mostrarBloco(ws, bloco);
+            r.semFrente.forEach(function (x) {
+              var texto = x.torre + ' · ' + rotuloDoItem(item) + ' (canteiro ' + (x.frente ? '"' + x.frente + '"' : 'não definido') + ')';
+              if (semFrente.indexOf(texto) === -1) semFrente.push(texto);
+            });
+          });
         });
 
         // O ExcelJS não tem motor de cálculo: as datas derivadas continuam com o
@@ -1927,6 +2098,7 @@ window.SIPAV = window.SIPAV || {};
                 return { item: item, rotulo: rotuloDoItem(item), atividades: atividadesDoItem(item) };
               }),
               duplicados: mapa.duplicados,
+              semFrente: semFrente,
               tortos: mapa.tortos,
               semCabo: g.semCabo,
               semDePara: g.semDePara,
