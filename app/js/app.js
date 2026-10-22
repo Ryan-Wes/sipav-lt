@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v221 · 2026-10-22';
+  var VERSAO = 'v222 · 2026-10-22';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -10065,8 +10065,9 @@ window.SIPAV = window.SIPAV || {};
         '<p class="text-sm text-slate-600">' +
           'O SIPAV preenche a planilha <strong>RPSQ</strong> deste trecho com a programação da quinzena ' +
           '(linhas <strong>PROG. 1</strong> e <strong>PROG. 2</strong>, ou a linha de cada frente) e com o ' +
-          '<strong>executado</strong> da semana anterior, que vem dos apontamentos de campo. Os totais das outras ' +
-          'colunas, o cabeçalho e o rodapé ficam como estão.' +
+          '<strong>executado</strong> da semana anterior, que vem dos apontamentos de campo. Só o que o SIPAV preenche ' +
+          'fica na planilha: o que ficou em branco é apagado e escondido. Os totais das outras colunas, o cabeçalho e o ' +
+          'rodapé ficam como estão.' +
         '</p>' +
 
         '<div><label class="rotulo">Segunda-feira da semana 1</label>' +
@@ -10202,8 +10203,18 @@ window.SIPAV = window.SIPAV || {};
 
     partes.push(bloco('border-emerald-300 bg-emerald-50 text-emerald-800',
       r.linhasEscritas + (r.linhasEscritas === 1 ? ' linha preenchida' : ' linhas preenchidas'),
-      r.torresEscritas + ' no total da programação (torres ou km, conforme a unidade da linha). Os itens que o SIPAV ' +
-      'não programa — topografia, sondagem, armação, canteiro — não foram tocados, nem as colunas de totais.'));
+      r.torresEscritas + ' no total da programação (torres ou km, conforme a unidade da linha). O que o SIPAV não ' +
+      'preencheu — inclusive topografia, sondagem, armação e canteiro — foi esvaziado e escondido; ' +
+      'as colunas de totais não foram tocadas.'));
+
+    if (r.outrosApagados && r.outrosApagados.length) {
+      partes.push(bloco('border-amber-300 bg-amber-50 text-amber-800',
+        r.outrosApagados.length + ' item(ns) tinham conteúdo na planilha e foram apagados',
+        'Não são do SIPAV, ou são o executado de um item sem apontamento. Se isso era para ficar, ' +
+        'use o modelo em branco, ou preencha à mão depois: ' +
+        '<strong>' + esc(r.outrosApagados.slice(0, 10).join(' · ')) + '</strong>' +
+        (r.outrosApagados.length > 10 ? ' e mais ' + (r.outrosApagados.length - 10) : '') + '.'));
+    }
 
     // O executado da semana anterior, vindo dos apontamentos de campo
     var ex = r.executado;
@@ -10211,11 +10222,10 @@ window.SIPAV = window.SIPAV || {};
       partes.push(ex.itens
         ? bloco('border-emerald-300 bg-emerald-50 text-emerald-800',
             'Executado da semana anterior: ' + ex.itens + (ex.itens === 1 ? ' item preenchido' : ' itens preenchidos'),
-            'Vem dos apontamentos de campo. O item sem apontamento nessa semana não foi tocado, ' +
-            'para não apagar o que alguém tenha preenchido à mão.')
+            'Vem dos apontamentos de campo. O item sem apontamento nessa semana fica em branco e escondido.')
         : bloco('border-slate-200 bg-slate-50 text-slate-700',
             'Nenhum apontamento de campo na semana anterior',
-            'A linha do executado ficou como estava.'));
+            'A linha do executado ficou em branco e escondida.'));
 
       if (ex.semFrente && ex.semFrente.length) {
         partes.push(bloco('border-rose-200 bg-rose-50 text-rose-800',

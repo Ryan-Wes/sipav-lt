@@ -26,10 +26,18 @@ alterado. Fica no banco em base64, um por trecho.
 
 **O executado da semana anterior passa a ser preenchido pelo SIPAV** (muda a decisão de 01/10, que deixava
 a linha EXEC. à mão). Vem dos apontamentos de campo: a linha EXEC. no layout antigo, ou as frentes do
-bloco EXECUTADO no layout novo. O item sem apontamento naquela semana não é tocado, para não apagar o que
-alguém tenha preenchido à mão numa planilha que já veio preenchida. O cabo do lançamento e o segundo
+bloco EXECUTADO no layout novo. O cabo do lançamento e o segundo
 encarregado vêm da programação a que o apontamento está ligado; apontamento sem data (conferido pelo status
-da planilha) não entra. As colunas de totais (quantidade, falta, acumulado) continuam com quem preenche.
+da planilha) não entra. O TOTAL SEMANAL (coluna R) o SIPAV preenche; TOTAL PREVISTO, ACUM. ATUAL, QUANT. FALTA
+e % EXEC. continuam com quem preenche e nunca são tocadas. Célula com fórmula (concatenação das frentes, soma)
+também nunca é sobrescrita.
+
+**A planilha sai só com o que o SIPAV preencheu.** Tudo o que está na planilha é esvaziado, e a linha que
+recebeu programação ou executado fica visível, enquanto a que ficou em branco é escondida: EXEC., PROG. 1 e
+PROG. 2, o EXECUTADO, as semanas e as frentes, as três linhas antigas dentro dos blocos novos e também os
+itens que o SIPAV não programa (topografia, canteiros). O título de uma seção só aparece se sobrou linha
+dela. O cabeçalho e o rodapé ficam. O relatório avisa quando algum item que não era do SIPAV tinha
+conteúdo e foi apagado, para quem subir uma planilha já preenchida em vez do modelo em branco.
 
 **Total pela unidade da linha.** Onde a coluna UNID. diz TORRE, o total é a soma das torres (com o
 percentual); onde diz KM, é a soma dos vãos das torres. Vale para a programação e para o executado.

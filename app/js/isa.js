@@ -805,7 +805,7 @@ window.SIPAV = window.SIPAV || {};
    * Devolve { total, linhas, semFrente, tinha } — as torres que não caíram em nenhuma frente, para o relato.
    */
   function escreverFrentes(ws, sem, porEnc, posicao, kmPorTorre) {
-    var total = 0, linhas = 0, semFrente = [], tinha = false;
+    var total = 0, linhas = 0, semFrente = [], tinha = false, mostrar = [];
     porEnc = porEnc || {};
     var porFrente = sem.frentes.map(function (fr) { return { fr: fr, norm: norm(fr.frente), enc: {} }; });
 
@@ -826,6 +826,7 @@ window.SIPAV = window.SIPAV || {};
       if (encs.length) {
         var n = escreverLinha(ws, p.fr.linha, p.enc, posicao, kmPorTorre);
         if (n) { linhas++; total += n; }
+        mostrar.push(p.fr.linha);
         encs.forEach(function (e) { if (e !== '—' && nomes.indexOf(e.toUpperCase()) === -1) nomes.push(e.toUpperCase()); });
       } else if (limparLinha(ws, p.fr.linha)) {
         tinha = true;
@@ -836,17 +837,23 @@ window.SIPAV = window.SIPAV || {};
       var celula = ws.getCell(sem.agregada, COL.ENCARREGADO);
       if (String(valor(celula) || '').trim().replace(/^-$/, '')) tinha = true;
       escrever(celula, nomes.length ? nomes.join(' / ') : '-');
+      // O TOTAL SEMANAL da linha da semana (ou do EXECUTADO): a soma das frentes. Onde a planilha já tem fórmula, fica a dela.
+      escrever(ws.getCell(sem.agregada, COL.TOTAL), total ? Math.round(total * 100) / 100 : '-');
     }
 
-    return { total: total, linhas: linhas, semFrente: semFrente, tinha: tinha };
+    // O cabeçalho do grupo (a linha da semana ou do EXECUTADO) aparece junto com as frentes que têm dados
+    if (mostrar.length && sem.agregada) mostrar.push(sem.agregada);
+
+    return { total: total, linhas: linhas, semFrente: semFrente, tinha: tinha, mostrar: mostrar };
   }
 
   /** As duas semanas programadas de um bloco por frente. */
   function escreverBloco(ws, bloco, porSemana, posicao, kmPorTorre) {
-    var r = { total: 0, linhas: 0, semFrente: [], tinha: false };
+    var r = { total: 0, linhas: 0, semFrente: [], tinha: false, mostrar: [] };
     ['prog1', 'prog2'].forEach(function (semana) {
       var p = escreverFrentes(ws, bloco[semana], porSemana && porSemana[semana], posicao, kmPorTorre);
       r.total += p.total; r.linhas += p.linhas; r.tinha = r.tinha || p.tinha;
+      r.mostrar = r.mostrar.concat(p.mostrar);
       r.semFrente = r.semFrente.concat(p.semFrente);
     });
     return r;
@@ -856,17 +863,42 @@ window.SIPAV = window.SIPAV || {};
   function emKm(ws, linhaItem) {
     return norm(valor(ws.getCell(linhaItem, COL.UNIDADE))) === 'km';
   }
-  /** Reexibe o bloco por frente: o cabeçalho do item, as linhas das semanas e as das frentes. */
-  function mostrarBloco(ws, bloco) {
-    // O bloco inteiro, do EXECUTADO à última frente da segunda semana, menos as três linhas do layout
-    // antigo, que ficam escondidas dentro dele
-    for (var q = bloco.linhaItem; q <= bloco.fim; q++) {
-      var tarefa = norm(valor(ws.getCell(q, COL.TAREFA)));
-      if (tarefa === 'exec' || tarefa === 'prog 1' || tarefa === 'prog 2') continue;
-      ws.getRow(q).hidden = false;
-    }
-  }
+  /**
+   * Deixa na planilha só o que o SIPAV preencheu. Cada linha de item (EXEC., PROG. 1, PROG. 2, EXECUTADO, as semanas e
+   * as frentes) que recebeu programação ou executado fica visível; a que ficou em branco é esvaziada e escondida,
+   * inclusive os itens que o SIPAV não programa (topografia, canteiros) e as três linhas antigas dentro dos blocos por
+   * frente. O título de uma seção só aparece se sobrou alguma linha dela. Célula com fórmula não é sobrescrita, e
+   * o cabeçalho, o rodapé e as colunas de totais de outro setor ficam como estão.
+   *
+   * Devolve os nomes dos itens que tinham conteúdo e foram apagados, para o relato.
+   */
+  function aplicarVisibilidade(ws, mostrar) {
+    var secao = null, secoes = [], apagados = {};
 
+    for (var r = 13; r <= ws.rowCount; r++) {
+      var nome = String(valor(ws.getCell(r, COL.ATIVIDADE)) || '').replace(/\s+/g, ' ').trim();
+      if (!nome) continue;
+      var tarefa = norm(valor(ws.getCell(r, COL.TAREFA)));
+      var codigo = String(valor(ws.getCell(r, COL.ITEM)) || '').trim();
+
+      // Título de seção: tem o código curto ("1.3") e nenhuma tarefa
+      if (!tarefa) {
+        if (/^\d+\.\d+$/.test(codigo)) { secao = { linha: r, mostrar: false }; secoes.push(secao); }
+        continue;
+      }
+
+      if (mostrar[r]) {
+        ws.getRow(r).hidden = false;
+        if (secao) secao.mostrar = true;
+        continue;
+      }
+      if (limparLinha(ws, r)) apagados[nome] = true;
+      ws.getRow(r).hidden = true;
+    }
+
+    secoes.forEach(function (s) { ws.getRow(s.linha).hidden = !s.mostrar; });
+    return Object.keys(apagados);
+  }
   /* ------------------------------------------------- Importar da planilha --- */
 
   /**
@@ -2058,6 +2090,7 @@ window.SIPAV = window.SIPAV || {};
         var naoAchados = [];
         var tinhamConteudo = {};
         var semFrente = [];
+        var mostrar = {};               // linha → true: o que o SIPAV preencheu fica visível, o resto some
 
         // As linhas de cada item. O que se repete na planilha é preenchido em todas as ocorrências. No layout por
         // frente as três linhas antigas (EXEC., PROG. 1 e PROG. 2) ficam escondidas dentro do bloco e não valem.
@@ -2107,17 +2140,17 @@ window.SIPAV = window.SIPAV || {};
             ['prog1', 'prog2'].forEach(function (semana) {
               var porEnc = g.dados[item][semana];
               if (!porEnc) return;
-              var n = escreverLinha(ws, semana === 'prog1' ? alvo.prog1 : alvo.prog2, porEnc, posicaoDasTorres, km);
+              var linhaDaSemana = semana === 'prog1' ? alvo.prog1 : alvo.prog2;
+              var n = escreverLinha(ws, linhaDaSemana, porEnc, posicaoDasTorres, km);
               if (n) { escritas++; torresEscritas += n; }
+              if (Object.keys(porEnc).length) mostrar[linhaDaSemana] = true;
             });
-
-            ws.getRow(alvo.linhaItem).hidden = false;   // o cabeçalho do item também
           });
 
           blocos.forEach(function (bloco) {
             var r = escreverBloco(ws, bloco, g.dados[item], posicaoDasTorres, emKm(ws, bloco.linhaItem) ? kmPorTorre : null);
             if (r.linhas) { escritas += r.linhas; torresEscritas += r.total; }
-            mostrarBloco(ws, bloco);
+            r.mostrar.forEach(function (l) { mostrar[l] = true; });
             r.semFrente.forEach(function (x) {
               var texto = x.torre + ' · ' + rotuloDoItem(item) + ' (canteiro ' + (x.frente ? '"' + x.frente + '"' : 'não definido') + ')';
               if (semFrente.indexOf(texto) === -1) semFrente.push(texto);
@@ -2137,16 +2170,17 @@ window.SIPAV = window.SIPAV || {};
 
           antigas.forEach(function (alvo) {
             var km = emKm(ws, alvo.linhaItem) ? kmPorTorre : null;
-            var n = escreverLinha(ws, alvo.linhaItem, exec.dados[item].prog1 || {}, posicaoDasTorres, km);
+            var porEncExec = exec.dados[item].prog1 || {};
+            var n = escreverLinha(ws, alvo.linhaItem, porEncExec, posicaoDasTorres, km);
             if (n) { relatoExec.linhas++; relatoExec.torres += n; }
-            ws.getRow(alvo.linhaItem).hidden = false;
+            if (Object.keys(porEncExec).length) mostrar[alvo.linhaItem] = true;
           });
 
           blocos.forEach(function (bloco) {
             var km = emKm(ws, bloco.linhaItem) ? kmPorTorre : null;
             var r = escreverFrentes(ws, bloco.exec, exec.dados[item].prog1, posicaoDasTorres, km);
             relatoExec.linhas += r.linhas; relatoExec.torres += r.total;
-            mostrarBloco(ws, bloco);
+            r.mostrar.forEach(function (l) { mostrar[l] = true; });
             r.semFrente.forEach(function (x) {
               var texto = x.torre + ' · ' + rotuloDoItem(item) + ' (canteiro ' + (x.frente ? '"' + x.frente + '"' : 'não definido') + ')';
               if (relatoExec.semFrente.indexOf(texto) === -1) relatoExec.semFrente.push(texto);
@@ -2156,6 +2190,9 @@ window.SIPAV = window.SIPAV || {};
         relatoExec.naoExistem = execNaoAchados.map(function (item) {
           return { item: item, rotulo: rotuloDoItem(item), atividades: atividadesDoItem(item) };
         });
+
+        // Passo 4 — deixa visível só o que o SIPAV preencheu e apaga e esconde o resto
+        var outrosApagados = aplicarVisibilidade(ws, mostrar);
 
         // O ExcelJS não tem motor de cálculo: as datas derivadas continuam com o
         // resultado antigo em cache até alguém recalcular. Isto manda o Excel
@@ -2179,6 +2216,7 @@ window.SIPAV = window.SIPAV || {};
               torresEscritas: torresEscritas,
               linhasLimpas: limpas,
               apagados: apagados,
+              outrosApagados: outrosApagados,
               itensNaoAchados: naoAchados,
               // O mesmo, para ler: cada item com o nome da atividade do SIPAV
               // que o alimenta
