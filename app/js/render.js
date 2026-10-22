@@ -451,7 +451,7 @@ window.SIPAV = window.SIPAV || {};
       ? '<span class="modelo">' + esc(torre.modelo) + '</span>'
       : '';
 
-    var dica = esc(torre.identificador) +
+    var dica = esc(ui.nomeDaTorre(torre.identificador)) +
       (torre.modelo ? ' · ' + esc(torre.modelo) : '') +
       (torre.estrutura ? ' · ' + (estaiada ? 'estaiada' : 'autoportante') : '') +
       ' — ' + esc(estado) +
@@ -540,7 +540,7 @@ window.SIPAV = window.SIPAV || {};
 
     return '<div class="' + classes.join(' ') + '" data-torre="' + torre.torre_id + '" ' +
            'onclick="' + acaoDaTorre(torre.torre_id) + '" ' +
-           'title="' + esc(torre.identificador) + ' — ' + ponta + '. Já está pronto: não tem estágio.">' +
+           'title="' + esc(ui.nomeDaTorre(torre.identificador)) + ' — ' + ponta + '. Já está pronto: não tem estágio.">' +
         selo +
         // O raio fica no canto de cima, na linha do selo das programações
         '<span class="icone-portico"><i data-lucide="zap" style="width:14px;height:14px"></i></span>' +
@@ -591,7 +591,7 @@ window.SIPAV = window.SIPAV || {};
     // Torre com observação (serra…): o ícone acompanha o número, com o texto na dica
     var obsTorre = p.torre ? observacaoDaTorre(p.torre.id) : null;
     var torre = op.torre === false ? ''
-      : '<span class="chip-torre">' + esc(p.torre ? p.torre.identificador : '?') +
+      : '<span class="chip-torre">' + esc(p.torre ? ui.nomeDaTorre(p.torre.identificador) : '?') +
           (obsTorre
             ? '<span class="chip-obs" title="' + esc(obsTorre) + '">' +
                 iconesSoltosDaObservacao(obsTorre, iconeDaObsDaTorre(p.torre.id), 11) + '</span>'

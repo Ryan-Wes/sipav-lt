@@ -230,6 +230,15 @@ window.SIPAV = window.SIPAV || {};
     return v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 5 });
   }
 
+  /**
+   * O pórtico se cadastra como PÓRTICO INICIAL e PÓRTICO FINAL (o identificador é único no trecho), mas fora do
+   * cadastro e da grade o nome é só PÓRTICO: nas listas, nos textos, nas exportações.
+   */
+  function nomeDaTorre(identificador) {
+    var s = String(identificador == null ? '' : identificador);
+    return /^p[oó]rtico\s+(inicial|final)$/i.test(s.trim()) ? 'PÓRTICO' : s;
+  }
+
   /** Escapa texto vindo do banco antes de injetar como HTML. */
   function esc(texto) {
     if (texto === null || texto === undefined) return '';
@@ -271,6 +280,6 @@ window.SIPAV = window.SIPAV || {};
     iso: iso, somarDias: somarDias, segundaDaSemana: segundaDaSemana, segundaDoPlano: segundaDoPlano,
     primeiroDiaDoMes: primeiroDiaDoMes, ultimoDiaDoMes: ultimoDiaDoMes,
     rotuloPeriodo: rotuloPeriodo, quandoRelativo: quandoRelativo,
-    km: km, esc: esc, corDoTexto: corDoTexto, rgba: rgba
+    km: km, esc: esc, corDoTexto: corDoTexto, rgba: rgba, nomeDaTorre: nomeDaTorre
   };
 })();

@@ -310,7 +310,7 @@ window.SIPAV = window.SIPAV || {};
 
   /** Uma linha do jeito que se escreve num aviso: "0/1 · MONTAGEM · Seg 19/10 · Alielton · 100%". */
   function descricaoCurta(p) {
-    return p.torre.identificador + ' · ' + (p.atividade ? p.atividade.nome : '') + ' · ' + nomeCurtoDoDia(p.data) + ' · ' +
+    return ui.nomeDaTorre(p.torre.identificador) + ' · ' + (p.atividade ? p.atividade.nome : '') + ' · ' + nomeCurtoDoDia(p.data) + ' · ' +
       (p.encarregado ? p.encarregado.nome : 'sem encarregado') + ' · ' + pct(p.percentual);
   }
 
@@ -556,7 +556,7 @@ window.SIPAV = window.SIPAV || {};
       (corrigivel ? ' data-acao="corrigir" data-id="' + p.id + '"' : '') + '>' +
       '<div class="sup-card-topo">' +
         (marcavel ? '<input type="checkbox" class="sup-sel" data-acao="sel-linha" data-id="' + p.id + '"' +
-          (S.selLinhas[p.id] ? ' checked' : '') + ' aria-label="Marcar">' : '') + '<strong>' + esc(p.torre.identificador) + '</strong>' + chipAtividade(p.atividade) + marca + '</div>' +
+          (S.selLinhas[p.id] ? ' checked' : '') + ' aria-label="Marcar">' : '') + '<strong>' + esc(ui.nomeDaTorre(p.torre.identificador)) + '</strong>' + chipAtividade(p.atividade) + marca + '</div>' +
       '<div class="sup-card-meio"><span>' + esc(p.encarregado ? p.encarregado.nome : 'Sem encarregado') + '</span>' +
         '<span class="sup-pct">' + pct(p.percentual) + '</span>' +
         (p.cabo ? '<span class="sup-fraco">' + esc(String(p.cabo).replace('_', ' ')) + '</span>' : '') + '</div>' +
@@ -893,7 +893,7 @@ window.SIPAV = window.SIPAV || {};
       : origemDe(p) + (p.solicitacao_id && S.sol && p.solicitacao_id === S.sol.id ? ' (a sua)' : '') + ', ainda não aprovada.';
 
     var original = tipo === 'alteracao' ? todas().filter(function (x) { return x.id === p.substitui_id; })[0] : null;
-    var linhas = '<p class="text-sm"><b>' + esc(p.torre.identificador) + '</b> · ' + esc(p.atividade ? p.atividade.nome : '') + '</p>' +
+    var linhas = '<p class="text-sm"><b>' + esc(ui.nomeDaTorre(p.torre.identificador)) + '</b> · ' + esc(p.atividade ? p.atividade.nome : '') + '</p>' +
       '<p class="text-sm" style="color:var(--texto-suave)">' + esc(nomeCurtoDoDia(p.data)) + ' · ' +
         esc(p.encarregado ? p.encarregado.nome : 'sem encarregado') + ' · ' + pct(p.percentual) + '</p>' +
       (p.observacao ? '<p class="sup-fraco">' + esc(p.observacao) + '</p>' : '') +
@@ -1019,7 +1019,7 @@ window.SIPAV = window.SIPAV || {};
     if (!p) return;
     var pedido = !!tipoDoPedido(p);
     ui.confirmar(pedido ? 'Cancelar o pedido' : 'Apagar programação',
-      p.torre.identificador + ' · ' + (p.atividade ? p.atividade.nome : '') + ' · ' + nomeCurtoDoDia(p.data) +
+      ui.nomeDaTorre(p.torre.identificador) + ' · ' + (p.atividade ? p.atividade.nome : '') + ' · ' + nomeCurtoDoDia(p.data) +
         (pedido ? '. O pedido sai da sua solicitação e a programação aprovada continua como está.' : '. Sai da sua solicitação.'),
       pedido ? 'Cancelar o pedido' : 'Apagar').then(function (sim) {
       if (!sim) return;
@@ -1630,7 +1630,7 @@ window.SIPAV = window.SIPAV || {};
       (progs.length ? ' cartao-programado' : '') + (G.sel[t.torre_id] ? ' sel' : '') +
       '" data-acao="grade-torre" data-id="' + t.torre_id + '"' + (estilo ? ' style="' + estilo + '"' : '') + '>' +
       '<span class="sup-g-ok"><i data-lucide="check" class="w-3 h-3"></i></span>' +
-      '<span class="identidade"><span class="identificador">' + esc(t.identificador) + '</span>' + pastilha +
+      '<span class="identidade"><span class="identificador">' + esc(ui.nomeDaTorre(t.identificador)) + '</span>' + pastilha +
         '<span class="legenda"><span class="ponto-atividade" style="background:' + (cor || 'var(--borda-forte)') + '"></span>' +
         esc(estado) + '</span></span>' +
       (lista ? '<span class="sup-g-lista">' + lista + '</span>' : '') +
@@ -1941,7 +1941,7 @@ window.SIPAV = window.SIPAV || {};
           '<td class="py-1 pr-1"><input type="checkbox" class="sol-caixa" data-marcar="' + l.id + '" ' +
             'onclick="SIPAV.supervisor.marcarLinha(\'' + l.id + '\')" aria-label="Marcar"></td>' +
           '<td class="py-1 pr-2 whitespace-nowrap">' + esc(nomeCurtoDoDia(l.data)) + '</td>' +
-          '<td class="pr-2"><strong>' + esc(l.torre.identificador) + '</strong></td>' +
+          '<td class="pr-2"><strong>' + esc(ui.nomeDaTorre(l.torre.identificador)) + '</strong></td>' +
           '<td class="pr-2">' + chipAtividade(l.atividade) + '</td>' +
           '<td class="pr-2">' + esc(l.encarregado ? l.encarregado.nome : '—') + '</td>' +
           '<td class="pr-2">' + pct(l.percentual) + '</td>' +
@@ -1987,7 +1987,7 @@ window.SIPAV = window.SIPAV || {};
       return '<button type="button" class="cartao-torre sup-g-torre" data-g-torre="' + tid + '"' + (estilo ? ' style="' + estilo + '"' : '') +
         ' onclick="SIPAV.supervisor.marcarTorre(\'' + tid + '\')">' +
         '<span class="sup-g-ok"><i data-lucide="check" class="w-3 h-3"></i></span>' +
-        '<span class="identidade"><span class="identificador">' + esc(t.identificador) + '</span>' + pastilha +
+        '<span class="identidade"><span class="identificador">' + esc(ui.nomeDaTorre(t.identificador)) + '</span>' + pastilha +
           '<span class="legenda"><span class="ponto-atividade" style="background:' + (cor || 'var(--borda-forte)') + '"></span>' + esc(nomeEstado) + '</span></span>' +
         '<span class="sup-g-lista">' + lista + '</span></button>';
     }).join('') + '</div>';
@@ -2034,7 +2034,7 @@ window.SIPAV = window.SIPAV || {};
 
   /** Uma linha, em texto: "0/1 · MONTAGEM · Seg 19/10 · Alielton". */
   function resumoDaLinha(l) {
-    return '<b>' + esc(l.torre.identificador) + '</b> · ' + esc(l.atividade ? l.atividade.nome : '') + ' · ' +
+    return '<b>' + esc(ui.nomeDaTorre(l.torre.identificador)) + '</b> · ' + esc(l.atividade ? l.atividade.nome : '') + ' · ' +
       esc(nomeCurtoDoDia(l.data)) + ' · ' + esc(l.encarregado ? l.encarregado.nome : '—');
   }
 
@@ -2252,7 +2252,7 @@ window.SIPAV = window.SIPAV || {};
     var atvs = E.atividades.slice().sort(function (a, b) { return a.ordem_execucao - b.ordem_execucao; });
 
     var corpo = '<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">' +
-      '<div><label class="rotulo">Torre</label><p class="text-sm font-bold">' + esc(l.torre.identificador) + '</p></div>' +
+      '<div><label class="rotulo">Torre</label><p class="text-sm font-bold">' + esc(ui.nomeDaTorre(l.torre.identificador)) + '</p></div>' +
       '<div><label class="rotulo">Dia</label><input id="solData" type="date" class="campo" value="' + l.data + '"></div>' +
       '<div><label class="rotulo">Atividade</label><select id="solAtv" class="campo">' + atvs.map(function (a) {
         return '<option value="' + a.id + '"' + (l.atividade && a.id === l.atividade.id ? ' selected' : '') + '>' + esc(a.nome) + '</option>';
@@ -2357,7 +2357,7 @@ window.SIPAV = window.SIPAV || {};
     return ids.map(function (id) {
       var l = pacote.linhas.filter(function (x) { return x.id === id; })[0];
       return '<li>' + (rotuloDaLinha(l) ? '<em class="sol-tag-mini' + (l.exclusao ? ' apagar' : '') + '">' + esc(rotuloDaLinha(l).toUpperCase()) + '</em> ' : '') +
-             '<b>' + esc(l.torre.identificador) + '</b> · ' + esc(l.atividade ? l.atividade.nome : '') + ' · ' +
+             '<b>' + esc(ui.nomeDaTorre(l.torre.identificador)) + '</b> · ' + esc(l.atividade ? l.atividade.nome : '') + ' · ' +
              esc(nomeCurtoDoDia(l.data)) + ' · ' + esc(l.encarregado ? l.encarregado.nome : '—') + '</li>';
     }).join('');
   }

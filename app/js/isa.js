@@ -1,4 +1,4 @@
-/* =============================================================================
+ocorrencias: 2 /* =============================================================================
    SIPAV LT — Relatório de Programação Semanal da ISA (RPSQ)
 
    Preenche a planilha que a fiscalização recebe toda sexta, a partir da
@@ -327,6 +327,63 @@ window.SIPAV = window.SIPAV || {};
       .toLowerCase();
   }
 
+  /** O pórtico se cadastra como PÓRTICO INICIAL / FINAL; na planilha é só PORTICO. */
+  function ehPorticoIdent(identificador) { return /^portico/.test(norm(identificador)); }
+  function rotuloNaPlanilha(identificador) { return ehPorticoIdent(identificador) ? 'PORTICO' : identificador; }
+
+  /**
+   * O que a planilha escreve no dia que não tem torre: FERIADO (em toda célula do dia que tem encarregado
+   * programado na semana), e, na célula do encarregado, FOLGA DE CAMPO, MUDANÇA DE MÁQUINA, MUDANÇA PARA <canteiro>
+   * ou o motivo. É o que a importação lê de volta (movimentoDaAnotacao).
+   */
+  function textoDoMovimento(m, canteiros) {
+    if (m.tipo === 'FOLGA_CAMPO') return 'FOLGA DE CAMPO';
+    if (m.tipo === 'MUDANCA_MAQUINA') return 'MUDANÇA DE MÁQUINA';
+    if (m.tipo === 'MUDANCA_TRECHO') {
+      var destino = m.canteiro_destino && m.canteiro_destino.nome;
+      if (!destino && m.canteiro_destino_id) {
+        var c = (canteiros || []).filter(function (k) { return k.id === m.canteiro_destino_id; })[0];
+        destino = c && c.nome;
+      }
+      return destino ? 'MUDANÇA PARA ' + String(destino).toUpperCase() : 'MUDANÇA DE TRECHO';
+    }
+    if (m.tipo === 'OUTRO') return String(m.observacao || '').trim().toUpperCase();
+    return '';
+  }
+
+  /** Os dias sem atividade de uma semana (segunda a sábado), prontos para a escrita: { feriado: {dia: true}, aviso: {encarregado: {dia: texto}} }. */
+  function extrasDaSemana(movimentacoes, segunda, canteiros) {
+    var dias = [0, 1, 2, 3, 4, 5].map(function (i) { return ui.iso(ui.somarDias(segunda, i)); });
+    var extras = { feriado: {}, aviso: {} };
+    (movimentacoes || []).forEach(function (m) {
+      var dia = dias.indexOf(m.data);
+      if (dia === -1) return;
+      if (m.tipo === 'FERIADO') { extras.feriado[dia] = true; return; }
+      var texto = textoDoMovimento(m, canteiros);
+      if (!texto) return;
+      var quem = [m.encarregado, m.encarregado2].filter(function (e) { return !!e; });
+      // Sem encarregado (a equipe toda) vale para todos os que têm linha na semana
+      (quem.length ? quem.map(function (e) { return norm(e.nome); }) : ['*']).forEach(function (k) {
+        extras.aviso[k] = extras.aviso[k] || {};
+        if (!extras.aviso[k][dia]) extras.aviso[k][dia] = texto;
+      });
+    });
+    return extras;
+  }
+
+  /** A célula do dia de quem não tem torre nele: o dia sem atividade, se há, ou o hífen da planilha. */
+  function textoDoDia(encarregado, dia, extras) {
+    if (!extras) return '-';
+    if (extras.feriado[dia]) return 'FERIADO';
+    var nomes = String(encarregado).split(' / ');
+    for (var i = 0; i < nomes.length; i++) {
+      var a = extras.aviso[norm(nomes[i])];
+      if (a && a[dia]) return a[dia];
+    }
+    var geral = extras.aviso['*'];
+    return geral && geral[dia] ? geral[dia] : '-';
+  }
+
   /**
    * A regra de uma atividade, pelo nome sem caixa e sem acento. O nome vem do
    * cadastro, onde qualquer um pode digitar "Recuperação de acesso" ou
@@ -472,9 +529,9 @@ window.SIPAV = window.SIPAV || {};
         // programar, 0 avisos" numa planilha que tinha serviço.
         // "Fundação 100% concluída" só repete o reaterro, e "Conclusão de montagem" é o que a ISA pede\n        // além da revisão e do giro e prumo: não tem o que programar nelas
         var nomeCru = String(valor(ws.getCell(r, COL.ATIVIDADE)) || '').trim();
-        if ((tarefa === 'prog 1' || tarefa === 'prog 2') && !/^(fundacao 100|conclusao de montagem)/.test(nome)) {
+        if ((tarefa === 'prog 1' || tarefa === 'prog 2') && !/^(fundacao 100|conclusao de montagem|instalacao do contrapeso complemento)/.test(nome)) {
           ignorados.push({ linhas: [r], codigo: codigo, nome: nomeCru });
-        } else if (tarefa === 'executado' && !/^(fundacao 100|conclusao de montagem)/.test(nome)) {
+        } else if (tarefa === 'executado' && !/^(fundacao 100|conclusao de montagem|instalacao do contrapeso complemento)/.test(nome)) {
           var semItem = blocoPorFrente(r, nome), linhasDoBloco = [];
           ['prog1', 'prog2'].forEach(function (s) {
             if (semItem[s].agregada) linhasDoBloco.push(semItem[s].agregada);
@@ -614,6 +671,8 @@ window.SIPAV = window.SIPAV || {};
       var encs = [p.encarregado, p.encarregado2].filter(function (e) { return !!e; })
         .map(function (e) { return e.nome; });
       if (!encs.length) encs = ['—'];
+      // A dupla é uma equipe só: uma linha, "A / B", e a torre uma vez
+      encs = [encs.join(' / ')];
 
       itens.forEach(function (item) {
         dados[item] = dados[item] || {};
@@ -632,7 +691,11 @@ window.SIPAV = window.SIPAV || {};
             notas: DERIVADOS[item] ? [] : notasDaRevisao(p),
             copia: i > 0,
             // A frente do layout novo é o canteiro da torre
-            frente: norm(torre.canteiro || '')
+            frente: norm(torre.canteiro || ''),
+            // O pórtico se escreve só PORTICO, e vai no começo (ou no fim) da célula, fora dos intervalos
+            rotulo: rotuloNaPlanilha(identTorre),
+            portico: ehPorticoIdent(identTorre),
+            ponta: /final/i.test(identTorre) ? 'fim' : 'inicio'
           });
         });
       });
@@ -699,10 +762,10 @@ window.SIPAV = window.SIPAV || {};
    * a mesma situação de cópia; qualquer diferença quebra o intervalo.
    */
   function escreverTorres(itens, posicao) {
-    var lista = itens.map(function (x, i) { return { x: x, i: i, pos: posicao[x.torre] }; })
+    var lista = itens.map(function (x, i) { return { x: x, i: i, pos: x.portico ? undefined : posicao[x.torre] }; })
       .sort(function (a, b) {
-        var pa = a.pos === undefined ? 1e9 : a.pos, pb = b.pos === undefined ? 1e9 : b.pos;
-        return pa - pb || a.i - b.i;
+        function chave(e) { return e.x.portico ? (e.x.ponta === 'fim' ? 1e10 : -1) : (e.pos === undefined ? 1e9 : e.pos); }
+        return chave(a) - chave(b) || a.i - b.i;
       });
 
     function entreDe(x) {
@@ -723,17 +786,17 @@ window.SIPAV = window.SIPAV || {};
              lista[j + 1].pos === lista[j].pos + 1 && igual(lista[i].x, lista[j + 1].x)) j++;
 
       if (j - i + 1 >= MINIMO_PARA_INTERVALO) {
-        saida.push(lista[i].x.torre + ' À ' + lista[j].x.torre + entreDe(lista[i].x));
+        saida.push((lista[i].x.rotulo || lista[i].x.torre) + ' À ' + (lista[j].x.rotulo || lista[j].x.torre) + entreDe(lista[i].x));
         i = j + 1;
       } else {
-        saida.push(lista[i].x.torre + entreDe(lista[i].x));
+        saida.push((lista[i].x.rotulo || lista[i].x.torre) + entreDe(lista[i].x));
         i++;
       }
     }
     return saida.join(', ');
   }
 
-  function escreverLinha(ws, linha, porEncarregado, posicao, kmPorTorre) {
+  function escreverLinha(ws, linha, porEncarregado, posicao, kmPorTorre, extras) {
     var encs = Object.keys(porEncarregado).sort();
     if (!encs.length) return 0;
 
@@ -764,7 +827,7 @@ window.SIPAV = window.SIPAV || {};
     for (var dia = 0; dia < 6; dia++) {           // segunda a sábado
       empilhar(ws.getCell(linha, COL.SEGUNDA + dia), encs.map(function (e) {
         var itens = porEncarregado[e][dia];
-        if (!itens || !itens.length) return '-';
+        if (!itens || !itens.length) return textoDoDia(e, dia, extras);
         // O total soma cada torre, mesmo as que saem juntas num intervalo
         // Na unidade TORRE conta torre; na unidade KM, o vão da torre (o que a planilha pede em cada linha)
         itens.forEach(function (x) {
@@ -804,7 +867,7 @@ window.SIPAV = window.SIPAV || {};
    *
    * Devolve { total, linhas, semFrente, tinha } — as torres que não caíram em nenhuma frente, para o relato.
    */
-  function escreverFrentes(ws, sem, porEnc, posicao, kmPorTorre) {
+  function escreverFrentes(ws, sem, porEnc, posicao, kmPorTorre, extras) {
     var total = 0, linhas = 0, semFrente = [], tinha = false, mostrar = [];
     porEnc = porEnc || {};
     var porFrente = sem.frentes.map(function (fr) { return { fr: fr, norm: norm(fr.frente), enc: {} }; });
@@ -824,10 +887,12 @@ window.SIPAV = window.SIPAV || {};
     porFrente.forEach(function (p) {
       var encs = Object.keys(p.enc);
       if (encs.length) {
-        var n = escreverLinha(ws, p.fr.linha, p.enc, posicao, kmPorTorre);
+        var n = escreverLinha(ws, p.fr.linha, p.enc, posicao, kmPorTorre, extras);
         if (n) { linhas++; total += n; }
         mostrar.push(p.fr.linha);
-        encs.forEach(function (e) { if (e !== '—' && nomes.indexOf(e.toUpperCase()) === -1) nomes.push(e.toUpperCase()); });
+        encs.forEach(function (e) {
+          e.split(' / ').forEach(function (nome) { if (nome !== '—' && nomes.indexOf(nome.toUpperCase()) === -1) nomes.push(nome.toUpperCase()); });
+        });
       } else if (limparLinha(ws, p.fr.linha)) {
         tinha = true;
       }
@@ -848,10 +913,10 @@ window.SIPAV = window.SIPAV || {};
   }
 
   /** As duas semanas programadas de um bloco por frente. */
-  function escreverBloco(ws, bloco, porSemana, posicao, kmPorTorre) {
+  function escreverBloco(ws, bloco, porSemana, posicao, kmPorTorre, extrasPorSemana) {
     var r = { total: 0, linhas: 0, semFrente: [], tinha: false, mostrar: [] };
     ['prog1', 'prog2'].forEach(function (semana) {
-      var p = escreverFrentes(ws, bloco[semana], porSemana && porSemana[semana], posicao, kmPorTorre);
+      var p = escreverFrentes(ws, bloco[semana], porSemana && porSemana[semana], posicao, kmPorTorre, extrasPorSemana && extrasPorSemana[semana]);
       r.total += p.total; r.linhas += p.linhas; r.tinha = r.tinha || p.tinha;
       r.mostrar = r.mostrar.concat(p.mostrar);
       r.semFrente = r.semFrente.concat(p.semFrente);
@@ -2092,6 +2157,11 @@ window.SIPAV = window.SIPAV || {};
         var semFrente = [];
         var mostrar = {};               // linha → true: o que o SIPAV preencheu fica visível, o resto some
 
+        // Os dias sem atividade (feriado, folga, mudança) de cada semana
+        var extrasS1 = extrasDaSemana(ctx.movimentacoes, segundaS1, ctx.canteiros);
+        var extrasS2 = extrasDaSemana(ctx.movimentacoes, ui.somarDias(segundaS1, 7), ctx.canteiros);
+        var extrasEx = extrasDaSemana(ctx.movimentacoes, ui.somarDias(segundaS1, -7), ctx.canteiros);
+
         // As linhas de cada item. O que se repete na planilha é preenchido em todas as ocorrências. No layout por
         // frente as três linhas antigas (EXEC., PROG. 1 e PROG. 2) ficam escondidas dentro do bloco e não valem.
         function linhasAntigas(item) {
@@ -2141,14 +2211,14 @@ window.SIPAV = window.SIPAV || {};
               var porEnc = g.dados[item][semana];
               if (!porEnc) return;
               var linhaDaSemana = semana === 'prog1' ? alvo.prog1 : alvo.prog2;
-              var n = escreverLinha(ws, linhaDaSemana, porEnc, posicaoDasTorres, km);
+              var n = escreverLinha(ws, linhaDaSemana, porEnc, posicaoDasTorres, km, semana === 'prog1' ? extrasS1 : extrasS2);
               if (n) { escritas++; torresEscritas += n; }
               if (Object.keys(porEnc).length) mostrar[linhaDaSemana] = true;
             });
           });
 
           blocos.forEach(function (bloco) {
-            var r = escreverBloco(ws, bloco, g.dados[item], posicaoDasTorres, emKm(ws, bloco.linhaItem) ? kmPorTorre : null);
+            var r = escreverBloco(ws, bloco, g.dados[item], posicaoDasTorres, emKm(ws, bloco.linhaItem) ? kmPorTorre : null, { prog1: extrasS1, prog2: extrasS2 });
             if (r.linhas) { escritas += r.linhas; torresEscritas += r.total; }
             r.mostrar.forEach(function (l) { mostrar[l] = true; });
             r.semFrente.forEach(function (x) {
@@ -2171,14 +2241,14 @@ window.SIPAV = window.SIPAV || {};
           antigas.forEach(function (alvo) {
             var km = emKm(ws, alvo.linhaItem) ? kmPorTorre : null;
             var porEncExec = exec.dados[item].prog1 || {};
-            var n = escreverLinha(ws, alvo.linhaItem, porEncExec, posicaoDasTorres, km);
+            var n = escreverLinha(ws, alvo.linhaItem, porEncExec, posicaoDasTorres, km, extrasEx);
             if (n) { relatoExec.linhas++; relatoExec.torres += n; }
             if (Object.keys(porEncExec).length) mostrar[alvo.linhaItem] = true;
           });
 
           blocos.forEach(function (bloco) {
             var km = emKm(ws, bloco.linhaItem) ? kmPorTorre : null;
-            var r = escreverFrentes(ws, bloco.exec, exec.dados[item].prog1, posicaoDasTorres, km);
+            var r = escreverFrentes(ws, bloco.exec, exec.dados[item].prog1, posicaoDasTorres, km, extrasEx);
             relatoExec.linhas += r.linhas; relatoExec.torres += r.total;
             r.mostrar.forEach(function (l) { mostrar[l] = true; });
             r.semFrente.forEach(function (x) {

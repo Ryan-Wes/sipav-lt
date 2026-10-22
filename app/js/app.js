@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v222 · 2026-10-22';
+  var VERSAO = 'v223 · 2026-10-22';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -898,7 +898,7 @@ window.SIPAV = window.SIPAV || {};
       return;
     }
 
-    $('modalTorreNome').textContent = torreAberta.identificador;
+    $('modalTorreNome').textContent = ui.nomeDaTorre(torreAberta.identificador);
     $('modalTorreKm').textContent = ui.km(torreAberta.km);
     $('modalTorreCanteiro').textContent = torreAberta.canteiro ? torreAberta.canteiro + ' · ' : '';
 
@@ -1340,7 +1340,7 @@ window.SIPAV = window.SIPAV || {};
                   return '<button type="button" class="resumo-enc-linha obs-existente" ' +
                            'onclick="SIPAV.app.usarObservacaoExistente(' + i + ')" ' +
                            'title="Clique para corrigir ou tirar">' +
-                           '<span class="resumo-enc-data">' + esc(t.identificador) + '</span>' +
+                           '<span class="resumo-enc-data">' + esc(ui.nomeDaTorre(t.identificador)) + '</span>' +
                            render.iconesSoltosDaObservacao(t.observacao, t.observacao_icone, 13) +
                            '<span>' + esc(t.observacao) + '</span>' +
                          '</button>';
@@ -1371,7 +1371,7 @@ window.SIPAV = window.SIPAV || {};
     var partes = [];
     if (r.torres.length) {
       partes.push(r.torres.length + (r.torres.length === 1 ? ' torre: ' : ' torres: ') +
-        r.torres.slice(0, 12).map(function (t) { return t.identificador; }).join(', ') +
+        r.torres.slice(0, 12).map(function (t) { return ui.nomeDaTorre(t.identificador); }).join(', ') +
         (r.torres.length > 12 ? '…' : ''));
     }
     campo.textContent = partes.join(' ');
@@ -2297,7 +2297,7 @@ window.SIPAV = window.SIPAV || {};
         if (!com.length && !ausencias.length) { ui.esconder('avisoConflito'); return; }
 
         var frases = com.map(function (r) {
-          var torres = r.lista.map(function (c) { return c.torre ? c.torre.identificador : '?'; });
+          var torres = r.lista.map(function (c) { return c.torre ? ui.nomeDaTorre(c.torre.identificador) : '?'; });
           return r.nome + ' já está programado em ' + ui.dataCurta(data) + ' na(s) torre(s) ' +
                  torres.join(', ') + '.';
         });
@@ -2320,7 +2320,7 @@ window.SIPAV = window.SIPAV || {};
   /** Parte entrou e parte não: dizer qual é qual, com o motivo de cada recusa. */
   function relatarAtividades(criadas, recusadas) {
     ui.modalGenerico({
-      titulo: 'Programação da torre ' + (torreAberta ? torreAberta.identificador : ''),
+      titulo: 'Programação da torre ' + (torreAberta ? ui.nomeDaTorre(torreAberta.identificador) : ''),
       corpoHtml:
         '<div class="space-y-2">' +
           (criadas.length
@@ -2586,7 +2586,7 @@ window.SIPAV = window.SIPAV || {};
       '<div class="space-y-3">' +
         '<p class="text-sm text-slate-600">' +
           '<strong>' + esc(p.atividade ? p.atividade.nome : '—') + '</strong> na torre ' +
-          '<strong>' + esc(p.torre.identificador) + '</strong>' +
+          '<strong>' + esc(ui.nomeDaTorre(p.torre.identificador)) + '</strong>' +
           (p.encarregado ? ', com ' + esc(render.nomesDosEncarregados(p)) : '') + '.' +
         '</p>' +
         '<div class="grid grid-cols-2 gap-3">' +
@@ -2722,7 +2722,7 @@ window.SIPAV = window.SIPAV || {};
     var quantas = render.programacoesDaTorre(torre.torre_id).length;
 
     ui.confirmar(
-      'Limpar a torre ' + torre.identificador,
+      'Limpar a torre ' + ui.nomeDaTorre(torre.identificador),
       'Serão removidas ' + quantas + ' programações desta torre dentro do período exibido (' +
       ui.rotuloPeriodo(E.periodo.de, E.periodo.ate) + '). Fica registrado no histórico.',
       'Limpar'
@@ -2852,7 +2852,7 @@ window.SIPAV = window.SIPAV || {};
     var corpo =
       '<div class="space-y-3">' +
         '<p class="text-sm text-slate-600">' +
-          'A torre <strong>' + esc(torre.identificador) + '</strong> consta hoje em ' +
+          'A torre <strong>' + esc(ui.nomeDaTorre(torre.identificador)) + '</strong> consta hoje em ' +
           '<strong>' + esc(torre.ultima_atividade || 'nada executado') + '</strong>.' +
         '</p>' +
         '<div><label class="rotulo">Última atividade executada</label>' +
@@ -2895,7 +2895,7 @@ window.SIPAV = window.SIPAV || {};
       '</div>';
 
     ui.modalGenerico({
-      titulo: 'Corrigir estágio — torre ' + torre.identificador,
+      titulo: 'Corrigir estágio — torre ' + ui.nomeDaTorre(torre.identificador),
       corpoHtml: corpo,
       botoes: [
         { rotulo: 'Cancelar', classe: 'btn-secundario' },
@@ -3083,9 +3083,9 @@ window.SIPAV = window.SIPAV || {};
 
     // Correção de estágio não tem data nem encarregado: a frase é outra
     var alvo = h.acao === 'ESTAGIO'
-      ? (mostrarTorre ? 'da torre ' + esc(h.torre_identificador) : 'desta torre') +
+      ? (mostrarTorre ? 'da torre ' + esc(ui.nomeDaTorre(h.torre_identificador)) : 'desta torre') +
         ' para <strong>' + esc(h.atividade_nome || 'nada executado') + '</strong>'
-      : (mostrarTorre ? 'torre ' + esc(h.torre_identificador) + ' · ' : '') +
+      : (mostrarTorre ? 'torre ' + esc(ui.nomeDaTorre(h.torre_identificador)) + ' · ' : '') +
         '<strong>' + esc(h.atividade_nome || '—') + '</strong>' +
         ' em ' + ui.dataCurta(h.data) +
         (h.encarregado_nome ? ' · ' + esc(h.encarregado_nome) : '');
@@ -3327,7 +3327,7 @@ window.SIPAV = window.SIPAV || {};
     db.historicoDaTorre(torre.torre_id)
       .then(function (lista) {
         ui.pronto();
-        montarHistorico(lista, 'Histórico da torre ' + torre.identificador, false);
+        montarHistorico(lista, 'Histórico da torre ' + ui.nomeDaTorre(torre.identificador), false);
       })
       .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro'); });
   }
@@ -4087,7 +4087,7 @@ window.SIPAV = window.SIPAV || {};
 
     caixa.innerHTML = loteTorres.map(function (t) {
       return '<span class="chip-escolhido" style="background:var(--superficie-3);color:var(--texto)">' +
-               esc(t.identificador) +
+               esc(ui.nomeDaTorre(t.identificador)) +
                '<button type="button" onclick="SIPAV.app.tirarTorreLote(\'' + t.torreId + '\')" ' +
                        'title="Tirar a torre">&times;</button>' +
              '</span>';
@@ -4144,7 +4144,7 @@ window.SIPAV = window.SIPAV || {};
     E.programacoes.filter(eDele).forEach(function (p) {
       itens.push({
         data: p.data, movimentacao: false,
-        texto: (p.torre ? p.torre.identificador : '?') + ' · ' + (p.atividade ? p.atividade.nome : '—') +
+        texto: (p.torre ? ui.nomeDaTorre(p.torre.identificador) : '?') + ' · ' + (p.atividade ? p.atividade.nome : '—') +
                (Number(p.percentual) < 100 ? ' · ' + formatarPercentual(p.percentual) : '')
       });
     });
@@ -4490,7 +4490,7 @@ window.SIPAV = window.SIPAV || {};
   function escolherDiaDaLinha(i) {
     var x = linhaLote(i);
     if (!x) return;
-    window.SIPAV.supervisor.escolherDia(x.identificador + ' · ' + nomeDaAtividadeDoLote(x.atividadeId), x.data, function (iso) { mudarDataLote(i, iso); });
+    window.SIPAV.supervisor.escolherDia(ui.nomeDaTorre(x.identificador) + ' · ' + nomeDaAtividadeDoLote(x.atividadeId), x.data, function (iso) { mudarDataLote(i, iso); });
   }
 
   function nomeDaAtividadeDoLote(id) {
@@ -4705,7 +4705,7 @@ window.SIPAV = window.SIPAV || {};
     if (!loteAtividades.length) {
       caixa.innerHTML =
         '<p class="text-xs py-3 text-center" style="color:var(--texto-fraco)">' +
-          loteTorres.map(function (t) { return esc(t.identificador); }).join(', ') +
+          loteTorres.map(function (t) { return esc(ui.nomeDaTorre(t.identificador)); }).join(', ') +
         '</p>';
       return;
     }
@@ -4730,7 +4730,7 @@ window.SIPAV = window.SIPAV || {};
 
         return '<div class="lote-linha' + (x.bloqueio ? ' lote-travada' : '') +
                           (primeira ? ' lote-torre-nova' : '') + '">' +
-          '<span class="lote-id">' + (primeira ? esc(x.identificador) : '') + '</span>' +
+          '<span class="lote-id">' + (primeira ? esc(ui.nomeDaTorre(x.identificador)) : '') + '</span>' +
           '<span class="lote-ativ" style="background:' + cor + ';color:' +
             ui.corDoTexto(cor) + '">' + esc(a ? a.nome : '—') + '</span>' +
           (E.modoSupervisor
@@ -4991,7 +4991,7 @@ window.SIPAV = window.SIPAV || {};
       return tarefas.reduce(function (antes, t) {
       return antes.then(function () {
         var a = E.atividades.find(function (y) { return y.id === t.atividadeId; });
-        var rotulo = t.identificador + ' · ' + (a ? a.nome : '');
+        var rotulo = ui.nomeDaTorre(t.identificador) + ' · ' + (a ? a.nome : '');
         return db.criarProgramacao({
           solicitacaoId: sol ? sol.id : null,
           torreId: t.torreId,
@@ -5208,7 +5208,7 @@ window.SIPAV = window.SIPAV || {};
     if (!p) return;
 
     var descricao = (p.atividade ? p.atividade.nome : 'programação') +
-      ' da torre ' + (p.torre ? p.torre.identificador : '?') +
+      ' da torre ' + (p.torre ? ui.nomeDaTorre(p.torre.identificador) : '?') +
       ' em ' + ui.dataCurta(p.data) +
       (p.encarregado ? ', com ' + render.nomesDosEncarregados(p) : '');
 
@@ -5371,7 +5371,7 @@ window.SIPAV = window.SIPAV || {};
       return '<label class="lote-linha" style="cursor:pointer">' +
         '<input type="checkbox" class="rounded" ' + (x.marcado ? 'checked ' : '') +
                'onchange="SIPAV.app.alternarApagarLinha(' + i + ', this.checked)">' +
-        '<span class="lote-id">' + esc(p.torre ? p.torre.identificador : '?') + '</span>' +
+        '<span class="lote-id">' + esc(p.torre ? ui.nomeDaTorre(p.torre.identificador) : '?') + '</span>' +
         '<span class="lote-ativ" style="background:' + cor + ';color:' +
           ui.corDoTexto(cor) + '">' + esc(p.atividade ? p.atividade.nome : '—') + '</span>' +
         '<span class="lote-dia">' + esc(ui.dataCurta(p.data)) + '</span>' +
@@ -5403,7 +5403,7 @@ window.SIPAV = window.SIPAV || {};
 
     alvo.reduce(function (antes, p) {
       return antes.then(function () {
-        var rotulo = (p.torre ? p.torre.identificador : '?') + ' · ' +
+        var rotulo = (p.torre ? ui.nomeDaTorre(p.torre.identificador) : '?') + ' · ' +
                      (p.atividade ? p.atividade.nome : '');
         return db.removerProgramacao(p.id)
           .then(function () { ok.push(rotulo); delete E.progSelecionadas[p.id]; })
@@ -6119,7 +6119,7 @@ window.SIPAV = window.SIPAV || {};
         '</div>';
 
       ui.modalGenerico({
-        titulo: 'Restrições da torre ' + torre.identificador,
+        titulo: 'Restrições da torre ' + ui.nomeDaTorre(torre.identificador),
         corpoHtml: corpo,
         botoes: [
           { rotulo: 'Fechar', classe: 'btn-secundario' },
@@ -8036,7 +8036,7 @@ window.SIPAV = window.SIPAV || {};
             return '<label class="resumo-enc-linha" style="cursor:pointer">' +
               '<input type="checkbox" class="chk-status" data-i="' + i + '"' + (c.futura ? '' : ' checked') + '>' +
               '<span class="resumo-enc-data">' + esc(ui.dataCurta(c.p.data)) + '</span>' +
-              '<span><strong>' + esc(c.p.torre.identificador) + '</strong> · ' + esc(c.p.atividade.nome) +
+              '<span><strong>' + esc(ui.nomeDaTorre(c.p.torre.identificador)) + '</strong> · ' + esc(c.p.atividade.nome) +
                 (Number(c.p.percentual) < 100 ? ' · ' + formatarPercentual(c.p.percentual) : '') +
                 ' <em style="color:var(--texto-fraco)">' +
                   (c.p.encarregado ? esc(render.nomesDosEncarregados(c.p)) : 'sem encarregado') +
@@ -8792,7 +8792,7 @@ window.SIPAV = window.SIPAV || {};
       return '<div class="resumo-enc-linha">' +
         '<span class="resumo-enc-data">' + esc(ui.dataCurta(it.p.data)) +
           '<b>' + esc(ui.diaDaSemana(it.p.data).slice(0, 3)) + '</b></span>' +
-        '<span><strong>' + esc(it.p.torre.identificador) + '</strong> · ' + esc(it.p.atividade.nome) +
+        '<span><strong>' + esc(ui.nomeDaTorre(it.p.torre.identificador)) + '</strong> · ' + esc(it.p.atividade.nome) +
           (Number(it.p.percentual) < 100 ? ' · ' + formatarPercentual(it.p.percentual) : '') +
           ' <em style="color:var(--texto-fraco)">' +
             (it.encarregados.length ? esc(it.encarregados.join(' + ')) : 'sem encarregado') + '</em> ' +
@@ -8929,7 +8929,7 @@ window.SIPAV = window.SIPAV || {};
               '<input type="checkbox" class="chk-copia" data-i="' + i + '"' + (x.existe ? ' disabled' : ' checked') + '>' +
               '<span class="resumo-enc-data">' + esc(ui.dataCurta(x.nova)) +
                 '<b>' + esc(ui.diaDaSemana(x.nova).slice(0, 3)) + '</b></span>' +
-              '<span><strong>' + esc(x.it.p.torre.identificador) + '</strong> · ' + esc(x.it.p.atividade.nome) +
+              '<span><strong>' + esc(ui.nomeDaTorre(x.it.p.torre.identificador)) + '</strong> · ' + esc(x.it.p.atividade.nome) +
                 (Number(x.it.p.percentual) < 100 ? ' · ' + formatarPercentual(x.it.p.percentual) : '') +
                 ' <em style="color:var(--texto-fraco)">' +
                   (x.it.encarregados.length ? esc(x.it.encarregados.join(' + ')) : 'sem encarregado') +
@@ -10165,7 +10165,10 @@ window.SIPAV = window.SIPAV || {};
           execucoes: r[2],
           programacoesAnteriores: r[1],
           atividades: E.atividades,
-          encarregados: E.encarregados
+          encarregados: E.encarregados,
+          canteiros: E.canteiros,
+          // Os dias sem atividade do trecho: feriado, folga, mudança de trecho e de máquina
+          movimentacoes: (E.movimentacoes || []).filter(render.movimentacaoDoTrecho)
         }).then(function (saida) { saida.guardouModelo = r[3]; return saida; });
       })
       .then(function (r) {
@@ -10450,7 +10453,7 @@ window.SIPAV = window.SIPAV || {};
         dataAtual = p.data;
         texto += '\n*' + ui.dataLonga(p.data) + '*\n';
       }
-      texto += '• ' + (p.torre ? p.torre.identificador : '?') + ' — ' +
+      texto += '• ' + (p.torre ? ui.nomeDaTorre(p.torre.identificador) : '?') + ' — ' +
                (p.atividade ? p.atividade.nome : '') +
                (p.encarregado ? ' (' + render.nomesDosEncarregados(p) + ')' : '') + '\n';
     });

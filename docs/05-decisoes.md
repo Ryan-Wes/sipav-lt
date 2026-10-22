@@ -16,6 +16,24 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 22/10/2026
 
+### A exportação é a engenharia reversa da importação **[WR]**
+
+O que a importação lê, a exportação escreve, de modo que exportar e importar de volta devolve o mesmo (conferido
+nas planilhas REV01):
+
+- **Dias sem atividade.** **FERIADO** vai, só com essa palavra, em toda célula daquela data que tenha encarregado
+  programado na semana (e que não tenha torre nesse dia). **FOLGA DE CAMPO**, **MUDANÇA DE MÁQUINA** e **MUDANÇA PARA
+  <canteiro>** vão na célula do dia do encarregado, no lugar das torres; "outro motivo" vai com o texto do motivo.
+  Vale para as duas semanas programadas e para o executado. Registro sem encarregado (equipe toda) vale para todas as
+  linhas da semana. A planilha sai esvaziada, então sem isso o FERIADO que o gerente deixa sumia.
+- **Encarregados em dupla** ficam na mesma linha, "PAULO / RAIMUNDO", e a torre sai uma vez só; antes saíam em duas
+  linhas empilhadas.
+- **Pórtico:** na planilha é só **PORTICO** (não PÓRTICO INICIAL/FINAL), no começo ou no fim da célula e fora dos
+  intervalos "A À B". No sistema também é só **PÓRTICO** (listas, janelas, histórico, WhatsApp); o INICIAL e o FINAL
+  só aparecem no cadastro do pórtico e no cartão da grade, que mostra a ponta. O nome cadastrado continua sendo
+  PÓRTICO INICIAL / FINAL por baixo, porque o identificador é único no trecho (`ui.nomeDaTorre`).
+- A linha "Instalação do contrapeso - complemento", que só se escreve, não gera mais aviso na importação.
+
 ### Modelo guardado, executado preenchido pelo SIPAV e total por unidade **[WR]**
 
 **Modelo da planilha por trecho** (migração 62). Em vez de subir a planilha toda vez, o trecho guarda a
