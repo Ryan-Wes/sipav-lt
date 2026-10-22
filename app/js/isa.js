@@ -1070,14 +1070,45 @@ window.SIPAV = window.SIPAV || {};
     return null;
   }
 
-  /** Divide por vírgula, mas não a que está dentro de parênteses. */
+  /**
+   * A obra separa as torres de uma célula com vírgula, mas também com "e", ponto, ponto e vírgula ou só um espaço:
+   * "13/2 e 18/1", "26/2. 27/1", "41/1 40/1". Aqui isso vira vírgula, só entre duas torres (n/n) e fora de
+   * parênteses, para um texto como "PREPARAÇÃO DE MATERIAIS E EQUIPAMENTOS" não ser partido.
+   */
+  function separarTorresColadas(texto) {
+    var T = '\\d+\\/\\d+';
+    var fora = [new RegExp('(' + T + ')\\s*[;.]\\s*(?=' + T + ')', 'g'),
+                new RegExp('(' + T + ')\\s+e\\s+(?=' + T + ')', 'gi'),
+                new RegExp('(' + T + ')\\s+(?=' + T + ')', 'g')];
+    var saida = '', trecho = '', fundo = 0;
+
+    function fechar() {
+      fora.forEach(function (r) { trecho = trecho.replace(r, '$1, '); });
+      saida += trecho; trecho = '';
+    }
+
+    for (var i = 0; i < texto.length; i++) {
+      var c = texto.charAt(i);
+      if (c === '(') {
+        if (fundo === 0) fechar();
+        fundo++; saida += c; continue;
+      }
+      if (c === ')') { fundo = Math.max(0, fundo - 1); saida += c; continue; }
+      if (fundo > 0) saida += c; else trecho += c;
+    }
+    fechar();
+    return saida;
+  }
+
+  /** Divide por vírgula (e ponto e vírgula), mas não a que está dentro de parênteses. */
   function dividirNaVirgula(texto) {
+    texto = separarTorresColadas(texto);
     var partes = [], atual = '', fundo = 0;
     for (var i = 0; i < texto.length; i++) {
       var c = texto.charAt(i);
       if (c === '(') fundo++;
       if (c === ')') fundo = Math.max(0, fundo - 1);
-      if (c === ',' && fundo === 0) { partes.push(atual); atual = ''; continue; }
+      if ((c === ',' || c === ';') && fundo === 0) { partes.push(atual); atual = ''; continue; }
       atual += c;
     }
     partes.push(atual);
@@ -1221,11 +1252,61 @@ window.SIPAV = window.SIPAV || {};
      * obra escreve o lançamento de cabo, que corre vários vãos. Devolve os nomes das
      * torres do intervalo, ou nulo se não for um intervalo conhecido.
      */
+    var faixasAjustadas = {};
+
+    function chaveDaTorre(id) {
+      var k = /^(\d+)\/(\d+)$/.exec(String(id).trim());
+      return k ? [Number(k[1]), Number(k[2])] : null;
+    }
+    function comparar(a, b) { return a[0] - b[0] || a[1] - b[1]; }
+
+    /**
+     * As pontas de "A à B" quando uma delas não existe no trecho: a de começo vira a primeira torre que existe
+     * dali em diante, a de fim a última que existe até ali (ao contrário, se o intervalo desce).
+     * Devolve as posições, ou nulo se não sobra intervalo.
+     */
+    function ajustarPontasDaFaixa(textoDe, textoAte, deAtual, ateAtual) {
+      var kd = chaveDaTorre(textoDe), ka = chaveDaTorre(textoAte);
+      if (!kd || !ka) return null;
+      var subindo = comparar(kd, ka) <= 0;
+      var reais = [];
+      (ctx.torres || []).forEach(function (t, i) {
+        var k = chaveDaTorre(t.identificador);
+        if (k) reais.push({ i: i, k: k });
+      });
+      function primeira(k) { return reais.filter(function (r) { return comparar(r.k, k) >= 0; })[0]; }
+      function ultima(k) { var l = reais.filter(function (r) { return comparar(r.k, k) <= 0; }); return l[l.length - 1]; }
+
+      var de = deAtual, ate = ateAtual, avisos = [];
+      if (de === undefined) {
+        var ini = subindo ? primeira(kd) : ultima(kd);
+        if (!ini) return null;
+        de = ini.i; avisos.push('a ' + textoDe.trim() + ' não existe, comecei na ' + ctx.torres[de].identificador);
+      }
+      if (ate === undefined) {
+        var fim = subindo ? ultima(ka) : primeira(ka);
+        if (!fim) return null;
+        ate = fim.i; avisos.push('a ' + textoAte.trim() + ' não existe, fui até a ' + ctx.torres[ate].identificador);
+      }
+      if (subindo ? de > ate : de < ate) return null;
+
+      var chave = textoDe.trim() + ' à ' + textoAte.trim();
+      var f = faixasAjustadas[chave] = faixasAjustadas[chave] || { texto: avisos.join(' e '), n: 0 };
+      f.n++;
+      return { de: de, ate: ate };
+    }
+
     function faixaDeTorres(texto) {
       var m = /^(\S+)\s+(?:a|à|ate|até|ao)\s+(\S+)$/i.exec(texto.trim());
       if (!m) return null;
       var de = posicaoDaTorre[norm(m[1])], ate = posicaoDaTorre[norm(m[2])];
-      if (de === undefined || ate === undefined) return null;
+      if (de === undefined || ate === undefined) {
+        // Uma ponta que não existe (a /2 que talvez nem tenha sido construída): vale a torre que existe mais perto,
+        // para dentro do intervalo, e o relato diz o que foi ajustado
+        var ajustado = ajustarPontasDaFaixa(m[1], m[2], de, ate);
+        if (!ajustado) return null;
+        de = ajustado.de; ate = ajustado.ate;
+      }
       var nomes = [], passo = de <= ate ? 1 : -1;
       for (var i = de; passo > 0 ? i <= ate : i >= ate; i += passo) nomes.push(ctx.torres[i].identificador);
       return nomes;
@@ -1834,6 +1915,10 @@ window.SIPAV = window.SIPAV || {};
       problema('texto', 'Anotações da planilha que não são torre, ficaram de fora: ' +
         avulsas.sort().map(function (n) { return n + ' (' + anotacoes[n] + ')'; }).join(' · ') + '.');
     }
+
+    Object.keys(faixasAjustadas).sort().forEach(function (k) {
+      problema('torre', 'Intervalo "' + k + '": ' + faixasAjustadas[k].texto + ' (' + faixasAjustadas[k].n + ' ocorrência(s)).');
+    });
 
     Object.keys(torresDesconhecidas).sort().forEach(function (t) {
       problema('torre', 'Torre "' + t + '" não existe neste trecho (' + torresDesconhecidas[t] + ' ocorrência(s)).');

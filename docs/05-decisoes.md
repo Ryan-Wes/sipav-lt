@@ -16,6 +16,18 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 22/10/2026
 
+### Importação: torres coladas por "e", ponto ou espaço, e pontas de intervalo que não existem **[WR]**
+
+Importando a planilha de 19/10 (Correntina, REV02) apareciam como "torre que não existe" textos como "13/2 e 18/1",
+"26/2. 27/1" e "41/1 40/1": eram duas torres separadas por "e", por ponto ou só por espaço. Agora a célula é
+partida entre duas torres (n/n) nesses três casos, e também no ponto e vírgula. A regra só vale entre duas torres e
+fora de parênteses, para um texto como "PREPARAÇÃO DE MATERIAIS E EQUIPAMENTOS" não ser partido.
+
+Os intervalos ("235/1 À 241/2", "69/2 À 68/1") falhavam inteiros quando uma ponta não existia, que costuma ser uma
+/2 que nem foi construída. Agora vale a torre que existe mais perto, para dentro do intervalo (a /2 que falta vira a
+/1 da mesma torre no fim, ou a /1 seguinte no começo), e o relato diz o que foi ajustado: `Intervalo "235/1 à 241/2":
+a 241/2 não existe, fui até a 241/1`. Conferido nas quatro planilhas REV01: nada mudou nos resultados.
+
 ### A exportação é a engenharia reversa da importação **[WR]**
 
 O que a importação lê, a exportação escreve, de modo que exportar e importar de volta devolve o mesmo (conferido
