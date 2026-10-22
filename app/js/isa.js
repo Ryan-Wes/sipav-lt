@@ -327,6 +327,51 @@ window.SIPAV = window.SIPAV || {};
       .toLowerCase();
   }
 
+  /**
+   * O encarregado na planilha é o primeiro nome e a inicial do primeiro sobrenome: "Wesley Ryan Lopes da Rocha" →
+   * "WESLEY R.". Se duas pessoas dariam o mesmo texto, a inicial cresce ("WESLEY RY." e "WESLEY RO.") até se
+   * distinguirem. Nome de uma palavra só fica como está.
+   */
+  var PARTICULAS_DO_NOME = { de: true, da: true, do: true, dos: true, das: true, e: true };
+
+  function partesDoNome(nome) {
+    var palavras = String(nome == null ? '' : nome).trim().split(/\s+/).filter(Boolean);
+    var sobrenomes = palavras.slice(1).filter(function (p) { return !PARTICULAS_DO_NOME[norm(p)]; });
+    return { primeiro: palavras[0] || '', sobrenome: sobrenomes[0] || '' };
+  }
+
+  function montarAbreviador(nomes) {
+    var unicos = [];
+    nomes.forEach(function (n) { if (n && unicos.indexOf(n) === -1) unicos.push(n); });
+
+    function texto(nome, letras) {
+      var p = partesDoNome(nome);
+      if (!p.sobrenome) return p.primeiro.toUpperCase();
+      return (p.primeiro + ' ' + p.sobrenome.slice(0, letras) + (letras >= p.sobrenome.length ? '' : '.')).toUpperCase();
+    }
+
+    var letras = {};
+    unicos.forEach(function (n) { letras[n] = 1; });
+    // Aumenta a inicial de quem colide, uma letra por vez, até todos serem diferentes
+    for (var volta = 0; volta < 12; volta++) {
+      var porTexto = {};
+      unicos.forEach(function (n) { (porTexto[texto(n, letras[n])] = porTexto[texto(n, letras[n])] || []).push(n); });
+      var colidiu = false;
+      Object.keys(porTexto).forEach(function (t) {
+        if (porTexto[t].length > 1) { colidiu = true; porTexto[t].forEach(function (n) { letras[n]++; }); }
+      });
+      if (!colidiu) break;
+    }
+
+    return function (nome) {
+      if (!nome || nome === '—') return nome;
+      return texto(nome, letras[nome] || 1);
+    };
+  }
+
+  // O abreviador da exportação em curso (ver gerar). Sem ele, o nome fica em caixa alta por inteiro.
+  var abreviarNome = function (nome) { return String(nome).toUpperCase(); };
+
   /** O pórtico se cadastra como PÓRTICO INICIAL / FINAL; na planilha é só PORTICO. */
   function ehPorticoIdent(identificador) { return /^portico/.test(norm(identificador)); }
   function rotuloNaPlanilha(identificador) { return ehPorticoIdent(identificador) ? 'PORTICO' : identificador; }
@@ -818,7 +863,7 @@ window.SIPAV = window.SIPAV || {};
     }
 
     empilhar(ws.getCell(linha, COL.ENCARREGADO),
-      encs.map(function (e) { return e.toUpperCase(); }));   // a planilha é toda em caixa alta
+      encs.map(function (e) { return e.split(' / ').map(abreviarNome).join(' / '); }));   // a planilha é toda em caixa alta, com o nome abreviado
 
     // O total soma PERCENTUAIS, não torres. É o que explica os valores
     // fracionários que já existiam na planilha — `2,5` e `3,5` em montagem não
@@ -891,7 +936,10 @@ window.SIPAV = window.SIPAV || {};
         if (n) { linhas++; total += n; }
         mostrar.push(p.fr.linha);
         encs.forEach(function (e) {
-          e.split(' / ').forEach(function (nome) { if (nome !== '—' && nomes.indexOf(nome.toUpperCase()) === -1) nomes.push(nome.toUpperCase()); });
+          e.split(' / ').forEach(function (nome) {
+            var curto = abreviarNome(nome);
+            if (nome !== '—' && nomes.indexOf(curto) === -1) nomes.push(curto);
+          });
         });
       } else if (limparLinha(ws, p.fr.linha)) {
         tinha = true;
@@ -1277,10 +1325,21 @@ window.SIPAV = window.SIPAV || {};
       if (!fora && exato.length === 1) return exato[0];
 
       // O nome da planilha pode vir encurtado ("FRANCISCO"). Só vale se for único
-      var partes = k.split(' ').filter(Boolean);
+      // "WESLEY R." é o primeiro nome e o começo do primeiro sobrenome: é como a exportação escreve
+      var tokens = String(nome).trim().split(/\s+/).filter(Boolean);
       var contem = lista.filter(function (e) {
-        var n = ' ' + norm(e.nome) + ' ';
-        return partes.length && partes.every(function (p) { return n.indexOf(' ' + p + ' ') !== -1; });
+        var palavras = norm(e.nome).split(' ').filter(Boolean);
+        var inteiro = ' ' + palavras.join(' ') + ' ';
+        return tokens.length && tokens.every(function (tk, i) {
+          var p = norm(tk);
+          if (!p) return true;
+          // A inicial vale para o primeiro sobrenome (sem as partículas de, da, do…), como a exportação escreve
+          if (i > 0 && /\.$/.test(tk)) {
+            var sobrenome = palavras.slice(1).filter(function (w) { return !PARTICULAS_DO_NOME[w]; })[0] || '';
+            return sobrenome.indexOf(p) === 0;
+          }
+          return inteiro.indexOf(' ' + p + ' ') !== -1;
+        });
       });
       if (!fora && contem.length === 1) return contem[0];
 
@@ -2116,6 +2175,13 @@ window.SIPAV = window.SIPAV || {};
     torres.forEach(function (t) { torresPorId[t.torre_id || t.id] = t; });
 
     // A ordem das torres na linha, para saber quais são vizinhas, e o vão de cada uma (para as linhas em KM)
+    // O nome do encarregado na planilha: primeiro nome e inicial do sobrenome
+    var nomesDeEncarregado = (ctx.encarregados || []).map(function (e) { return e.nome; });
+    (progs || []).forEach(function (p) {
+      [p.encarregado, p.encarregado2].forEach(function (e) { if (e && e.nome) nomesDeEncarregado.push(e.nome); });
+    });
+    abreviarNome = montarAbreviador(nomesDeEncarregado);
+
     var posicaoDasTorres = {}, kmPorTorre = {};
     torres.forEach(function (t, i) {
       if (!(t.identificador in posicaoDasTorres)) posicaoDasTorres[t.identificador] = i;

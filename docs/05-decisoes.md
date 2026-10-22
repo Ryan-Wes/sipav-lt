@@ -32,6 +32,11 @@ nas planilhas REV01):
   intervalos "A À B". No sistema também é só **PÓRTICO** (listas, janelas, histórico, WhatsApp); o INICIAL e o FINAL
   só aparecem no cadastro do pórtico e no cartão da grade, que mostra a ponta. O nome cadastrado continua sendo
   PÓRTICO INICIAL / FINAL por baixo, porque o identificador é único no trecho (`ui.nomeDaTorre`).
+- **Nome do encarregado:** na planilha sai o primeiro nome e a inicial do primeiro sobrenome, em caixa alta:
+  "Wesley Ryan Lopes da Rocha" vira `WESLEY R.` (as partículas de, da, do… não contam). Se duas pessoas dariam o mesmo
+  texto, a inicial cresce até se distinguirem (`WESLEY RY.` e `WESLEY RO.`). Nome de uma palavra só fica inteiro. A
+  importação lê `WESLEY R.` como o encarregado cujo primeiro sobrenome começa com R.
+- **Porcentagem:** a torre repartida sai com o percentual entre parênteses, "61/1 (50%)", e a importação divide de novo.
 - A linha "Instalação do contrapeso - complemento", que só se escreve, não gera mais aviso na importação.
 
 ### Modelo guardado, executado preenchido pelo SIPAV e total por unidade **[WR]**
