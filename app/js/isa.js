@@ -437,7 +437,8 @@ window.SIPAV = window.SIPAV || {};
      * "Segunda semana" e outra vez as frentes. Devolve as linhas de cada semana.
      */
     function blocoPorFrente(r, nomeDoItem) {
-      var bloco = { linhaItem: r, fim: r, prog1: { agregada: null, frentes: [] }, prog2: { agregada: null, frentes: [] } };
+      var bloco = { linhaItem: r, fim: r, exec: { agregada: r, frentes: [] },
+                    prog1: { agregada: null, frentes: [] }, prog2: { agregada: null, frentes: [] } };
       var semana = null;
       for (var q = r + 1; q <= ultima; q++) {
         if (norm(valor(ws.getCell(q, COL.ATIVIDADE))) !== nomeDoItem) break;
@@ -448,7 +449,8 @@ window.SIPAV = window.SIPAV || {};
         if (tq === 'exec' || tq === 'prog 1' || tq === 'prog 2') continue;
         if (tq === 'primeira semana') { semana = 'prog1'; bloco.prog1.agregada = q; continue; }
         if (tq === 'segunda semana') { semana = 'prog2'; bloco.prog2.agregada = q; continue; }
-        if (!semana) continue;
+        // Antes da primeira semana vêm as frentes do EXECUTADO
+        if (!semana) { bloco.exec.frentes.push({ linha: q, frente: String(valor(ws.getCell(q, COL.TAREFA)) || '').trim() }); continue; }
         bloco[semana].frentes.push({ linha: q, frente: String(valor(ws.getCell(q, COL.TAREFA)) || '').trim() });
       }
       return bloco;
@@ -731,7 +733,7 @@ window.SIPAV = window.SIPAV || {};
     return saida.join(', ');
   }
 
-  function escreverLinha(ws, linha, porEncarregado, posicao) {
+  function escreverLinha(ws, linha, porEncarregado, posicao, kmPorTorre) {
     var encs = Object.keys(porEncarregado).sort();
     if (!encs.length) return 0;
 
@@ -764,7 +766,10 @@ window.SIPAV = window.SIPAV || {};
         var itens = porEncarregado[e][dia];
         if (!itens || !itens.length) return '-';
         // O total soma cada torre, mesmo as que saem juntas num intervalo
-        itens.forEach(function (x) { if (!x.copia) total += x.percentual / 100; });
+        // Na unidade TORRE conta torre; na unidade KM, o vão da torre (o que a planilha pede em cada linha)
+        itens.forEach(function (x) {
+          if (!x.copia) total += (kmPorTorre ? (kmPorTorre[x.torre] || 0) : 1) * x.percentual / 100;
+        });
 
         // Entre parênteses, depois da torre ou do intervalo: o percentual, se a torre
         // foi repartida (senão a célula diz que a torre inteira foi feita naquele
@@ -793,53 +798,64 @@ window.SIPAV = window.SIPAV || {};
   }
 
   /**
-   * Preenche um bloco por frente: uma linha por frente, em cada semana, com o encarregado e as torres dos dias.
-   * A linha "Primeira/Segunda semana" fica só com os nomes de quem trabalhou; o resto dela é a soma das
-   * frentes (fórmula, que o Excel refaz) e não se toca.
+   * Preenche as linhas de frente de uma semana (ou do executado): uma por frente, com o encarregado e as torres
+   * dos dias. A linha da semana (ou do EXECUTADO) fica só com os nomes de quem trabalhou; o resto dela é a soma
+   * das frentes (fórmula, que o Excel refaz) e não se toca.
    *
-   * Devolve { total, linhas, semFrente, tinha } — as torres que não caíram em nenhuma frente deste bloco, para o relato.
+   * Devolve { total, linhas, semFrente, tinha } — as torres que não caíram em nenhuma frente, para o relato.
    */
-  function escreverBloco(ws, bloco, porSemana, posicao) {
+  function escreverFrentes(ws, sem, porEnc, posicao, kmPorTorre) {
     var total = 0, linhas = 0, semFrente = [], tinha = false;
+    porEnc = porEnc || {};
+    var porFrente = sem.frentes.map(function (fr) { return { fr: fr, norm: norm(fr.frente), enc: {} }; });
 
-    ['prog1', 'prog2'].forEach(function (semana) {
-      var sem = bloco[semana];
-      var porEnc = (porSemana && porSemana[semana]) || {};
-      var porFrente = sem.frentes.map(function (fr) { return { fr: fr, norm: norm(fr.frente), enc: {} }; });
-
-      Object.keys(porEnc).forEach(function (enc) {
-        Object.keys(porEnc[enc]).forEach(function (dia) {
-          porEnc[enc][dia].forEach(function (x) {
-            var alvo = porFrente.filter(function (p) { return mesmaFrente(p.norm, x.frente); })[0];
-            if (!alvo) { semFrente.push(x); return; }
-            alvo.enc[enc] = alvo.enc[enc] || {};
-            (alvo.enc[enc][dia] = alvo.enc[enc][dia] || []).push(x);
-          });
+    Object.keys(porEnc).forEach(function (enc) {
+      Object.keys(porEnc[enc]).forEach(function (dia) {
+        porEnc[enc][dia].forEach(function (x) {
+          var alvo = porFrente.filter(function (p) { return mesmaFrente(p.norm, x.frente); })[0];
+          if (!alvo) { semFrente.push(x); return; }
+          alvo.enc[enc] = alvo.enc[enc] || {};
+          (alvo.enc[enc][dia] = alvo.enc[enc][dia] || []).push(x);
         });
       });
+    });
 
-      var nomes = [];
-      porFrente.forEach(function (p) {
-        var encs = Object.keys(p.enc);
-        if (encs.length) {
-          var n = escreverLinha(ws, p.fr.linha, p.enc, posicao);
-          if (n) { linhas++; total += n; }
-          encs.forEach(function (e) { if (e !== '—' && nomes.indexOf(e.toUpperCase()) === -1) nomes.push(e.toUpperCase()); });
-        } else if (limparLinha(ws, p.fr.linha)) {
-          tinha = true;
-        }
-      });
-
-      if (sem.agregada) {
-        var celula = ws.getCell(sem.agregada, COL.ENCARREGADO);
-        if (String(valor(celula) || '').trim().replace(/^-$/, '')) tinha = true;
-        escrever(celula, nomes.length ? nomes.join(' / ') : '-');
+    var nomes = [];
+    porFrente.forEach(function (p) {
+      var encs = Object.keys(p.enc);
+      if (encs.length) {
+        var n = escreverLinha(ws, p.fr.linha, p.enc, posicao, kmPorTorre);
+        if (n) { linhas++; total += n; }
+        encs.forEach(function (e) { if (e !== '—' && nomes.indexOf(e.toUpperCase()) === -1) nomes.push(e.toUpperCase()); });
+      } else if (limparLinha(ws, p.fr.linha)) {
+        tinha = true;
       }
     });
+
+    if (sem.agregada) {
+      var celula = ws.getCell(sem.agregada, COL.ENCARREGADO);
+      if (String(valor(celula) || '').trim().replace(/^-$/, '')) tinha = true;
+      escrever(celula, nomes.length ? nomes.join(' / ') : '-');
+    }
 
     return { total: total, linhas: linhas, semFrente: semFrente, tinha: tinha };
   }
 
+  /** As duas semanas programadas de um bloco por frente. */
+  function escreverBloco(ws, bloco, porSemana, posicao, kmPorTorre) {
+    var r = { total: 0, linhas: 0, semFrente: [], tinha: false };
+    ['prog1', 'prog2'].forEach(function (semana) {
+      var p = escreverFrentes(ws, bloco[semana], porSemana && porSemana[semana], posicao, kmPorTorre);
+      r.total += p.total; r.linhas += p.linhas; r.tinha = r.tinha || p.tinha;
+      r.semFrente = r.semFrente.concat(p.semFrente);
+    });
+    return r;
+  }
+
+  /** A unidade da planilha (coluna H do item) pede o vão em km? Senão conta torre. */
+  function emKm(ws, linhaItem) {
+    return norm(valor(ws.getCell(linhaItem, COL.UNIDADE))) === 'km';
+  }
   /** Reexibe o bloco por frente: o cabeçalho do item, as linhas das semanas e as das frentes. */
   function mostrarBloco(ws, bloco) {
     // O bloco inteiro, do EXECUTADO à última frente da segunda semana, menos as três linhas do layout
@@ -1956,7 +1972,45 @@ window.SIPAV = window.SIPAV || {};
    * @param {Array}  torres    torres do trecho (para saber estaiada/autoportante)
    * @returns {Promise<{blob, relato}>}
    */
-  function gerar(arquivo, segundaS1, progs, torres) {
+  /**
+   * O executado da semana anterior, no mesmo formato da programação: { item: { prog1: { encarregado: { dia: [torres] } } } }.
+   *
+   * Vem dos apontamentos de campo (execucao). O apontamento guarda só os ids, então atividade, encarregado e cabo se
+   * resolvem pelo que o chamador passa: ctx.atividades, ctx.encarregados e ctx.programacoesAnteriores (o cabo do
+   * lançamento e o segundo encarregado vêm da programação a que o apontamento está ligado).
+   * O apontamento sem data (conferido pelo status da planilha) não entra.
+   */
+  function montarExecutado(ctx, progsDaQuinzena, torresPorId, segundaDaSemana, doisLados) {
+    var porId = {}, atv = {}, enc = {};
+    (ctx.programacoesAnteriores || []).concat(progsDaQuinzena || []).forEach(function (p) { porId[p.id] = p; });
+    (ctx.atividades || []).forEach(function (a) { atv[a.id] = a; });
+    (ctx.encarregados || []).forEach(function (e) { enc[e.id] = e; });
+
+    var pseudo = [];
+    (ctx.execucoes || []).forEach(function (e) {
+      if (!e.data_execucao) return;
+      var t = torresPorId[e.torre_id];
+      var a = atv[e.atividade_id];
+      if (!t || !a) return;
+      var pr = e.programacao_id ? porId[e.programacao_id] : null;
+      pseudo.push({
+        id: e.id,
+        data: e.data_execucao,
+        torre: { id: e.torre_id, identificador: t.identificador },
+        atividade: { nome: a.nome },
+        encarregado: enc[e.encarregado_id] || (pr && pr.encarregado) || null,
+        encarregado2: pr && pr.encarregado2 || null,
+        percentual: e.percentual,
+        cabo: pr ? pr.cabo : null,
+        observacao: pr ? pr.observacao : ''
+      });
+    });
+
+    return agrupar(pseudo, torresPorId, segundaDaSemana, doisLados);
+  }
+
+  function gerar(arquivo, segundaS1, progs, torres, ctx) {
+    ctx = ctx || {};
     if (!window.ExcelJS) {
       return Promise.reject(new Error('A biblioteca de planilha não carregou. Recarregue a página.'));
     }
@@ -1964,10 +2018,11 @@ window.SIPAV = window.SIPAV || {};
     var torresPorId = {};
     torres.forEach(function (t) { torresPorId[t.torre_id || t.id] = t; });
 
-    // A ordem das torres na linha, para saber quais são vizinhas
-    var posicaoDasTorres = {};
+    // A ordem das torres na linha, para saber quais são vizinhas, e o vão de cada uma (para as linhas em KM)
+    var posicaoDasTorres = {}, kmPorTorre = {};
     torres.forEach(function (t, i) {
       if (!(t.identificador in posicaoDasTorres)) posicaoDasTorres[t.identificador] = i;
+      kmPorTorre[t.identificador] = Number(t.km) || 0;
     });
 
     var wb = new ExcelJS.Workbook();
@@ -2048,10 +2103,11 @@ window.SIPAV = window.SIPAV || {};
           if (!antigas.length && !blocos.length) { naoAchados.push(item); return; }
 
           antigas.forEach(function (alvo) {
+            var km = emKm(ws, alvo.linhaItem) ? kmPorTorre : null;
             ['prog1', 'prog2'].forEach(function (semana) {
               var porEnc = g.dados[item][semana];
               if (!porEnc) return;
-              var n = escreverLinha(ws, semana === 'prog1' ? alvo.prog1 : alvo.prog2, porEnc, posicaoDasTorres);
+              var n = escreverLinha(ws, semana === 'prog1' ? alvo.prog1 : alvo.prog2, porEnc, posicaoDasTorres, km);
               if (n) { escritas++; torresEscritas += n; }
             });
 
@@ -2059,7 +2115,7 @@ window.SIPAV = window.SIPAV || {};
           });
 
           blocos.forEach(function (bloco) {
-            var r = escreverBloco(ws, bloco, g.dados[item], posicaoDasTorres);
+            var r = escreverBloco(ws, bloco, g.dados[item], posicaoDasTorres, emKm(ws, bloco.linhaItem) ? kmPorTorre : null);
             if (r.linhas) { escritas += r.linhas; torresEscritas += r.total; }
             mostrarBloco(ws, bloco);
             r.semFrente.forEach(function (x) {
@@ -2067,6 +2123,38 @@ window.SIPAV = window.SIPAV || {};
               if (semFrente.indexOf(texto) === -1) semFrente.push(texto);
             });
           });
+        });
+
+        // Passo 3 — o executado da semana anterior, com os apontamentos de campo. Só escreve onde o SIPAV tem
+        // apontamento: o item sem apontamento não é tocado, para não apagar o que alguém preencheu à mão.
+        var exec = montarExecutado(ctx, progs, torresPorId, ui.somarDias(segundaS1, -7), mapa.doisLados);
+        var relatoExec = { linhas: 0, torres: 0, itens: 0, semCabo: exec.semCabo, semDePara: exec.semDePara, naoExistem: [], semFrente: [] };
+        var execNaoAchados = [];
+        Object.keys(exec.dados).forEach(function (item) {
+          var antigas = linhasAntigas(item), blocos = blocosDe(item);
+          if (!antigas.length && !blocos.length) { execNaoAchados.push(item); return; }
+          relatoExec.itens++;
+
+          antigas.forEach(function (alvo) {
+            var km = emKm(ws, alvo.linhaItem) ? kmPorTorre : null;
+            var n = escreverLinha(ws, alvo.linhaItem, exec.dados[item].prog1 || {}, posicaoDasTorres, km);
+            if (n) { relatoExec.linhas++; relatoExec.torres += n; }
+            ws.getRow(alvo.linhaItem).hidden = false;
+          });
+
+          blocos.forEach(function (bloco) {
+            var km = emKm(ws, bloco.linhaItem) ? kmPorTorre : null;
+            var r = escreverFrentes(ws, bloco.exec, exec.dados[item].prog1, posicaoDasTorres, km);
+            relatoExec.linhas += r.linhas; relatoExec.torres += r.total;
+            mostrarBloco(ws, bloco);
+            r.semFrente.forEach(function (x) {
+              var texto = x.torre + ' · ' + rotuloDoItem(item) + ' (canteiro ' + (x.frente ? '"' + x.frente + '"' : 'não definido') + ')';
+              if (relatoExec.semFrente.indexOf(texto) === -1) relatoExec.semFrente.push(texto);
+            });
+          });
+        });
+        relatoExec.naoExistem = execNaoAchados.map(function (item) {
+          return { item: item, rotulo: rotuloDoItem(item), atividades: atividadesDoItem(item) };
         });
 
         // O ExcelJS não tem motor de cálculo: as datas derivadas continuam com o
@@ -2099,6 +2187,7 @@ window.SIPAV = window.SIPAV || {};
               }),
               duplicados: mapa.duplicados,
               semFrente: semFrente,
+              executado: relatoExec,
               tortos: mapa.tortos,
               semCabo: g.semCabo,
               semDePara: g.semDePara,

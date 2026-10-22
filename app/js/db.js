@@ -702,6 +702,39 @@ window.SIPAV = window.SIPAV || {};
       .then(function (r) { return ok(r, 'Falha ao corrigir'); });
   }
 
+  /* ---------------------------------------------- Modelo da planilha da ISA -- */
+
+  function semTabelaDoModelo(erro) {
+    return !!erro && (erro.code === '42P01' || erro.code === 'PGRST205' || /modelo_isa/i.test(erro.message || ''));
+  }
+
+  /** O modelo guardado do trecho ({nome, conteudo em base64, atualizado_em}) ou nulo. Sem a 62, nulo. */
+  function modeloIsa(trechoId) {
+    return cliente().from('modelo_isa').select('nome, conteudo, atualizado_em').eq('trecho_id', trechoId).maybeSingle()
+      .then(function (r) {
+        if (semTabelaDoModelo(r.error)) return null;
+        return ok(r, 'Falha ao carregar o modelo da planilha');
+      });
+  }
+
+  /** Guarda (ou troca) o modelo do trecho. */
+  function salvarModeloIsa(trechoId, nome, conteudo) {
+    return cliente().from('modelo_isa')
+      .upsert({ trecho_id: trechoId, nome: nome, conteudo: conteudo, atualizado_em: new Date().toISOString() },
+              { onConflict: 'trecho_id' })
+      .select('trecho_id')
+      .then(function (r) {
+        if (semTabelaDoModelo(r.error)) {
+          throw new Error('O modelo ainda não tem onde ficar no banco. Falta aplicar a migração 62 ' +
+                          '(db/62-modelo-da-planilha-isa.sql).');
+        }
+        if (!r.error && (!r.data || !r.data.length)) {
+          throw new Error('Só administração e planejamento guardam o modelo da planilha.');
+        }
+        return ok(r, 'Falha ao guardar o modelo da planilha');
+      });
+  }
+
   /** As funções da 59 ainda não entraram no banco? */
   function semFuncaoDeUsuarios(erro) {
     return !!erro && (erro.code === 'PGRST202' || erro.code === '42883' ||
@@ -1923,6 +1956,7 @@ window.SIPAV = window.SIPAV || {};
     reabrirSolicitacao: reabrirSolicitacao,
     reapresentarReprovadas: reapresentarReprovadas,
     usuariosDoSistema: usuariosDoSistema, definirAcesso: definirAcesso,
+    modeloIsa: modeloIsa, salvarModeloIsa: salvarModeloIsa,
     reprovadasRecentes: reprovadasRecentes,
     solicitacoesRecentes: solicitacoesRecentes,
     enviarSolicitacao: enviarSolicitacao,

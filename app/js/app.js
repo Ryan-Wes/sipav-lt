@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v220 · 2026-10-22';
+  var VERSAO = 'v221 · 2026-10-22';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -10046,29 +10046,53 @@ window.SIPAV = window.SIPAV || {};
 
   /* --------------------------------------------- Relatório da ISA -------- */
 
+  var modeloIsaDoTrecho = null;   // o modelo guardado que a janela do relatório está oferecendo
+
   function abrirRelatorioIsa() {
+    if (!E.trechoAtual) return;
+    db.modeloIsa(E.trechoAtual.id)
+      .then(function (m) { montarJanelaDoRelatorioIsa(m); })
+      .catch(function () { montarJanelaDoRelatorioIsa(null); });
+  }
+
+  function montarJanelaDoRelatorioIsa(modelo) {
+    modeloIsaDoTrecho = modelo;
     var segunda = ui.iso(ui.segundaDaSemana(ui.somarDias(new Date(), 7)));
+    var podeGuardar = podeEditarTorre();
 
     var corpo =
       '<div class="space-y-4">' +
         '<p class="text-sm text-slate-600">' +
-          'Sobe a planilha <strong>RPSQ</strong> deste trecho e o SIPAV preenche a programação da quinzena: ' +
-          'as linhas <strong>PROG. 1</strong> e <strong>PROG. 2</strong> e, no layout por frente, a linha de cada ' +
-          'frente (o canteiro da torre). Nada mais é tocado: a linha EXEC., os totais, o cabeçalho e o rodapé ficam como estão.' +
+          'O SIPAV preenche a planilha <strong>RPSQ</strong> deste trecho com a programação da quinzena ' +
+          '(linhas <strong>PROG. 1</strong> e <strong>PROG. 2</strong>, ou a linha de cada frente) e com o ' +
+          '<strong>executado</strong> da semana anterior, que vem dos apontamentos de campo. Os totais das outras ' +
+          'colunas, o cabeçalho e o rodapé ficam como estão.' +
         '</p>' +
 
         '<div><label class="rotulo">Segunda-feira da semana 1</label>' +
           '<input id="isaSegunda" type="date" class="campo" value="' + segunda + '">' +
           '<p class="text-xs text-slate-500 mt-1">' +
-            'A semana 2 é a seguinte. É a mesma data que vai no cabeçalho da planilha.' +
+            'A semana 2 é a seguinte, e o executado é o da semana antes desta. É a mesma data que vai no cabeçalho da planilha.' +
           '</p></div>' +
 
         '<div><label class="rotulo">Planilha do trecho</label>' +
-          '<input id="isaArquivo" type="file" accept=".xlsx" class="campo text-sm"></div>' +
+          (modelo
+            ? '<p class="text-sm mb-2">Modelo guardado: <strong>' + esc(modelo.nome) + '</strong> ' +
+              '<span style="color:var(--texto-fraco)">(' + esc(ui.dataCurta(String(modelo.atualizado_em).slice(0, 10))) + ')</span>. ' +
+              'Deixe o campo abaixo vazio para usar o modelo, ou escolha outra planilha.</p>'
+            : '<p class="text-xs mb-2" style="color:var(--texto-fraco)">Este trecho ainda não tem modelo guardado. ' +
+              'Escolha a planilha em branco e marque a caixa abaixo para o SIPAV guardá-la.</p>') +
+          '<input id="isaArquivo" type="file" accept=".xlsx" class="campo text-sm">' +
+          (podeGuardar
+            ? '<label class="text-xs flex items-start gap-2 mt-2" style="cursor:pointer">' +
+                '<input type="checkbox" id="isaGuardar" class="mt-0.5"' + (modelo ? '' : ' checked') + '>' +
+                '<span>Guardar a planilha escolhida como modelo deste trecho (troca o modelo atual).</span></label>'
+            : '') +
+        '</div>' +
 
         '<p class="text-xs text-slate-400">' +
-          'O arquivo original não é alterado — você baixa uma cópia preenchida. ' +
-          'Confira antes de enviar: é a primeira versão.' +
+          'O modelo e o arquivo escolhido não são alterados: você baixa uma cópia preenchida. ' +
+          'Confira antes de enviar.' +
         '</p>' +
       '</div>';
 
@@ -10082,13 +10106,34 @@ window.SIPAV = window.SIPAV || {};
     });
   }
 
-  function gerarRelatorioIsa() {
-    var entrada = $('isaArquivo');
-    var arquivo = entrada.files && entrada.files[0];
-    var segunda = $('isaSegunda').value;
+  /** O arquivo escolhido em base64, para guardar no banco. */
+  function lerComoBase64(arquivo) {
+    return new Promise(function (resolve, reject) {
+      var leitor = new FileReader();
+      leitor.onload = function () { resolve(String(leitor.result).split(',')[1] || ''); };
+      leitor.onerror = function () { reject(leitor.error); };
+      leitor.readAsDataURL(arquivo);
+    });
+  }
 
-    if (!arquivo) { ui.avisar('Escolha a planilha do trecho.', 'alerta'); return; }
+  /** O modelo guardado, no formato que o exportador espera de um arquivo. */
+  function modeloComoArquivo(modelo) {
+    var texto = atob(modelo.conteudo);
+    var bytes = new Uint8Array(texto.length);
+    for (var i = 0; i < texto.length; i++) bytes[i] = texto.charCodeAt(i);
+    return { name: modelo.nome, arrayBuffer: function () { return Promise.resolve(bytes.buffer); } };
+  }
+
+  function gerarRelatorioIsa() {
+    var escolhido = $('isaArquivo').files && $('isaArquivo').files[0];
+    var segunda = $('isaSegunda').value;
+    var modelo = modeloIsaDoTrecho;
+    var guardar = !!escolhido && !!$('isaGuardar') && $('isaGuardar').checked;
+
+    if (!escolhido && !modelo) { ui.avisar('Escolha a planilha do trecho.', 'alerta'); return; }
     if (!segunda) { ui.avisar('Informe a segunda-feira da semana 1.', 'alerta'); return; }
+
+    var arquivo = escolhido || modeloComoArquivo(modelo);
 
     ui.fecharModal('modalGenerico');
     ui.processando('Preenchendo a planilha…');
@@ -10097,18 +10142,35 @@ window.SIPAV = window.SIPAV || {};
     // pelo filtro de período da tela, e exportar a quinzena que vem com o filtro
     // em "esta semana" deixaria programação de fora sem avisar ninguém.
     var inicio = ui.paraData(segunda);
+    var trechoId = E.trechoAtual.id;
+    var semanaAntes = { de: ui.iso(ui.somarDias(inicio, -7)), ate: ui.iso(ui.somarDias(inicio, -1)) };
 
-    db.programacoes({
-      trechoId: E.trechoAtual.id,
-      de:  ui.iso(inicio),
-      ate: ui.iso(ui.somarDias(inicio, 13))
-    })
-      .then(function (progs) {
-        return SIPAV.isa.gerar(arquivo, inicio, progs, E.torres);
+    var guardou = guardar
+      ? lerComoBase64(escolhido)
+          .then(function (b64) { return db.salvarModeloIsa(trechoId, escolhido.name, b64); })
+          .then(function () { return true; })
+          .catch(function (e) { ui.avisar(e.message || 'Não consegui guardar o modelo.', 'alerta', 7000); return false; })
+      : Promise.resolve(false);
+
+    Promise.all([
+      db.programacoes({ trechoId: trechoId, de: ui.iso(inicio), ate: ui.iso(ui.somarDias(inicio, 13)) }),
+      // O executado é a semana de antes; o cabo do lançamento dele vem da programação a que o apontamento se liga
+      db.programacoes({ trechoId: trechoId, de: semanaAntes.de, ate: semanaAntes.ate }),
+      db.execucoes({ trechoId: trechoId, de: semanaAntes.de, ate: semanaAntes.ate }),
+      guardou
+    ])
+      .then(function (r) {
+        return SIPAV.isa.gerar(arquivo, inicio, r[0], E.torres, {
+          execucoes: r[2],
+          programacoesAnteriores: r[1],
+          atividades: E.atividades,
+          encarregados: E.encarregados
+        }).then(function (saida) { saida.guardouModelo = r[3]; return saida; });
       })
       .then(function (r) {
         ui.pronto();
-        baixarBlob(r.blob, arquivo.name.replace(/\.xlsx$/i, '') + ' - SIPAV.xlsx');
+        baixarBlob(r.blob, String(arquivo.name || 'RPSQ').replace(/\.xlsx$/i, '') + ' - SIPAV.xlsx');
+        r.relato.modeloGuardado = r.guardouModelo;
         mostrarRelatoIsa(r.relato);
       })
       .catch(function (e) {
@@ -10116,7 +10178,6 @@ window.SIPAV = window.SIPAV || {};
         ui.avisar(e.message || 'Falha ao preencher a planilha', 'erro', 7000);
       });
   }
-
   function baixarBlob(blob, nome) {
     var url = URL.createObjectURL(blob);
     var a = document.createElement('a');
@@ -10141,9 +10202,46 @@ window.SIPAV = window.SIPAV || {};
 
     partes.push(bloco('border-emerald-300 bg-emerald-50 text-emerald-800',
       r.linhasEscritas + (r.linhasEscritas === 1 ? ' linha preenchida' : ' linhas preenchidas'),
-      r.torresEscritas + ' apontamento(s) de torre distribuídos nos dias. Os itens que o SIPAV ' +
-      'não programa — topografia, sondagem, armação, canteiro, comissionamento — não foram tocados, ' +
-      'nem a linha EXEC., nem os totais.'));
+      r.torresEscritas + ' no total da programação (torres ou km, conforme a unidade da linha). Os itens que o SIPAV ' +
+      'não programa — topografia, sondagem, armação, canteiro — não foram tocados, nem as colunas de totais.'));
+
+    // O executado da semana anterior, vindo dos apontamentos de campo
+    var ex = r.executado;
+    if (ex) {
+      partes.push(ex.itens
+        ? bloco('border-emerald-300 bg-emerald-50 text-emerald-800',
+            'Executado da semana anterior: ' + ex.itens + (ex.itens === 1 ? ' item preenchido' : ' itens preenchidos'),
+            'Vem dos apontamentos de campo. O item sem apontamento nessa semana não foi tocado, ' +
+            'para não apagar o que alguém tenha preenchido à mão.')
+        : bloco('border-slate-200 bg-slate-50 text-slate-700',
+            'Nenhum apontamento de campo na semana anterior',
+            'A linha do executado ficou como estava.'));
+
+      if (ex.semFrente && ex.semFrente.length) {
+        partes.push(bloco('border-rose-200 bg-rose-50 text-rose-800',
+          ex.semFrente.length + ' torre(s) do executado sem frente',
+          '<strong>' + esc(ex.semFrente.slice(0, 8).join(' · ')) + '</strong>' +
+          (ex.semFrente.length > 8 ? ' e mais ' + (ex.semFrente.length - 8) : '') + '.'));
+      }
+      if (ex.naoExistem && ex.naoExistem.length) {
+        partes.push(bloco('border-rose-200 bg-rose-50 text-rose-800',
+          ex.naoExistem.length + ' item(ns) do executado que não existem nesta planilha',
+          esc(ex.naoExistem.map(function (x) { return (x.atividades[0] || x.rotulo) + ' (' + x.rotulo + ')'; }).join(' · ')) + '.'));
+      }
+      if (ex.semCabo && ex.semCabo.length) {
+        partes.push(bloco('border-rose-200 bg-rose-50 text-rose-800',
+          ex.semCabo.length + ' apontamento(s) de lançamento sem o cabo',
+          'O apontamento não está ligado a uma programação com o cabo escolhido: ' +
+          '<strong>' + esc(ex.semCabo.slice(0, 8).join(' · ')) + '</strong>' +
+          (ex.semCabo.length > 8 ? ' e mais ' + (ex.semCabo.length - 8) : '') + '.'));
+      }
+    }
+
+    if (r.modeloGuardado) {
+      partes.push(bloco('border-sky-300 bg-sky-50 text-sky-800',
+        'Modelo guardado',
+        'A planilha escolhida passou a ser o modelo deste trecho. Da próxima vez, é só abrir o relatório e preencher.'));
+    }
 
     // Apagar a quinzena anterior é o procedimento normal, então isto não é
     // alarme — é conferência. A lista serve para bater o olho e perceber se

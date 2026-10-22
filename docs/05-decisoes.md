@@ -16,6 +16,25 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 22/10/2026
 
+### Modelo guardado, executado preenchido pelo SIPAV e total por unidade **[WR]**
+
+**Modelo da planilha por trecho** (migração 62). Em vez de subir a planilha toda vez, o trecho guarda a
+planilha em branco: o relatório da ISA oferece o modelo, acerta a data do cabeçalho e preenche, e baixa
+uma cópia. Subir outra planilha continua possível (e dá para trocar o modelo na mesma hora, com a caixa
+"guardar como modelo"). Só administração e planejamento guardam; todo mundo exporta. O modelo nunca é
+alterado. Fica no banco em base64, um por trecho.
+
+**O executado da semana anterior passa a ser preenchido pelo SIPAV** (muda a decisão de 01/10, que deixava
+a linha EXEC. à mão). Vem dos apontamentos de campo: a linha EXEC. no layout antigo, ou as frentes do
+bloco EXECUTADO no layout novo. O item sem apontamento naquela semana não é tocado, para não apagar o que
+alguém tenha preenchido à mão numa planilha que já veio preenchida. O cabo do lançamento e o segundo
+encarregado vêm da programação a que o apontamento está ligado; apontamento sem data (conferido pelo status
+da planilha) não entra. As colunas de totais (quantidade, falta, acumulado) continuam com quem preenche.
+
+**Total pela unidade da linha.** Onde a coluna UNID. diz TORRE, o total é a soma das torres (com o
+percentual); onde diz KM, é a soma dos vãos das torres. Vale para a programação e para o executado.
+Antes o total era sempre contagem de torre.
+
 ### Exportação no layout por frente, e as atividades que faltavam **[WR]**
 
 **Layout por frente (REV01).** O exportador agora preenche o bloco novo de cada item: uma linha por
