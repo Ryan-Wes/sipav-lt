@@ -14,6 +14,26 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ---
 
+## 22/10/2026
+
+### Conferência das quatro planilhas de 12/10 contra o exportador **[WR]**
+
+Rodei o exportador nas quatro planilhas (Correntina, Buritirama–Barra, Campo Formoso–Barra e
+Juazeiro–Campo Formoso) com todas as atividades do de-para programadas, e li item por item o que
+cada planilha tem. Três lacunas eram do exportador e foram corrigidas:
+
+- **Desforma do mastro central (2.1.15)** existe em três das quatro planilhas e não era escrita.
+  A desforma da estaiada agora preenche a do estai/pé e a do mastro central, como o reaterro e a
+  concretagem; a da autoportante só a do pé.
+- **"Complemento de contrapeso"** (Buritirama–Barra, 2.2.3 na numeração dela) não casava com o
+  2.2.4 e não saía.
+- **"Fundação PÉ / ESTAI"** (Juazeiro–Campo Formoso, escavação e pré-moldados) não casava com o
+  estai/pé: a planilha escreve a ordem ao contrário da que o catálogo conhecia.
+
+O que continua sem equivalente (e por quê) está na resposta daquele dia; o que for virar atividade
+no SIPAV entra aqui quando for decidido.
+
+
 ## 20/10/2026
 
 ### Menus e cadastros arrumados **[WR]**

@@ -60,7 +60,7 @@ window.SIPAV = window.SIPAV || {};
     '1.3.5':  ['supressao de praca de lancamento', 'supressao praca de lancamento'],
 
     // ---- Fundação
-    '2.1.4':  ['escavacao fundacao estai pe', 'escavacao fundacao'],
+    '2.1.4':  ['escavacao fundacao estai pe', 'escavacao fundacao pe estai', 'escavacao fundacao'],
     '2.1.5':  ['escavacao fundacao mastro central', 'escavacao fundacao mastro'],
     '2.1.6':  ['perfuracao em rocha cravacao de estacas fundacao estai pe',
                'perfuracao em rocha cravacao de estacas fundacao estai'],
@@ -69,6 +69,7 @@ window.SIPAV = window.SIPAV || {};
     '2.1.9':  ['injecao de nata de cimento fundacao mastro central'],
     '2.1.10': ['instalacao de pre moldados nivelamento preparacao fundacao estai pel',
                'instalacao de pre moldados nivelamento preparacao fundacao estai pe',
+               'instalacao de pre moldados nivelamento preparacao fundacao pe estai',
                'instalacao de pre moldados nivelamento preparacao fundacao estai',
                'instalacao de pre moldados nivelamento preparacao fundacao'],
     '2.1.11': ['instalacao de pre moldados nivelamento preparacao fundacao mastro central',
@@ -81,6 +82,7 @@ window.SIPAV = window.SIPAV || {};
     // Desforma: a planilha de 12/10 tem um item só, "Desforma Fundação". As
     // anteriores separavam estai/pé de mastro central (2.1.14 e 2.1.15 da ISA).
     '2.1.14': ['desforma fundacao', 'desforma fundacao estai pe', 'desforma fundacao estai'],
+    '2.1.15': ['desforma fundacao mastro central'],
     '2.1.16': ['reaterro fundacao estai pe', 'reaterro fundacao estai', 'reaterro fundacao'],
     '2.1.17': ['reaterro fundacao mastro central'],
     '2.1.18': ['ensaio de arrancamento fundacao estai', 'ensaio de arrancamento fundacao',
@@ -92,7 +94,7 @@ window.SIPAV = window.SIPAV || {};
     // ---- Aterramento
     '2.2.1':  ['instalacao de contra peso', 'instalacao de contrapeso'],
     '2.2.3':  ['medicao de resistencia'],
-    '2.2.4':  ['complemento de cabo contrapeso'],
+    '2.2.4':  ['complemento de cabo contrapeso', 'complemento de contrapeso'],
     '2.2.5':  ['seccionamento e aterramento de cercas', 'seccionamento de cercas'],
 
     // ---- Montagem
@@ -209,7 +211,7 @@ window.SIPAV = window.SIPAV || {};
     'CONCRETAGEM':                              { est: ['2.1.12', '2.1.13'], aup: ['2.1.12'], basta: true },
     'CONCRETAGEM / TUBULÃO':                    { est: ['2.1.12', '2.1.13'], aup: ['2.1.12'], basta: true },
     'REATERRO 100%':                            { est: ['2.1.16', '2.1.17'], aup: ['2.1.16'] },
-    'DESFORMA FUNDAÇÃO':                        { itens: ['2.1.14'] },
+    'DESFORMA FUNDAÇÃO':                        { est: ['2.1.14', '2.1.15'], aup: ['2.1.14'] },
     'TESTE DE ARRANCAMENTO':                    { itens: ['2.1.18'] },
 
     'ATERRAMENTO / CONTRAPESO':                 { itens: ['2.2.1'] },
