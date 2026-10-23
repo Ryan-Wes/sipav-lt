@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v235 · 2026-10-23';
+  var VERSAO = 'v236 · 2026-10-23';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -6382,8 +6382,12 @@ window.SIPAV = window.SIPAV || {};
     return !buscaEncarregado || normalizar(nome).indexOf(normalizar(buscaEncarregado)) !== -1;
   }
 
-  function filtrarEncarregados() {
-    buscaEncarregado = $('buscaEncarregado').value;
+  /**
+   * A busca da lista do cadastro de encarregados. O nome e o id do campo são próprios: "filtrarEncarregados" e
+   * "buscaEncarregado" já são do combo do formulário da programação, e a colisão fazia esta busca ler o campo do outro.
+   */
+  function filtrarEncarregadosDoCadastro() {
+    buscaEncarregado = $('buscaEncarregadoCadastro').value;
     var linhas = document.querySelectorAll('#genericoCorpo .linha-enc');
     var n = 0;
     Array.prototype.forEach.call(linhas, function (l) {
@@ -6402,8 +6406,9 @@ window.SIPAV = window.SIPAV || {};
           '<input id="novoEncarregado" class="campo" placeholder="Nome do encarregado">' +
           '<button onclick="SIPAV.app.adicionarEncarregado()" class="btn-primario whitespace-nowrap">Adicionar</button>' +
         '</div>' +
-        '<input id="buscaEncarregado" class="campo" autocomplete="off" placeholder="Buscar encarregado pelo nome" ' +
-               'value="' + esc(buscaEncarregado) + '" oninput="SIPAV.app.filtrarEncarregados()">' +        '<div class="space-y-1.5">' +
+        '<input id="buscaEncarregadoCadastro" class="campo" autocomplete="off" placeholder="Buscar encarregado pelo nome" ' +
+               'value="' + esc(buscaEncarregado) + '" oninput="SIPAV.app.filtrarEncarregadosDoCadastro()">' +
+        '<div class="space-y-1.5">' +
           E.encarregados.map(linhaEncarregado).join('') +
           '<p id="semResultadoEncarregado" class="text-sm hidden" style="color:var(--texto-fraco)">Nenhum encarregado com esse nome.</p>' +
         '</div>' +
@@ -6415,7 +6420,7 @@ window.SIPAV = window.SIPAV || {};
       '</div>';
 
     ui.modalGenerico({ titulo: 'Encarregados', corpoHtml: corpo });
-    if (buscaEncarregado) filtrarEncarregados();
+    if (buscaEncarregado) filtrarEncarregadosDoCadastro();
   }
 
   /* ---------------------------------------------------------------- Usuários -- */
@@ -10844,7 +10849,7 @@ window.SIPAV = window.SIPAV || {};
     abrirGrupoDoHistorico: abrirGrupoDoHistorico,
     filtrarHistorico: filtrarHistorico,
 
-    abrirEncarregados: abrirEncarregadosDoMenu, filtrarEncarregados: filtrarEncarregados,
+    abrirEncarregados: abrirEncarregadosDoMenu, filtrarEncarregadosDoCadastro: filtrarEncarregadosDoCadastro,
     abrirUsuarios: abrirUsuarios, salvarUsuario: salvarUsuario,
     escolherIconeDaObs: escolherIconeDaObs, seguirTextoDaObs: seguirTextoDaObs,
     abrirListaDeMovimentacoes: abrirListaDeMovimentacoes, filtrarListaDeMovimentacoes: filtrarListaDeMovimentacoes,

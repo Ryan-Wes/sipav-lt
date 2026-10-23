@@ -16,6 +16,13 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 23/10/2026
 
+### Busca do cadastro de encarregados que não buscava **[WR]**
+
+A busca que entrou em Cadastros > Encarregados não filtrava. Duas colisões com o combo do formulário da programação: a
+função tinha o mesmo nome (`filtrarEncarregados`), e o campo o mesmo id (`buscaEncarregado`), então ela lia o campo do outro
+formulário, que estava vazio. A do cadastro agora é `filtrarEncarregadosDoCadastro` e o campo `buscaEncarregadoCadastro`; o combo
+da programação voltou a ser só dele.
+
 ### Lançar por encarregado: marcar as torres na grade **[WR]**
 
 A janela do lançamento por encarregado ganhou **Marcar na grade**, ao lado de Adicionar (o supervisor já tinha isso na tela
