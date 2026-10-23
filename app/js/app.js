@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v237 · 2026-10-23';
+  var VERSAO = 'v238 · 2026-10-23';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -4488,8 +4488,8 @@ window.SIPAV = window.SIPAV || {};
   }
 
   /**
-   * "Repetir o último" no lançamento por encarregado: traz o encarregado (e o segundo), a atividade, o cabo e a última
-   * torre. A data, o percentual e a observação ficam como estão: a data é a do dia em que estou lançando, e as torres
+   * "Repetir o último" no lançamento por encarregado: traz o encarregado (e o segundo), a atividade, o cabo, o percentual,
+   * a observação e a última torre. A data fica como está: é a do dia em que estou lançando, e as torres
    * que eu somar depois nascem nela.
    */
   function repetirUltimoPorEncarregado(u) {
@@ -4500,8 +4500,11 @@ window.SIPAV = window.SIPAV || {};
 
     loteAtividades = ids.slice();
     lotePadrao.encarregadoId = u.encarregadoId || '';
+    lotePadrao.percentual = u.percentual || 100;
     $('loteEncarregado').value = lotePadrao.encarregadoId;
     $('loteEncarregado2').value = u.encarregado2Id || '';
+    $('lotePercentual').value = lotePadrao.percentual;
+    $('loteObservacao').value = u.observacao || '';
 
     // A torre em que parou, se for deste trecho e ainda não estiver na lista
     var ult = u.ultimaTorre && E.torres.find(function (t) { return t.torre_id === u.ultimaTorre.torreId; });
@@ -7675,7 +7678,7 @@ window.SIPAV = window.SIPAV || {};
             '<option value="MUDANCA_TRECHO">Mudança de trecho (encarregado)</option>' +
             '<option value="MUDANCA_MAQUINA">Deslocamento de máquina</option>' +
             '<option value="FOLGA_CAMPO">Folga de campo</option>' +
-            '<option value="FERIADO">Feriado (ninguém programa)</option>' +
+            '<option value="FERIADO">Feriado (vale para todos os trechos)</option>' +
             '<option value="OUTRO">Outro motivo (dia sem atividade)</option>' +
           '</select></div>' +
 

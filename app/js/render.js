@@ -1050,7 +1050,7 @@ window.SIPAV = window.SIPAV || {};
     { tipo: 'MUDANCA_TRECHO',  titulo: 'Mudança de trecho (encarregado)' },
     { tipo: 'MUDANCA_MAQUINA', titulo: 'Deslocamento de máquina' },
     { tipo: 'FOLGA_CAMPO',     titulo: 'Folga de campo' },
-    { tipo: 'FERIADO',         titulo: 'Feriado (ninguém programa)' },
+    { tipo: 'FERIADO',         titulo: 'Feriado (vale para todos os trechos)' },
     { tipo: 'OUTRO',           titulo: 'Outro motivo' }
   ];
 
@@ -1066,10 +1066,27 @@ window.SIPAV = window.SIPAV || {};
     if (E.filtroAtividade || E.filtroCanteiro || (E.busca || '').trim()) return [];
 
     var de = E.periodo.de, ate = E.periodo.ate;
-    return (E.movimentacoes || []).filter(function (m) {
+    return semFeriadoRepetido((E.movimentacoes || []).filter(function (m) {
       if (ate && m.data > ate) return false;
       if (de && m.data < de) return false;
       return E.escopo === 'todos' || movimentacaoDoTrecho(m);
+    }));
+  }
+
+  /**
+   * O mesmo feriado registrado em mais de um trecho aparece uma vez só. Fica o do trecho aberto, se houver; senão o primeiro.
+   */
+  function semFeriadoRepetido(lista) {
+    var atual = E.trechoAtual ? E.trechoAtual.id : null;
+    var proprios = {};
+    lista.forEach(function (m) { if (m.tipo === 'FERIADO' && m.trecho_id === atual) proprios[m.data] = true; });
+    var vistos = {};
+    return lista.filter(function (m) {
+      if (m.tipo !== 'FERIADO') return true;
+      if (m.trecho_id === atual) return true;
+      if (proprios[m.data] || vistos[m.data]) return false;
+      vistos[m.data] = true;
+      return true;
     });
   }
 
@@ -1086,6 +1103,8 @@ window.SIPAV = window.SIPAV || {};
    * outro veem a mesma linha.
    */
   function movimentacaoDoTrecho(m) {
+    // Feriado é da obra inteira: registrado em um trecho, vale em todos
+    if (m.tipo === 'FERIADO') return true;
     var atual = E.trechoAtual ? E.trechoAtual.id : null;
     if (m.trecho_id === atual) return true;
     if (m.canteiro_origem_id && canteiroServeOTrecho(m.canteiro_origem_id)) return true;
@@ -1804,11 +1823,11 @@ window.SIPAV = window.SIPAV || {};
    */
   function movimentacoesDoPeriodo() {
     var de = E.periodo.de, ate = E.periodo.ate;
-    return (E.movimentacoes || []).filter(function (m) {
+    return semFeriadoRepetido((E.movimentacoes || []).filter(function (m) {
       if (ate && m.data > ate) return false;
       if (de && m.data < de) return false;
       return E.escopo === 'todos' || movimentacaoDoTrecho(m);
-    });
+    }));
   }
 
   function detalheDaMovimentacao(m) {

@@ -16,6 +16,13 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 23/10/2026
 
+### Feriado vale para todos os trechos **[WR]**
+
+O feriado é da obra, não do trecho. Registrado em qualquer trecho, ele aparece nos painéis, na grade, no formulário e na planilha da
+ISA de todos os outros (`render.movimentacaoDoTrecho` devolve verdadeiro para o tipo FERIADO). O que continua do trecho é o resto
+dos dias sem atividade: folga de campo, mudança de trecho e de máquina, outro. Se o mesmo feriado foi registrado em mais de um
+trecho, o painel mostra uma vez só (o do trecho aberto, se houver). Não precisou de migração; os registros antigos já valem em
+todos. Quem quiser tirar o feriado apaga o registro em Cadastros > Dias sem atividade.
 ### Trocar a torre de uma programação, e a grade que acompanha **[WR]**
 
 Ao alterar uma programação, a janela agora tem o campo **Torre**: digito o número (312/1) e salvo, e a programação passa para
@@ -30,9 +37,9 @@ programado (a de data mais recente). O marcador é `E.rastro`, desenhado pelo pr
 No Consolidado por encarregado, o nome de cada encarregado do cadastro é um botão que rola até o bloco dele e o destaca por um
 instante. Se ele não tem nada no período, o espaço dele é aberto e a tela vai até lá.
 
-**Repetir o último** no lançamento por encarregado traz só o encarregado (e o segundo), a atividade, o cabo e a última torre do
-lançamento anterior. A data fica a do dia em que estou lançando (a do + da semana) e as torres que eu somar depois nascem
-nela. Na grade, repetir o último continua trazendo também a data. Para isso o último lançamento passou a guardar a última torre.
+**Repetir o último** no lançamento por encarregado traz o encarregado (e o segundo), a atividade, o cabo, o percentual, a observação
+e a última torre do lançamento anterior. A data fica a do dia em que estou lançando (a do + da semana) e as torres que eu somar
+depois nascem nela. Na grade, repetir o último continua trazendo também a data. Para isso o último lançamento passou a guardar a última torre.
 ### Busca do cadastro de encarregados que não buscava **[WR]**
 
 A busca que entrou em Cadastros > Encarregados não filtrava. Duas colisões com o combo do formulário da programação: a
