@@ -1689,17 +1689,8 @@ window.SIPAV = window.SIPAV || {};
                 ? '<button type="button" class="btn-lancar" title="Fechar este espaço" ' +
                     'onclick="SIPAV.render.fecharEncarregadoAberto(\'' + dele.id + '\')">Fechar</button>'
                 : '') +
-              (itens.length
-                // Duas semanas (o semanal e o quinzenal): o total de cada uma. Mais que isso, o total do período
-                ? (segundasEmOrdem.length <= 2
-                    ? segundasEmOrdem.map(function (segunda) {
-                        var doDia = totalDaSemana(segunda);
-                        return '<span>' + esc(nomeDaSemana(segunda)) + ': ' +
-                               (doDia.n ? esc(textoDoTotal(doDia)) : 'nada programado') + '</span>';
-                      }).join('<span class="text-slate-300">|</span>')
-                    : t.torres + (t.torres === 1 ? ' torre' : ' torres') + ' · ' + ui.km(t.km) + ' km · ' +
-                      itens.length + (itens.length === 1 ? ' atividade' : ' atividades'))
-                : 'sem atividade nas torres') +
+              // O total de cada semana está na faixa dela, e o das semanas juntas no consolidado do topo: aqui não se repete
+              (itens.length ? '' : 'sem atividade nas torres') +
             '</span>' +
           '</header>' +
           corpo +
