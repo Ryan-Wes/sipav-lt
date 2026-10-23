@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v234 · 2026-10-23';
+  var VERSAO = 'v235 · 2026-10-23';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -3480,7 +3480,7 @@ window.SIPAV = window.SIPAV || {};
     if (E.snapshot && !E.modoSelecao) { somenteConsulta(); return; }
     E.selecaoPorTecla = false;
     E.modoSelecao = !E.modoSelecao;
-    if (!E.modoSelecao) E.selecionadas = {};
+    if (!E.modoSelecao) { E.selecionadas = {}; E.voltarAoLote = null; }
     document.body.classList.toggle('modo-selecao', E.modoSelecao);
     if (E.aba !== 'grade') trocarAba('grade');
     render.tudo();
@@ -3664,6 +3664,7 @@ window.SIPAV = window.SIPAV || {};
       n ? n + (n === 1 ? ' torre selecionada' : ' torres selecionadas') + ' · ' + ui.km(somaDosVaos(Object.keys(E.selecionadas))) + ' km'
         : 'Clique nos cartões para escolher';
     $('btnProgramarSelecao').disabled = !n;
+    $('btnProgramarSelecao').textContent = E.voltarAoLote ? 'Voltar ao lançamento' : 'Programar';
     $('btnEditarSelecao').disabled = !n;
     $('btnApagarSelecao').disabled = !n;
     $('btnObservacaoSelecao').disabled = !n;
@@ -3681,6 +3682,39 @@ window.SIPAV = window.SIPAV || {};
   }
 
   /** Abre o lote já com o que está marcado na grade. */
+  /**
+   * No lançamento por encarregado, escolher as torres clicando na grade (o supervisor já tem isso). A janela fecha,
+   * guardando o que estava preenchido; a grade abre com a seleção ligada e o botão da barra vira "Voltar ao
+   * lançamento", que reabre a janela com as torres marcadas e o resto como estava.
+   */
+  function escolherTorresNaGradeParaLote() {
+    var campo = function (id) { var el = $(id); return el ? el.value : ''; };
+    E.voltarAoLote = {
+      // O título leva o nome do trecho no fim, e a janela o põe de novo ao reabrir: guarda sem ele
+      titulo: ($('genericoTitulo') ? $('genericoTitulo').textContent : 'Lançar por encarregado')
+        .replace(new RegExp(' — ' + E.trechoAtual.nome.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$'), ''),
+      semTorres: loteSemTorresOk,
+      u: {
+        atividades: loteAtividades.slice(),
+        encarregadoId: campo('loteEncarregado'),
+        encarregado2Id: campo('loteEncarregado2') || null,
+        percentual: Number(campo('lotePercentual')) || 100,
+        cabo: campo('loteCabo') || null,
+        observacao: campo('loteObservacao'),
+        data: campo('loteBase'),
+        modoData: loteModoData
+      }
+    };
+
+    // As torres que já estavam na lista continuam marcadas
+    E.selecionadas = {};
+    loteTorres.forEach(function (t) { E.selecionadas[t.torreId] = true; });
+
+    ui.fecharModal('modalGenerico');
+    if (!E.modoSelecao) alternarModoSelecao(); else { trocarAba('grade'); render.tudo(); renderBarraSelecao(); }
+    ui.avisar('Marque as torres na grade e clique em "Voltar ao lançamento".', 'info', 7000);
+  }
+
   function programarSelecionadas() {
     var ids = Object.keys(E.selecionadas);
     if (!ids.length) return;
@@ -3691,6 +3725,18 @@ window.SIPAV = window.SIPAV || {};
 
     // Na ordem da linha, que é como a obra anda — e como as datas serão dadas
     torres.sort(function (a, b) { return (a.ordem || 0) - (b.ordem || 0); });
+
+    // Veio do lançamento por encarregado: volta para ele, com o que já estava preenchido
+    if (E.voltarAoLote) {
+      var v = E.voltarAoLote;
+      E.voltarAoLote = null;
+      abrirProgramacaoEmLote(null, v.u.encarregadoId, v.u.percentual, v.u.cabo, torres, null, {
+        semTorres: true, data: v.u.data, titulo: v.titulo
+      });
+      preencherLoteCom(v.u, true);
+      renderBarraSelecao();
+      return;
+    }
 
     var h = loteHerdado;
     loteHerdado = null;
@@ -3856,6 +3902,10 @@ window.SIPAV = window.SIPAV || {};
                      'onkeydown="SIPAV.app.teclaTorresLote(event)">' +
               '<button type="button" class="btn-secundario shrink-0" ' +
                       'onclick="SIPAV.app.adicionarTorresAoLote()">Adicionar</button>' +
+              (E.modoSupervisor ? '' :
+                '<button type="button" class="btn-secundario shrink-0" ' +
+                        'title="Fechar esta janela, marcar as torres na grade e voltar" ' +
+                        'onclick="SIPAV.app.escolherTorresNaGradeParaLote()">Marcar na grade</button>') +
             '</div>' +
             '<p class="text-xs mt-1" style="color:var(--texto-fraco)">' +
               'Uma por uma, separadas por vírgula, ou um intervalo na ordem da linha: ' +
@@ -4321,13 +4371,19 @@ window.SIPAV = window.SIPAV || {};
   }
 
   function repetirUltimoNoLote() {
-    var u = ultimoLancamento;
-    if (!u) return;
+    if (!ultimoLancamento) return;
+    preencherLoteCom(ultimoLancamento, false);
+  }
 
-    var ids = u.atividades.filter(function (id) {
+  /**
+   * Preenche o lote aberto com um conjunto de valores: o último lançamento (repetir) ou o que estava na janela quando
+   * se foi marcar torres na grade. `semAtividadeOk` deixa passar o lote que ainda não tinha atividade escolhida.
+   */
+  function preencherLoteCom(u, semAtividadeOk) {
+    var ids = (u.atividades || []).filter(function (id) {
       return E.atividades.some(function (a) { return a.id === id; });
     });
-    if (!ids.length) { ui.avisar('A atividade do último lançamento não existe mais.', 'alerta'); return; }
+    if (!ids.length && !semAtividadeOk) { ui.avisar('A atividade do último lançamento não existe mais.', 'alerta'); return; }
 
     loteAtividades = ids.slice();
     lotePadrao = { encarregadoId: u.encarregadoId || '', percentual: u.percentual || 100 };
@@ -10746,7 +10802,7 @@ window.SIPAV = window.SIPAV || {};
     apagarProgramacoesSelecionadas: apagarProgramacoesSelecionadas,
     repetirUltimoLancamento: repetirUltimoLancamento,
     repetirUltimoNoLote: repetirUltimoNoLote,
-    adicionarTorresAoLote: adicionarTorresAoLote,
+    adicionarTorresAoLote: adicionarTorresAoLote, escolherTorresNaGradeParaLote: escolherTorresNaGradeParaLote,
     teclaTorresLote: teclaTorresLote,
     tirarTorreLote: tirarTorreLote,
     lancarPorEncarregado: lancarPorEncarregado,

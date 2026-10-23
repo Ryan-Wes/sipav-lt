@@ -16,6 +16,14 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 23/10/2026
 
+### Lançar por encarregado: marcar as torres na grade **[WR]**
+
+A janela do lançamento por encarregado ganhou **Marcar na grade**, ao lado de Adicionar (o supervisor já tinha isso na tela
+dele). A janela fecha guardando o que estava preenchido (encarregado, segundo encarregado, atividades, data, percentual,
+cabo e observação), a grade abre com a seleção ligada e as torres que já estavam na lista marcadas, e o botão da barra vira
+**Voltar ao lançamento**: ele reabre a janela com as torres marcadas e o resto como estava. Sair do modo seleção pelo X
+descarta o retorno.
+
 ### PDF por pedaços: a página parava de responder **[WR]**
 
 Ao exportar o PDF a página travava ("Página sem resposta") e nada saía. O html2pdf desenha a tela inteira numa imagem
