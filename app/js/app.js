@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v225 · 2026-10-22';
+  var VERSAO = 'v226 · 2026-10-23';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -1377,8 +1377,12 @@ window.SIPAV = window.SIPAV || {};
     campo.textContent = partes.join(' ');
     campo.style.color = 'var(--texto-fraco)';
 
+    if (r.ajustes && r.ajustes.length) {
+      campo.textContent += (partes.length ? ' · ' : '') + r.ajustes.join(' · ');
+      campo.style.color = '#F59E0B';
+    }
     if (r.faltam.length) {
-      campo.textContent += (partes.length ? ' · ' : '') + 'não achei: ' + r.faltam.join(', ');
+      campo.textContent += (campo.textContent ? ' · ' : '') + 'não achei: ' + r.faltam.join(', ');
       campo.style.color = '#F59E0B';
     }
   }
@@ -3629,6 +3633,7 @@ window.SIPAV = window.SIPAV || {};
     $('btnProgramarSelecao').disabled = !n;
     $('btnEditarSelecao').disabled = !n;
     $('btnApagarSelecao').disabled = !n;
+    $('btnObservacaoSelecao').disabled = !n;
     $('btnLimparSelecao').classList.toggle('hidden', !n);
   }
 
@@ -4027,14 +4032,47 @@ window.SIPAV = window.SIPAV || {};
    * na ordem em que estão na linha. Se o intervalo é dado de trás para a frente,
    * a lista sai de trás para a frente: é a ordem em que a equipe vai caminhar.
    *
-   * O que não existe neste trecho volta em `faltam`, em vez de sumir calado.
+   * O que não existe neste trecho volta em `faltam`, em vez de sumir calado. Num intervalo cuja ponta não existe (a
+   * /2 que talvez nem tenha sido construída), vale a torre que existe mais perto, para dentro do intervalo, e o que
+   * foi ajustado volta em `ajustes`.
    */
   function interpretarTorresDoLote(texto) {
     var lista = E.torres || [];
     var indice = {};
     lista.forEach(function (t, i) { if (!(normalizar(t.identificador) in indice)) indice[normalizar(t.identificador)] = i; });
 
-    var torres = [], vistas = {}, faltam = [];
+    var torres = [], vistas = {}, faltam = [], ajustes = [];
+
+    function chaveDaTorre(id) {
+      var m = /^(\d+)\/(\d+)$/.exec(String(id).trim());
+      return m ? [Number(m[1]), Number(m[2])] : null;
+    }
+    function comparar(a, b) { return a[0] - b[0] || a[1] - b[1]; }
+
+    /** As pontas de "A a B" quando uma delas não existe: a de começo vira a primeira torre que existe dali em diante, a de fim a última que existe até ali (ao contrário, se o intervalo desce). */
+    function ajustarPontas(textoDe, textoAte, de, ate) {
+      var kd = chaveDaTorre(textoDe), ka = chaveDaTorre(textoAte);
+      if (!kd || !ka) return null;
+      var subindo = comparar(kd, ka) <= 0;
+      var reais = [];
+      lista.forEach(function (t, i) { var k = chaveDaTorre(t.identificador); if (k) reais.push({ i: i, k: k }); });
+      function primeira(k) { return reais.filter(function (r) { return comparar(r.k, k) >= 0; })[0]; }
+      function ultima(k) { var l = reais.filter(function (r) { return comparar(r.k, k) <= 0; }); return l[l.length - 1]; }
+
+      var avisos = [];
+      if (de === -1) {
+        var ini = subindo ? primeira(kd) : ultima(kd);
+        if (!ini) return null;
+        de = ini.i; avisos.push('a ' + textoDe.trim() + ' não existe, comecei na ' + lista[de].identificador);
+      }
+      if (ate === -1) {
+        var fim = subindo ? ultima(ka) : primeira(ka);
+        if (!fim) return null;
+        ate = fim.i; avisos.push('a ' + textoAte.trim() + ' não existe, fui até a ' + lista[ate].identificador);
+      }
+      if (subindo ? de > ate : de < ate) return null;
+      return { de: de, ate: ate, texto: textoDe.trim() + ' a ' + textoAte.trim() + ': ' + avisos.join(' e ') };
+    }
 
     function pegar(i) {
       var t = lista[i];
@@ -4046,7 +4084,7 @@ window.SIPAV = window.SIPAV || {};
       return k in indice ? indice[k] : -1;
     }
 
-    String(texto || '').split(/[,;\n]+/).forEach(function (item) {
+    String(texto || '').split(/[,;\n]+|\s+e\s+/i).forEach(function (item) {
       item = item.trim();
       if (!item) return;
 
@@ -4058,6 +4096,10 @@ window.SIPAV = window.SIPAV || {};
       var partes = item.split(/\s+(?:a|ate|até|ao)\s+|\s*[-–—]\s*/i);
       if (partes.length === 2) {
         var de = resolver(partes[0]), ate = resolver(partes[1]);
+        if (de === -1 || ate === -1) {
+          var aj = ajustarPontas(partes[0], partes[1], de, ate);
+          if (aj) { de = aj.de; ate = aj.ate; ajustes.push(aj.texto); }
+        }
         if (de !== -1 && ate !== -1) {
           var passo = de <= ate ? 1 : -1;
           for (var k = de; passo > 0 ? k <= ate : k >= ate; k += passo) pegar(k);
@@ -4078,7 +4120,7 @@ window.SIPAV = window.SIPAV || {};
       faltam.push(item);
     });
 
-    return { torres: torres, faltam: faltam };
+    return { torres: torres, faltam: faltam, ajustes: ajustes };
   }
 
   function renderChipsTorresLote() {
@@ -4102,6 +4144,8 @@ window.SIPAV = window.SIPAV || {};
 
     if (r.faltam.length) {
       ui.avisar('Não achei neste trecho: ' + r.faltam.join(', ') + '.', 'alerta', 6000);
+    } else if (r.ajustes.length) {
+      ui.avisar('Ajustei o intervalo: ' + r.ajustes.join(' · ') + '.', 'alerta', 7000);
     }
 
     var jaTem = {};

@@ -14,6 +14,18 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ---
 
+## 23/10/2026
+
+### Observação das torres: intervalo com ponta inexistente e botão na seleção **[WR]**
+
+Em "Observação nas torres", "213/1 a 215/2" não era reconhecido porque a 215/2 não existe no trecho: o intervalo
+falhava inteiro e sobravam "a" e "215/2" como torres que não existem. Agora vale a torre que existe mais perto, para
+dentro do intervalo, e a prévia diz o que foi ajustado ("a 215/2 não existe, fui até a 215/1"). Vale para todos os
+lugares que digitam torres (lote, observação, edição em lote). O " e " também separa torres ("214/2 e 215/1").
+
+A barra da seleção de torres na grade ganhou **Observação**: marque as torres como para programar (modo seleção ou
+Ctrl+clique) e o botão abre a janela de observação já com elas preenchidas.
+
 ## 22/10/2026
 
 ### Importação: torres coladas por "e", ponto ou espaço, e pontas de intervalo que não existem **[WR]**
