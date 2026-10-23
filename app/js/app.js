@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v226 · 2026-10-23';
+  var VERSAO = 'v227 · 2026-10-23';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -4084,7 +4084,8 @@ window.SIPAV = window.SIPAV || {};
       return k in indice ? indice[k] : -1;
     }
 
-    String(texto || '').split(/[,;\n]+|\s+e\s+/i).forEach(function (item) {
+    // Vírgula, ponto e vírgula, quebra de linha, "e" e ponto seguido de espaço separam as torres
+    String(texto || '').split(/[,;\n]+|\s+e\s+|\.\s+/i).forEach(function (item) {
       item = item.trim();
       if (!item) return;
 
@@ -4093,7 +4094,7 @@ window.SIPAV = window.SIPAV || {};
       if (i !== -1) { pegar(i); return; }
 
       // Intervalo
-      var partes = item.split(/\s+(?:a|ate|até|ao)\s+|\s*[-–—]\s*/i);
+      var partes = item.split(/\s+(?:a|à|ate|até|ao)\s+|\s*[-–—]\s*/i);
       if (partes.length === 2) {
         var de = resolver(partes[0]), ate = resolver(partes[1]);
         if (de === -1 || ate === -1) {
