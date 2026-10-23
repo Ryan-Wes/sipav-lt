@@ -16,6 +16,12 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 23/10/2026
 
+### Feriado só sai para a planilha, não entra **[WR]**
+
+A importação da planilha da ISA deixou de ler FERIADO. O feriado é cadastrado no SIPAV (vale para todos os trechos) e a planilha só
+recebe: na exportação continua escrito em toda célula daquela data que tem encarregado. Na importação o texto é reconhecido como
+anotação e descartado, sem virar dia sem atividade nem aviso. Conferi na REV02 do gerente: os dois feriados que antes eram
+importados sumiram da prévia, e folga de campo, mudança de trecho e de máquina continuam entrando como estavam (6, 8 e 1).
 ### Por atividade no desenho da planilha da ISA **[WR]**
 
 Cada atividade da aba Por atividade agora é, por semana, uma tabela como a da planilha da ISA: os encarregados nas linhas e os dias

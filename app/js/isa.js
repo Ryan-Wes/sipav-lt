@@ -379,7 +379,7 @@ window.SIPAV = window.SIPAV || {};
   /**
    * O que a planilha escreve no dia que não tem torre: FERIADO (em toda célula do dia que tem encarregado
    * programado na semana), e, na célula do encarregado, FOLGA DE CAMPO, MUDANÇA DE MÁQUINA, MUDANÇA PARA <canteiro>
-   * ou o motivo. É o que a importação lê de volta (movimentoDaAnotacao).
+   * ou o motivo. A importação lê de volta tudo isso, menos o FERIADO (movimentoDaAnotacao).
    */
   function textoDoMovimento(m, canteiros) {
     if (m.tipo === 'FOLGA_CAMPO') return 'FOLGA DE CAMPO';
@@ -1361,6 +1361,9 @@ window.SIPAV = window.SIPAV || {};
      * FOLGA DE CAMPO, MUDANÇA DE MÁQUINA e MUDANÇA PARA <lugar>. A mudança para um
      * lugar entra como "outro motivo", com o texto: a planilha diz só para onde, e a
      * mudança de trecho do SIPAV pede também de onde.
+     *
+     * FERIADO é reconhecido (não é torre nem serviço), mas a importação o descarta: o feriado é cadastrado no
+     * SIPAV e só sai para a planilha, nunca volta dela.
      */
     function movimentoDaAnotacao(texto) {
       var n = norm(texto);
@@ -1598,9 +1601,10 @@ window.SIPAV = window.SIPAV || {};
                   // "ATIVIDADE CONCLUÍDA" avisa que o serviço acabou: não é dia sem atividade
                   if (/^atividade conclu[ií]da$/.test(norm(t.torre))) return;
                   var mov = movimentoDaAnotacao(t.torre);
+                  if (mov && mov.tipo === 'FERIADO') return;
                   if (mov) {
                     movimentosBrutos.push({ tipo: mov.tipo, obs: mov.obs, destino: mov.destino, data: dataDoDia,
-                                            encNomes: mov.tipo === 'FERIADO' ? [] : equipeDaLinha });
+                                            encNomes: equipeDaLinha });
                   } else {
                     soltas.push(frase(t.torre));
                   }
@@ -1806,6 +1810,7 @@ window.SIPAV = window.SIPAV || {};
       }
       if (!torre) {
         var mov = movimentoDaAnotacao(b.torreTexto);
+        if (mov && mov.tipo === 'FERIADO') return;
         if (mov) {
           movimentosBrutos.push({ tipo: mov.tipo, obs: mov.obs, destino: mov.destino, data: b.data, encNomes: b.encNomes });
           return;
