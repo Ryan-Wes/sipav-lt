@@ -777,11 +777,11 @@ html.dark .hover\:bg-slate-200:hover   { background-color: var(--superficie-3) !
 
 /* ------------------------------------------------------ Modo de seleção -- */
 
-#barraSelecao, #barraTroca {
+#barraSelecao, #barraSelecaoProg, #barraTroca {
   position: fixed; bottom: 1rem; left: 50%; transform: translateX(-50%);
   z-index: 44; padding: 0 1rem; max-width: 100%;
 }
-#barraSelecao.hidden, #barraTroca.hidden { display: none; }
+#barraSelecao.hidden, #barraSelecaoProg.hidden, #barraTroca.hidden { display: none; }
 
 .barra-selecao-caixa {
   display: flex; flex-wrap: wrap; align-items: center; gap: .5rem;

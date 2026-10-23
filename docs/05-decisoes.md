@@ -25,6 +25,9 @@ trechos. **Editar**: um dia sem atividade marcado abre o editor dele; vários ab
 pular domingo) ou mudar para um dia, e trocar o encarregado de todos de uma vez (o feriado não tem encarregado e fica como está).
 Marcando programações e dias sem atividade juntos, Editar abre as programações e avisa que os dias sem atividade ficam de fora.
 
+A barra de baixo das programações marcadas (Editar, Apagar) não tinha posição no CSS e ficava no fim da página, fora da tela: marcava-se e
+não se via a barra. Passou a ficar fixa no rodapé, como a da grade.
+
 Marcada, a programação deixou de mostrar a caixinha laranja: fica só o contorno. A caixinha continua na análise das solicitações,
 onde se marca para aprovar ou reprovar.
 ### Marcar programações com Ctrl nos painéis, para editar ou apagar **[WR]**
