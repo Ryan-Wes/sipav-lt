@@ -16,6 +16,15 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 23/10/2026
 
+### Marcar programações com Ctrl nos painéis, para editar ou apagar **[WR]**
+
+Nos painéis Por data, Por encarregado e Por atividade, **Ctrl (ou Cmd) + clique** numa programação marca ela, sem precisar ligar o
+Selecionar vários: o modo liga sozinho e a barra de baixo aparece. **Ctrl + arrastar** um retângulo marca as programações que ele
+toca (Alt desmarca), e com o Selecionar vários ligado basta arrastar. Sem o Ctrl o clique continua abrindo a torre.
+
+A barra ganhou **Editar**, ao lado de Apagar: abre a mesma janela do Editar em lote da grade (data, encarregado, percentual,
+atividade, com prévia, remover marcadas e conferência da sequência), só que com as programações marcadas em vez das torres. O
+**Esc** desmarca tudo (e, se o modo foi ligado pelo Ctrl, desliga); tirar a última marcada também desliga.
 ### Feriado só sai para a planilha, não entra **[WR]**
 
 A importação da planilha da ISA deixou de ler FERIADO. O feriado é cadastrado no SIPAV (vale para todos os trechos) e a planilha só

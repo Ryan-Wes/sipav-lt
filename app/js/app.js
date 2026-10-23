@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v242 · 2026-10-23';
+  var VERSAO = 'v243 · 2026-10-23';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -131,6 +131,7 @@ window.SIPAV = window.SIPAV || {};
 
     // Arrastar pela grade marca as torres do retângulo, no modo seleção
     document.addEventListener('mousedown', iniciarLaco);
+    document.addEventListener('mousedown', iniciarLacoDeProgramacoes);
 
     // Quem só consulta vê todos os botões, mas nenhum que escreve funciona: o clique é barrado aqui,
     // antes de chegar ao botão, e a pessoa recebe o aviso no lugar. Ctrl+clique (selecionar) também.
@@ -161,12 +162,31 @@ window.SIPAV = window.SIPAV || {};
       if (ev.key === 'Escape' && E.modoSelecao && E.selecaoPorTecla && !document.querySelector('.modal:not(.hidden)')) limparSelecao();
     });
 
-    // Esc desiste de escolher na grade: da torre nova de uma programação, ou das torres do lançamento por encarregado
+    // Esc desiste de escolher na grade (da torre nova de uma programação, ou das torres do lançamento por encarregado)
+    // e desmarca as programações marcadas nos painéis
     document.addEventListener('keydown', function (ev) {
       if (ev.key !== 'Escape' || document.querySelector('.modal:not(.hidden)')) return;
       if (E.trocandoTorre) cancelarTrocaDeTorre();
       else if (E.modoSelecao && E.voltarAoLote) alternarModoSelecao();
+      else if (E.modoSelecaoProg && Object.keys(E.progSelecionadas).length) {
+        if (E.selecaoProgPorTecla) alternarSelecaoProgramacoes(false); else limparSelecaoProgramacoes();
+      }
     });
+
+    // Ctrl (ou Cmd) + clique numa programação dos painéis marca ela. Na captura, antes do clique que abre a torre.
+    document.addEventListener('click', function (ev) {
+      var alvo = ev.target;
+      if (!alvo || !alvo.closest) return;
+      // Fim de um arrasto, não um clique: o gesto já decidiu o que marcar
+      if (arrastou && alvo.closest('.chip-prog[data-prog]')) { ev.preventDefault(); ev.stopPropagation(); return; }
+      if (!(ev.ctrlKey || ev.metaKey) || E.modoSupervisor || E.modoConsulta || E.snapshot || E.aba === 'grade') return;
+      var chip = alvo.closest('.chip-prog[data-prog]');
+      if (!chip || alvo.closest('button') || chip.closest('.modal')) return;
+      if (somenteConsulta()) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      marcarProgramacaoComTecla(chip.getAttribute('data-prog'));
+    }, true);
 
     // Clique fora fecha os menus suspensos
     document.addEventListener('click', function (ev) {
@@ -3769,6 +3789,92 @@ window.SIPAV = window.SIPAV || {};
 
   var arrastou = false;
 
+  /**
+   * O mesmo arrasto, nos painéis (por data, por encarregado, por atividade): com o Ctrl segurado, ou com o "Selecionar
+   * vários" ligado, arrastar um retângulo marca as programações que ele toca. Alt desmarca. O modo liga sozinho
+   * quando o gesto vira arrasto e desliga se no fim não sobrou nada marcado.
+   */
+  var lacoProg = null;
+
+  function iniciarLacoDeProgramacoes(ev) {
+    if (ev.button !== 0 || E.aba === 'grade' || E.modoSupervisor || E.modoConsulta || E.snapshot) return;
+    var alvo = ev.target;
+    if (!alvo || !alvo.closest) return;
+    var painel = alvo.closest('#visaoDatas, #visaoEncarregados, #visaoAtividades');
+    if (!painel) return;
+    if (!(ev.ctrlKey || ev.metaKey) && !E.modoSelecaoProg) return;
+    if (alvo.closest('button, a, input, select')) return;
+
+    ev.preventDefault();
+    lacoProg = {
+      painel: painel, x0: ev.pageX, y0: ev.pageY, caixa: null, subtraindo: ev.altKey, mexeu: false,
+      silencioso: !E.modoSelecaoProg,
+      jaMarcadas: Object.keys(E.progSelecionadas).reduce(function (m, id) { m[id] = true; return m; }, {}),
+      origem: alvo.closest('.chip-prog[data-prog]')
+    };
+    document.addEventListener('mousemove', moverLacoDeProgramacoes);
+    document.addEventListener('mouseup', soltarLacoDeProgramacoes);
+  }
+
+  function moverLacoDeProgramacoes(ev) {
+    if (!lacoProg) return;
+
+    var x = Math.min(lacoProg.x0, ev.pageX), y = Math.min(lacoProg.y0, ev.pageY);
+    var l = Math.abs(ev.pageX - lacoProg.x0), a = Math.abs(ev.pageY - lacoProg.y0);
+    if (!lacoProg.mexeu && l < 5 && a < 5) return;
+
+    if (!lacoProg.mexeu) {
+      if (somenteConsulta()) { soltarLacoDeProgramacoes(); return; }
+      // Virou arrasto: se foi o Ctrl que começou, é agora que a seleção liga (sem redesenhar, para não mexer na tela)
+      if (!E.modoSelecaoProg) {
+        E.modoSelecaoProg = true;
+        E.selecaoProgPorTecla = true;
+        var check = $('checkSelecaoProg'); if (check) check.checked = true;
+      }
+      lacoProg.mexeu = true;
+      lacoProg.caixa = document.createElement('div');
+      lacoProg.caixa.className = 'laco-selecao';
+      document.body.appendChild(lacoProg.caixa);
+      if (lacoProg.origem && !lacoProg.subtraindo) lacoProg.jaMarcadas[lacoProg.origem.getAttribute('data-prog')] = true;
+    }
+
+    lacoProg.caixa.style.left = x + 'px';
+    lacoProg.caixa.style.top = y + 'px';
+    lacoProg.caixa.style.width = l + 'px';
+    lacoProg.caixa.style.height = a + 'px';
+    lacoProg.caixa.classList.toggle('laco-tirando', lacoProg.subtraindo);
+
+    Array.prototype.forEach.call(lacoProg.painel.querySelectorAll('.chip-prog[data-prog]'), function (el) {
+      var id = el.getAttribute('data-prog');
+      var r = el.getBoundingClientRect();
+      var dentro = !(r.right + window.scrollX < x || r.left + window.scrollX > x + l ||
+                     r.bottom + window.scrollY < y || r.top + window.scrollY > y + a);
+      var deve = lacoProg.subtraindo ? (lacoProg.jaMarcadas[id] && !dentro) : (lacoProg.jaMarcadas[id] || dentro);
+
+      if (!!E.progSelecionadas[id] === deve) return;
+      if (deve) E.progSelecionadas[id] = true; else delete E.progSelecionadas[id];
+      el.classList.toggle('chip-marcado', deve);
+    });
+  }
+
+  function soltarLacoDeProgramacoes() {
+    if (!lacoProg) return;
+    var mexeu = lacoProg.mexeu;
+    if (lacoProg.caixa && lacoProg.caixa.parentNode) lacoProg.caixa.parentNode.removeChild(lacoProg.caixa);
+    lacoProg = null;
+    document.removeEventListener('mousemove', moverLacoDeProgramacoes);
+    document.removeEventListener('mouseup', soltarLacoDeProgramacoes);
+    if (!mexeu) return;
+
+    // O clique que vem logo depois é do mesmo gesto e marcaria de novo a programação onde soltei
+    arrastou = true;
+    setTimeout(function () { arrastou = false; }, 0);
+
+    if (E.selecaoProgPorTecla && !Object.keys(E.progSelecionadas).length) { alternarSelecaoProgramacoes(false); return; }
+    render.tudo();
+    renderBarraSelecaoProg();
+  }
+
   function renderBarraSelecao() {
     var barra = $('barraSelecao');
     var n = Object.keys(E.selecionadas).length;
@@ -5453,6 +5559,7 @@ window.SIPAV = window.SIPAV || {};
       return;
     }
     E.modoSelecaoProg = !!ligado;
+    E.selecaoProgPorTecla = false;
     E.progSelecionadas = {};
 
     var check = $('checkSelecaoProg');
@@ -5466,8 +5573,24 @@ window.SIPAV = window.SIPAV || {};
     if (E.progSelecionadas[id]) delete E.progSelecionadas[id];
     else E.progSelecionadas[id] = true;
 
+    // Começou pelo Ctrl: sem nenhuma marcada, o modo e a barra saem sozinhos
+    if (E.selecaoProgPorTecla && !Object.keys(E.progSelecionadas).length) { alternarSelecaoProgramacoes(false); return; }
+
     render.tudo();
     renderBarraSelecaoProg();
+  }
+
+  /**
+   * Ctrl (ou Cmd) + clique numa programação dos painéis marca ela, sem passar pelo "Selecionar vários": o modo liga
+   * sozinho e desliga quando a última marcada sai (ou no Esc). Sem o Ctrl o clique continua abrindo a torre.
+   */
+  function marcarProgramacaoComTecla(id) {
+    if (!E.modoSelecaoProg) {
+      alternarSelecaoProgramacoes(true);
+      if (!E.modoSelecaoProg) return;
+      E.selecaoProgPorTecla = true;
+    }
+    alternarProgramacaoMarcada(id);
   }
 
   function limparSelecaoProgramacoes() {
@@ -5498,6 +5621,7 @@ window.SIPAV = window.SIPAV || {};
       ? n + (n === 1 ? ' programação marcada' : ' programações marcadas')
       : 'Clique nas programações para marcar';
 
+    $('btnEditarSelecaoProg').disabled = !n;
     $('btnApagarSelecaoProg').disabled = !n;
     $('btnApagarSelecaoProg').textContent = n ? 'Apagar ' + n : 'Apagar';
     $('btnLimparSelecaoProg').classList.toggle('hidden', !n);
@@ -5751,8 +5875,23 @@ window.SIPAV = window.SIPAV || {};
     var marcadas = {};
     ids.forEach(function (id) { marcadas[id] = true; });
 
-    edicaoLote = E.programacoes
-      .filter(function (p) { return p.torre && marcadas[p.torre.id]; })
+    var doLote = E.programacoes.filter(function (p) { return p.torre && marcadas[p.torre.id]; });
+    if (!doLote.length) {
+      ui.avisar('As torres marcadas não têm programação no período exibido.', 'alerta', 6000);
+      return;
+    }
+    abrirEdicaoDeProgramacoes(doLote, '<strong>' + ids.length + '</strong> torre(s) marcada(s)');
+  }
+
+  /** Editar as programações marcadas nos painéis (Ctrl+clique ou Selecionar vários): a mesma janela do lote. */
+  function editarProgramacoesMarcadas() {
+    var doLote = E.programacoes.filter(function (p) { return E.progSelecionadas[p.id]; });
+    if (!doLote.length) { ui.avisar('Marque pelo menos uma programação.', 'alerta'); return; }
+    abrirEdicaoDeProgramacoes(doLote, '<strong>' + doLote.length + '</strong>' + (doLote.length === 1 ? ' programação marcada' : ' programações marcadas'));
+  }
+
+  function abrirEdicaoDeProgramacoes(programacoes, quem) {
+    edicaoLote = programacoes
       .map(function (p) {
         return {
           id: p.id,
@@ -5773,11 +5912,6 @@ window.SIPAV = window.SIPAV || {};
         return a.torreNome.localeCompare(b.torreNome, 'pt-BR');
       });
 
-    if (!edicaoLote.length) {
-      ui.avisar('As torres marcadas não têm programação no período exibido.', 'alerta', 6000);
-      return;
-    }
-
     var atividadesPresentes = [];
     edicaoLote.forEach(function (x) {
       if (x.atividadeId && !atividadesPresentes.some(function (a) { return a.id === x.atividadeId; })) {
@@ -5793,7 +5927,7 @@ window.SIPAV = window.SIPAV || {};
       '<div class="space-y-4">' +
 
         '<p class="text-xs" style="color:var(--texto-fraco)">' +
-          'Alterando a programação de <strong>' + ids.length + '</strong> torre(s) marcada(s). ' +
+          'Alterando a programação de ' + quem + '. ' +
           'Campo em branco não é alterado.' +
         '</p>' +
 
@@ -10919,6 +11053,7 @@ window.SIPAV = window.SIPAV || {};
     fecharModal: ui.fecharModal,
 
     abrirTorre: abrirTorre,
+    editarProgramacoesMarcadas: editarProgramacoesMarcadas,
     verificarBloqueio: verificarBloqueio,
     verificarConflito: verificarConflito,
     verificarMesmoServico: verificarMesmoServico,
