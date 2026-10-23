@@ -16,6 +16,18 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 23/10/2026
 
+### PDF por pedaços: a página parava de responder **[WR]**
+
+Ao exportar o PDF a página travava ("Página sem resposta") e nada saía. O html2pdf desenha a tela inteira numa imagem
+só e calcula as quebras de página olhando cada elemento marcado como "não quebrar" (cada cartão e cada bloco), e isso
+cresce com o quadrado da quantidade de cartões: com 40 encarregados a versão antiga passou de meia hora. Agora, nas abas
+Por Encarregado, Por Atividade e Por Data, o PDF é montado pedaço a pedaço, em A4 paisagem: o cabeçalho abre a primeira
+página e cada pedaço (o consolidado, e cada encarregado, atividade ou semana) é desenhado numa imagem própria, com só ele
+na cópia da página, e posto embaixo do anterior se couber ou numa página nova. "Uma página para cada encarregado" faz
+cada um começar a sua. O que é mais alto que uma página é cortado em fatias, e a janela mostra "Gerando PDF… 3 de 12".
+Medido com 40 encarregados: 77 s, 44 páginas. A grade continua no html2pdf inteiro, que é o que mantém os cartões
+inteiros nas quebras.
+
 ### Consolidado por encarregado: semana, quinzena e total, e a dupla que se completa **[WR]**
 
 O consolidado da aba Por Encarregado (torres, km, atividades e dias de cada um) agora tem a escolha **Semanal,

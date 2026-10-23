@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v233 · 2026-10-23';
+  var VERSAO = 'v234 · 2026-10-23';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -10479,6 +10479,120 @@ window.SIPAV = window.SIPAV || {};
     return marcados;
   }
 
+  /**
+   * Os pedaços do relatório, cada um desenhado e posto na página por si: o consolidado e cada encarregado (ou
+   * atividade, ou semana). Nulo para a grade, que continua no html2pdf inteiro.
+   *
+   * O html2pdf desenha a tela toda numa imagem só e calcula as quebras de página olhando cada elemento com
+   * "não quebrar", o que cresce com o quadrado da quantidade de cartões: com muitos encarregados a página parava
+   * de responder e o PDF não saía. Aqui cada pedaço vira uma imagem pequena, e a página respira entre elas.
+   */
+  function unidadesDoPdf(umPorPagina) {
+    function filhos(id, seletor) {
+      return Array.prototype.slice.call($(id).querySelectorAll(seletor));
+    }
+    var lista;
+    if (E.aba === 'encarregados') lista = filhos('visaoEncarregados', ':scope > section.bloco-quadrante');
+    else if (E.aba === 'atividades') lista = filhos('visaoAtividades', ':scope > section.bloco-quadrante, :scope > .bloco-quadrante');
+    else if (E.aba === 'datas') lista = filhos('visaoDatas', ':scope > section');
+    else return null;
+
+    return lista.map(function (el, i) {
+      var consolidado = /^Consolidado/.test((el.querySelector('h3') || {}).textContent || '');
+      // Um por página: cada encarregado (ou atividade, ou semana) começa a sua; o consolidado fica com o cabeçalho
+      return { el: el, nova: umPorPagina && i > 0 && !consolidado };
+    });
+  }
+
+  /**
+   * Monta o PDF pedaço a pedaço, em A4 paisagem: o cabeçalho abre a primeira página e cada pedaço entra embaixo do
+   * anterior se couber, ou numa página nova. O que é mais alto que uma página é cortado em fatias.
+   */
+  function gerarPdfEmPaginas(unidades, arquivo) {
+    var MARGEM = 8, FOLGA = 3;
+    var opcoes = {
+      margin: MARGEM,
+      html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+    };
+    var pdf = null, larg = 0, alt = 0, util = 0, y = MARGEM;
+
+
+    function respirar() { return new Promise(function (r) { setTimeout(r, 0); }); }
+
+    function paraCanvas(el) {
+      // Pedaço muito alto: menos resolução, para a imagem não passar do limite do navegador
+      var escala = Math.max(1, Math.min(2, 14000 / Math.max(1, el.scrollHeight)));
+      var o = Object.assign({}, opcoes, { html2canvas: Object.assign({}, opcoes.html2canvas, {
+        scale: escala,
+        // O html2canvas copia a página inteira a cada desenho (a grade, as outras abas, os outros pedaços). O
+        // html2pdf põe uma cópia do pedaço numa camada própria (html2pdf__overlay); só ela e o caminho até ela ficam
+        // na cópia, senão cada pedaço custaria a tela toda
+        ignoreElements: (function () {
+          var camada = null;
+          return function (n) {
+            if (n.nodeType !== 1) return false;
+            if (!camada) camada = document.querySelector('.html2pdf__overlay');
+            return !!camada && !camada.contains(n) && !n.contains(camada);
+          };
+        })()
+      }) });
+      return html2pdf().set(o).from(el).toCanvas().get('canvas');
+    }
+
+    function pagina() { pdf.addPage(); y = MARGEM; }
+
+    /** Põe o desenho de um pedaço no PDF, na largura da página, cortando se for mais alto que ela. */
+    function colocar(canvas, nova) {
+      var k = util / canvas.width;                     // mm por pixel
+      var h = canvas.height * k;
+      if (nova || y + h > alt - MARGEM) {
+        // Cabe numa página inteira: vai para a próxima. Não cabe nem assim: começa onde estiver e corta
+        if (nova || h <= alt - 2 * MARGEM || y > MARGEM) pagina();
+      }
+
+      var restante = canvas.height, topo = 0;
+      while (restante > 0) {
+        var livre = alt - MARGEM - y;
+        var fatiaPx = Math.min(restante, Math.floor(livre / k));
+        if (fatiaPx < 1) { pagina(); continue; }
+        var fatia = document.createElement('canvas');
+        fatia.width = canvas.width; fatia.height = fatiaPx;
+        fatia.getContext('2d').drawImage(canvas, 0, topo, canvas.width, fatiaPx, 0, 0, canvas.width, fatiaPx);
+        pdf.addImage(fatia.toDataURL('image/jpeg', 0.92), 'JPEG', MARGEM, y, util, fatiaPx * k);
+        y += fatiaPx * k;
+        topo += fatiaPx; restante -= fatiaPx;
+        if (restante > 0) pagina();
+      }
+      y += FOLGA;
+    }
+
+    var cabecalho = $('cabecalhoPdf');
+    var total = unidades.length;
+
+    // O cabeçalho cria o PDF (e a primeira página); o resto é posto por cima, pedaço a pedaço
+    return html2pdf().set(opcoes).from(cabecalho).toCanvas().get('canvas')
+      .then(function (c) {
+        return html2pdf().set(opcoes).from(cabecalho).toPdf().get('pdf').then(function (p) {
+          pdf = p;
+          larg = pdf.internal.pageSize.getWidth();
+          alt = pdf.internal.pageSize.getHeight();
+          util = larg - 2 * MARGEM;
+          y = MARGEM + c.height * (util / c.width) + FOLGA;
+        });
+      })
+      .then(function () {
+        return unidades.reduce(function (antes, u, i) {
+          return antes.then(function () {
+            $('processandoTexto').textContent = 'Gerando PDF… ' + (i + 1) + ' de ' + total;
+            return respirar().then(function () { return paraCanvas(u.el); })
+              .then(function (canvas) { colocar(canvas, u.nova); });
+          });
+        }, Promise.resolve());
+      })
+      .then(function () { pdf.save(arquivo + '.pdf'); });
+  }
+
   function gerarPdf() {
     var titulo = $('pdfTitulo').value;
     var arquivo = $('pdfArquivo').value || 'sipav';
@@ -10502,11 +10616,14 @@ window.SIPAV = window.SIPAV || {};
       ' · emitido em ' + ui.dataCurta(ui.hoje());
     ui.mostrar('cabecalhoPdf');
     document.body.classList.add('modo-pdf');
-    var quebras = umPorPagina ? marcarQuebrasDoPdf() : [];
+    var unidades = unidadesDoPdf(umPorPagina);
+    var quebras = (!unidades && umPorPagina) ? marcarQuebrasDoPdf() : [];
     function tirarQuebras() { quebras.forEach(function (el) { el.classList.remove('quebra-pdf'); }); }
 
     var area = $('areaRelatorio');
-    html2pdf()
+    var gerando = unidades
+      ? gerarPdfEmPaginas(unidades, arquivo)
+      : html2pdf()
       .set({
         margin: 8,
         filename: arquivo + '.pdf',
@@ -10516,7 +10633,9 @@ window.SIPAV = window.SIPAV || {};
         pagebreak: { mode: ['css', 'legacy'] }
       })
       .from(area)
-      .save()
+      .save();
+
+    gerando
       .then(function () {
         document.body.classList.remove('modo-pdf');
         tirarQuebras();
