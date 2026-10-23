@@ -16,6 +16,14 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 23/10/2026
 
+### Por atividade no desenho da planilha da ISA **[WR]**
+
+Cada atividade da aba Por atividade agora é, por semana, uma tabela como a da planilha da ISA: os encarregados nas linhas e os dias
+(segunda a sábado; o domingo só aparece se tiver algo) nas colunas, com a data no cabeçalho e as torres de cada um no dia dele.
+Dupla fica numa linha só ("A / B"), como na planilha, e quem não tem encarregado fica por último. O dia de feriado leva a marca
+FERIADO. Cada semana tem a faixa com o nome dela (Semanal, Quinzenal…) e o total. As torres continuam sendo os mesmos chips de
+antes (clicar abre a torre, selecionar vários, lixeira, pré-programação do supervisor, etiqueta da flambagem). No celular a tabela
+rola de lado e o nome do encarregado fica parado.
 ### Desistir do Marcar na grade volta para o encarregado; revisão só de flambagem aparece **[WR]**
 
 Se eu abro o Lançar por encarregado, vou em **Marcar na grade** e desisto (o X da barra de seleção), a tela volta para a aba Por

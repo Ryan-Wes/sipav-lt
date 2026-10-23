@@ -729,7 +729,7 @@ window.SIPAV = window.SIPAV || {};
           '<span class="text-xs font-semibold text-slate-500 shrink-0">' + resumo + '</span>' +
         '</header>' +
         (op && op.porEncarregado && itens.length
-          ? linhasPorEncarregado(itens, op)
+          ? quadroDaAtividade(itens, op)
           : '') +
         (op && op.porAtividade && !op.porEncarregado
           ? gruposPorAtividade(itens, movs, op)
@@ -802,33 +802,63 @@ window.SIPAV = window.SIPAV || {};
   }
 
   /**
-   * Uma linha por encarregado, uma embaixo da outra, com o nome à esquerda e os
-   * cartões dele em ordem de data — o desenho da planilha da ISA, onde cada
-   * encarregado ocupa uma linha dentro do item. Quem não tem encarregado fica por
-   * último.
+   * O quadro de uma atividade, como na planilha da ISA: uma tabela por semana, os encarregados nas linhas e os dias
+   * (segunda a sábado, e o domingo só se tiver algo) nas colunas, com as torres de cada um no dia dele. Dupla fica numa
+   * linha só ("A / B"), como na planilha; quem não tem encarregado fica por último.
    */
-  function linhasPorEncarregado(itens, op) {
-    var g = agruparPorEncarregado(itens.slice().sort(function (a, b) {
-      return a.data < b.data ? -1 : a.data > b.data ? 1 : 0;
-    }), '');
+  function quadroDaAtividade(itens, op) {
+    var porSemana = agrupar(itens.slice().sort(function (a, b) { return a.data < b.data ? -1 : a.data > b.data ? 1 : 0; }),
+      function (p) { return ui.iso(ui.segundaDaSemana(ui.paraData(p.data))); });
+    var opChip = Object.assign({}, op, { data: false, encarregado: false, atividade: false });
 
-    return g.ordem.map(function (nome) {
-      var lista = g.mapa[nome];
-      var t = totais(lista);
-      return '<div class="linha-enc">' +
-               '<div class="linha-enc-nome">' + esc(nome || 'Sem encarregado') +
-                 '<span>' + t.torres + (t.torres === 1 ? ' torre' : ' torres') + '</span>' +
-               '</div>' +
-               '<div class="linha-enc-cartoes grid gap-2" ' +
-                    'style="grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr))">' +
-                 lista.map(function (p) {
-                   return chipProgramacao(p, Object.assign({}, op, { doEncarregado: nome }));
-                 }).join('') +
-               '</div>' +
-             '</div>';
+    return porSemana.ordem.slice().sort().map(function (segunda) {
+      var daSemana = porSemana.mapa[segunda];
+      var temDomingo = daSemana.some(function (p) { return ui.paraData(p.data).getDay() === 0; });
+      var dias = [];
+      for (var i = 0; i < (temDomingo ? 7 : 6); i++) dias.push(ui.iso(ui.somarDias(ui.paraData(segunda), i)));
+
+      var linhas = {}, nomes = [];
+      daSemana.forEach(function (p) {
+        var k = encarregadosDe(p).map(function (e) { return e.nome; }).join(' / ');
+        if (!linhas[k]) { linhas[k] = []; nomes.push(k); }
+        linhas[k].push(p);
+      });
+      nomes.sort(function (a, b) { return !a ? 1 : !b ? -1 : a.localeCompare(b, 'pt-BR'); });
+
+      var tt = totais(daSemana);
+      var cabecalho = dias.map(function (iso) {
+        return '<th class="' + (ui.fimDeSemana(iso) ? 'fim-de-semana' : '') + '">' +
+                 esc(ui.diaDaSemana(iso).slice(0, 3).toUpperCase()) + ' ' + esc(ui.dataCurta(iso)) +
+                 (feriadoDoDia(iso) ? ' <em class="rotulo-feriado">FERIADO</em>' : '') +
+               '</th>';
+      }).join('');
+
+      var corpo = nomes.map(function (nome) {
+        var doEnc = linhas[nome];
+        var n = totais(doEnc).torres;
+        return '<tr><th scope="row" class="col-enc">' + esc(nome || 'Sem encarregado') +
+                 '<span>' + n + (n === 1 ? ' torre' : ' torres') + '</span></th>' +
+               dias.map(function (iso) {
+                 var doDia = doEnc.filter(function (p) { return p.data === iso; })
+                   .sort(function (a, b) { return (a.torre ? a.torre.ordem : 0) - (b.torre ? b.torre.ordem : 0); });
+                 return '<td>' + (doDia.length
+                   ? '<div class="celula">' + doDia.map(function (p) { return chipProgramacao(p, opChip); }).join('') + '</div>'
+                   : '') + '</td>';
+               }).join('') +
+             '</tr>';
+      }).join('');
+
+      return '<div class="faixa-semana">' +
+               '<span class="faixa-semana-nome">' + esc(nomeDaSemana(segunda)) + '</span>' +
+               '<span class="faixa-semana-datas">' + esc(ui.dataCurta(segunda)) + ' a ' +
+                 esc(ui.dataCurta(ui.iso(ui.somarDias(ui.paraData(segunda), 6)))) + '</span>' +
+               '<span class="faixa-semana-total">' + tt.torres + (tt.torres === 1 ? ' torre' : ' torres') + ' · ' +
+                 ui.km(tt.km) + ' km · ' + daSemana.length + (daSemana.length === 1 ? ' atividade' : ' atividades') + '</span>' +
+             '</div>' +
+             '<div class="overflow-x-auto"><table class="quadro-atv"><thead><tr><th class="col-enc">Encarregado</th>' +
+               cabecalho + '</tr></thead><tbody>' + corpo + '</tbody></table></div>';
     }).join('');
   }
-
   /**
    * Os encarregados de uma programação: o primeiro e, quando dois fazem juntos, o
    * segundo. Sempre uma lista, vazia se não há ninguém.

@@ -2241,3 +2241,27 @@ body.modo-consulta .so-planejamento { display: none !important; }
   0%, 40% { box-shadow: 0 0 0 3px var(--acento); }
   100% { box-shadow: 0 0 0 0 transparent; }
 }
+/* Por atividade, no desenho da planilha da ISA: encarregado nas linhas, dias nas colunas */
+.quadro-atv { width: 100%; min-width: 52rem; border-collapse: collapse; table-layout: fixed; }
+.quadro-atv th {
+  padding: .375rem .5rem; text-align: left; vertical-align: top;
+  font-size: .6875rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--texto-fraco);
+  border-bottom: 1px solid var(--borda);
+}
+.quadro-atv th.fim-de-semana { color: var(--acento); }
+.quadro-atv th .rotulo-feriado { display: block; margin-top: .125rem; }
+.quadro-atv .col-enc { width: 9.5rem; }
+.quadro-atv tbody th.col-enc {
+  padding-top: .625rem; font-size: .8125rem; letter-spacing: 0; text-transform: none; color: var(--texto);
+  border-bottom: 0; line-height: 1.25;
+}
+.quadro-atv tbody th.col-enc span { display: block; margin-top: .125rem; font-size: .6875rem; font-weight: 600; color: var(--texto-fraco); }
+.quadro-atv td { padding: .375rem .5rem; vertical-align: top; border-top: 1px solid var(--borda); }
+.quadro-atv tbody tr:first-child td, .quadro-atv tbody tr:first-child th { border-top: 0; }
+.quadro-atv .celula { display: flex; flex-direction: column; gap: .25rem; }
+.quadro-atv .chip-prog { padding: .25rem .375rem; gap: .375rem; }
+.quadro-atv .chip-prog .ponto-atividade { display: none; }
+/* Celular: a tabela rola de lado e o nome do encarregado fica parado à esquerda */
+@media (max-width: 900px) {
+  .quadro-atv .col-enc { position: sticky; left: 0; z-index: 1; background: var(--superficie); width: 7.5rem; }
+}
