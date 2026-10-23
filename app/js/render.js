@@ -305,8 +305,8 @@ window.SIPAV = window.SIPAV || {};
   function tagNotaRevisao(p) {
     if (!p.observacao) return '';
     var o = String(p.observacao).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-    var texto = o.indexOf('retirada de flambagem') !== -1 ? 'RET. FLAMBAGEM'
-              : o.indexOf('retirada de pendencias') !== -1 ? 'RET. PENDÊNCIAS' : '';
+    var texto = o.indexOf('retirada de flambagem') !== -1 ? 'RET. FLAMB.'
+              : o.indexOf('retirada de pendencias') !== -1 ? 'RET. PEND.' : '';
     return texto ? '<span class="tag-nota" title="' + esc(p.observacao) + '">' + texto + '</span>' : '';
   }
 

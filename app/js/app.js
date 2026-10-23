@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v240 · 2026-10-23';
+  var VERSAO = 'v241 · 2026-10-23';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -159,6 +159,13 @@ window.SIPAV = window.SIPAV || {};
     // Esc desfaz a seleção que o Ctrl começou
     document.addEventListener('keydown', function (ev) {
       if (ev.key === 'Escape' && E.modoSelecao && E.selecaoPorTecla && !document.querySelector('.modal:not(.hidden)')) limparSelecao();
+    });
+
+    // Esc desiste de escolher na grade: da torre nova de uma programação, ou das torres do lançamento por encarregado
+    document.addEventListener('keydown', function (ev) {
+      if (ev.key !== 'Escape' || document.querySelector('.modal:not(.hidden)')) return;
+      if (E.trocandoTorre) cancelarTrocaDeTorre();
+      else if (E.modoSelecao && E.voltarAoLote) alternarModoSelecao();
     });
 
     // Clique fora fecha os menus suspensos

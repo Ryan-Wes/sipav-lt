@@ -30,8 +30,10 @@ Se eu abro o Lançar por encarregado, vou em **Marcar na grade** e desisto (o X 
 encarregado e rola até o bloco daquele encarregado, destacando-o. Antes ficava na grade, sem rastro de onde eu estava. Entrar no
 histórico de uma foto não faz esse retorno.
 
+O **Esc** também desiste da escolha na grade: do Marcar na grade do Lançar por encarregado (volta para o encarregado, como o X) e da
+escolha da torre nova de uma programação (volta para a janela dela, na torre de antes). Só vale com nenhuma janela aberta.
 A revisão que é só **retirada de flambagem** (ou **retirada de pendências**) ganhou uma etiqueta ao lado da atividade, nos chips dos
-painéis e nos itens do cartão da torre: RET. FLAMBAGEM e RET. PENDÊNCIAS. O texto vem da observação da programação, que é onde essa
+painéis e nos itens do cartão da torre: RET. FLAMB. e RET. PEND. (curtas, para sobrar espaço para o percentual). O texto vem da observação da programação, que é onde essa
 nota já era gravada (e de onde a planilha da ISA a lê), então nada muda no banco.
 ### Feriado vale para todos os trechos **[WR]**
 
