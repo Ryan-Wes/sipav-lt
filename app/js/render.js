@@ -956,14 +956,65 @@ window.SIPAV = window.SIPAV || {};
     return CORES_DOS_TRECHOS.filter(function (c) { return c.quando.test(n); })[0] || null;
   }
 
-  function programacoesVisiveis() {
+  /** Os filtros da tela (atividade, canteiro, busca) e o que está escondido, para uma programação só. */
+  function passaNosFiltros(p) {
     var busca = (E.busca || '').trim().toLowerCase();
-    return programacoesDeOrigem().filter(function (p) {
-      if (escondida(p)) return false;
-      if (E.filtroAtividade && (!p.atividade || p.atividade.id !== E.filtroAtividade)) return false;
-      if (E.filtroCanteiro && (!p.torre || p.torre.canteiro_id !== E.filtroCanteiro)) return false;
-      if (busca && (!p.torre || p.torre.identificador.toLowerCase().indexOf(busca) === -1)) return false;
-      return true;
+    if (escondida(p)) return false;
+    if (E.filtroAtividade && (!p.atividade || p.atividade.id !== E.filtroAtividade)) return false;
+    if (E.filtroCanteiro && (!p.torre || p.torre.canteiro_id !== E.filtroCanteiro)) return false;
+    if (busca && (!p.torre || p.torre.identificador.toLowerCase().indexOf(busca) === -1)) return false;
+    return true;
+  }
+
+  function programacoesVisiveis() {
+    return programacoesDeOrigem().filter(passaNosFiltros);
+  }
+
+  /* ---------------------------------------- Consolidado: semana, quinzena, total -- */
+
+  var VISOES_DO_CONSOLIDADO = [
+    { id: 'semana',   rotulo: 'Semana' },
+    { id: 'quinzena', rotulo: 'Quinzena' },
+    { id: 'total',    rotulo: 'Total' }
+  ];
+
+  /** A semana de partida: a da tela, ou a de hoje. A quinzena é ela e a seguinte. */
+  function baseDoConsolidado() {
+    var de = E.periodo && E.periodo.de ? ui.paraData(E.periodo.de) : new Date();
+    return ui.iso(ui.segundaDaSemana(de));
+  }
+
+  function visaoDoConsolidado() {
+    if (E.consolidadoVisao) return E.consolidadoVisao;
+    var m = E.periodo && E.periodo.modo;
+    return (m === 'semana' || m === 'proxima') ? 'semana' : 'quinzena';
+  }
+
+  function escolherConsolidado(visao) {
+    E.consolidadoVisao = visao;
+    tudo();
+  }
+
+  /**
+   * As programações da visão escolhida, com os filtros da tela, ou nulo enquanto carregam. A quinzena e o total
+   * vêm do banco (a tela só carrega o período que está nela); o app.js os busca quando faltam, pelo
+   * E.pedirConsolidado, e ao chegarem a tela se desenha de novo.
+   */
+  function listaDoConsolidado(visao, base) {
+    // Em Todos os trechos o consolidado é da obra toda; senão, do trecho aberto
+    var daObra = E.escopo === 'todos';
+    var chave = (daObra ? 'obra' : ((E.trechoAtual && E.trechoAtual.id) || '')) + '|' + base;
+    if (!E.consolidado || E.consolidado.chave !== chave) E.consolidado = { chave: chave, base: base };
+
+    var fonte = visao === 'total' ? E.consolidado.total : E.consolidado.quinzena;
+    if (!fonte) {
+      if (E.pedirConsolidado) E.pedirConsolidado(visao === 'total' ? 'total' : 'quinzena', base, chave, daObra);
+      return null;
+    }
+    var fim = ui.iso(ui.somarDias(ui.paraData(base), visao === 'semana' ? 6 : 13));
+    return fonte.filter(function (p) {
+      if (visao !== 'total' && (p.data < base || p.data > fim)) return false;
+      return passaNosFiltros(p);
     });
   }
 
@@ -1424,6 +1475,77 @@ window.SIPAV = window.SIPAV || {};
     return '<div class="linha-topo-enc">' + aviso + barraLancamento() + '</div>';
   }
 
+  /** O cabeçalho (com a escolha semana / quinzena / total) e a tabela do consolidado por encarregado. */
+  function tabelaDoConsolidado(lista, visao, base, porVisao) {
+    var rotuloDoPeriodo;
+    if (!porVisao) rotuloDoPeriodo = ui.rotuloPeriodo(E.periodo.de, E.periodo.ate);
+    else if (visao === 'total') rotuloDoPeriodo = E.escopo === 'todos' ? 'Tudo o que está programado na obra' : 'Tudo o que está programado neste trecho';
+    else rotuloDoPeriodo = ui.rotuloPeriodo(base, ui.iso(ui.somarDias(ui.paraData(base), visao === 'semana' ? 6 : 13)));
+
+    var escolha = porVisao
+      ? '<div class="flex gap-1 mt-2 consolidado-escolha">' +
+          VISOES_DO_CONSOLIDADO.map(function (v) {
+            return '<button type="button" class="btn-secundario' + (v.id === visao ? ' ativo' : '') + '" ' +
+                   'onclick="SIPAV.render.escolherConsolidado(\'' + v.id + '\')">' + v.rotulo + '</button>';
+          }).join('') +
+        '</div>'
+      : '';
+
+    var cabecalho =
+      '<header class="px-4 py-2.5 bg-slate-50 border-b border-slate-200">' +
+        '<h3 class="font-bold text-slate-800">Consolidado por encarregado</h3>' +
+        '<p class="text-xs text-slate-500">' + esc(rotuloDoPeriodo) + '</p>' + escolha +
+      '</header>';
+
+    if (lista === null) {
+      return '<section class="bloco-quadrante painel overflow-hidden">' + cabecalho +
+        '<p class="px-4 py-6 text-sm text-slate-500">Carregando…</p></section>';
+    }
+
+    var ordenada = lista.slice().sort(function (a, b) { return a.data < b.data ? -1 : a.data > b.data ? 1 : 0; });
+    var gc = agruparPorEncarregado(ordenada, 'Sem encarregado');
+    var resumo = gc.ordem.map(function (nome) {
+      var itens = gc.mapa[nome];
+      var t = totais(itens);
+      var datas = {};
+      itens.forEach(function (p) { datas[p.data] = true; });
+      return { nome: nome, torres: t.torres, km: t.km, dias: Object.keys(datas).length, atividades: itens.length };
+    });
+    var geral = totais(lista);
+
+    return '<section class="bloco-quadrante painel overflow-hidden">' + cabecalho +
+      '<div class="overflow-x-auto"><table class="w-full text-sm">' +
+        '<thead><tr class="text-left text-xs uppercase tracking-wide text-slate-500">' +
+          '<th class="px-4 py-2 font-semibold">Encarregado</th>' +
+          '<th class="px-3 py-2 font-semibold text-right">Torres</th>' +
+          '<th class="px-3 py-2 font-semibold text-right">km</th>' +
+          '<th class="px-3 py-2 font-semibold text-right">Atividades</th>' +
+          '<th class="px-4 py-2 font-semibold text-right">Dias</th>' +
+        '</tr></thead><tbody>' +
+        (resumo.length ? resumo.map(function (r) {
+          return '<tr class="border-t border-slate-200">' +
+            '<td class="px-4 py-2 font-medium text-slate-700">' + esc(r.nome) + '</td>' +
+            '<td class="px-3 py-2 text-right text-slate-600">' + r.torres + '</td>' +
+            '<td class="px-3 py-2 text-right text-slate-600">' + ui.km(r.km) + '</td>' +
+            '<td class="px-3 py-2 text-right text-slate-600">' + r.atividades + '</td>' +
+            '<td class="px-4 py-2 text-right text-slate-600">' + r.dias + '</td>' +
+          '</tr>';
+        }).join('') : '<tr class="border-t border-slate-200"><td class="px-4 py-3 text-slate-500" colspan="5">Nada programado neste período.</td></tr>') +
+        '<tr class="border-t-2 border-slate-300 font-bold">' +
+          '<td class="px-4 py-2 text-slate-800">' + (E.escopo === 'todos' ? 'Total' : 'Total do trecho') + '</td>' +
+          '<td class="px-3 py-2 text-right text-slate-800">' + geral.torres + '</td>' +
+          '<td class="px-3 py-2 text-right text-slate-800">' + ui.km(geral.km) + '</td>' +
+          '<td class="px-3 py-2 text-right text-slate-800">' + lista.length + '</td>' +
+          '<td class="px-4 py-2"></td>' +
+        '</tr>' +
+      '</tbody></table></div>' +
+      '<p class="px-4 py-2 text-[11px] text-slate-400 border-t border-slate-200">' +
+        'O total de torres não é a soma da coluna: uma torre atendida por dois ' +
+        'encarregados conta uma vez só no trecho.' +
+      '</p>' +
+    '</section>';
+  }
+
   function renderPorEncarregado() {
     var lista = programacoesVisiveis();
     var movs = movimentacoesVisiveis();
@@ -1454,57 +1576,16 @@ window.SIPAV = window.SIPAV || {};
     var extras = movsPorEnc.ordem.filter(function (n) { return !g.mapa[n]; })
       .sort(function (a, b) { return a.localeCompare(b, 'pt-BR'); });
 
-    // Consolidado no topo: é o número que a fiscalização e a coordenação pedem,
-    // e que antes só dava para somar olhando bloco a bloco.
-    var resumo = g.ordem.map(function (nome) {
-      var itens = g.mapa[nome];
-      var t = totais(itens);
-      var datas = {};
-      itens.forEach(function (p) { datas[p.data] = true; });
-      return { nome: nome, torres: t.torres, km: t.km,
-               dias: Object.keys(datas).length, atividades: itens.length };
-    });
+    // Consolidado no topo: é o número que a fiscalização e a coordenação pedem, e que antes só dava para
+    // somar olhando bloco a bloco. Por semana, por quinzena e no total do trecho: a tela só carrega o período
+    // em que está, então a quinzena e o total vêm do banco (ver listaDoConsolidado).
+    // Olhando uma foto (planejamento salvo), o consolidado é o da foto, sem a escolha
+    var porVisao = !E.snapshot;
+    var visao = porVisao ? visaoDoConsolidado() : 'periodo';
+    var baseDoResumo = baseDoConsolidado();
+    var listaDoResumo = porVisao ? listaDoConsolidado(visao, baseDoResumo) : lista;
 
-    var geral = totais(lista);
-
-    var tabela =
-      '<section class="bloco-quadrante painel overflow-hidden">' +
-        '<header class="px-4 py-2.5 bg-slate-50 border-b border-slate-200">' +
-          '<h3 class="font-bold text-slate-800">Consolidado por encarregado</h3>' +
-          '<p class="text-xs text-slate-500">' +
-            ui.rotuloPeriodo(E.periodo.de, E.periodo.ate) + '</p>' +
-        '</header>' +
-        '<div class="overflow-x-auto"><table class="w-full text-sm">' +
-          '<thead><tr class="text-left text-xs uppercase tracking-wide text-slate-500">' +
-            '<th class="px-4 py-2 font-semibold">Encarregado</th>' +
-            '<th class="px-3 py-2 font-semibold text-right">Torres</th>' +
-            '<th class="px-3 py-2 font-semibold text-right">km</th>' +
-            '<th class="px-3 py-2 font-semibold text-right">Atividades</th>' +
-            '<th class="px-4 py-2 font-semibold text-right">Dias</th>' +
-          '</tr></thead><tbody>' +
-          resumo.map(function (r) {
-            return '<tr class="border-t border-slate-200">' +
-              '<td class="px-4 py-2 font-medium text-slate-700">' + esc(r.nome) + '</td>' +
-              '<td class="px-3 py-2 text-right text-slate-600">' + r.torres + '</td>' +
-              '<td class="px-3 py-2 text-right text-slate-600">' + ui.km(r.km) + '</td>' +
-              '<td class="px-3 py-2 text-right text-slate-600">' + r.atividades + '</td>' +
-              '<td class="px-4 py-2 text-right text-slate-600">' + r.dias + '</td>' +
-            '</tr>';
-          }).join('') +
-          '<tr class="border-t-2 border-slate-300 font-bold">' +
-            '<td class="px-4 py-2 text-slate-800">' + (E.escopo === 'todos' ? 'Total' : 'Total do trecho') + '</td>' +
-            '<td class="px-3 py-2 text-right text-slate-800">' + geral.torres + '</td>' +
-            '<td class="px-3 py-2 text-right text-slate-800">' + ui.km(geral.km) + '</td>' +
-            '<td class="px-3 py-2 text-right text-slate-800">' + lista.length + '</td>' +
-            '<td class="px-4 py-2"></td>' +
-          '</tr>' +
-        '</tbody></table></div>' +
-        '<p class="px-4 py-2 text-[11px] text-slate-400 border-t border-slate-200">' +
-          'O total de torres não é a soma da coluna: uma torre atendida por dois ' +
-          'encarregados conta uma vez só no trecho.' +
-        '</p>' +
-      '</section>';
-
+    var tabela = tabelaDoConsolidado(listaDoResumo, visao, baseDoResumo, porVisao);
     // Quem foi aberto pelo alerta entra na lista no seu lugar, em ordem alfabética
     var abertos = Object.keys(E.encarregadosAbertos || {}).filter(function (n) {
       return !g.mapa[n] && extras.indexOf(n) === -1 &&
@@ -1917,6 +1998,7 @@ window.SIPAV = window.SIPAV || {};
     iconeDaObservacao: iconeDaObservacao, iconesDaObservacao: iconesDaObservacao,
     corDoIconeDaObservacao: corDoIconeDaObservacao, iconesSoltosDaObservacao: iconesSoltosDaObservacao,
     limparIndiceDeObservacoes: limparIndiceDeObservacoes,
+    escolherConsolidado: escolherConsolidado,
     ICONES_OBS: ICONES_OBS,
     ehSerra: ehSerra,
     movimentacaoDoTrecho: movimentacaoDoTrecho,

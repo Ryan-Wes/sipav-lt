@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v228 · 2026-10-23';
+  var VERSAO = 'v229 · 2026-10-23';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -409,6 +409,7 @@ window.SIPAV = window.SIPAV || {};
     ]).then(function (r) {
       E.torres = r[0];
       E.programacoes = r[1];
+      E.consolidado = null;           // o consolidado (quinzena e total) se busca de novo
       E.execucoes = r[2];
       E.movimentacoes = r[3];
       E.programacoesObra = r[5];
@@ -417,6 +418,37 @@ window.SIPAV = window.SIPAV || {};
       render.tudo();
     });
   }
+
+  /**
+   * O consolidado por encarregado mostra a semana, a quinzena e o total do trecho. A tela só carrega o período em que
+   * está, então a quinzena (a semana da tela e a seguinte) e o total vêm do banco quando alguém pede; ao chegarem, a
+   * tela se desenha de novo. Ver render.listaDoConsolidado.
+   */
+  function pedirConsolidado(tipo, base, chave, daObra) {
+    if (!E.trechoAtual) return;
+    var pedido = chave + '|' + tipo;
+    E.consolidadoPedidos = E.consolidadoPedidos || {};
+    if (E.consolidadoPedidos[pedido]) return;
+    E.consolidadoPedidos[pedido] = true;
+
+    var filtro = daObra ? {} : { trechoId: E.trechoAtual.id };
+    if (tipo === 'quinzena') { filtro.de = base; filtro.ate = ui.iso(ui.somarDias(ui.paraData(base), 13)); }
+
+    function guardar(lista) {
+      delete E.consolidadoPedidos[pedido];
+      if (!E.consolidado || E.consolidado.chave !== chave) E.consolidado = { chave: chave, base: base };
+      E.consolidado[tipo] = lista;
+      render.tudo();
+    }
+
+    buscarProgramacoes(filtro)
+      .then(guardar)
+      .catch(function (e) {
+        ui.avisar('Não consegui carregar o consolidado: ' + (e.message || e), 'erro', 6000);
+        guardar([]);
+      });
+  }
+  E.pedirConsolidado = pedirConsolidado;
 
   function recarregarProgramacoes() {
     // Olhando uma foto, o que chega do banco (tempo real, outro usuário) não pode
@@ -433,6 +465,7 @@ window.SIPAV = window.SIPAV || {};
     ]).then(function (r) {
       E.torres = r[0];
       E.programacoes = r[1];
+      E.consolidado = null;           // o consolidado (quinzena e total) se busca de novo
       E.execucoes = r[2];
       E.movimentacoes = r[3];
       E.programacoesObra = r[5];
@@ -9313,11 +9346,20 @@ window.SIPAV = window.SIPAV || {};
         // torre, atividade, data e encarregado
         var ja = {}, jaSemQuem = {};
         existentes.forEach(function (p) {
-          ja[[p.torre.id, p.atividade ? p.atividade.id : '', p.data, p.encarregado ? p.encarregado.id : '', p.cabo || ''].join('|')] = true;
+          ja[[p.torre.id, p.atividade ? p.atividade.id : '', p.data, p.encarregado ? p.encarregado.id : '', p.cabo || ''].join('|')] = p;
           jaSemQuem[[p.torre.id, p.atividade ? p.atividade.id : '', p.data, p.cabo || ''].join('|')] = true;
         });
         importacaoIsa.registros.forEach(function (x) {
-          x.existe = !!ja[[x.torreId, x.atividadeId, x.data, x.encarregadoId || '', x.cabo || ''].join('|')];
+          var ex = ja[[x.torreId, x.atividadeId, x.data, x.encarregadoId || '', x.cabo || ''].join('|')];
+          x.existe = !!ex;
+          x.completar = null;
+
+          // A planilha tem a dupla (A / B) e o SIPAV só o A: não é repetida, é o segundo encarregado que falta.
+          // Sem isto o B nunca entrava, porque a chave do banco olha só o primeiro
+          if (ex && x.encarregado2Id && (!ex.encarregado2 || ex.encarregado2.id !== x.encarregado2Id)) {
+            x.existe = false;
+            x.completar = ex.id;
+          }
 
           // A planilha que não diz quem faz (frente sem nome, ou sem encarregado) não pode criar
           // outra linha por cima da que alguém já programou na mão, com encarregado: o serviço da
@@ -9651,6 +9693,7 @@ window.SIPAV = window.SIPAV || {};
     var criar = imp.registros.filter(function (x) { return !x.existe; });
     var movCriar = (imp.movimentos || []).filter(function (x) { return !x.existe; });
     var jaTem = imp.registros.length - criar.length;
+    var completam = criar.filter(function (x) { return x.completar; }).length;
     var hoje = ui.hoje();
     var noPassado = criar.filter(function (x) { return x.data < hoje; }).length;
 
@@ -9667,7 +9710,8 @@ window.SIPAV = window.SIPAV || {};
       '</p>' +
 
       '<div class="previa-grade">' +
-        cartaoPrevia('previa-nova', criar.length, 'a programar', '') +
+        cartaoPrevia('previa-nova', criar.length - completam, 'a programar', '') +
+        (completam ? cartaoPrevia('previa-muda', completam, 'completam a dupla', '') : '') +
         (movCriar.length ? cartaoPrevia('previa-igual', movCriar.length, 'dias sem atividade', '') : '') +
         cartaoPrevia('previa-igual', jaTem, 'já estão no SIPAV', '') +
         cartaoPrevia('previa-muda', imp.problemas.length, 'avisos', '') +
@@ -9991,6 +10035,12 @@ window.SIPAV = window.SIPAV || {};
 
     return tarefas.reduce(function (antes, x) {
       return antes.then(function () {
+        // O SIPAV já tem a torre com o primeiro encarregado: só entra o segundo, na programação que existe
+        if (x.completar) {
+          return db.atualizarProgramacao(x.completar, { encarregado_2_id: x.encarregado2Id })
+            .then(function () { ok.push(x.torre + ' · ' + x.atividade + ' (2º encarregado)'); })
+            .catch(function (e) { falhou.push({ registro: x, motivo: e.message }); });
+        }
         return db.criarProgramacao({
           torreId: x.torreId, atividadeId: x.atividadeId,
           encarregadoId: x.encarregadoId, encarregado2Id: x.encarregado2Id,

@@ -2205,3 +2205,7 @@ body.modo-consulta .so-planejamento { display: none !important; }
 }
 .obs-icone-op:hover { border-color: var(--acento); }
 .obs-icone-op.ativo { border-color: var(--acento); background: rgba(247,128,30,.14); color: var(--texto); }
+
+/* O consolidado por encarregado: semana, quinzena e total */
+.consolidado-escolha .btn-secundario { padding: .25rem .75rem; font-size: .75rem; }
+.consolidado-escolha .btn-secundario.ativo { border-color: var(--acento); background: rgba(247,128,30,.14); color: var(--texto); font-weight: 700; }

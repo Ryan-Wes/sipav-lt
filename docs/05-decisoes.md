@@ -16,6 +16,18 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 23/10/2026
 
+### Consolidado por encarregado: semana, quinzena e total, e a dupla que se completa **[WR]**
+
+O consolidado da aba Por Encarregado (torres, km, atividades e dias de cada um) agora tem a escolha **Semana,
+Quinzena e Total**. A semana é a da tela; a quinzena é ela e a seguinte; o total é tudo o que está programado (no trecho
+aberto, ou na obra, em Todos os trechos). A tela só carrega o período em que está, então a quinzena e o total vêm do
+banco quando alguém os pede, e a tela se desenha de novo ao chegarem. Os filtros da tela valem para os três. Olhando um
+planejamento salvo, o consolidado continua sendo o da foto.
+
+Na importação da ISA, a torre com a dupla "A / B" ficava só com o A quando o SIPAV já tinha a programação do A: a chave
+de "já existe" olha só o primeiro encarregado, então o B nunca entrava. Agora a prévia mostra "completam a dupla" e a
+importação põe o segundo encarregado na programação que já existe, sem criar outra.
+
 ### Importação: dupla que vira uma pessoa só, e hífens que viravam encarregado **[WR]**
 
 Numa célula "ALIELTON / FERNANDO /", só o Alielton entrava. O motivo: o nome da planilha é o primeiro nome, e o SIPAV
