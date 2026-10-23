@@ -777,11 +777,11 @@ html.dark .hover\:bg-slate-200:hover   { background-color: var(--superficie-3) !
 
 /* ------------------------------------------------------ Modo de seleção -- */
 
-#barraSelecao {
+#barraSelecao, #barraTroca {
   position: fixed; bottom: 1rem; left: 50%; transform: translateX(-50%);
   z-index: 44; padding: 0 1rem; max-width: 100%;
 }
-#barraSelecao.hidden { display: none; }
+#barraSelecao.hidden, #barraTroca.hidden { display: none; }
 
 .barra-selecao-caixa {
   display: flex; flex-wrap: wrap; align-items: center; gap: .5rem;
@@ -795,6 +795,16 @@ html.dark .hover\:bg-slate-200:hover   { background-color: var(--superficie-3) !
 /* No modo seleção o cartão deixa de parecer um botão de abrir */
 body.modo-selecao .cartao-torre { cursor: copy; }
 body.modo-selecao .cartao-torre:hover { transform: none; }
+
+/* A torre que a tela acaba de rastrear (a de hoje, ao trocar; a última do encarregado, ao lançar por ele) */
+.cartao-torre.cartao-rastro {
+  outline: 2px dashed var(--acento);
+  outline-offset: 3px;
+  animation: rastro-pulsa 1.4s ease-in-out 3;
+}
+@keyframes rastro-pulsa {
+  50% { outline-offset: 6px; box-shadow: 0 0 0 6px rgba(249,115,22,.25); }
+}
 
 .cartao-torre.cartao-selecionado {
   outline: 2px solid var(--acento);
@@ -2211,3 +2221,17 @@ body.modo-consulta .so-planejamento { display: none !important; }
 .consolidado-escolha .btn-secundario.ativo { border-color: var(--acento); background: rgba(247,128,30,.14); color: var(--texto); font-weight: 700; }
 
 .faixa-semana-total { margin-left: auto; font-size: .6875rem; font-weight: 600; color: var(--texto-suave); }
+
+/* Nome do encarregado no consolidado: leva ao bloco dele */
+.consolidado-nome {
+  background: none; border: 0; padding: 0; font: inherit; font-weight: 500; color: inherit;
+  text-align: left; cursor: pointer;
+  text-decoration: underline dotted; text-underline-offset: 3px;
+}
+.consolidado-nome:hover { color: var(--acento); }
+.bloco-quadrante[id^="bloco-enc-"] { scroll-margin-top: 4.5rem; }
+.bloco-quadrante.bloco-destaque { animation: bloco-destaque 2.6s ease-out 1; }
+@keyframes bloco-destaque {
+  0%, 40% { box-shadow: 0 0 0 3px var(--acento); }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}

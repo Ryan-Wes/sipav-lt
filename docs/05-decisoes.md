@@ -16,6 +16,23 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 23/10/2026
 
+### Trocar a torre de uma programação, e a grade que acompanha **[WR]**
+
+Ao alterar uma programação, a janela agora tem o campo **Torre**: digito o número (312/1) e salvo, e a programação passa para
+aquela torre (o banco recebe só o `torre_id`, e a regra de sequência continua valendo). Ao lado, **Escolher na grade** fecha a
+janela e abre a grade com uma barra "Clique na torre para onde esta programação vai"; o clique em qualquer cartão reabre a
+janela na torre nova, ainda em alteração, para eu conferir e salvar. Cancelar volta para a torre de hoje.
+
+A grade também **rastreia**: nessa escolha ela rola até a torre de hoje e a marca com um contorno tracejado, para a vizinha
+ficar perto. O mesmo vale no Lançar por encarregado > Marcar na grade, que vai até a última torre em que o encarregado está
+programado (a de data mais recente). O marcador é `E.rastro`, desenhado pelo próprio cartão.
+
+No Consolidado por encarregado, o nome de cada encarregado do cadastro é um botão que rola até o bloco dele e o destaca por um
+instante. Se ele não tem nada no período, o espaço dele é aberto e a tela vai até lá.
+
+**Repetir o último** no lançamento por encarregado traz só o encarregado (e o segundo), a atividade, o cabo e a última torre do
+lançamento anterior. A data fica a do dia em que estou lançando (a do + da semana) e as torres que eu somar depois nascem
+nela. Na grade, repetir o último continua trazendo também a data. Para isso o último lançamento passou a guardar a última torre.
 ### Busca do cadastro de encarregados que não buscava **[WR]**
 
 A busca que entrou em Cadastros > Encarregados não filtrava. Duas colisões com o combo do formulário da programação: a

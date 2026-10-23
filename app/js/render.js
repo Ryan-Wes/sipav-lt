@@ -355,6 +355,7 @@ window.SIPAV = window.SIPAV || {};
     var restrito = torre.tem_restricao;
 
     var classes = ['cartao-torre'];
+    if (E.rastro === torre.torre_id) classes.push('cartao-rastro');
     if (E.modoSelecao && E.selecionadas[torre.torre_id]) classes.push('cartao-selecionado');
     if (E.modoSupervisor && E.supSel && E.supSel[torre.torre_id]) classes.push('cartao-selecionado');
     if (restrito)       classes.push('cartao-restrito');
@@ -498,6 +499,7 @@ window.SIPAV = window.SIPAV || {};
       return !refletidaNoEstagio(p) && !escondida(p);
     });
     var classes = ['cartao-torre', 'cartao-portico'];
+    if (E.rastro === torre.torre_id) classes.push('cartao-rastro');
     if (E.modoSupervisor && E.supSel && E.supSel[torre.torre_id]) classes.push('cartao-selecionado');
     if (E.modoSelecao && E.selecionadas[torre.torre_id]) classes.push('cartao-selecionado');
     if (E.modoSupervisor && E.supSel && E.supSel[torre.torre_id]) classes.push('cartao-selecionado');
@@ -1476,6 +1478,22 @@ window.SIPAV = window.SIPAV || {};
     if (bloco && bloco.scrollIntoView) bloco.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
+  /** Do consolidado para o bloco do encarregado: rola até ele e o destaca um instante. */
+  function irParaEncarregado(id) {
+    var bloco = document.getElementById('bloco-enc-' + id);
+    if (bloco) bloco.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    else {
+      // Não tem atividade neste período: abre o espaço dele (já rola até lá) e acha o bloco de novo
+      abrirEncarregadoSemProgramacao(id);
+      bloco = document.getElementById('bloco-enc-' + id);
+    }
+    if (!bloco) return;
+    bloco.classList.remove('bloco-destaque');
+    void bloco.offsetWidth;
+    bloco.classList.add('bloco-destaque');
+    setTimeout(function () { bloco.classList.remove('bloco-destaque'); }, 2600);
+  }
+
   function fecharEncarregadoAberto(id) {
     var e = (E.encarregados || []).filter(function (x) { return x.id === id; })[0];
     if (e && E.encarregadosAbertos) delete E.encarregadosAbertos[e.nome];
@@ -1543,8 +1561,14 @@ window.SIPAV = window.SIPAV || {};
           '<th class="px-4 py-2 font-semibold text-right">Dias</th>' +
         '</tr></thead><tbody>' +
         (resumo.length ? resumo.map(function (r) {
+          // O nome leva ao bloco do encarregado, mais abaixo (só quem está no cadastro tem bloco)
+          var dele = (E.encarregados || []).find(function (x) { return x.nome === r.nome; });
           return '<tr class="border-t border-slate-200">' +
-            '<td class="px-4 py-2 font-medium text-slate-700">' + esc(r.nome) + '</td>' +
+            '<td class="px-4 py-2 font-medium text-slate-700">' +
+              (dele ? '<button type="button" class="consolidado-nome" title="Ir para o bloco de ' + esc(r.nome) + '" ' +
+                        'onclick="SIPAV.render.irParaEncarregado(\'' + dele.id + '\')">' + esc(r.nome) + '</button>'
+                    : esc(r.nome)) +
+            '</td>' +
             '<td class="px-3 py-2 text-right text-slate-600">' + r.torres + '</td>' +
             '<td class="px-3 py-2 text-right text-slate-600">' + ui.km(r.km) + '</td>' +
             '<td class="px-3 py-2 text-right text-slate-600">' + r.atividades + '</td>' +
@@ -2021,6 +2045,7 @@ window.SIPAV = window.SIPAV || {};
     filtrarMovimentacoes: filtrarMovimentacoes,
     alertaAberto: alertaAberto,
     abrirEncarregadoSemProgramacao: abrirEncarregadoSemProgramacao,
+    irParaEncarregado: irParaEncarregado,
     fecharEncarregadoAberto: fecharEncarregadoAberto,
     feriadoDoDia: feriadoDoDia,
     TIPOS_DE_MOVIMENTACAO: TIPOS_DE_MOVIMENTACAO,

@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v236 · 2026-10-23';
+  var VERSAO = 'v237 · 2026-10-23';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -920,6 +920,8 @@ window.SIPAV = window.SIPAV || {};
     if (somenteConsulta()) return;
     // Fim de um arrasto, não um clique: o gesto já decidiu o que marcar
     if (arrastou && !forcar) return;
+    // Escolhendo a torre nova de uma programação: o clique decide e volta para a janela dela
+    if (E.trocandoTorre && !forcar) { concluirTrocaDeTorre(torreId); return; }
     // Modo seleção: o clique no cartão escolhe em vez de abrir
     if (E.modoSelecao && !forcar) { alternarTorreSelecionada(torreId); return; }
     torreAberta = E.torres.find(function (t) { return t.torre_id === torreId; });
@@ -2453,6 +2455,20 @@ window.SIPAV = window.SIPAV || {};
     }
 
     var editando = programacaoEmEdicao;
+
+    // Alterando, a torre pode ter mudado (digitada ou escolhida na grade)
+    var torreNova = null;
+    if (editando) {
+      var original = E.programacoes.find(function (x) { return x.id === editando; });
+      var destino = torreDigitadaNaEdicao();
+      if (!destino) {
+        ui.avisar('Não achei a torre "' + $('campoTorreEdicao').value.trim() + '" neste trecho.', 'alerta');
+        $('campoTorreEdicao').focus();
+        return;
+      }
+      if (original && original.torre && destino.torre_id !== original.torre.id) torreNova = destino;
+    }
+
     var comuns = {
       encarregadoId: $('campoEncarregado').value || null,
       encarregado2Id: $('campoEncarregado2').value || null,
@@ -2471,6 +2487,8 @@ window.SIPAV = window.SIPAV || {};
     // recusaria tudo junto sem dizer qual atividade travou.
     var gravar = editando
       ? db.atualizarProgramacao(editando, {
+          // undefined não entra no JSON: a torre só vai quando mudou
+          torre_id:        torreNova ? torreNova.torre_id : undefined,
           atividade_id:    atividadesEscolhidas[0],
           encarregado_id:  comuns.encarregadoId,
           // undefined não entra no JSON: sem a db/42 a coluna nem é tocada
@@ -2538,7 +2556,8 @@ window.SIPAV = window.SIPAV || {};
             percentual: percentual,
             cabo: cabo,
             observacao: comuns.observacao,
-            modoData: 'mesma'
+            modoData: 'mesma',
+            ultimaTorre: { torreId: torreAberta.torre_id, identificador: torreAberta.identificador }
           });
         }
 
@@ -2564,6 +2583,9 @@ window.SIPAV = window.SIPAV || {};
 
         // Gravou fora do recorte de datas: a linha existe, mas não aparece.
         // Sem este aviso, parece que o lançamento se perdeu.
+        // Mudou de torre: a janela acompanha, senão a programação some da lista que está aberta
+        if (torreNova && torreAberta && torreAberta.torre_id !== torreNova.torre_id) abrirTorre(torreNova.torre_id, true);
+
         var data = $('campoData').value;
         var fora = (E.periodo.de && data < E.periodo.de) ||
                    (E.periodo.ate && data > E.periodo.ate);
@@ -2576,7 +2598,8 @@ window.SIPAV = window.SIPAV || {};
                     ui.rotuloPeriodo(E.periodo.de, E.periodo.ate) +
                     '). Troque o período para vê-la.', 'alerta', 7000);
         } else if (editando) {
-          ui.avisar('Programação alterada.', 'sucesso');
+          ui.avisar(torreNova ? 'Programação passada para a torre ' + ui.nomeDaTorre(torreNova.identificador) + '.'
+                              : 'Programação alterada.', 'sucesso');
         } else {
           ui.avisar(criadas.length === 1 ? 'Programação adicionada.'
             : criadas.length + ' programações adicionadas.', 'sucesso');
@@ -2700,6 +2723,7 @@ window.SIPAV = window.SIPAV || {};
 
     programacaoEmEdicao = id;
 
+    $('campoTorreEdicao').value = ui.nomeDaTorre(torreAberta.identificador);
     preencherAtividades(p.atividade ? [p.atividade.id] : []);
     $('campoData').value        = p.data;
     mostrarDiaDaSemana();
@@ -2740,11 +2764,89 @@ window.SIPAV = window.SIPAV || {};
     verificarBloqueio();
   }
 
+  /* ------------------------------------------- Trocar a torre de uma programação -- */
+
+  /** A torre a que o campo "Torre" da alteração aponta, ou null se ela não existe neste trecho. */
+  function torreDigitadaNaEdicao() {
+    var campo = $('campoTorreEdicao');
+    var v = campo ? normalizar(campo.value) : '';
+    if (!v) return null;
+    return E.torres.find(function (t) {
+      return normalizar(t.identificador) === v || normalizar(ui.nomeDaTorre(t.identificador)) === v;
+    }) || null;
+  }
+
+  /**
+   * Passar a programação que estou alterando para outra torre clicando nela na grade. A janela fecha, a grade abre
+   * já na torre de hoje (para a nova ficar perto) e o clique em qualquer cartão reabre a janela, na torre nova.
+   */
+  function escolherTorreNaGradeParaTroca() {
+    var p = E.programacoes.find(function (x) { return x.id === programacaoEmEdicao; });
+    if (!p || !p.torre) return;
+    E.trocandoTorre = { progId: p.id, de: p.torre.id, aba: E.aba };
+    E.rastro = p.torre.id;
+    ui.fecharModal('modalProgramacao');
+    trocarAba('grade');
+    renderBarraTroca();
+    rastrearTorreNaGrade(p.torre.id);
+  }
+
+  function renderBarraTroca() {
+    var barra = $('barraTroca');
+    if (!barra) return;
+    var t = E.trocandoTorre;
+    barra.classList.toggle('hidden', !t);
+    if (!t) return;
+    var de = E.torres.find(function (x) { return x.torre_id === t.de; });
+    $('textoTroca').textContent = 'Clique na torre para onde esta programação vai' +
+      (de ? ' (hoje está na ' + ui.nomeDaTorre(de.identificador) + ')' : '');
+    ui.icones();
+  }
+
+  /** Fecha a escolha da grade e reabre a janela, na torre dada, com a programação ainda em alteração. */
+  function concluirTrocaDeTorre(torreId) {
+    var t = E.trocandoTorre;
+    if (!t) return;
+    E.trocandoTorre = null;
+    E.rastro = null;
+    renderBarraTroca();
+    if (t.aba !== 'grade') trocarAba(t.aba); else render.tudo();
+    abrirTorre(torreId, true);
+    editarProgramacao(t.progId);
+  }
+
+  function cancelarTrocaDeTorre() {
+    if (E.trocandoTorre) concluirTrocaDeTorre(E.trocandoTorre.de);
+  }
+
+  /** Leva a grade até a torre, para escolher a vizinha sem rolar procurando. O marcador é desenhado pelo cartão (E.rastro). */
+  function rastrearTorreNaGrade(torreId) {
+    if (!torreId) return;
+    setTimeout(function () {
+      var el = document.querySelector('#visaoGrade [data-torre="' + torreId + '"]');
+      if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 80);
+  }
+
+  /** A última torre em que o encarregado está programado (a de data mais recente), neste trecho. */
+  function ultimaTorreDoEncarregado(encarregadoId) {
+    if (!encarregadoId) return null;
+    var melhor = null;
+    E.programacoes.forEach(function (p) {
+      if (!p.torre || !render.encarregadosDe(p).some(function (e) { return e.id === encarregadoId; })) return;
+      if (!E.torres.some(function (t) { return t.torre_id === p.torre.id; })) return;
+      if (!melhor || p.data > melhor.data ||
+          (p.data === melhor.data && (p.criado_em || '') > (melhor.criado_em || ''))) melhor = p;
+    });
+    return melhor ? melhor.torre.id : null;
+  }
+
   function atualizarModoFormulario() {
     var editando = !!programacaoEmEdicao;
     $('tituloFormulario').textContent   = editando ? 'Alterando programação' : 'Nova atividade';
     $('rotuloBtnAdicionar').textContent = editando ? 'Salvar alteração' : 'Adicionar programação';
     $('btnCancelarEdicao').classList.toggle('hidden', !editando);
+    $('blocoTorreEdicao').classList.toggle('hidden', !editando);
     // Passa por aqui toda vez que o formulário troca de modo, que é exatamente
     // quando o botão de repetir precisa aparecer ou sumir.
     renderUltimoLancamento();
@@ -3480,7 +3582,7 @@ window.SIPAV = window.SIPAV || {};
     if (E.snapshot && !E.modoSelecao) { somenteConsulta(); return; }
     E.selecaoPorTecla = false;
     E.modoSelecao = !E.modoSelecao;
-    if (!E.modoSelecao) { E.selecionadas = {}; E.voltarAoLote = null; }
+    if (!E.modoSelecao) { E.selecionadas = {}; E.voltarAoLote = null; E.rastro = null; }
     document.body.classList.toggle('modo-selecao', E.modoSelecao);
     if (E.aba !== 'grade') trocarAba('grade');
     render.tudo();
@@ -3710,8 +3812,13 @@ window.SIPAV = window.SIPAV || {};
     E.selecionadas = {};
     loteTorres.forEach(function (t) { E.selecionadas[t.torreId] = true; });
 
+    // A grade abre na última torre do encarregado (a frente dele): a próxima está ali do lado
+    E.rastro = ultimaTorreDoEncarregado(E.voltarAoLote.u.encarregadoId) ||
+               (loteTorres.length ? loteTorres[loteTorres.length - 1].torreId : null);
+
     ui.fecharModal('modalGenerico');
     if (!E.modoSelecao) alternarModoSelecao(); else { trocarAba('grade'); render.tudo(); renderBarraSelecao(); }
+    rastrearTorreNaGrade(E.rastro);
     ui.avisar('Marque as torres na grade e clique em "Voltar ao lançamento".', 'info', 7000);
   }
 
@@ -3730,6 +3837,7 @@ window.SIPAV = window.SIPAV || {};
     if (E.voltarAoLote) {
       var v = E.voltarAoLote;
       E.voltarAoLote = null;
+      E.rastro = null;
       abrirProgramacaoEmLote(null, v.u.encarregadoId, v.u.percentual, v.u.cabo, torres, null, {
         semTorres: true, data: v.u.data, titulo: v.titulo
       });
@@ -4363,7 +4471,9 @@ window.SIPAV = window.SIPAV || {};
         '<span class="repetir-rotulo">Repetir o último</span>' +
         '<span class="repetir-o-que">' + esc(r.nomes.join(' · ')) +
           (r.encarregado ? ' · ' + esc(r.encarregado) : '') +
-          (ultimoLancamento.data ? ' · ' + esc(ui.dataCurta(ultimoLancamento.data)) : '') +
+          (loteSemTorresOk
+            ? (ultimoLancamento.ultimaTorre ? ' · ' + esc(ui.nomeDaTorre(ultimoLancamento.ultimaTorre.identificador)) : '')
+            : (ultimoLancamento.data ? ' · ' + esc(ui.dataCurta(ultimoLancamento.data)) : '')) +
         '</span>' +
       '</button>';
     caixa.classList.remove('hidden');
@@ -4372,7 +4482,43 @@ window.SIPAV = window.SIPAV || {};
 
   function repetirUltimoNoLote() {
     if (!ultimoLancamento) return;
-    preencherLoteCom(ultimoLancamento, false);
+    // Lançando por encarregado, o dia é o que estou lançando (o do + da semana), não o do lançamento anterior
+    if (loteSemTorresOk) repetirUltimoPorEncarregado(ultimoLancamento);
+    else preencherLoteCom(ultimoLancamento, false);
+  }
+
+  /**
+   * "Repetir o último" no lançamento por encarregado: traz o encarregado (e o segundo), a atividade, o cabo e a última
+   * torre. A data, o percentual e a observação ficam como estão: a data é a do dia em que estou lançando, e as torres
+   * que eu somar depois nascem nela.
+   */
+  function repetirUltimoPorEncarregado(u) {
+    var ids = (u.atividades || []).filter(function (id) {
+      return E.atividades.some(function (a) { return a.id === id; });
+    });
+    if (!ids.length) { ui.avisar('A atividade do último lançamento não existe mais.', 'alerta'); return; }
+
+    loteAtividades = ids.slice();
+    lotePadrao.encarregadoId = u.encarregadoId || '';
+    $('loteEncarregado').value = lotePadrao.encarregadoId;
+    $('loteEncarregado2').value = u.encarregado2Id || '';
+
+    // A torre em que parou, se for deste trecho e ainda não estiver na lista
+    var ult = u.ultimaTorre && E.torres.find(function (t) { return t.torre_id === u.ultimaTorre.torreId; });
+    if (ult && !loteTorres.some(function (t) { return t.torreId === ult.torre_id; })) {
+      loteTorres.push({ torreId: ult.torre_id, identificador: ult.identificador, data: '', encarregadoId: '' });
+    }
+
+    // Linhas novas, com o encarregado novo e a data do dia (as torres que já estavam ali também)
+    loteLinhas = [];
+    renderChipsTorresLote();
+    renderChipsAtividadeLote();
+
+    if (u.cabo && $('loteCabo') && opcoesDeCabo().some(function (o) { return o.valor === u.cabo; })) {
+      $('loteCabo').value = u.cabo;
+    }
+
+    if ($('loteBase').value) distribuirLote(loteModoData === 'umPorDia');
   }
 
   /**
@@ -4386,7 +4532,7 @@ window.SIPAV = window.SIPAV || {};
     if (!ids.length && !semAtividadeOk) { ui.avisar('A atividade do último lançamento não existe mais.', 'alerta'); return; }
 
     loteAtividades = ids.slice();
-    lotePadrao = { encarregadoId: u.encarregadoId || '', percentual: u.percentual || 100 };
+    lotePadrao = { encarregadoId: u.encarregadoId || '', percentual: u.percentual || 100, data: u.data || '' };
 
     $('loteEncarregado').value = lotePadrao.encarregadoId;
     $('loteEncarregado2').value = u.encarregado2Id || '';
@@ -5165,7 +5311,11 @@ window.SIPAV = window.SIPAV || {};
             cabo: cabo,
             observacao: observacao,
             data: baseDoLote,
-            modoData: loteModoData
+            modoData: loteModoData,
+            // A última torre da lista, que é onde a equipe parou
+            ultimaTorre: loteTorres.length
+              ? { torreId: loteTorres[loteTorres.length - 1].torreId, identificador: loteTorres[loteTorres.length - 1].identificador }
+              : null
           });
         }
 
@@ -10807,6 +10957,7 @@ window.SIPAV = window.SIPAV || {};
     apagarProgramacoesSelecionadas: apagarProgramacoesSelecionadas,
     repetirUltimoLancamento: repetirUltimoLancamento,
     repetirUltimoNoLote: repetirUltimoNoLote,
+    escolherTorreNaGradeParaTroca: escolherTorreNaGradeParaTroca, cancelarTrocaDeTorre: cancelarTrocaDeTorre,
     adicionarTorresAoLote: adicionarTorresAoLote, escolherTorresNaGradeParaLote: escolherTorresNaGradeParaLote,
     teclaTorresLote: teclaTorresLote,
     tirarTorreLote: tirarTorreLote,

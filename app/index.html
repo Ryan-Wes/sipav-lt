@@ -41,7 +41,7 @@
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 
   <!-- ?v= força o navegador a buscar de novo quando o código muda. -->
-  <link rel="stylesheet" href="css/app.css?v=236">
+  <link rel="stylesheet" href="css/app.css?v=237">
 </head>
 <body class="h-full flex flex-col antialiased">
 
@@ -580,6 +580,17 @@
               <div id="listaAtividades" class="combo-lista hidden"></div>
             </div>
           </div>
+          <!-- Só ao alterar: passar esta programação para outra torre, digitando o número ou clicando nela na grade -->
+          <div id="blocoTorreEdicao" class="hidden">
+            <label class="rotulo">Torre</label>
+            <div class="flex gap-2">
+              <input id="campoTorreEdicao" class="campo" autocomplete="off" placeholder="Ex.: 312/1">
+              <button type="button" class="btn-secundario shrink-0"
+                      title="Fechar esta janela e clicar na torre nova na grade"
+                      onclick="SIPAV.app.escolherTorreNaGradeParaTroca()">Escolher na grade</button>
+            </div>
+            <p class="text-xs mt-1" style="color:var(--texto-fraco)">Mude o número para passar esta programação para outra torre.</p>
+          </div>
           <div>
             <label class="rotulo">Data</label>
             <input id="campoData" type="date" class="campo"
@@ -777,6 +788,15 @@
 
 <!-- Barra do modo de seleção. Fica no rodapé para não cobrir a grade, que é
      justamente onde se está clicando. -->
+<!-- Escolhendo a torre nova de uma programação: um clique na grade e pronto -->
+<div id="barraTroca" class="hidden no-print">
+  <div class="barra-selecao-caixa">
+    <i data-lucide="locate-fixed" class="w-4 h-4 shrink-0" style="color:var(--acento)"></i>
+    <span id="textoTroca" class="text-sm font-semibold" style="color:var(--texto)"></span>
+    <button onclick="SIPAV.app.cancelarTrocaDeTorre()" class="btn-secundario">Cancelar</button>
+  </div>
+</div>
+
 <div id="barraSelecao" class="hidden no-print">
   <div class="barra-selecao-caixa">
     <i data-lucide="mouse-pointer-click" class="w-4 h-4 shrink-0" style="color:var(--acento)"></i>
@@ -832,12 +852,12 @@
   </div>
 </div>
 
-<script src="js/config.js?v=236"></script>
-<script src="js/db.js?v=236"></script>
-<script src="js/ui.js?v=236"></script>
-<script src="js/render.js?v=236"></script>
-<script src="js/isa.js?v=236"></script>
-<script src="js/supervisor.js?v=236"></script>
-<script src="js/app.js?v=236"></script>
+<script src="js/config.js?v=237"></script>
+<script src="js/db.js?v=237"></script>
+<script src="js/ui.js?v=237"></script>
+<script src="js/render.js?v=237"></script>
+<script src="js/isa.js?v=237"></script>
+<script src="js/supervisor.js?v=237"></script>
+<script src="js/app.js?v=237"></script>
 </body>
 </html>
