@@ -1197,7 +1197,8 @@ window.SIPAV = window.SIPAV || {};
     return v == null ? '' : String(v).replace(/\r/g, '').trim();
   }
 
-  function semTexto(t) { return !t || t === '-' || /^dsr$/i.test(t); }
+  // Só hífens e espaços também é vazio: a linha da semana, que concatena as frentes, traz "- - - - -" quando nenhuma tem nome
+  function semTexto(t) { return !t || /^[-\s]+$/.test(t) || /^dsr$/i.test(t); }
 
   function interpretarAba(ws, ctx) {
     var problemas = [];
@@ -1424,6 +1425,14 @@ window.SIPAV = window.SIPAV || {};
       });
       if (!fora && contem.length === 1) return contem[0];
 
+      // Mais de um cabe: o nome da planilha é o primeiro nome, então quem começa por ele ganha de quem só o tem no meio
+      // (FERNANDO é o Fernando Lima, e não o Alielton Fernando)
+      if (!fora && contem.length > 1 && tokens.length) {
+        var primeiroToken = norm(tokens[0]);
+        var peloPrimeiro = contem.filter(function (e) { return norm(e.nome).split(' ')[0] === primeiroToken; });
+        if (peloPrimeiro.length === 1) return peloPrimeiro[0];
+      }
+
       if (!fora && !semAuto && ka && ka in apelidosAuto) {
         var e = achar(apelidosAuto[ka]);
         if (e) { viaAuto = true; return e; }
@@ -1435,7 +1444,7 @@ window.SIPAV = window.SIPAV || {};
     }
     // ---- 1. As linhas cruas: item, dia, encarregado, torre ----
     var brutas = [];
-    var encDesconhecidos = {}, torresDesconhecidas = {};
+    var encDesconhecidos = {}, torresDesconhecidas = {}, mesmaPessoa = {};
 
     // O que a planilha diz de cada nome que não foi reconhecido: em que atividades
     // aparece, com quem, em que dias e em que torres. É o que ajuda a decidir qual
@@ -1821,6 +1830,13 @@ window.SIPAV = window.SIPAV || {};
           anotarContexto(nome, b, atividadeDoNome);
         }
         else if (!equipe.some(function (x) { return x.id === e.id; })) equipe.push(e);
+        else {
+          // Dois nomes da mesma célula que deram na mesma pessoa: a dupla vira um encarregado só, e quem digitou
+          // precisa saber disso (ALIELTON / FERNANDO, com um Alielton Fernando no cadastro)
+          var par = b.encNomes.join(' / ');
+          mesmaPessoa[par] = mesmaPessoa[par] || { nomes: par, quem: e.nome, n: 0 };
+          mesmaPessoa[par].n++;
+        }
       });
       if (faltou) return;
       // Uma torre nas linhas de dois encarregados avulsos é um serviço com os dois (DEC-22);
@@ -1915,6 +1931,11 @@ window.SIPAV = window.SIPAV || {};
       problema('texto', 'Anotações da planilha que não são torre, ficaram de fora: ' +
         avulsas.sort().map(function (n) { return n + ' (' + anotacoes[n] + ')'; }).join(' · ') + '.');
     }
+
+    Object.keys(mesmaPessoa).sort().forEach(function (k) {
+      var m = mesmaPessoa[k];
+      problema('encarregado', 'Na mesma célula, "' + m.nomes + '" foram reconhecidos como a mesma pessoa (' + m.quem + ') e entraram como um encarregado só (' + m.n + ' lançamento(s)). Se são pessoas diferentes, escolha quem é cada uma na prévia.');
+    });
 
     Object.keys(faixasAjustadas).sort().forEach(function (k) {
       problema('torre', 'Intervalo "' + k + '": ' + faixasAjustadas[k].texto + ' (' + faixasAjustadas[k].n + ' ocorrência(s)).');

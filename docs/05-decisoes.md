@@ -16,6 +16,17 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 23/10/2026
 
+### Importação: dupla que vira uma pessoa só, e hífens que viravam encarregado **[WR]**
+
+Numa célula "ALIELTON / FERNANDO /", só o Alielton entrava. O motivo: o nome da planilha é o primeiro nome, e o SIPAV
+o acha pelas palavras do cadastro, em qualquer posição. Um encarregado cadastrado como "Alielton Fernando Dias" casa
+com os dois nomes, e a dupla virava uma pessoa só, sem nenhum aviso. Agora o relato diz: `Na mesma célula, "ALIELTON /
+FERNANDO" foram reconhecidos como a mesma pessoa (…)`. Quando mais de um encarregado cabe num nome, o que começa por
+ele ganha de quem só o tem no meio ("FERNANDO" é o Fernando Lima, não o Alielton Fernando).
+
+Também deixou de aparecer "Encarregado `- - - - -`: há mais de um no SIPAV": a linha da semana concatena as frentes e
+traz hífens quando nenhuma tem nome, e isso era lido como um nome. Texto só de hífens e espaços agora é vazio.
+
 ### Observação das torres: intervalo com ponta inexistente e botão na seleção **[WR]**
 
 Em "Observação nas torres", "213/1 a 215/2" não era reconhecido porque a 215/2 não existe no trecho: o intervalo
