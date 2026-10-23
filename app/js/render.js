@@ -973,21 +973,32 @@ window.SIPAV = window.SIPAV || {};
   /* ---------------------------------------- Consolidado: semana, quinzena, total -- */
 
   var VISOES_DO_CONSOLIDADO = [
-    { id: 'semana',   rotulo: 'Semana' },
-    { id: 'quinzena', rotulo: 'Quinzena' },
+    { id: 'semana',   rotulo: 'Semanal' },
+    { id: 'quinzena', rotulo: 'Quinzenal' },
     { id: 'total',    rotulo: 'Total' }
   ];
 
-  /** A semana de partida: a da tela, ou a de hoje. A quinzena é ela e a seguinte. */
+  /**
+   * A segunda-feira do semanal. O semanal é essa semana e o quinzenal é só a seguinte (a soma dos dois não é nenhum
+   * dos dois). Com "Esta semana", "Próxima", "Esta e a próxima" ou "Semanal e quinzenal de…" é a semana da própria
+   * tela; com "Todo o período", "Este mês" ou sem datas, é a semana em que o dia de hoje cai.
+   */
   function baseDoConsolidado() {
-    var de = E.periodo && E.periodo.de ? ui.paraData(E.periodo.de) : new Date();
+    var m = E.periodo && E.periodo.modo;
+    var daTela = m === 'semana' || m === 'proxima' || m === 'duas' || m === 'plano' || (m === 'custom' && E.periodo.de);
+    var de = daTela && E.periodo.de ? ui.paraData(E.periodo.de) : new Date();
     return ui.iso(ui.segundaDaSemana(de));
   }
 
   function visaoDoConsolidado() {
-    if (E.consolidadoVisao) return E.consolidadoVisao;
-    var m = E.periodo && E.periodo.modo;
-    return (m === 'semana' || m === 'proxima') ? 'semana' : 'quinzena';
+    return E.consolidadoVisao || 'semana';
+  }
+
+  /** O intervalo de cada visão: a semana de partida, só a seguinte, ou nada (o total é tudo). */
+  function janelaDoConsolidado(visao, base) {
+    var ini = visao === 'quinzena' ? ui.iso(ui.somarDias(ui.paraData(base), 7)) : base;
+    var fim = ui.iso(ui.somarDias(ui.paraData(base), visao === 'semana' ? 6 : 13));
+    return { de: ini, ate: fim };
   }
 
   function escolherConsolidado(visao) {
@@ -1011,9 +1022,9 @@ window.SIPAV = window.SIPAV || {};
       if (E.pedirConsolidado) E.pedirConsolidado(visao === 'total' ? 'total' : 'quinzena', base, chave, daObra);
       return null;
     }
-    var fim = ui.iso(ui.somarDias(ui.paraData(base), visao === 'semana' ? 6 : 13));
+    var janela = janelaDoConsolidado(visao, base);
     return fonte.filter(function (p) {
-      if (visao !== 'total' && (p.data < base || p.data > fim)) return false;
+      if (visao !== 'total' && (p.data < janela.de || p.data > janela.ate)) return false;
       return passaNosFiltros(p);
     });
   }
@@ -1480,7 +1491,7 @@ window.SIPAV = window.SIPAV || {};
     var rotuloDoPeriodo;
     if (!porVisao) rotuloDoPeriodo = ui.rotuloPeriodo(E.periodo.de, E.periodo.ate);
     else if (visao === 'total') rotuloDoPeriodo = E.escopo === 'todos' ? 'Tudo o que está programado na obra' : 'Tudo o que está programado neste trecho';
-    else rotuloDoPeriodo = ui.rotuloPeriodo(base, ui.iso(ui.somarDias(ui.paraData(base), visao === 'semana' ? 6 : 13)));
+    else { var j = janelaDoConsolidado(visao, base); rotuloDoPeriodo = (visao === 'semana' ? 'Semanal: ' : 'Quinzenal: ') + ui.rotuloPeriodo(j.de, j.ate); }
 
     var escolha = porVisao
       ? '<div class="flex gap-1 mt-2 consolidado-escolha">' +

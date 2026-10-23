@@ -18,9 +18,11 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ### Consolidado por encarregado: semana, quinzena e total, e a dupla que se completa **[WR]**
 
-O consolidado da aba Por Encarregado (torres, km, atividades e dias de cada um) agora tem a escolha **Semana,
-Quinzena e Total**. A semana é a da tela; a quinzena é ela e a seguinte; o total é tudo o que está programado (no trecho
-aberto, ou na obra, em Todos os trechos). A tela só carrega o período em que está, então a quinzena e o total vêm do
+O consolidado da aba Por Encarregado (torres, km, atividades e dias de cada um) agora tem a escolha **Semanal,
+Quinzenal e Total**, que não se somam: o semanal é só a primeira semana, o quinzenal só a segunda, e o total é
+tudo o que está programado (no trecho aberto, ou na obra, em Todos os trechos). Com Esta semana, Próxima, Esta e a
+próxima ou Semanal e quinzenal de…, a primeira semana é a da própria tela; com Todo o período ou Este mês, é a semana
+em que o dia de hoje cai, e o quinzenal é a seguinte. A tela só carrega o período em que está, então a quinzena e o total vêm do
 banco quando alguém os pede, e a tela se desenha de novo ao chegarem. Os filtros da tela valem para os três. Olhando um
 planejamento salvo, o consolidado continua sendo o da foto.
 
