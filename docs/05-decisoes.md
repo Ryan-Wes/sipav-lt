@@ -16,6 +16,17 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 23/10/2026
 
+### Dias sem atividade entram na seleção do Ctrl, e a caixinha sai **[WR]**
+
+O Ctrl + clique e o Ctrl + arrastar dos painéis agora marcam também os **dias sem atividade** (folga, mudança de trecho, deslocamento
+de máquina, feriado, outro), só para quem pode editá-los (administração e planejamento). A barra conta os dois ("1 programação e 1
+dia sem atividade marcados"). **Apagar** pergunta uma vez só, com a conta de cada coisa, e avisa que o feriado some de todos os
+trechos. **Editar**: um dia sem atividade marcado abre o editor dele; vários abrem uma janela para adiar/adiantar (com a opção de
+pular domingo) ou mudar para um dia, e trocar o encarregado de todos de uma vez (o feriado não tem encarregado e fica como está).
+Marcando programações e dias sem atividade juntos, Editar abre as programações e avisa que os dias sem atividade ficam de fora.
+
+Marcada, a programação deixou de mostrar a caixinha laranja: fica só o contorno. A caixinha continua na análise das solicitações,
+onde se marca para aprovar ou reprovar.
 ### Marcar programações com Ctrl nos painéis, para editar ou apagar **[WR]**
 
 Nos painéis Por data, Por encarregado e Por atividade, **Ctrl (ou Cmd) + clique** numa programação marca ela, sem precisar ligar o

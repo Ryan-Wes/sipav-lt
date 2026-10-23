@@ -26,7 +26,7 @@ window.SIPAV = window.SIPAV || {};
     modoSelecao: false, selecionadas: {},
     // O mesmo, nos painéis por data / encarregado / atividade, mas marcando a
     // programação e não a torre. Só liga pelo "Selecionar vários" lá em cima.
-    modoSelecaoProg: false, progSelecionadas: {}
+    modoSelecaoProg: false, progSelecionadas: {}, movSelecionadas: {}
   };
 
   var E = window.SIPAV.estado;
@@ -662,7 +662,9 @@ window.SIPAV = window.SIPAV || {};
       acao = op.acaoCustom || '';
     }
 
-    var marca = marcando
+    // Marcada, a programação só ganha o contorno. A caixinha fica na análise das solicitações, onde se marca para
+    // aprovar ou reprovar
+    var marca = (marcando && op.acaoCustom)
       ? '<span class="chip-marca' + (marcado ? ' chip-marca-on' : '') + '"></span>' : '';
 
     // Pré-programação do supervisor, ainda não aprovada: contorno tracejado e a marca PRÉ
@@ -1231,8 +1233,14 @@ window.SIPAV = window.SIPAV || {};
 
     var editavel = podeEditarMovimentacao();
 
-    return '<div class="chip-prog chip-mov-card' + (editavel ? ' chip-mov-editavel' : '') + '" ' +
-             (editavel ? 'onclick="SIPAV.app.abrirMovimentacao(\'' + m.id + '\')" ' : '') +
+    // Com "selecionar vários" ligado (ou Ctrl), o clique marca o dia sem atividade em vez de abrir; só para quem edita
+    var marcando = editavel && !!E.modoSelecaoProg;
+    var marcada = marcando && !!(E.movSelecionadas || {})[m.id];
+
+    return '<div class="chip-prog chip-mov-card' + (editavel ? ' chip-mov-editavel' : '') + (marcada ? ' chip-marcado' : '') + '" ' +
+             'data-mov="' + m.id + '" ' +
+             (editavel ? 'onclick="' + (marcando ? 'SIPAV.app.alternarMovimentacaoMarcada' : 'SIPAV.app.abrirMovimentacao') +
+                         '(\'' + m.id + '\')" ' : '') +
              'title="' + esc(dica) + '">' +
              '<span class="chip-torre chip-torre-mov">' +
                '<i data-lucide="' + (ICONE_MOVIMENTACAO[m.tipo] || 'ban') + '" class="w-4 h-4"></i>' +

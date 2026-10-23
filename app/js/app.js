@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v243 · 2026-10-23';
+  var VERSAO = 'v244 · 2026-10-23';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -168,7 +168,7 @@ window.SIPAV = window.SIPAV || {};
       if (ev.key !== 'Escape' || document.querySelector('.modal:not(.hidden)')) return;
       if (E.trocandoTorre) cancelarTrocaDeTorre();
       else if (E.modoSelecao && E.voltarAoLote) alternarModoSelecao();
-      else if (E.modoSelecaoProg && Object.keys(E.progSelecionadas).length) {
+      else if (E.modoSelecaoProg && totalMarcadasNosPaineis()) {
         if (E.selecaoProgPorTecla) alternarSelecaoProgramacoes(false); else limparSelecaoProgramacoes();
       }
     });
@@ -178,14 +178,14 @@ window.SIPAV = window.SIPAV || {};
       var alvo = ev.target;
       if (!alvo || !alvo.closest) return;
       // Fim de um arrasto, não um clique: o gesto já decidiu o que marcar
-      if (arrastou && alvo.closest('.chip-prog[data-prog]')) { ev.preventDefault(); ev.stopPropagation(); return; }
+      if (arrastou && alvo.closest('.chip-prog[data-prog], .chip-prog[data-mov]')) { ev.preventDefault(); ev.stopPropagation(); return; }
       if (!(ev.ctrlKey || ev.metaKey) || E.modoSupervisor || E.modoConsulta || E.snapshot || E.aba === 'grade') return;
-      var chip = alvo.closest('.chip-prog[data-prog]');
-      if (!chip || alvo.closest('button') || chip.closest('.modal')) return;
+      var chip = alvo.closest('.chip-prog[data-prog], .chip-prog[data-mov]');
+      if (!chipMarcavel(chip) || alvo.closest('button') || chip.closest('.modal')) return;
       if (somenteConsulta()) return;
       ev.preventDefault();
       ev.stopPropagation();
-      marcarProgramacaoComTecla(chip.getAttribute('data-prog'));
+      marcarComTecla(chip);
     }, true);
 
     // Clique fora fecha os menus suspensos
@@ -3809,11 +3809,17 @@ window.SIPAV = window.SIPAV || {};
     lacoProg = {
       painel: painel, x0: ev.pageX, y0: ev.pageY, caixa: null, subtraindo: ev.altKey, mexeu: false,
       silencioso: !E.modoSelecaoProg,
-      jaMarcadas: Object.keys(E.progSelecionadas).reduce(function (m, id) { m[id] = true; return m; }, {}),
-      origem: alvo.closest('.chip-prog[data-prog]')
+      jaMarcadas: Object.keys(E.progSelecionadas).reduce(function (m, id) { m['p' + id] = true; return m; },
+        Object.keys(E.movSelecionadas).reduce(function (m, id) { m['m' + id] = true; return m; }, {})),
+      origem: alvo.closest('.chip-prog[data-prog], .chip-prog[data-mov]')
     };
     document.addEventListener('mousemove', moverLacoDeProgramacoes);
     document.addEventListener('mouseup', soltarLacoDeProgramacoes);
+  }
+
+  /** 'p<id>' para programação, 'm<id>' para dia sem atividade: o mesmo mapa serve aos dois no arrasto. */
+  function chaveDoChip(el) {
+    return el.hasAttribute('data-mov') ? 'm' + el.getAttribute('data-mov') : 'p' + el.getAttribute('data-prog');
   }
 
   function moverLacoDeProgramacoes(ev) {
@@ -3835,7 +3841,7 @@ window.SIPAV = window.SIPAV || {};
       lacoProg.caixa = document.createElement('div');
       lacoProg.caixa.className = 'laco-selecao';
       document.body.appendChild(lacoProg.caixa);
-      if (lacoProg.origem && !lacoProg.subtraindo) lacoProg.jaMarcadas[lacoProg.origem.getAttribute('data-prog')] = true;
+      if (chipMarcavel(lacoProg.origem) && !lacoProg.subtraindo) lacoProg.jaMarcadas[chaveDoChip(lacoProg.origem)] = true;
     }
 
     lacoProg.caixa.style.left = x + 'px';
@@ -3844,15 +3850,18 @@ window.SIPAV = window.SIPAV || {};
     lacoProg.caixa.style.height = a + 'px';
     lacoProg.caixa.classList.toggle('laco-tirando', lacoProg.subtraindo);
 
-    Array.prototype.forEach.call(lacoProg.painel.querySelectorAll('.chip-prog[data-prog]'), function (el) {
-      var id = el.getAttribute('data-prog');
+    Array.prototype.forEach.call(lacoProg.painel.querySelectorAll('.chip-prog[data-prog], .chip-prog[data-mov]'), function (el) {
+      if (!chipMarcavel(el)) return;
+      var k = chaveDoChip(el);
+      var mapa = el.hasAttribute('data-mov') ? E.movSelecionadas : E.progSelecionadas;
+      var id = k.slice(1);
       var r = el.getBoundingClientRect();
       var dentro = !(r.right + window.scrollX < x || r.left + window.scrollX > x + l ||
                      r.bottom + window.scrollY < y || r.top + window.scrollY > y + a);
-      var deve = lacoProg.subtraindo ? (lacoProg.jaMarcadas[id] && !dentro) : (lacoProg.jaMarcadas[id] || dentro);
+      var deve = lacoProg.subtraindo ? (lacoProg.jaMarcadas[k] && !dentro) : (lacoProg.jaMarcadas[k] || dentro);
 
-      if (!!E.progSelecionadas[id] === deve) return;
-      if (deve) E.progSelecionadas[id] = true; else delete E.progSelecionadas[id];
+      if (!!mapa[id] === deve) return;
+      if (deve) mapa[id] = true; else delete mapa[id];
       el.classList.toggle('chip-marcado', deve);
     });
   }
@@ -3870,7 +3879,7 @@ window.SIPAV = window.SIPAV || {};
     arrastou = true;
     setTimeout(function () { arrastou = false; }, 0);
 
-    if (E.selecaoProgPorTecla && !Object.keys(E.progSelecionadas).length) { alternarSelecaoProgramacoes(false); return; }
+    if (E.selecaoProgPorTecla && !totalMarcadasNosPaineis()) { alternarSelecaoProgramacoes(false); return; }
     render.tudo();
     renderBarraSelecaoProg();
   }
@@ -5561,6 +5570,7 @@ window.SIPAV = window.SIPAV || {};
     E.modoSelecaoProg = !!ligado;
     E.selecaoProgPorTecla = false;
     E.progSelecionadas = {};
+    E.movSelecionadas = {};
 
     var check = $('checkSelecaoProg');
     if (check) check.checked = E.modoSelecaoProg;
@@ -5569,32 +5579,47 @@ window.SIPAV = window.SIPAV || {};
     renderBarraSelecaoProg();
   }
 
-  function alternarProgramacaoMarcada(id) {
-    if (E.progSelecionadas[id]) delete E.progSelecionadas[id];
-    else E.progSelecionadas[id] = true;
+  /** Programações e dias sem atividade marcados nos painéis, juntos. */
+  function totalMarcadasNosPaineis() {
+    return Object.keys(E.progSelecionadas).length + Object.keys(E.movSelecionadas).length;
+  }
+
+  function alternarMarcada(mapa, id) {
+    if (mapa[id]) delete mapa[id];
+    else mapa[id] = true;
 
     // Começou pelo Ctrl: sem nenhuma marcada, o modo e a barra saem sozinhos
-    if (E.selecaoProgPorTecla && !Object.keys(E.progSelecionadas).length) { alternarSelecaoProgramacoes(false); return; }
+    if (E.selecaoProgPorTecla && !totalMarcadasNosPaineis()) { alternarSelecaoProgramacoes(false); return; }
 
     render.tudo();
     renderBarraSelecaoProg();
   }
 
+  function alternarProgramacaoMarcada(id) { alternarMarcada(E.progSelecionadas, id); }
+  function alternarMovimentacaoMarcada(id) { alternarMarcada(E.movSelecionadas, id); }
+
   /**
    * Ctrl (ou Cmd) + clique numa programação dos painéis marca ela, sem passar pelo "Selecionar vários": o modo liga
    * sozinho e desliga quando a última marcada sai (ou no Esc). Sem o Ctrl o clique continua abrindo a torre.
    */
-  function marcarProgramacaoComTecla(id) {
+  function marcarComTecla(chip) {
     if (!E.modoSelecaoProg) {
       alternarSelecaoProgramacoes(true);
       if (!E.modoSelecaoProg) return;
       E.selecaoProgPorTecla = true;
     }
-    alternarProgramacaoMarcada(id);
+    if (chip.hasAttribute('data-mov')) alternarMovimentacaoMarcada(chip.getAttribute('data-mov'));
+    else alternarProgramacaoMarcada(chip.getAttribute('data-prog'));
+  }
+
+  /** O chip é de programação ou de dia sem atividade? Dia sem atividade só marca quem pode editá-lo. */
+  function chipMarcavel(el) {
+    return !!el && (el.hasAttribute('data-prog') || (el.hasAttribute('data-mov') && podeRegistrarMovimentacao()));
   }
 
   function limparSelecaoProgramacoes() {
     E.progSelecionadas = {};
+    E.movSelecionadas = {};
     render.tudo();
     renderBarraSelecaoProg();
   }
@@ -5612,13 +5637,18 @@ window.SIPAV = window.SIPAV || {};
     var barra = $('barraSelecaoProg');
     if (!barra) return;
 
-    var n = Object.keys(E.progSelecionadas).length;
+    var np = Object.keys(E.progSelecionadas).length;
+    var nm = Object.keys(E.movSelecionadas).length;
+    var n = np + nm;
 
     barra.classList.toggle('hidden', !E.modoSelecaoProg);
     if (!E.modoSelecaoProg) return;
 
+    var partes = [];
+    if (np) partes.push(np + (np === 1 ? ' programação' : ' programações'));
+    if (nm) partes.push(nm + (nm === 1 ? ' dia sem atividade' : ' dias sem atividade'));
     $('contagemSelecaoProg').textContent = n
-      ? n + (n === 1 ? ' programação marcada' : ' programações marcadas')
+      ? partes.join(' e ') + (nm ? (n === 1 ? ' marcado' : ' marcados') : (n === 1 ? ' marcada' : ' marcadas'))
       : 'Clique nas programações para marcar';
 
     $('btnEditarSelecaoProg').disabled = !n;
@@ -5661,11 +5691,39 @@ window.SIPAV = window.SIPAV || {};
   /** As marcadas nos painéis, com a lista inteira à vista antes de confirmar. */
   function apagarProgramacoesMarcadas() {
     var ids = Object.keys(E.progSelecionadas);
-    if (!ids.length) { ui.avisar('Marque pelo menos uma programação.', 'alerta'); return; }
+    var movs = movimentacoesMarcadas();
+    if (!ids.length && !movs.length) { ui.avisar('Marque pelo menos uma programação.', 'alerta'); return; }
 
     var alvo = ordenarParaApagar(E.programacoes.filter(function (p) {
       return E.progSelecionadas[p.id];
     }));
+
+    // Com dias sem atividade na seleção: uma pergunta só, com a conta de cada coisa
+    if (movs.length) {
+      var oque = (alvo.length ? alvo.length + (alvo.length === 1 ? ' programação e ' : ' programações e ') : '') +
+                 movs.length + (movs.length === 1 ? ' dia sem atividade' : ' dias sem atividade');
+      var temFeriado = movs.some(function (m) { return m.tipo === 'FERIADO'; });
+      ui.confirmar('Apagar ' + oque,
+        'Apaga ' + oque + '. Não tem desfazer.' +
+        (temFeriado ? ' O feriado some de todos os trechos.' : ''), 'Apagar')
+        .then(function (sim) {
+          if (!sim) return;
+          ui.processando('Apagando…');
+          return db.removerMovimentacoes(movs.map(function (m) { return m.id; }))
+            .then(function () {
+              E.movSelecionadas = {};
+              if (alvo.length) { ui.pronto(); executarApagar(alvo); return; }
+              return recarregarProgramacoes().then(function () {
+                ui.pronto();
+                if (E.selecaoProgPorTecla && !totalMarcadasNosPaineis()) alternarSelecaoProgramacoes(false);
+                else renderBarraSelecaoProg();
+                ui.avisar(movs.length === 1 ? 'Dia sem atividade apagado.' : movs.length + ' dias sem atividade apagados.', 'sucesso');
+              });
+            });
+        })
+        .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro', 6000); });
+      return;
+    }
 
     if (!alvo.length) {
       // Marcada e depois some do período por um filtro: nada a fazer
@@ -5886,8 +5944,113 @@ window.SIPAV = window.SIPAV || {};
   /** Editar as programações marcadas nos painéis (Ctrl+clique ou Selecionar vários): a mesma janela do lote. */
   function editarProgramacoesMarcadas() {
     var doLote = E.programacoes.filter(function (p) { return E.progSelecionadas[p.id]; });
-    if (!doLote.length) { ui.avisar('Marque pelo menos uma programação.', 'alerta'); return; }
+    var movs = movimentacoesMarcadas();
+    if (!doLote.length && !movs.length) { ui.avisar('Marque pelo menos uma programação.', 'alerta'); return; }
+    // Só dias sem atividade: um abre o editor dele, vários abrem a janela própria
+    if (!doLote.length) { editarMovimentacoesMarcadas(movs); return; }
+    if (movs.length) ui.avisar('Os dias sem atividade marcados ficam de fora: edite-os à parte.', 'info', 6000);
     abrirEdicaoDeProgramacoes(doLote, '<strong>' + doLote.length + '</strong>' + (doLote.length === 1 ? ' programação marcada' : ' programações marcadas'));
+  }
+
+  function movimentacoesMarcadas() {
+    return (E.movimentacoes || []).filter(function (m) { return E.movSelecionadas[m.id]; });
+  }
+
+  /** Um dia sem atividade marcado abre o editor dele; vários, uma janela para mudar o dia e o encarregado de todos. */
+  function editarMovimentacoesMarcadas(movs) {
+    if (movs.length === 1) { abrirMovimentacao(movs[0].id); return; }
+
+    var opcoesEnc = E.encarregados.map(function (e) {
+      return '<option value="' + e.id + '">' + esc(e.nome) + '</option>';
+    }).join('');
+
+    ui.modalGenerico({
+      titulo: 'Alterar ' + movs.length + ' dias sem atividade',
+      corpoHtml:
+        '<div class="space-y-3">' +
+          '<p class="text-xs" style="color:var(--texto-fraco)">Campo em branco não é alterado.</p>' +
+          '<div><label class="rotulo" style="font-size:.625rem">Dia</label>' +
+            '<div class="flex flex-wrap items-center gap-2">' +
+              '<select id="edMovModo" class="campo" style="width:150px">' +
+                '<option value="">Não alterar</option>' +
+                '<option value="deslocar">Adiar / adiantar</option>' +
+                '<option value="fixa">Mudar para</option>' +
+              '</select>' +
+              '<div id="edMovDeslocar" class="hidden flex items-center gap-1">' +
+                '<input id="edMovDias" type="number" step="1" value="1" class="campo" style="width:70px">' +
+                '<span class="text-sm" style="color:var(--texto-suave)">dia(s) <span class="text-xs" style="color:var(--texto-fraco)">· negativo adianta</span></span>' +
+                '<label class="flex items-center gap-1.5 text-xs cursor-pointer ml-2" style="color:var(--texto-suave)">' +
+                  '<input type="checkbox" id="edMovPular" class="rounded" checked> pular domingo</label>' +
+              '</div>' +
+              '<input id="edMovDataFixa" type="date" class="campo hidden" style="width:150px">' +
+            '</div>' +
+          '</div>' +
+          '<div><label class="rotulo" style="font-size:.625rem">Encarregado</label>' +
+            '<select id="edMovEnc" class="campo"><option value="">Não alterar</option>' + opcoesEnc + '</select>' +
+            '<p class="text-xs mt-1" style="color:var(--texto-fraco)">O feriado não tem encarregado e fica como está.</p>' +
+          '</div>' +
+        '</div>',
+      botoes: [
+        { rotulo: 'Cancelar', classe: 'btn-secundario' },
+        { rotulo: 'Aplicar', classe: 'btn-primario', acao: function () { aplicarEdicaoDeMovimentacoes(movs); } }
+      ]
+    });
+
+    $('edMovModo').addEventListener('change', function () {
+      $('edMovDeslocar').classList.toggle('hidden', this.value !== 'deslocar');
+      $('edMovDataFixa').classList.toggle('hidden', this.value !== 'fixa');
+    });
+  }
+
+  /** Soma (ou tira) dias, pulando o domingo quando pedido: o domingo é DSR e não conta como dia de obra. */
+  function deslocarDia(iso, dias, pularDomingo) {
+    var d = ui.paraData(iso), passo = dias < 0 ? -1 : 1, n = Math.abs(dias);
+    while (n > 0) {
+      d = ui.somarDias(d, passo);
+      if (pularDomingo && d.getDay() === 0) continue;
+      n--;
+    }
+    return ui.iso(d);
+  }
+
+  function aplicarEdicaoDeMovimentacoes(movs) {
+    var modo = $('edMovModo').value;
+    var dias = parseInt($('edMovDias').value, 10) || 0;
+    var fixa = $('edMovDataFixa').value;
+    var pular = $('edMovPular').checked;
+    var encId = $('edMovEnc').value;
+
+    if (!modo && !encId) { ui.avisar('Escolha o que mudar.', 'alerta'); return; }
+    if (modo === 'deslocar' && !dias) { ui.avisar('Diga quantos dias.', 'alerta'); return; }
+    if (modo === 'fixa' && !fixa) { ui.avisar('Escolha a nova data.', 'alerta'); return; }
+
+    ui.processando('Alterando…');
+    var ok = 0, falhou = [];
+
+    movs.reduce(function (antes, m) {
+      return antes.then(function () {
+        var data = modo === 'deslocar' ? deslocarDia(m.data, dias, pular) : modo === 'fixa' ? fixa : m.data;
+        var enc = m.tipo === 'FERIADO' ? null : (encId || (m.encarregado ? m.encarregado.id : null));
+        return db.salvarMovimentacao({
+          id: m.id, tipo: m.tipo, data: data,
+          encarregadoId: enc,
+          encarregado2Id: m.tipo === 'FERIADO' ? null : (m.encarregado2 ? m.encarregado2.id : null),
+          canteiroOrigemId: m.canteiro_origem_id, canteiroDestinoId: m.canteiro_destino_id,
+          observacao: m.observacao
+        })
+          .then(function () { ok++; })
+          .catch(function (e) { falhou.push(ui.dataCurta(m.data) + ': ' + e.message); });
+      });
+    }, Promise.resolve())
+      .then(recarregarProgramacoes)
+      .then(function () {
+        ui.pronto();
+        ui.fecharModal('modalGenerico');
+        if (E.selecaoProgPorTecla) alternarSelecaoProgramacoes(false); else limparSelecaoProgramacoes();
+        if (falhou.length) ui.avisar(ok + ' alterados. Não consegui: ' + falhou.slice(0, 3).join(' · '), 'alerta', 9000);
+        else ui.avisar(ok + ' dias sem atividade alterados.', 'sucesso');
+      })
+      .catch(function (e) { ui.pronto(); ui.avisar(e.message, 'erro', 6000); });
   }
 
   function abrirEdicaoDeProgramacoes(programacoes, quem) {
@@ -11053,6 +11216,7 @@ window.SIPAV = window.SIPAV || {};
     fecharModal: ui.fecharModal,
 
     abrirTorre: abrirTorre,
+    alternarMovimentacaoMarcada: alternarMovimentacaoMarcada,
     editarProgramacoesMarcadas: editarProgramacoesMarcadas,
     verificarBloqueio: verificarBloqueio,
     verificarConflito: verificarConflito,
