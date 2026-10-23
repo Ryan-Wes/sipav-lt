@@ -26,7 +26,7 @@ em que o dia de hoje cai, e o quinzenal é a seguinte. A tela só carrega o per�
 banco quando alguém os pede, e a tela se desenha de novo ao chegarem. Os filtros da tela valem para os três. Olhando um
 planejamento salvo, o consolidado continua sendo o da foto.
 
-Na importação da ISA, a torre com a dupla "A / B" ficava só com o A quando o SIPAV já tinha a programação do A: a chave
+Cada bloco de encarregado mostra o total de **cada semana** (torres, km e atividades), no cabeçalho e na faixa de cada\nsemana, e não só o das duas juntas: a soma das duas está no consolidado do topo. Passando de duas semanas no período,\no cabeçalho volta a mostrar o total do período. Os botões do consolidado levam o nome que a semana tem no resto da\ntela (Semanal, Quinzenal, ou Semana atual quando a semana de hoje ainda não é o semanal).\n\nNa importação da ISA, a torre com a dupla "A / B" ficava só com o A quando o SIPAV já tinha a programação do A: a chave
 de "já existe" olha só o primeiro encarregado, então o B nunca entrava. Agora a prévia mostra "completam a dupla" e a
 importação põe o segundo encarregado na programação que já existe, sem criar outra.
 

@@ -1488,16 +1488,25 @@ window.SIPAV = window.SIPAV || {};
 
   /** O cabeçalho (com a escolha semana / quinzena / total) e a tabela do consolidado por encarregado. */
   function tabelaDoConsolidado(lista, visao, base, porVisao) {
+    // Os botões levam o nome que a semana tem no resto da tela (o mesmo das faixas de cada encarregado):
+    // "Semanal" e "Quinzenal", ou "Semana atual" quando a semana de hoje ainda não é o semanal
+    function nomeCurto(segunda) { return nomeDaSemana(segunda).replace(/^(Semana atual) de .*$/, '$1'); }
+    var nomes = {
+      semana: nomeCurto(base),
+      quinzena: nomeCurto(ui.iso(ui.somarDias(ui.paraData(base), 7))),
+      total: 'Total'
+    };
+
     var rotuloDoPeriodo;
     if (!porVisao) rotuloDoPeriodo = ui.rotuloPeriodo(E.periodo.de, E.periodo.ate);
     else if (visao === 'total') rotuloDoPeriodo = E.escopo === 'todos' ? 'Tudo o que está programado na obra' : 'Tudo o que está programado neste trecho';
-    else { var j = janelaDoConsolidado(visao, base); rotuloDoPeriodo = (visao === 'semana' ? 'Semanal: ' : 'Quinzenal: ') + ui.rotuloPeriodo(j.de, j.ate); }
+    else { var j = janelaDoConsolidado(visao, base); rotuloDoPeriodo = nomes[visao] + ': ' + ui.rotuloPeriodo(j.de, j.ate); }
 
     var escolha = porVisao
       ? '<div class="flex gap-1 mt-2 consolidado-escolha">' +
           VISOES_DO_CONSOLIDADO.map(function (v) {
             return '<button type="button" class="btn-secundario' + (v.id === visao ? ' ativo' : '') + '" ' +
-                   'onclick="SIPAV.render.escolherConsolidado(\'' + v.id + '\')">' + v.rotulo + '</button>';
+                   'onclick="SIPAV.render.escolherConsolidado(\'' + v.id + '\')">' + esc(nomes[v.id]) + '</button>';
           }).join('') +
         '</div>'
       : '';
@@ -1629,14 +1638,29 @@ window.SIPAV = window.SIPAV || {};
         if (!porSemana.mapa[s]) { porSemana.mapa[s] = []; porSemana.ordem.push(s); }
       });
 
+      // O total de cada semana (torres, km e atividades), e não só o das duas juntas: a soma das duas já está
+      // no consolidado do topo
+      function totalDaSemana(segunda) {
+        var daSemana = itens.filter(function (p) { return ui.iso(ui.segundaDaSemana(ui.paraData(p.data))) === segunda; });
+        var tt = totais(daSemana);
+        return { n: daSemana.length, torres: tt.torres, km: tt.km };
+      }
+      function textoDoTotal(x) {
+        return x.torres + (x.torres === 1 ? ' torre' : ' torres') + ' · ' + ui.km(x.km) + ' km · ' +
+               x.n + (x.n === 1 ? ' atividade' : ' atividades');
+      }
+      var segundasEmOrdem = porSemana.ordem.slice().sort();
+
       // As segundas-feiras em ordem, sempre
-      var corpo = porSemana.ordem.slice().sort().map(function (segunda) {
+      var corpo = segundasEmOrdem.map(function (segunda) {
+        var doDia = totalDaSemana(segunda);
         return '<div class="faixa-semana">' +
                  '<span class="faixa-semana-nome">' + esc(nomeDaSemana(segunda)) + '</span>' +
                  '<span class="faixa-semana-datas">' +
                    esc(ui.dataCurta(segunda)) + ' a ' +
                    esc(ui.dataCurta(ui.iso(ui.somarDias(ui.paraData(segunda), 6)))) +
                  '</span>' +
+                 (doDia.n ? '<span class="faixa-semana-total">' + esc(textoDoTotal(doDia)) + '</span>' : '') +
                '</div>' +
                semanaEmDias(segunda, porSemana.mapa[segunda], nome, dele ? dele.id : null);
       }).join('');
@@ -1666,8 +1690,15 @@ window.SIPAV = window.SIPAV || {};
                     'onclick="SIPAV.render.fecharEncarregadoAberto(\'' + dele.id + '\')">Fechar</button>'
                 : '') +
               (itens.length
-                ? t.torres + (t.torres === 1 ? ' torre' : ' torres') + ' · ' + ui.km(t.km) + ' km · ' +
-                  itens.length + (itens.length === 1 ? ' atividade' : ' atividades')
+                // Duas semanas (o semanal e o quinzenal): o total de cada uma. Mais que isso, o total do período
+                ? (segundasEmOrdem.length <= 2
+                    ? segundasEmOrdem.map(function (segunda) {
+                        var doDia = totalDaSemana(segunda);
+                        return '<span>' + esc(nomeDaSemana(segunda)) + ': ' +
+                               (doDia.n ? esc(textoDoTotal(doDia)) : 'nada programado') + '</span>';
+                      }).join('<span class="text-slate-300">|</span>')
+                    : t.torres + (t.torres === 1 ? ' torre' : ' torres') + ' · ' + ui.km(t.km) + ' km · ' +
+                      itens.length + (itens.length === 1 ? ' atividade' : ' atividades'))
                 : 'sem atividade nas torres') +
             '</span>' +
           '</header>' +
