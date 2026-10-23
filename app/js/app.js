@@ -17,7 +17,7 @@ window.SIPAV = window.SIPAV || {};
   var $ = ui.$, esc = ui.esc;
 
   // Confere no console qual build está carregado. Sobe junto com o ?v= do HTML.
-  var VERSAO = 'v238 · 2026-10-23';
+  var VERSAO = 'v239 · 2026-10-23';
 
   var torreAberta = null;
   var cancelarEscuta = null;
@@ -3582,8 +3582,16 @@ window.SIPAV = window.SIPAV || {};
     if (E.snapshot && !E.modoSelecao) { somenteConsulta(); return; }
     E.selecaoPorTecla = false;
     E.modoSelecao = !E.modoSelecao;
+    // Desistiu de marcar na grade para o lançamento por encarregado: volta para ele, no bloco dele
+    var desistiuDoLote = !E.modoSelecao ? E.voltarAoLote : null;
     if (!E.modoSelecao) { E.selecionadas = {}; E.voltarAoLote = null; E.rastro = null; }
     document.body.classList.toggle('modo-selecao', E.modoSelecao);
+    if (desistiuDoLote) {
+      trocarAba('encarregados');
+      renderBarraSelecao();
+      if (desistiuDoLote.u.encarregadoId) setTimeout(function () { render.irParaEncarregado(desistiuDoLote.u.encarregadoId); }, 80);
+      return;
+    }
     if (E.aba !== 'grade') trocarAba('grade');
     render.tudo();
     renderBarraSelecao();
@@ -9305,6 +9313,7 @@ window.SIPAV = window.SIPAV || {};
     var dados = p.dados || {};
 
     if (E.planejando) limparPlanejamento();
+    E.voltarAoLote = null;
     if (E.modoSelecao) alternarModoSelecao();
     if (E.modoSelecaoProg) alternarSelecaoProgramacoes(false);
     E.selecionadas = {};

@@ -1538,6 +1538,12 @@ html.dark .banner-planejando .banner-historico-titulo { color: #38BDF8; }
   font-size: .5625rem; font-weight: 800; letter-spacing: .04em; vertical-align: 1px;
   color: var(--texto-suave); border: 1px solid var(--borda-forte);
 }
+/* Revisão que é só retirada de flambagem ou de pendências */
+.tag-nota {
+  display: inline-block; margin-left: .25rem; padding: 0 .3125rem; border-radius: .25rem;
+  font-size: .5625rem; font-weight: 800; letter-spacing: .04em; vertical-align: 1px; white-space: nowrap;
+  color: var(--acento); border: 1px solid var(--acento); background: rgba(249,115,22,.08);
+}
 /* Dia da coluna: SEG 12/10 ........ FERIADO. A data junto do dia da semana, e o aviso
    de feriado no canto, sem desmontar o cabeçalho */
 .dia-col-cab { justify-content: flex-start; gap: .5rem; }

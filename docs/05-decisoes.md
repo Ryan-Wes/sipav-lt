@@ -16,6 +16,15 @@ reunião de 22/09/2026 · **[PROT]** vinha do protótipo.
 
 ## 23/10/2026
 
+### Desistir do Marcar na grade volta para o encarregado; revisão só de flambagem aparece **[WR]**
+
+Se eu abro o Lançar por encarregado, vou em **Marcar na grade** e desisto (o X da barra de seleção), a tela volta para a aba Por
+encarregado e rola até o bloco daquele encarregado, destacando-o. Antes ficava na grade, sem rastro de onde eu estava. Entrar no
+histórico de uma foto não faz esse retorno.
+
+A revisão que é só **retirada de flambagem** (ou **retirada de pendências**) ganhou uma etiqueta ao lado da atividade, nos chips dos
+painéis e nos itens do cartão da torre: RET. FLAMBAGEM e RET. PENDÊNCIAS. O texto vem da observação da programação, que é onde essa
+nota já era gravada (e de onde a planilha da ISA a lê), então nada muda no banco.
 ### Feriado vale para todos os trechos **[WR]**
 
 O feriado é da obra, não do trecho. Registrado em qualquer trecho, ele aparece nos painéis, na grade, no formulário e na planilha da

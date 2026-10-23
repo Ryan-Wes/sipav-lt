@@ -298,6 +298,18 @@ window.SIPAV = window.SIPAV || {};
     return '<span class="tag-cabo">' + esc(nome) + '</span>';
   }
 
+  /**
+   * A revisão que é só retirada de flambagem (ou de pendências) leva isso na observação. Na lista das programações vira uma
+   * etiqueta, para quem lê saber que não é a revisão inteira.
+   */
+  function tagNotaRevisao(p) {
+    if (!p.observacao) return '';
+    var o = String(p.observacao).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    var texto = o.indexOf('retirada de flambagem') !== -1 ? 'RET. FLAMBAGEM'
+              : o.indexOf('retirada de pendencias') !== -1 ? 'RET. PENDÊNCIAS' : '';
+    return texto ? '<span class="tag-nota" title="' + esc(p.observacao) + '">' + texto + '</span>' : '';
+  }
+
   /** O pórtico é uma torre cadastrada com o nome "PÓRTICO…": é a ponta da linha, não uma torre a montar. */
   function ehPortico(torre) {
     return String(torre.identificador || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
@@ -400,7 +412,7 @@ window.SIPAV = window.SIPAV || {};
                 '<b class="dia-curto' + (ui.fimDeSemana(p.data) ? ' fim-de-semana' : '') + '">' +
                   esc(ui.diaDaSemana(p.data).slice(0, 3)) + '</b>' +
               '</span> ' +
-              tagPreDoItem(p) + nomeDuplo(p) + tagCabo(p) +
+              tagPreDoItem(p) + nomeDuplo(p) + tagCabo(p) + tagNotaRevisao(p) +
               marcaFeito(p) +
               // Sempre aparece. O 100% vem apagado, para a parte repartida seguir
               // chamando mais atenção que o serviço inteiro
@@ -525,7 +537,7 @@ window.SIPAV = window.SIPAV || {};
                 '<b class="dia-curto' + (ui.fimDeSemana(p.data) ? ' fim-de-semana' : '') + '">' +
                   esc(ui.diaDaSemana(p.data).slice(0, 3)) + '</b>' +
               '</span> ' +
-              tagPreDoItem(p) + nomeDuplo(p) + tagCabo(p) +
+              tagPreDoItem(p) + nomeDuplo(p) + tagCabo(p) + tagNotaRevisao(p) +
               marcaFeito(p) +
               '<span class="parcial' + (Number(p.percentual) >= 100 ? ' cheio' : '') + '">' + rotuloParcial(p) + '</span>' +
               (p.encarregado ? '<span class="encarregado">' + esc(nomesDosEncarregados(p)) + '</span>' : '') +
@@ -618,7 +630,7 @@ window.SIPAV = window.SIPAV || {};
         ? '<span class="chip-encarregado">' + esc(nomesDosEncarregados(p)) + '</span>' : '';
     }
 
-    var parcial = tagTrecho(p.torre ? p.torre.trecho_id : null) + tagCabo(p) + '<span class="chip-parcial' + (Number(p.percentual) >= 100 ? ' cheio' : '') + '">' +
+    var parcial = tagTrecho(p.torre ? p.torre.trecho_id : null) + tagCabo(p) + tagNotaRevisao(p) + '<span class="chip-parcial' + (Number(p.percentual) >= 100 ? ' cheio' : '') + '">' +
       rotuloParcial(p) + '</span>' + marcaFeito(p);
 
     // Com "selecionar vários" ligado, o clique marca em vez de abrir a torre.
